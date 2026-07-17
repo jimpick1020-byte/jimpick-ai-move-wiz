@@ -107,11 +107,11 @@ export function Login() {
   return (
     <MobileShell bg="bg-white">
       <div
-        className="px-8 py-12 text-white text-center"
+        className="px-8 pt-10 pb-14 text-white text-center"
         style={{ background: "linear-gradient(135deg, #287BFF 0%, #0751D8 100%)" }}
       >
-        <div className="text-5xl mb-3">📦</div>
-        <div className="text-3xl font-black">JIMPICK</div>
+        <img src={logoImg} alt="JIMPICK" className="w-20 h-20 mx-auto" />
+        <div className="text-3xl font-black mt-2">JIMPICK</div>
         <div className="text-sm opacity-90 mt-1">AI 이사 견적</div>
       </div>
       <div className="flex-1 px-6 py-8 space-y-5">
