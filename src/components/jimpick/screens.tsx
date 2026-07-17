@@ -41,33 +41,50 @@ import {
 import { toast } from "sonner";
 
 // ============ Splash ============
+import truckImg from "@/assets/jimpick-truck.png";
+import logoImg from "@/assets/jimpick-logo.png";
+import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle } from "lucide-react";
+
 export function Splash() {
   const { setScreen, loggedIn } = useApp();
   useEffect(() => {
-    const t = setTimeout(() => setScreen(loggedIn ? "home" : "login"), 2000);
+    const t = setTimeout(() => setScreen(loggedIn ? "home" : "login"), 2500);
     return () => clearTimeout(t);
   }, [setScreen, loggedIn]);
+  const features = [
+    { icon: FileText, label: "간편한 견적 작성" },
+    { icon: CamIcon, label: "AI 사진 인식" },
+    { icon: MapPin, label: "정확한 거리·시간" },
+    { icon: Sparkles, label: "맞춤형 견적 제공" },
+    { icon: UserCircle, label: "고객 관리 & 기록" },
+  ];
   return (
-    <MobileShell bg="">
+    <MobileShell bg="bg-white">
       <div
         onClick={() => setScreen(loggedIn ? "home" : "login")}
-        className="flex-1 flex flex-col items-center justify-between py-16 px-8 text-white"
-        style={{ background: "linear-gradient(135deg, #287BFF 0%, #0751D8 100%)" }}
+        className="flex-1 flex flex-col items-center px-8 pt-8 pb-4"
       >
-        <div className="text-center space-y-3 mt-8">
-          <div className="text-4xl font-black tracking-tight">JIMPICK 7.0</div>
-          <div className="text-xl font-semibold">AI 이사 견적 앱</div>
-          <div className="text-sm opacity-90">이사 견적, 더 쉽고 정확하게!</div>
+        <div className="text-center">
+          <div className="flex items-baseline justify-center gap-2">
+            <span className="text-5xl font-black text-[#0751D8] tracking-tight">JIMPICK</span>
+            <span className="text-lg font-bold text-white bg-[#0751D8] rounded-md px-2 py-0.5">7.0</span>
+          </div>
+          <div className="text-lg font-bold text-[#111827] mt-3">AI 이사 견적 앱</div>
+          <div className="text-sm text-[#6B7280] mt-1">이사 견적, 더 쉽고 정확하게!</div>
         </div>
-        <div className="space-y-3 w-full">
-          {["간편한 견적 작성", "AI 사진 인식", "정확한 거리·시간", "맞춤형 견적 제공", "고객 관리 & 기록"].map((t) => (
-            <div key={t} className="bg-white/15 backdrop-blur rounded-2xl px-5 py-3 text-center font-semibold">
-              {t}
+        <div className="space-y-2.5 w-full mt-8">
+          {features.map(({ icon: Icon, label }) => (
+            <div key={label} className="flex items-center gap-3 px-2">
+              <div className="w-9 h-9 rounded-xl bg-[#EEF4FF] flex items-center justify-center">
+                <Icon className="w-5 h-5 text-[#0751D8]" />
+              </div>
+              <span className="font-semibold text-[#111827]">{label}</span>
             </div>
           ))}
         </div>
-        <div className="text-7xl">🚚📦🪴</div>
-        <div className="text-xs opacity-80">화면을 터치하면 시작합니다</div>
+        <div className="mt-auto pt-6">
+          <img src={truckImg} alt="JIMPICK 트럭" className="w-full max-w-[340px]" />
+        </div>
       </div>
     </MobileShell>
   );
@@ -90,11 +107,11 @@ export function Login() {
   return (
     <MobileShell bg="bg-white">
       <div
-        className="px-8 py-12 text-white text-center"
+        className="px-8 pt-10 pb-14 text-white text-center"
         style={{ background: "linear-gradient(135deg, #287BFF 0%, #0751D8 100%)" }}
       >
-        <div className="text-5xl mb-3">📦</div>
-        <div className="text-3xl font-black">JIMPICK</div>
+        <img src={logoImg} alt="JIMPICK" className="w-20 h-20 mx-auto" />
+        <div className="text-3xl font-black mt-2">JIMPICK</div>
         <div className="text-sm opacity-90 mt-1">AI 이사 견적</div>
       </div>
       <div className="flex-1 px-6 py-8 space-y-5">
