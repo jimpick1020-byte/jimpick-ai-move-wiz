@@ -43,7 +43,7 @@ import { toast } from "sonner";
 // ============ Splash ============
 import truckImg from "@/assets/jimpick-truck.png";
 import logoImg from "@/assets/jimpick-logo.png";
-import { Art3D, ITEM_IMG, ROOM_IMG, VEHICLE_IMG, CHAR_IMG } from "@/lib/jimpick-art";
+import { Art3D, ITEM_IMG, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 
 import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle } from "lucide-react";
 
@@ -460,7 +460,7 @@ export function Step3() {
               }
               className="text-center py-6"
             >
-              <div className="text-5xl mb-2">🪜</div>
+              <Art3D src={ENV_IMG["계단"]} alt="계단" size={72} className="mx-auto mb-2" />
               <div className="font-bold">계단 (수작업)</div>
             </Card>
             <Card
@@ -468,7 +468,7 @@ export function Step3() {
               onClick={() => updateDraft({ workEnv: "엘리베이터" })}
               className="text-center py-6"
             >
-              <div className="text-5xl mb-2">🛗</div>
+              <Art3D src={ENV_IMG["엘리베이터"]} alt="엘리베이터" size={72} className="mx-auto mb-2" />
               <div className="font-bold">엘리베이터</div>
             </Card>
           </div>

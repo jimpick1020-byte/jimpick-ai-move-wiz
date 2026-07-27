@@ -28,6 +28,9 @@ import truck5t from "@/assets/veh-truck5t.png";
 import ladder from "@/assets/veh-ladder.png";
 import charMale from "@/assets/char-male.png";
 import charFemale from "@/assets/char-female.png";
+import envStairs from "@/assets/env-stairs.png";
+import envElevator from "@/assets/env-elevator.png";
+
 
 export const ITEM_IMG: Record<string, string> = {
   bed, wardrobe, sofa, fridge, washer, tv, table, chair,
@@ -44,6 +47,8 @@ export const ROOM_IMG: Record<string, string> = {
 };
 
 export const VEHICLE_IMG = { truck1t, truck5t, ladder };
+export const ENV_IMG = { 계단: envStairs, 엘리베이터: envElevator };
+
 export const CHAR_IMG = { male: charMale, female: charFemale };
 
 /** 3D 에셋 표시용 — 부드러운 바닥 그림자 포함 */
