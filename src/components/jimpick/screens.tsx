@@ -43,6 +43,8 @@ import { toast } from "sonner";
 // ============ Splash ============
 import truckImg from "@/assets/jimpick-truck.png";
 import logoImg from "@/assets/jimpick-logo.png";
+import { Art3D, ITEM_IMG, ROOM_IMG, VEHICLE_IMG, CHAR_IMG } from "@/lib/jimpick-art";
+
 import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle } from "lucide-react";
 
 export function Splash() {
@@ -497,7 +499,7 @@ export function Step3() {
           <Card>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="text-4xl">👷</div>
+                <Art3D src={CHAR_IMG.male} alt="남자 작업자" size={56} />
                 <div>
                   <div className="font-semibold">남자 작업자</div>
                   <div className="text-xs text-[#6B7280]">0~10명</div>
@@ -510,7 +512,7 @@ export function Step3() {
           <Card>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="text-4xl">👩‍🍳</div>
+                <Art3D src={CHAR_IMG.female} alt="주방 이모" size={56} />
                 <div>
                   <div className="font-semibold">주방 이모</div>
                   <div className="text-xs text-[#6B7280]">0~5명</div>
@@ -525,6 +527,7 @@ export function Step3() {
             </div>
           </Card>
         </Field>
+
       </div>
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("step4")}>다음: 차량 선택</PrimaryButton>
@@ -537,9 +540,9 @@ export function Step3() {
 export function Step4() {
   const { draft, updateDraft, setScreen } = useApp();
   const vehicles = [
-    { key: "truck1t" as const, name: "1톤 차량", emoji: "🚚", max: 10, val: draft.truck1t },
-    { key: "truck5t" as const, name: "5톤 차량", emoji: "🚛", max: 10, val: draft.truck5t },
-    { key: "ladder" as const, name: "사다리차", emoji: "🪜", max: 5, val: draft.ladder },
+    { key: "truck1t" as const, name: "1톤 차량", img: VEHICLE_IMG.truck1t, max: 10, val: draft.truck1t },
+    { key: "truck5t" as const, name: "5톤 차량", img: VEHICLE_IMG.truck5t, max: 10, val: draft.truck5t },
+    { key: "ladder" as const, name: "사다리차", img: VEHICLE_IMG.ladder, max: 5, val: draft.ladder },
   ];
   return (
     <MobileShell>
@@ -549,7 +552,8 @@ export function Step4() {
           <Card key={v.key} selected={v.val > 0}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="text-5xl">{v.emoji}</div>
+                <Art3D src={v.img} alt={v.name} size={72} />
+
                 <div>
                   <div className="font-bold text-lg">{v.name}</div>
                   <div className="text-xs text-[#6B7280]">최대 {v.max}대</div>
@@ -595,9 +599,8 @@ export function Step5() {
     setCurrentRoom(first.id);
     setScreen("step6");
   };
-  const emoji: Record<string, string> = {
-    안방: "🛏️", 작은방: "🚪", 입구방: "🚪", 거실: "🛋️", 부엌: "🍳", 베란다: "🪴",
-  };
+
+
   return (
     <MobileShell>
       <TopBar title="5단계. 방 선택" onBack={() => setScreen("step4")} />
@@ -614,7 +617,7 @@ export function Step5() {
                 }
                 className="text-center py-5 relative"
               >
-                <div className="text-4xl mb-2">{emoji[r.name] || "🏠"}</div>
+                <Art3D src={ROOM_IMG[r.name] || ROOM_IMG["거실"]} alt={r.name} size={84} className="mb-2" />
                 <div className="font-bold">{r.name}</div>
                 <button
                   onClick={(e) => {
@@ -743,7 +746,7 @@ export function Step6() {
             const qty = room?.items[it.id] || 0;
             return (
               <Card key={it.id} selected={qty > 0} className="text-center py-4">
-                <div className="text-4xl mb-2">{it.emoji}</div>
+                <Art3D src={ITEM_IMG[it.id]} alt={it.name} size={72} className="mb-2" />
                 <div className="font-bold text-sm mb-2">{it.name}</div>
                 <div className="flex justify-center">
                   <Counter value={qty} onChange={(n) => setQty(it.id, n)} min={0} max={20} />
@@ -814,7 +817,7 @@ export function AIRecognition() {
             <div className="font-bold">인식 결과</div>
             {results.map((r, i) => (
               <Card key={r.id} className="flex items-center gap-3">
-                <div className="text-3xl">{r.emoji}</div>
+                <Art3D src={ITEM_IMG[r.id]} alt={r.name} size={48} />
                 <div className="flex-1">
                   <div className="font-semibold">{r.name}</div>
                   <div className="text-xs text-[#6B7280]">인식됨</div>
