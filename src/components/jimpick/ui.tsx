@@ -54,12 +54,13 @@ export function PrimaryButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-full py-4 rounded-2xl text-white text-lg font-bold shadow-[0_6px_20px_rgba(15,23,42,0.10)] disabled:opacity-50 ${className}`}
+      className={`relative w-full py-4 rounded-2xl text-white text-lg font-bold overflow-hidden transition-transform active:translate-y-[2px] active:shadow-[0_2px_0_#0645B0,0_6px_14px_rgba(7,81,216,0.25)] shadow-[0_5px_0_#0645B0,0_14px_26px_rgba(7,81,216,0.32)] disabled:opacity-50 disabled:shadow-none ${className}`}
       style={{
-        background: "linear-gradient(135deg, #287BFF 0%, #0751D8 100%)",
+        background: "linear-gradient(180deg, #4A94FF 0%, #287BFF 45%, #0751D8 100%)",
       }}
     >
-      {children}
+      <span className="pointer-events-none absolute inset-x-1 top-1 h-1/3 rounded-2xl bg-white/25 blur-[1px]" />
+      <span className="relative">{children}</span>
     </button>
   );
 }
@@ -87,16 +88,16 @@ export function Counter({
     <div className="flex items-center gap-3">
       <button
         onClick={() => onChange(Math.max(min, value - 1))}
-        className="w-10 h-10 rounded-full bg-[#F5F7FB] border border-[#E7EBF2] flex items-center justify-center active:bg-[#E7EBF2]"
+        className="w-10 h-10 rounded-full bg-gradient-to-b from-white to-[#EDF1F8] border border-[#DCE3EE] shadow-[0_3px_0_#DCE3EE,0_6px_12px_rgba(15,23,42,0.08)] flex items-center justify-center transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#DCE3EE]"
         aria-label="감소"
       >
-        <Minus className="w-5 h-5" />
+        <Minus className="w-5 h-5 text-[#334155]" />
       </button>
-      <span className="text-xl font-bold w-8 text-center">{value}</span>
+      <span className="text-xl font-bold w-8 text-center tabular-nums">{value}</span>
       <button
         onClick={() => onChange(Math.min(max, value + 1))}
-        className="w-10 h-10 rounded-full flex items-center justify-center text-white active:opacity-80"
-        style={{ background: "linear-gradient(135deg, #287BFF 0%, #0751D8 100%)" }}
+        className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-[0_3px_0_#0645B0,0_8px_16px_rgba(7,81,216,0.3)] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#0645B0]"
+        style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
         aria-label="증가"
       >
         <Plus className="w-5 h-5" />
@@ -104,6 +105,7 @@ export function Counter({
     </div>
   );
 }
+
 
 export function BottomNav() {
   const { screen, setScreen } = useApp();
@@ -148,12 +150,15 @@ export function Card({
   return (
     <div
       onClick={onClick}
-      className={`rounded-2xl bg-white border p-4 transition ${
-        selected ? "border-[#287BFF] bg-[#EEF4FF] ring-2 ring-[#287BFF]/20" : "border-[#E7EBF2]"
-      } ${onClick ? "cursor-pointer active:scale-[0.98]" : ""} ${className}`}
+      className={`rounded-2xl border p-4 transition-all duration-200 ${
+        selected
+          ? "border-[#287BFF] bg-gradient-to-b from-[#F5F9FF] to-[#E3EDFF] shadow-[0_8px_20px_rgba(40,123,255,0.22),inset_0_1px_0_#FFFFFF] ring-2 ring-[#287BFF]/25"
+          : "border-[#E7EBF2] bg-gradient-to-b from-white to-[#F8FAFD] shadow-[0_4px_14px_rgba(15,23,42,0.06),inset_0_1px_0_#FFFFFF]"
+      } ${onClick ? "cursor-pointer active:scale-[0.98] active:shadow-[0_2px_8px_rgba(15,23,42,0.08)]" : ""} ${className}`}
     >
       {children}
     </div>
+
   );
 }
 
