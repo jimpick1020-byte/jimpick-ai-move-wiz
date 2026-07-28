@@ -18,7 +18,9 @@ import {
   ArrowUpDown,
   Video,
   Send,
+  Link as LinkIcon,
 } from "lucide-react";
+
 import {
   useApp,
   ITEM_CATALOG,
