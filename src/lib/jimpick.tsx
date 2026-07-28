@@ -53,8 +53,14 @@ export interface Estimate {
   /** 사다리차 상세 */
   ladderFrom: boolean;
   ladderTo: boolean;
+  ladderFromPrice: number;
+  ladderToPrice: number;
   ladderPrice: number;
   ladderSeparate: boolean;
+  /** 고객 메모 */
+  memo: string;
+  /** 특약사항 */
+  specialTerms: string;
   rooms: Room[];
   customItems: CustomItem[];
   hiddenItems: string[];
