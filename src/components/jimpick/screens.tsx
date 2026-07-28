@@ -848,7 +848,7 @@ export function Step6() {
           ))}
         </div>
         <div className="flex gap-2 overflow-auto -mx-1 px-1">
-          {CATEGORIES.map((c) => (
+          {CATEGORIES.filter((c) => c !== "전체").map((c) => (
             <button
               key={c}
               onClick={() => setCat(c)}
