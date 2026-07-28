@@ -109,6 +109,10 @@ export const ITEM_CATALOG: { id: string; name: string; cat: string; emoji: strin
   { id: "toolbox", name: "공구함", cat: "생활용품", emoji: "🧰" },
   { id: "plant", name: "화분", cat: "생활용품", emoji: "🪴" },
   { id: "box", name: "이삿짐 박스", cat: "잔짐", emoji: "📦" },
+  { id: "clothbox", name: "옷박스", cat: "잔짐", emoji: "👕" },
+  { id: "bigbox", name: "대박스", cat: "잔짐", emoji: "📦" },
+  { id: "midbox", name: "중박스", cat: "잔짐", emoji: "🗃️" },
+  { id: "basket", name: "바구니", cat: "잔짐", emoji: "🧺" },
   { id: "bag", name: "잡화 가방", cat: "잔짐", emoji: "👜" },
 ];
 export const DEFAULT_ROOMS = ["안방", "작은방", "입구방", "거실", "부엌", "베란다"];
