@@ -168,7 +168,7 @@ export const recognizeItems = createServerFn({ method: "POST" })
             /* 복구 실패 시 아래 오류 메시지로 진행 */
           }
         }
-        return { items: [], roomGuess: null, error: "AI 분석 결과를 해석하지 못했습니다. 다시 시도해 주세요." };
+        return { items: [], roomGuess: null, error: "DEBUG:" + text.slice(0, 800) };
       }
       const msg = error instanceof Error ? error.message : "AI 분석에 실패했습니다.";
       if (msg.includes("429")) return { items: [], roomGuess: null, error: "요청이 많습니다. 잠시 후 다시 시도해 주세요." };
