@@ -133,17 +133,23 @@ export const recognizeItems = createServerFn({ method: "POST" })
       if (NoObjectGeneratedError.isInstance(error)) {
         // 모델이 코드블록/여분 텍스트를 붙인 경우 직접 JSON을 추출해 복구합니다.
         const text = error.text ?? "";
-        const start = text.indexOf("{");
-        const end = text.lastIndexOf("}");
+        const objStart = text.indexOf("{");
+        const arrStart = text.indexOf("[");
+        const useArray = arrStart >= 0 && (objStart < 0 || arrStart < objStart);
+        const start = useArray ? arrStart : objStart;
+        const end = useArray ? text.lastIndexOf("]") : text.lastIndexOf("}");
         if (start >= 0 && end > start) {
           try {
             const parsed = JSON.parse(text.slice(start, end + 1));
-            const items = Array.isArray(parsed?.items) ? parsed.items : [];
+            const items = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.items) ? parsed.items : [];
             const merged = new Map<string, DetectedItem>();
+            let room: string | null =
+              typeof parsed?.roomGuess === "string" ? parsed.roomGuess : null;
             for (const it of items) {
               const name = valid.get(String(it?.id) as never);
               if (!name) continue;
-              const qty = Math.max(1, Math.min(20, Math.round(Number(it.qty) || 1)));
+              if (!room && typeof it?.roomGuess === "string") room = it.roomGuess;
+              const qty = Math.max(1, Math.min(20, Math.round(Number(it.qty ?? it.quantity) || 1)));
               const conf = Math.max(0, Math.min(1, Number(it.confidence) || 0));
               const prev = merged.get(it.id);
               if (!prev || conf > prev.confidence) {
@@ -161,14 +167,15 @@ export const recognizeItems = createServerFn({ method: "POST" })
             if (merged.size > 0) {
               return {
                 items: [...merged.values()].sort((a, b) => b.confidence - a.confidence),
-                roomGuess: typeof parsed?.roomGuess === "string" ? parsed.roomGuess : null,
+                roomGuess: room,
               };
             }
           } catch {
             /* 복구 실패 시 아래 오류 메시지로 진행 */
           }
         }
-        return { items: [], roomGuess: null, error: "DEBUG:" + text.slice(0, 800) };
+        return { items: [], roomGuess: null, error: "AI 분석 결과를 해석하지 못했습니다. 다시 시도해 주세요." };
+
       }
       const msg = error instanceof Error ? error.message : "AI 분석에 실패했습니다.";
       if (msg.includes("429")) return { items: [], roomGuess: null, error: "요청이 많습니다. 잠시 후 다시 시도해 주세요." };
