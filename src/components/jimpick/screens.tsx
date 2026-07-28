@@ -30,6 +30,7 @@ import {
   type MoveType,
   type Room,
   type WorkEnv,
+} from "@/lib/jimpick";
 import {
   MobileShell,
   TopBar,
