@@ -40,6 +40,11 @@ export interface Estimate {
   fromDetail: string;
   toAddress: string;
   toDetail: string;
+  /** 출발지·도착지 좌표 (경도 x, 위도 y) */
+  fromX?: number | null;
+  fromY?: number | null;
+  toX?: number | null;
+  toY?: number | null;
   distanceKm: number;
   durationMin: number;
   workEnv: WorkEnv;
