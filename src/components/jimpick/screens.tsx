@@ -309,6 +309,15 @@ export function Step1() {
             </select>
           </div>
         </Field>
+        <Field label="고객 메모">
+          <textarea
+            value={draft.memo}
+            onChange={(e) => updateDraft({ memo: e.target.value })}
+            placeholder="예) 엘리베이터 예약 필요, 반려동물 있음, 오전 도착 희망 등"
+            rows={3}
+            className="w-full px-4 py-3 rounded-xl border border-[#DFE6F2] bg-gradient-to-b from-[#F8FAFD] to-white text-base shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] resize-none"
+          />
+        </Field>
         {err && <div className="text-sm text-[#EF4444]">{err}</div>}
       </div>
       <BottomButtonBar>
