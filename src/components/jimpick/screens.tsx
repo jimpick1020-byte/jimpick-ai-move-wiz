@@ -105,7 +105,7 @@ export function Splash() {
 
 // ============ Login ============
 export function Login() {
-  const { login, savedId } = useApp();
+  const { login, savedId, setScreen } = useApp();
   const [id, setId] = useState(savedId || "");
   const [pw, setPw] = useState("");
   const [remember, setRemember] = useState(!!savedId);
