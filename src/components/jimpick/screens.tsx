@@ -29,7 +29,7 @@ import {
   won,
   type MoveType,
   type Room,
-} from "@/lib/jimpick";
+  type WorkEnv,
 import {
   MobileShell,
   TopBar,
