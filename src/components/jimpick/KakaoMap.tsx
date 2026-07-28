@@ -97,15 +97,34 @@ export function KakaoMap({
   }, [from?.x, from?.y, to?.x, to?.y]);
 
   if (ready === false) {
+    const c = from ?? to;
+    if (c) {
+      const pts = [from, to].filter(Boolean) as LatLng[];
+      const pad = 0.02;
+      const minX = Math.min(...pts.map((p) => p.x)) - pad;
+      const maxX = Math.max(...pts.map((p) => p.x)) + pad;
+      const minY = Math.min(...pts.map((p) => p.y)) - pad;
+      const maxY = Math.max(...pts.map((p) => p.y)) + pad;
+      const marker = pts.map((p) => `&marker=${p.y},${p.x}`).join("");
+      return (
+        <iframe
+          title="경로 지도"
+          className="rounded-xl overflow-hidden border border-[#E7EBF2] w-full"
+          style={{ height }}
+          src={`https://www.openstreetmap.org/export/embed.html?bbox=${minX},${minY},${maxX},${maxY}&layer=mapnik${marker}`}
+        />
+      );
+    }
     return (
       <div
         className="rounded-xl bg-gradient-to-br from-[#DDE9FF] to-[#EEF4FF] flex items-center justify-center text-xs text-[#6B7280] text-center px-4"
         style={{ height }}
       >
-        지도를 불러오지 못했습니다. 카카오맵 키와 도메인 등록을 확인해 주세요.
+        출발지·도착지를 선택하면 지도가 표시됩니다.
       </div>
     );
   }
+
 
   return (
     <div
