@@ -1651,7 +1651,7 @@ export function Customers() {
 
 // ============ Settings ============
 export function SettingsScreen() {
-  const { logout } = useApp();
+  const { logout, setScreen } = useApp();
   return (
     <MobileShell>
       <TopBar title="설정" />
