@@ -850,12 +850,22 @@ export function Step6() {
     if (!currentRoomId && draft.rooms[0]) setCurrentRoom(draft.rooms[0].id);
   }, [currentRoomId, draft.rooms, setCurrentRoom]);
   const room = draft.rooms.find((r) => r.id === roomId);
+  // 방을 클릭하면 그 방에 선택된 품목만 보여줍니다.
+  const [onlySelected, setOnlySelected] = useState(true);
+  useEffect(() => {
+    setOnlySelected(true);
+  }, [roomId]);
   const catalog = [
     ...ITEM_CATALOG,
     ...(draft.customItems || []).map((c) => ({ ...c, emoji: "📦" })),
   ].filter((i) => !(draft.hiddenItems || []).includes(i.id));
+  const selectedCount = room ? Object.keys(room.items).length : 0;
+  const showSelectedOnly = onlySelected && !q && selectedCount > 0;
   const items = catalog.filter(
-    (i) => (cat === "전체" || i.cat === cat) && (!q || i.name.includes(q))
+    (i) =>
+      (showSelectedOnly
+        ? (room?.items[i.id] || 0) > 0
+        : cat === "전체" || i.cat === cat) && (!q || i.name.includes(q))
   );
   const addItem = () => {
     const name = prompt("추가할 품목 이름");
