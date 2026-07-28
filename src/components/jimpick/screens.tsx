@@ -1420,14 +1420,6 @@ export function Result() {
                   onChange={(e) => updateDraft({ distanceKm: Number(e.target.value) || 0 })}
                 />
               </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="남자 작업자">
-                  <TextInput type="number" value={draft.workers} onChange={(e) => updateDraft({ workers: Number(e.target.value) || 0 })} />
-                </Field>
-                <Field label="주방 이모">
-                  <TextInput type="number" value={draft.kitchenStaff} onChange={(e) => updateDraft({ kitchenStaff: Number(e.target.value) || 0 })} />
-                </Field>
-              </div>
               <div className="grid grid-cols-3 gap-2">
                 <Field label="1톤">
                   <TextInput type="number" value={draft.truck1t} onChange={(e) => updateDraft({ truck1t: Number(e.target.value) || 0 })} />
