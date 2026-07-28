@@ -46,6 +46,10 @@ import aiRobotPhoto from "@/assets/ai-robot-photo.png";
 import aiRobotVideo from "@/assets/ai-robot-video.png";
 import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
+import { KakaoMap } from "./KakaoMap";
+import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
+import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
+import { fileToDataUrl, videoToFrames } from "@/lib/media";
 
 // ============ Splash ============
 import truckImg from "@/assets/jimpick-truck.png";
