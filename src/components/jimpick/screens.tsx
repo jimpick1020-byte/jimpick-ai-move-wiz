@@ -309,6 +309,15 @@ export function Step1() {
             </select>
           </div>
         </Field>
+        <Field label="고객 메모">
+          <textarea
+            value={draft.memo}
+            onChange={(e) => updateDraft({ memo: e.target.value })}
+            placeholder="예) 엘리베이터 예약 필요, 반려동물 있음, 오전 도착 희망 등"
+            rows={3}
+            className="w-full px-4 py-3 rounded-xl border border-[#DFE6F2] bg-gradient-to-b from-[#F8FAFD] to-white text-base shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] resize-none"
+          />
+        </Field>
         {err && <div className="text-sm text-[#EF4444]">{err}</div>}
       </div>
       <BottomButtonBar>
@@ -626,14 +635,31 @@ export function Step4() {
             </label>
           </div>
           <div className="mt-3 space-y-2">
-            <Field label="사다리차 금액 (1,000원 단위)">
+            <Field label="출발지 금액">
               <MoneyInput
-                value={draft.ladderPrice}
-                onChange={(n) => updateDraft({ ladderPrice: n })}
+                value={draft.ladderFromPrice}
+                onChange={(n) =>
+                  updateDraft({ ladderFromPrice: n, ladderPrice: n + draft.ladderToPrice })
+                }
                 step={1000}
                 placeholder="금액 입력"
               />
             </Field>
+            <Field label="도착지 금액">
+              <MoneyInput
+                value={draft.ladderToPrice}
+                onChange={(n) =>
+                  updateDraft({ ladderToPrice: n, ladderPrice: draft.ladderFromPrice + n })
+                }
+                step={1000}
+                placeholder="금액 입력"
+              />
+            </Field>
+            <div className="flex justify-between text-sm font-bold">
+              <span className="text-[#6B7280]">사다리차 합계</span>
+              <span className="text-[#0751D8]">{won(draft.ladderFromPrice + draft.ladderToPrice)}</span>
+            </div>
+
             <label className="flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
               <input
                 type="checkbox"
@@ -831,7 +857,7 @@ export function Step6() {
           ))}
         </div>
         <div className="flex gap-2 overflow-auto -mx-1 px-1">
-          {CATEGORIES.map((c) => (
+          {CATEGORIES.filter((c) => c !== "전체").map((c) => (
             <button
               key={c}
               onClick={() => setCat(c)}
@@ -852,32 +878,14 @@ export function Step6() {
             className="pl-9"
           />
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => setScreen("ai")}
-            className="py-3 rounded-2xl bg-white border-2 border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2 text-sm"
-          >
-            <Camera className="w-5 h-5" /> AI 사진 인식
-          </button>
-          <button
-            onClick={() => setScreen("ai")}
-            className="py-3 rounded-2xl bg-white border-2 border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2 text-sm"
-          >
-            <Video className="w-5 h-5" /> AI 동영상 촬영
-          </button>
-        </div>
         <button
-          onClick={() => {
-            if (!room) return;
-            if (!confirm(`「${room.name}」의 품목을 전체 삭제할까요?`)) return;
-            updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items: {} } : r)) });
-            tap("soft");
-            toast.success("품목이 전체 삭제되었습니다");
-          }}
-          className="w-full py-3 rounded-2xl bg-white border border-[#FCA5A5] text-[#EF4444] font-bold flex items-center justify-center gap-2 text-sm"
+          onClick={() => setScreen("ai")}
+          className="w-full py-3 rounded-2xl bg-white border-2 border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2 text-sm"
         >
-          <Trash2 className="w-4 h-4" /> 이 방 품목 전체 삭제
+          <Camera className="w-5 h-5" />
+          <Video className="w-5 h-5" /> AI 사진·동영상 인식
         </button>
+
         <div className="grid grid-cols-2 gap-3">
           {items.map((it) => {
             const qty = room?.items[it.id] || 0;
@@ -1184,28 +1192,6 @@ export function OptionsScreen() {
             )}
           </Card>
         ))}
-        <div className="space-y-2">
-          <div className="text-sm font-bold text-[#111827]">견적서 금액 빠른 추가</div>
-          <div className="flex flex-wrap gap-2">
-            {OPTION_PRESETS.filter((p) => !draft.options.some((o) => o.name === p.name)).map((p) => (
-              <button
-                key={p.name}
-                onClick={() => {
-                  tap("success");
-                  updateDraft({
-                    options: [
-                      ...draft.options,
-                      { id: `op_${Date.now()}_${p.name}`, name: p.name, enabled: true, price: p.price, separate: false },
-                    ],
-                  });
-                }}
-                className="px-3 py-2 rounded-full bg-white border border-[#DFE6F2] text-xs font-semibold text-[#0751D8] shadow-[0_2px_0_#E3E9F5]"
-              >
-                + {p.name} {p.price.toLocaleString("ko-KR")}원
-              </button>
-            ))}
-          </div>
-        </div>
         <button
           onClick={() => {
             const name = prompt("추가할 옵션 품목 이름");
@@ -1223,6 +1209,16 @@ export function OptionsScreen() {
         >
           <Plus className="w-5 h-5" /> 옵션 품목 직접 추가
         </button>
+        <Card className="space-y-2">
+          <div className="font-bold">특약사항</div>
+          <textarea
+            value={draft.specialTerms}
+            onChange={(e) => updateDraft({ specialTerms: e.target.value })}
+            placeholder="예) 사다리차 사용료 별도, 주차 공간 확보 필요, 폐기물 처리 미포함 등"
+            rows={4}
+            className="w-full px-4 py-3 rounded-xl border border-[#DFE6F2] bg-gradient-to-b from-[#F8FAFD] to-white text-base shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] resize-none"
+          />
+        </Card>
         {draft.moveType === "보관이사" && (
           <Card className="space-y-3">
             <div className="font-bold">보관 정보</div>
@@ -1240,7 +1236,7 @@ export function OptionsScreen() {
                 onChange={(e) => updateDraft({ storageEnd: e.target.value })}
               />
             </Field>
-            <Field label="하루 보관 단가 (1,000원 단위)">
+            <Field label="하루 보관 단가">
               <MoneyInput
                 value={draft.storageDaily}
                 onChange={(n) => updateDraft({ storageDaily: n })}
@@ -1266,7 +1262,7 @@ export function Result() {
   const { draft, setScreen, saveDraft, updateDraft } = useApp();
   const [detail, setDetail] = useState(false);
   const [edit, setEdit] = useState(false);
-  const [editTotal, setEditTotal] = useState(false);
+  
   const [adjust, setAdjust] = useState(0);
   const calc = calcEstimate(draft);
   const total = calc.total + adjust;
@@ -1299,37 +1295,7 @@ export function Result() {
           style={{ background: "linear-gradient(135deg, #0A2A6C 0%, #0751D8 100%)" }}
         >
           <div className="text-sm opacity-90">예상 견적 금액</div>
-          {editTotal ? (
-            <div className="my-3 bg-white rounded-2xl p-3">
-              <MoneyInput
-                value={total}
-                step={1000}
-                onChange={(n) => updateDraft({ totalOverride: n - adjust })}
-              />
-              <div className="flex gap-2 mt-2">
-                <button
-                  onClick={() => {
-                    updateDraft({ totalOverride: null });
-                    tap("soft");
-                  }}
-                  className="flex-1 py-2 rounded-xl border border-[#DFE6F2] text-[#0751D8] text-sm font-bold"
-                >
-                  자동 계산으로 되돌리기
-                </button>
-                <button
-                  onClick={() => {
-                    setEditTotal(false);
-                    tap("success");
-                  }}
-                  className="flex-1 py-2 rounded-xl bg-[#0751D8] text-white text-sm font-bold"
-                >
-                  적용
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="text-4xl font-black my-3">{won(total)}</div>
-          )}
+          <div className="text-4xl font-black my-3">{won(total)}</div>
           <div className="flex gap-2 justify-center">
             <button
               onClick={() => setDetail((v) => !v)}
@@ -1337,41 +1303,11 @@ export function Result() {
             >
               {detail ? "간단히 보기" : "상세 내역 보기"}
             </button>
-            <button
-              onClick={() => {
-                tap("soft");
-                setEditTotal((v) => !v);
-              }}
-              className="text-sm bg-white/20 rounded-full px-4 py-2 font-semibold flex items-center gap-1"
-            >
-              <Edit3 className="w-3.5 h-3.5" /> 금액 수정
-            </button>
           </div>
         </div>
         {detail && (
           <Card className="space-y-3">
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-[#6B7280]">기본 운송료 (직접 수정 가능)</span>
-              </div>
-              <MoneyInput
-                value={calc.parts[0].amount}
-                step={1000}
-                onChange={(n) => updateDraft({ transportOverride: n })}
-              />
-              {draft.transportOverride !== null && draft.transportOverride !== undefined && (
-                <button
-                  onClick={() => {
-                    tap("soft");
-                    updateDraft({ transportOverride: null });
-                  }}
-                  className="mt-2 text-xs font-bold text-[#0751D8]"
-                >
-                  자동 계산으로 되돌리기
-                </button>
-              )}
-            </div>
-            {parts.slice(1).map((p) => (
+            {parts.map((p) => (
               <div key={p.label} className="flex justify-between text-sm">
                 <span className="text-[#6B7280]">{p.label}</span>
                 <span className="font-semibold">{won(p.amount)}</span>
@@ -1383,6 +1319,7 @@ export function Result() {
             </div>
           </Card>
         )}
+
         <Card className="space-y-2 text-sm">
           <div className="flex items-center justify-between mb-2">
             <div className="font-bold text-base">이사 정보</div>

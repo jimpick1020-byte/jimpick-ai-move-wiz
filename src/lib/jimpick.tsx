@@ -53,8 +53,14 @@ export interface Estimate {
   /** 사다리차 상세 */
   ladderFrom: boolean;
   ladderTo: boolean;
+  ladderFromPrice: number;
+  ladderToPrice: number;
   ladderPrice: number;
   ladderSeparate: boolean;
+  /** 고객 메모 */
+  memo: string;
+  /** 특약사항 */
+  specialTerms: string;
   rooms: Room[];
   customItems: CustomItem[];
   hiddenItems: string[];
@@ -199,8 +205,12 @@ export function newEstimate(): Estimate {
     ladder: 0,
     ladderFrom: false,
     ladderTo: false,
+    ladderFromPrice: 0,
+    ladderToPrice: 0,
     ladderPrice: 0,
     ladderSeparate: false,
+    memo: "",
+    specialTerms: "",
     rooms: DEFAULT_ROOMS.map((n) => ({ id: `r_${n}`, name: n, items: { ...(PRESET_30PY[n] || {}) } })),
     customItems: [],
     hiddenItems: [],
