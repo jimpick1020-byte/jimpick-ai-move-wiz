@@ -1656,6 +1656,14 @@ export function SettingsScreen() {
     <MobileShell>
       <TopBar title="설정" />
       <div className="p-4 space-y-3 flex-1 overflow-auto">
+        <button
+          onClick={() => { tap(); setScreen("subscription"); }}
+          className="w-full text-left rounded-2xl p-4 text-white font-bold shadow-[0_6px_0_#0645B0]"
+          style={{ background: "linear-gradient(135deg, #287BFF 0%, #0751D8 100%)" }}
+        >
+          <div className="text-base">구독 · 결제 관리</div>
+          <div className="text-xs font-medium opacity-90 mt-1">요금제 변경, 결제 내역 확인</div>
+        </button>
         <Card className="space-y-3">
           <div className="font-bold">사업자 정보</div>
           <Field label="상호명"><TextInput defaultValue="JIMPICK" /></Field>
