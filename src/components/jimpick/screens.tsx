@@ -154,6 +154,12 @@ export function Login() {
         </label>
         {err && <div className="text-sm text-[#EF4444]">{err}</div>}
         <PrimaryButton onClick={submit}>로그인</PrimaryButton>
+        <button
+          onClick={() => setScreen("signup")}
+          className="w-full py-3 rounded-2xl border border-[#0751D8] text-[#0751D8] font-bold bg-white"
+        >
+          업체 회원가입 · 구독 신청
+        </button>
         <div className="text-center text-sm text-[#6B7280]">아이디/비밀번호 찾기</div>
         <div className="text-center text-xs text-[#6B7280] pt-6">
           © JIMPICK · Ver 7.0.0
