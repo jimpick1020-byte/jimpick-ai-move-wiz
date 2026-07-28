@@ -67,8 +67,12 @@ export const searchAddress = createServerFn({ method: "POST" })
     }
     if (!addrRes.ok && !kwRes.ok) {
       const body = await kwRes.text().catch(() => "");
+      // 카카오 로컬 서비스가 꺼져 있어도 앱이 동작하도록 OSM 검색으로 대체합니다.
+      const fallback = await searchOsm(data.query);
+      if (fallback.length > 0) return { places: fallback };
       return { places: [], error: kakaoErrorMessage(kwRes.status, body) };
     }
+
 
 
     const seen = new Set<string>();
