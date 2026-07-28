@@ -756,9 +756,41 @@ export function Step6() {
     if (!currentRoomId && draft.rooms[0]) setCurrentRoom(draft.rooms[0].id);
   }, [currentRoomId, draft.rooms, setCurrentRoom]);
   const room = draft.rooms.find((r) => r.id === roomId);
-  const items = ITEM_CATALOG.filter(
+  const catalog = [
+    ...ITEM_CATALOG,
+    ...(draft.customItems || []).map((c) => ({ ...c, emoji: "📦" })),
+  ].filter((i) => !(draft.hiddenItems || []).includes(i.id));
+  const items = catalog.filter(
     (i) => (cat === "전체" || i.cat === cat) && (!q || i.name.includes(q))
   );
+  const addItem = () => {
+    const name = prompt("추가할 품목 이름");
+    if (!name) return;
+    const catName =
+      prompt(`분류를 입력하세요 (가구/가전/주방/생활용품/잔짐)`, cat === "전체" ? "가구" : cat) || "잔짐";
+    const extra = Number(prompt("품목 추가금액 (원, 없으면 0)", "0")) || 0;
+    updateDraft({
+      customItems: [
+        ...(draft.customItems || []),
+        { id: `ci_${Date.now()}`, name, cat: catName, extra },
+      ],
+    });
+    tap("success");
+    toast.success(`「${name}」 품목이 추가되었습니다`);
+  };
+  const removeItem = (id: string, name: string) => {
+    if (!confirm(`「${name}」 품목을 목록에서 삭제할까요?`)) return;
+    updateDraft({
+      hiddenItems: [...(draft.hiddenItems || []), id],
+      customItems: (draft.customItems || []).filter((c) => c.id !== id),
+      rooms: draft.rooms.map((r) => {
+        const it = { ...r.items };
+        delete it[id];
+        return { ...r, items: it };
+      }),
+    });
+    tap("soft");
+  };
   const setQty = (itemId: string, qty: number) => {
     if (!room) return;
     const items = { ...room.items };
@@ -820,8 +852,19 @@ export function Step6() {
           {items.map((it) => {
             const qty = room?.items[it.id] || 0;
             return (
-              <Card key={it.id} selected={qty > 0} className="text-center py-4">
-                <Art3D src={ITEM_IMG[it.id]} alt={it.name} size={72} className="mb-2" />
+              <Card key={it.id} selected={qty > 0} className="text-center py-4 relative">
+                <button
+                  onClick={() => removeItem(it.id, it.name)}
+                  className="absolute top-2 right-2 p-1 text-[#EF4444]"
+                  aria-label="품목 삭제"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                {ITEM_IMG[it.id] ? (
+                  <Art3D src={ITEM_IMG[it.id]} alt={it.name} size={72} className="mb-2" />
+                ) : (
+                  <div className="h-[72px] flex items-center justify-center text-4xl mb-2">{it.emoji}</div>
+                )}
                 <div className="font-bold text-sm mb-2">{it.name}</div>
                 <div className="flex justify-center">
                   <Counter value={qty} onChange={(n) => setQty(it.id, n)} min={0} max={20} />
@@ -830,6 +873,12 @@ export function Step6() {
             );
           })}
         </div>
+        <button
+          onClick={addItem}
+          className="w-full py-4 rounded-2xl border-2 border-dashed border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2"
+        >
+          <Plus className="w-5 h-5" /> 품목 추가
+        </button>
       </div>
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("options")}>다음: 옵션·보관료</PrimaryButton>
