@@ -450,21 +450,31 @@ function AddressSearch({
 
 export function Step2() {
   const { draft, updateDraft, setScreen } = useApp();
-  const [from, setFrom] = useState<{ x: number; y: number } | null>(null);
-  const [to, setTo] = useState<{ x: number; y: number } | null>(null);
+  const [path, setPath] = useState<{ x: number; y: number }[] | null>(null);
+  const [routing, setRouting] = useState(false);
+
+  const from = draft.fromX && draft.fromY ? { x: draft.fromX, y: draft.fromY } : null;
+  const to = draft.toX && draft.toY ? { x: draft.toX, y: draft.toY } : null;
   const hasBoth = Boolean(draft.fromAddress && draft.toAddress);
 
   useEffect(() => {
     if (!from || !to) return;
     let cancelled = false;
+    setRouting(true);
     (async () => {
-      const res = await getRoute({ data: { originX: from.x, originY: from.y, destX: to.x, destY: to.y } });
-      if (cancelled) return;
-      if (res.error) {
-        toast.error(res.error);
-        return;
+      try {
+        const res = await getRoute({
+          data: { originX: from.x, originY: from.y, destX: to.x, destY: to.y },
+        });
+        if (cancelled) return;
+        setPath(res.path ?? null);
+        updateDraft({ distanceKm: res.distanceKm, durationMin: res.durationMin });
+        if (res.approx) toast.info("실제 경로를 불러오지 못해 예상 거리로 계산했습니다.");
+      } catch {
+        if (!cancelled) toast.error("경로를 계산하지 못했습니다.");
+      } finally {
+        if (!cancelled) setRouting(false);
       }
-      updateDraft({ distanceKm: res.distanceKm, durationMin: res.durationMin });
     })();
     return () => {
       cancelled = true;
@@ -480,8 +490,14 @@ export function Step2() {
           value={draft.fromAddress}
           detail={draft.fromDetail}
           onSelect={(a, c) => {
-            updateDraft({ fromAddress: a, distanceKm: 0, durationMin: 0 });
-            setFrom(c.x && c.y ? c : null);
+            setPath(null);
+            updateDraft({
+              fromAddress: a,
+              distanceKm: 0,
+              durationMin: 0,
+              fromX: c.x || null,
+              fromY: c.y || null,
+            });
           }}
           onDetail={(d) => updateDraft({ fromDetail: d })}
         />
@@ -490,28 +506,39 @@ export function Step2() {
           value={draft.toAddress}
           detail={draft.toDetail}
           onSelect={(a, c) => {
-            updateDraft({ toAddress: a, distanceKm: 0, durationMin: 0 });
-            setTo(c.x && c.y ? c : null);
+            setPath(null);
+            updateDraft({
+              toAddress: a,
+              distanceKm: 0,
+              durationMin: 0,
+              toX: c.x || null,
+              toY: c.y || null,
+            });
           }}
           onDetail={(d) => updateDraft({ toDetail: d })}
         />
         {(from || to) && (
           <Card>
             <div className="font-bold mb-2">경로 안내</div>
-            <KakaoMap from={from} to={to} height={180} />
+            <KakaoMap from={from} to={to} path={path} height={180} />
             <div className="grid grid-cols-2 gap-3 mt-3 text-center">
               <div>
                 <div className="text-xs text-[#6B7280]">실거리</div>
-                <div className="text-lg font-bold">{draft.distanceKm} km</div>
+                <div className="text-lg font-bold">
+                  {routing ? "계산 중..." : `${draft.distanceKm} km`}
+                </div>
               </div>
               <div>
                 <div className="text-xs text-[#6B7280]">예상 이동시간</div>
-                <div className="text-lg font-bold">{draft.durationMin} 분</div>
+                <div className="text-lg font-bold">
+                  {routing ? "계산 중..." : `${draft.durationMin} 분`}
+                </div>
               </div>
             </div>
           </Card>
         )}
       </div>
+
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("step3")} disabled={!hasBoth}>
           다음: 작업 조건

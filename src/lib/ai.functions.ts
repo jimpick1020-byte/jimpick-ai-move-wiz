@@ -11,8 +11,10 @@ const CATALOG = [
   ["waterpurifier", "정수기"], ["kimchi", "김치냉장고"], ["vanity", "화장대"], ["drawer", "서랍장"],
   ["dryer", "건조기"], ["airpurifier", "공기청정기"], ["riceCooker", "밥솥"], ["gasrange", "가스레인지"],
   ["dishrack", "식기건조대"], ["vacuum", "청소기"], ["drying", "빨래건조대"], ["toolbox", "공구함"],
-  ["plant", "화분"], ["box", "이삿짐 박스"], ["bag", "잡화 가방"],
+  ["plant", "화분"], ["box", "이삿짐 박스"], ["clothbox", "옷박스"], ["bigbox", "대박스"],
+  ["midbox", "중박스"], ["basket", "바구니"], ["bag", "잡화 가방"],
 ] as const;
+
 
 const ResultSchema = z.object({
   items: z.array(
@@ -46,7 +48,20 @@ ${CATALOG.map(([id, name]) => `- ${id}: ${name}`).join("\n")}
    일부만 보이거나 가려졌거나 유사 품목과 혼동될 수 있으면 0.9 미만으로 낮춥니다.
 4. 벽지·바닥·조명·창문·사람 등 이사 대상이 아닌 것은 제외합니다.
 5. note에는 크기/색상 등 견적에 도움이 되는 한 줄 메모(예: "4도어 양문형")를 넣고, 없으면 null.
-6. roomGuess에는 안방/작은방/입구방/거실/부엌/베란다 중 하나 또는 null.`;
+6. roomGuess에는 안방/작은방/입구방/거실/부엌/베란다 중 하나 또는 null.
+7. 수납공간 환산 규칙 — 옷장/붙박이장/주방 상·하부장/팬트리 내부가 보이면 가구 자체 대신
+   내용물을 포장 박스 수량으로 환산합니다.
+   - 옷·이불이 걸리거나 쌓여 있으면 clothbox(옷박스): 옷장 한 칸(폭 약 60cm) 가득 = 옷박스 2개,
+     선반에 접어둔 옷 한 단 = 옷박스 1개.
+   - 이불·베개·큰 잡화는 bigbox(대박스): 이불 2~3채 = 대박스 1개.
+   - 책·소형 잡화·서랍 내용물은 midbox(중박스): 서랍 2칸 = 중박스 1개.
+   - 주방 상·하부장, 팬트리 내용물(그릇·냄비·식료품)은 basket(바구니) 중심으로 환산합니다.
+     상·하부장 한 칸 = 바구니 1개, 팬트리 한 단 = 바구니 1개.
+   환산 품목의 note에는 근거를 적습니다(예: "붙박이장 3칸 환산").
+9. 출력은 반드시 {"items":[{"id","name","qty","confidence","note"}],"roomGuess"} 형태의 JSON 객체 하나입니다.
+   배열만 반환하거나 quantity 등 다른 키를 쓰지 마세요.
+8. 환산 품목의 confidence는 내부가 또렷하게 보일 때 0.9 이상, 일부만 보이면 그 이하로 낮춥니다.`;
+
 
 export const recognizeItems = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
@@ -62,7 +77,7 @@ export const recognizeItems = createServerFn({ method: "POST" })
     if (!key) return { items: [], roomGuess: null, error: "AI 키가 설정되지 않았습니다." };
 
     const gateway = createLovableAiGatewayProvider(key);
-    const model = gateway("google/gemini-3.1-pro-preview");
+    const model = gateway("google/gemini-3.6-flash");
 
     const valid = new Map(CATALOG.map(([id, name]) => [id, name] as const));
 
@@ -71,10 +86,11 @@ export const recognizeItems = createServerFn({ method: "POST" })
         model,
         output: Output.object({ schema: ResultSchema }),
         messages: [
-          { role: "system", content: SYSTEM },
           {
             role: "user",
             content: [
+              { type: "text", text: SYSTEM },
+
               {
                 type: "text",
                 text:
@@ -88,27 +104,80 @@ export const recognizeItems = createServerFn({ method: "POST" })
         ],
       });
 
-      const merged = new Map<string, DetectedItem>();
-      for (const it of output.items) {
-        const name = valid.get(it.id as never);
-        if (!name) continue;
-        const qty = Math.max(1, Math.min(20, Math.round(it.qty || 1)));
-        const conf = Math.max(0, Math.min(1, it.confidence ?? 0));
-        const prev = merged.get(it.id);
-        if (!prev || conf > prev.confidence) {
-          merged.set(it.id, { id: it.id, name, qty: Math.max(qty, prev?.qty ?? 0), confidence: conf, note: it.note ?? null });
-        } else {
-          prev.qty = Math.max(prev.qty, qty);
+      const normalize = (raw: z.infer<typeof ResultSchema>) => {
+        const merged = new Map<string, DetectedItem>();
+        for (const it of raw.items ?? []) {
+          const name = valid.get(it.id as never);
+          if (!name) continue;
+          const qty = Math.max(1, Math.min(20, Math.round(it.qty || 1)));
+          const conf = Math.max(0, Math.min(1, it.confidence ?? 0));
+          const prev = merged.get(it.id);
+          if (!prev || conf > prev.confidence) {
+            merged.set(it.id, {
+              id: it.id,
+              name,
+              qty: Math.max(qty, prev?.qty ?? 0),
+              confidence: conf,
+              note: it.note ?? null,
+            });
+          } else {
+            prev.qty = Math.max(prev.qty, qty);
+          }
         }
-      }
-
-      return {
-        items: [...merged.values()].sort((a, b) => b.confidence - a.confidence),
-        roomGuess: output.roomGuess ?? null,
+        return {
+          items: [...merged.values()].sort((a, b) => b.confidence - a.confidence),
+          roomGuess: raw.roomGuess ?? null,
+        };
       };
+
+      return normalize(output);
     } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
+        // 모델이 코드블록/여분 텍스트를 붙인 경우 직접 JSON을 추출해 복구합니다.
+        const text = error.text ?? "";
+        const objStart = text.indexOf("{");
+        const arrStart = text.indexOf("[");
+        const useArray = arrStart >= 0 && (objStart < 0 || arrStart < objStart);
+        const start = useArray ? arrStart : objStart;
+        const end = useArray ? text.lastIndexOf("]") : text.lastIndexOf("}");
+        if (start >= 0 && end > start) {
+          try {
+            const parsed = JSON.parse(text.slice(start, end + 1));
+            const items = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.items) ? parsed.items : [];
+            const merged = new Map<string, DetectedItem>();
+            let room: string | null =
+              typeof parsed?.roomGuess === "string" ? parsed.roomGuess : null;
+            for (const it of items) {
+              const name = valid.get(String(it?.id) as never);
+              if (!name) continue;
+              if (!room && typeof it?.roomGuess === "string") room = it.roomGuess;
+              const qty = Math.max(1, Math.min(20, Math.round(Number(it.qty ?? it.quantity) || 1)));
+              const conf = Math.max(0, Math.min(1, Number(it.confidence) || 0));
+              const prev = merged.get(it.id);
+              if (!prev || conf > prev.confidence) {
+                merged.set(it.id, {
+                  id: it.id,
+                  name,
+                  qty: Math.max(qty, prev?.qty ?? 0),
+                  confidence: conf,
+                  note: typeof it.note === "string" ? it.note : null,
+                });
+              } else {
+                prev.qty = Math.max(prev.qty, qty);
+              }
+            }
+            if (merged.size > 0) {
+              return {
+                items: [...merged.values()].sort((a, b) => b.confidence - a.confidence),
+                roomGuess: room,
+              };
+            }
+          } catch {
+            /* 복구 실패 시 아래 오류 메시지로 진행 */
+          }
+        }
         return { items: [], roomGuess: null, error: "AI 분석 결과를 해석하지 못했습니다. 다시 시도해 주세요." };
+
       }
       const msg = error instanceof Error ? error.message : "AI 분석에 실패했습니다.";
       if (msg.includes("429")) return { items: [], roomGuess: null, error: "요청이 많습니다. 잠시 후 다시 시도해 주세요." };
@@ -116,3 +185,4 @@ export const recognizeItems = createServerFn({ method: "POST" })
       return { items: [], roomGuess: null, error: msg };
     }
   });
+

@@ -37,14 +37,16 @@ export interface LatLng {
   y: number;
 }
 
-/** 출발지·도착지를 표시하는 카카오 지도 */
+/** 출발지·도착지와 실제 자동차 경로를 표시하는 카카오 지도 */
 export function KakaoMap({
   from,
   to,
+  path,
   height = 200,
 }: {
   from?: LatLng | null;
   to?: LatLng | null;
+  path?: LatLng[] | null;
   height?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -79,22 +81,27 @@ export function KakaoMap({
       };
       if (from) add(from, "출발", "#0751D8");
       if (to) add(to, "도착", "#EF4444");
-      if (from && to) {
+
+      const line = path && path.length > 1 ? path : from && to ? [from, to] : null;
+      if (line) {
+        const latlngs = line.map((p) => new kakao.maps.LatLng(p.y, p.x));
         new kakao.maps.Polyline({
           map,
-          path: [new kakao.maps.LatLng(from.y, from.x), new kakao.maps.LatLng(to.y, to.x)],
-          strokeWeight: 4,
+          path: latlngs,
+          strokeWeight: 5,
           strokeColor: "#287BFF",
           strokeOpacity: 0.9,
-          strokeStyle: "shortdash",
+          strokeStyle: path && path.length > 1 ? "solid" : "shortdash",
         });
+        for (const ll of latlngs) bounds.extend(ll);
         map.setBounds(bounds, 30, 30, 30, 30);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [from?.x, from?.y, to?.x, to?.y]);
+  }, [from?.x, from?.y, to?.x, to?.y, path?.length]);
+
 
   if (ready === false) {
     const c = from ?? to;
