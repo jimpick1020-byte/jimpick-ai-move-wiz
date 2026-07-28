@@ -1299,37 +1299,7 @@ export function Result() {
           style={{ background: "linear-gradient(135deg, #0A2A6C 0%, #0751D8 100%)" }}
         >
           <div className="text-sm opacity-90">예상 견적 금액</div>
-          {editTotal ? (
-            <div className="my-3 bg-white rounded-2xl p-3">
-              <MoneyInput
-                value={total}
-                step={1000}
-                onChange={(n) => updateDraft({ totalOverride: n - adjust })}
-              />
-              <div className="flex gap-2 mt-2">
-                <button
-                  onClick={() => {
-                    updateDraft({ totalOverride: null });
-                    tap("soft");
-                  }}
-                  className="flex-1 py-2 rounded-xl border border-[#DFE6F2] text-[#0751D8] text-sm font-bold"
-                >
-                  자동 계산으로 되돌리기
-                </button>
-                <button
-                  onClick={() => {
-                    setEditTotal(false);
-                    tap("success");
-                  }}
-                  className="flex-1 py-2 rounded-xl bg-[#0751D8] text-white text-sm font-bold"
-                >
-                  적용
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="text-4xl font-black my-3">{won(total)}</div>
-          )}
+          <div className="text-4xl font-black my-3">{won(total)}</div>
           <div className="flex gap-2 justify-center">
             <button
               onClick={() => setDetail((v) => !v)}
@@ -1337,41 +1307,11 @@ export function Result() {
             >
               {detail ? "간단히 보기" : "상세 내역 보기"}
             </button>
-            <button
-              onClick={() => {
-                tap("soft");
-                setEditTotal((v) => !v);
-              }}
-              className="text-sm bg-white/20 rounded-full px-4 py-2 font-semibold flex items-center gap-1"
-            >
-              <Edit3 className="w-3.5 h-3.5" /> 금액 수정
-            </button>
           </div>
         </div>
         {detail && (
           <Card className="space-y-3">
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-[#6B7280]">기본 운송료 (직접 수정 가능)</span>
-              </div>
-              <MoneyInput
-                value={calc.parts[0].amount}
-                step={1000}
-                onChange={(n) => updateDraft({ transportOverride: n })}
-              />
-              {draft.transportOverride !== null && draft.transportOverride !== undefined && (
-                <button
-                  onClick={() => {
-                    tap("soft");
-                    updateDraft({ transportOverride: null });
-                  }}
-                  className="mt-2 text-xs font-bold text-[#0751D8]"
-                >
-                  자동 계산으로 되돌리기
-                </button>
-              )}
-            </div>
-            {parts.slice(1).map((p) => (
+            {parts.map((p) => (
               <div key={p.label} className="flex justify-between text-sm">
                 <span className="text-[#6B7280]">{p.label}</span>
                 <span className="font-semibold">{won(p.amount)}</span>
@@ -1383,6 +1323,7 @@ export function Result() {
             </div>
           </Card>
         )}
+
         <Card className="space-y-2 text-sm">
           <div className="flex items-center justify-between mb-2">
             <div className="font-bold text-base">이사 정보</div>
