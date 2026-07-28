@@ -16,6 +16,8 @@ import {
   LogOut,
   Truck,
   ArrowUpDown,
+  Video,
+  Send,
 } from "lucide-react";
 import {
   useApp,
@@ -39,6 +41,7 @@ import {
   TextInput,
 } from "./ui";
 import { toast } from "sonner";
+import { tap } from "@/lib/feedback";
 
 // ============ Splash ============
 import truckImg from "@/assets/jimpick-truck.png";
@@ -473,6 +476,20 @@ export function Step3() {
             </Card>
           </div>
         </Field>
+        <Field label="사다리차">
+          <Card selected={draft.ladder > 0}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={56} />
+                <div>
+                  <div className="font-semibold">사다리차 대수</div>
+                  <div className="text-xs text-[#6B7280]">필요 시 입력 (0~5대)</div>
+                </div>
+              </div>
+              <Counter value={draft.ladder} onChange={(n) => updateDraft({ ladder: n })} min={0} max={5} />
+            </div>
+          </Card>
+        </Field>
         <Card>
           <div className="flex items-center justify-between">
             <div className="font-semibold">출발지 층수</div>
@@ -563,6 +580,64 @@ export function Step4() {
             </div>
           </Card>
         ))}
+        <Card selected={draft.ladderFrom || draft.ladderTo}>
+          <div className="flex items-center gap-3 mb-3">
+            <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={56} />
+            <div>
+              <div className="font-bold text-lg">사다리차 사용 위치</div>
+              <div className="text-xs text-[#6B7280]">출발지·도착지를 선택하세요</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex items-center gap-2 px-3 py-3 rounded-xl border border-[#DFE6F2] bg-white font-semibold text-sm">
+              <input
+                type="checkbox"
+                className="w-5 h-5"
+                checked={draft.ladderFrom}
+                onChange={(e) => {
+                  tap("soft");
+                  updateDraft({ ladderFrom: e.target.checked });
+                }}
+              />
+              출발지
+            </label>
+            <label className="flex items-center gap-2 px-3 py-3 rounded-xl border border-[#DFE6F2] bg-white font-semibold text-sm">
+              <input
+                type="checkbox"
+                className="w-5 h-5"
+                checked={draft.ladderTo}
+                onChange={(e) => {
+                  tap("soft");
+                  updateDraft({ ladderTo: e.target.checked });
+                }}
+              />
+              도착지
+            </label>
+          </div>
+          <div className="mt-3 space-y-2">
+            <Field label="사다리차 금액 (원)">
+              <TextInput
+                type="number"
+                inputMode="numeric"
+                placeholder="금액 입력"
+                value={draft.ladderPrice || ""}
+                onChange={(e) => updateDraft({ ladderPrice: Number(e.target.value) || 0 })}
+              />
+            </Field>
+            <label className="flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
+              <input
+                type="checkbox"
+                className="w-5 h-5"
+                checked={draft.ladderSeparate}
+                onChange={(e) => {
+                  tap("soft");
+                  updateDraft({ ladderSeparate: e.target.checked });
+                }}
+              />
+              별도 (견적 합계에서 제외)
+            </label>
+          </div>
+        </Card>
         <div className="text-xs text-[#6B7280] text-center px-4">
           ※ 차량은 견적 상황에 따라 변경될 수 있습니다.
         </div>
