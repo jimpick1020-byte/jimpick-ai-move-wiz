@@ -1218,7 +1218,7 @@ export function OptionsScreen() {
                 onChange={(e) => updateDraft({ storageEnd: e.target.value })}
               />
             </Field>
-            <Field label="하루 보관 단가 (1,000원 단위)">
+            <Field label="하루 보관 단가">
               <MoneyInput
                 value={draft.storageDaily}
                 onChange={(n) => updateDraft({ storageDaily: n })}
