@@ -869,32 +869,14 @@ export function Step6() {
             className="pl-9"
           />
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => setScreen("ai")}
-            className="py-3 rounded-2xl bg-white border-2 border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2 text-sm"
-          >
-            <Camera className="w-5 h-5" /> AI 사진 인식
-          </button>
-          <button
-            onClick={() => setScreen("ai")}
-            className="py-3 rounded-2xl bg-white border-2 border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2 text-sm"
-          >
-            <Video className="w-5 h-5" /> AI 동영상 촬영
-          </button>
-        </div>
         <button
-          onClick={() => {
-            if (!room) return;
-            if (!confirm(`「${room.name}」의 품목을 전체 삭제할까요?`)) return;
-            updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items: {} } : r)) });
-            tap("soft");
-            toast.success("품목이 전체 삭제되었습니다");
-          }}
-          className="w-full py-3 rounded-2xl bg-white border border-[#FCA5A5] text-[#EF4444] font-bold flex items-center justify-center gap-2 text-sm"
+          onClick={() => setScreen("ai")}
+          className="w-full py-3 rounded-2xl bg-white border-2 border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2 text-sm"
         >
-          <Trash2 className="w-4 h-4" /> 이 방 품목 전체 삭제
+          <Camera className="w-5 h-5" />
+          <Video className="w-5 h-5" /> AI 사진·동영상 인식
         </button>
+
         <div className="grid grid-cols-2 gap-3">
           {items.map((it) => {
             const qty = room?.items[it.id] || 0;
