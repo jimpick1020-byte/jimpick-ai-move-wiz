@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { ChevronLeft, Home, ClipboardList, Users, Settings as SettingsIcon, Minus, Plus } from "lucide-react";
 import { useApp, type Screen } from "@/lib/jimpick";
 import { tap } from "@/lib/feedback";
@@ -88,25 +88,55 @@ export function Counter({
   min?: number;
   max?: number;
 }) {
+  const timers = useRef<{ t?: ReturnType<typeof setTimeout>; i?: ReturnType<typeof setInterval> }>({});
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
+  const clear = () => {
+    if (timers.current.t) clearTimeout(timers.current.t);
+    if (timers.current.i) clearInterval(timers.current.i);
+    timers.current = {};
+  };
+  useEffect(() => clear, []);
+
+  const step = (dir: 1 | -1) => {
+    const next = dir === 1 ? Math.min(max, valueRef.current + 1) : Math.max(min, valueRef.current - 1);
+    if (next === valueRef.current) return;
+    valueRef.current = next;
+    onChange(next);
+  };
+
+  const hold = (dir: 1 | -1) => {
+    tap("soft");
+    step(dir);
+    clear();
+    // 길게 누르면 숫자가 계속 올라가/내려갑니다
+    timers.current.t = setTimeout(() => {
+      timers.current.i = setInterval(() => step(dir), 80);
+    }, 400);
+  };
+
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3 select-none">
       <button
-        onClick={() => {
-          tap("soft");
-          onChange(Math.max(min, value - 1));
-        }}
-        className="w-10 h-10 rounded-full bg-gradient-to-b from-white to-[#EDF1F8] border border-[#DCE3EE] shadow-[0_3px_0_#DCE3EE,0_6px_12px_rgba(15,23,42,0.08)] flex items-center justify-center transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#DCE3EE]"
+        onPointerDown={() => hold(-1)}
+        onPointerUp={clear}
+        onPointerLeave={clear}
+        onPointerCancel={clear}
+        onContextMenu={(e) => e.preventDefault()}
+        className="w-10 h-10 rounded-full bg-gradient-to-b from-white to-[#EDF1F8] border border-[#DCE3EE] shadow-[0_3px_0_#DCE3EE,0_6px_12px_rgba(15,23,42,0.08)] flex items-center justify-center transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#DCE3EE] touch-none"
         aria-label="감소"
       >
         <Minus className="w-5 h-5 text-[#334155]" />
       </button>
       <span className="text-xl font-bold w-8 text-center tabular-nums">{value}</span>
       <button
-        onClick={() => {
-          tap("soft");
-          onChange(Math.min(max, value + 1));
-        }}
-        className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-[0_3px_0_#0645B0,0_8px_16px_rgba(7,81,216,0.3)] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#0645B0]"
+        onPointerDown={() => hold(1)}
+        onPointerUp={clear}
+        onPointerLeave={clear}
+        onPointerCancel={clear}
+        onContextMenu={(e) => e.preventDefault()}
+        className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-[0_3px_0_#0645B0,0_8px_16px_rgba(7,81,216,0.3)] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#0645B0] touch-none"
         style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
         aria-label="증가"
       >
@@ -115,6 +145,63 @@ export function Counter({
     </div>
   );
 }
+
+/** 금액 입력 — 1,000원 단위 스텝 + 천단위 콤마 표시 */
+export function MoneyInput({
+  value,
+  onChange,
+  step = 1000,
+  placeholder = "0",
+  className = "",
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  step?: number;
+  placeholder?: string;
+  className?: string;
+}) {
+  const set = (n: number) => {
+    onChange(Math.max(0, n));
+  };
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      <button
+        type="button"
+        onClick={() => {
+          tap("soft");
+          set(Math.max(0, Math.round(value / step) * step - step));
+        }}
+        className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-b from-white to-[#EDF1F8] border border-[#DCE3EE] shadow-[0_3px_0_#DCE3EE] flex items-center justify-center active:translate-y-[2px] active:shadow-none"
+        aria-label="1000원 감소"
+      >
+        <Minus className="w-4 h-4 text-[#334155]" />
+      </button>
+      <div className="relative flex-1">
+        <TextInput
+          inputMode="numeric"
+          placeholder={placeholder}
+          value={value ? value.toLocaleString("ko-KR") : ""}
+          onChange={(e) => set(Number(e.target.value.replace(/[^\d]/g, "")) || 0)}
+          className="pr-8 text-right font-bold tabular-nums"
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[#6B7280]">원</span>
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          tap("soft");
+          set(Math.round(value / step) * step + step);
+        }}
+        className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-white shadow-[0_3px_0_#0645B0] active:translate-y-[2px] active:shadow-none"
+        style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
+        aria-label="1000원 증가"
+      >
+        <Plus className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
 
 
 export function BottomNav() {

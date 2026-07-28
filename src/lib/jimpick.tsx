@@ -62,6 +62,10 @@ export interface Estimate {
   storageStart: string;
   storageEnd: string;
   storageDaily: number;
+  /** 기본 운송료 직접 입력 (null이면 자동 계산) */
+  transportOverride?: number | null;
+  /** 예상 견적 금액 직접 입력 (null이면 자동 합계) */
+  totalOverride?: number | null;
   total: number;
 }
 
@@ -99,6 +103,19 @@ export const ITEM_CATALOG: { id: string; name: string; cat: string; emoji: strin
 export const DEFAULT_ROOMS = ["안방", "작은방", "입구방", "거실", "부엌", "베란다"];
 /** 옵션 품목은 기본값 없이 사용자가 직접 추가합니다. */
 export const DEFAULT_OPTIONS: OptionItem[] = [];
+/** 견적서에 자주 쓰는 옵션 금액 (빠른 추가용, 금액은 수정 가능) */
+export const OPTION_PRESETS: { name: string; price: number }[] = [
+  { name: "에어컨 이전 설치", price: 150000 },
+  { name: "에어컨 철거", price: 80000 },
+  { name: "세탁기 설치", price: 30000 },
+  { name: "입주 청소", price: 250000 },
+  { name: "폐기물 처리", price: 100000 },
+  { name: "장롱 분해·조립", price: 100000 },
+  { name: "피아노 운반", price: 200000 },
+  { name: "금고 운반", price: 150000 },
+  { name: "포장 자재비", price: 50000 },
+  { name: "주차/도로 사용료", price: 30000 },
+];
 
 /** 30평대 기준 방별 기본 품목 배치 */
 export const PRESET_30PY: Record<string, RoomItems> = {
@@ -124,20 +141,12 @@ export const PRICING = {
 
 export function calcEstimate(e: Estimate): { total: number; parts: { label: string; amount: number }[] } {
   const ladderFee = e.ladderSeparate ? 0 : e.ladderPrice || e.ladder * PRICING.ladder;
-  const transport = e.truck1t * PRICING.truck1t + e.truck5t * PRICING.truck5t + ladderFee;
-  const labor = e.workers * PRICING.worker + e.kitchenStaff * PRICING.kitchenStaff;
-  const extraKm = Math.max(0, e.distanceKm - PRICING.baseKm);
-  const distanceFee = extraKm * PRICING.perKm;
+  const autoTransport = e.truck1t * PRICING.truck1t + e.truck5t * PRICING.truck5t + ladderFee;
+  const transport =
+    e.transportOverride === null || e.transportOverride === undefined ? autoTransport : e.transportOverride;
   const stairFloors =
     e.workEnv === "계단" ? Math.max(0, e.fromFloor - 1) + Math.max(0, e.toFloor - 1) : 0;
   const stairFee = stairFloors * PRICING.stairPerFloor;
-  let itemFee = 0;
-  for (const r of e.rooms) {
-    for (const [id, qty] of Object.entries(r.items)) {
-      const it = ITEM_CATALOG.find((x) => x.id === id) || (e.customItems || []).find((x) => x.id === id);
-      if (it?.extra) itemFee += it.extra * qty;
-    }
-  }
   const optionFee = e.options
     .filter((o) => o.enabled && !o.separate)
     .reduce((s, o) => s + (o.price || 0), 0);
@@ -149,20 +158,19 @@ export function calcEstimate(e: Estimate): { total: number; parts: { label: stri
     );
     storageFee = days * (e.storageDaily || 0);
   }
-  const total = transport + labor + distanceFee + stairFee + itemFee + optionFee + storageFee;
+  const sum = transport + stairFee + optionFee + storageFee;
+  const total = e.totalOverride === null || e.totalOverride === undefined ? sum : e.totalOverride;
   return {
     total,
     parts: [
       { label: "기본 운송료", amount: transport },
-      { label: "작업 인원", amount: labor },
-      { label: "거리 추가비", amount: distanceFee },
       { label: "계단 추가비", amount: stairFee },
-      { label: "품목 추가비", amount: itemFee },
       { label: "옵션 비용", amount: optionFee },
       { label: "보관료", amount: storageFee },
     ],
   };
 }
+
 
 // ============ Store ============
 export function newEstimate(): Estimate {
@@ -200,6 +208,8 @@ export function newEstimate(): Estimate {
     storageStart: "",
     storageEnd: "",
     storageDaily: 20000,
+    transportOverride: null,
+    totalOverride: null,
     total: 0,
   };
 }

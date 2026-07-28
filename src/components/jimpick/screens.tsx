@@ -23,6 +23,7 @@ import {
   useApp,
   ITEM_CATALOG,
   CATEGORIES,
+  OPTION_PRESETS,
   calcEstimate,
   formatPhone,
   won,
@@ -36,10 +37,13 @@ import {
   BottomButtonBar,
   BottomNav,
   Counter,
+  MoneyInput,
   Card,
   Field,
   TextInput,
 } from "./ui";
+import aiRobotPhoto from "@/assets/ai-robot-photo.png";
+import aiRobotVideo from "@/assets/ai-robot-video.png";
 import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
 
@@ -477,16 +481,23 @@ export function Step3() {
           </div>
         </Field>
         <Field label="사다리차">
-          <Card selected={draft.ladder > 0}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={56} />
-                <div>
-                  <div className="font-semibold">사다리차 대수</div>
-                  <div className="text-xs text-[#6B7280]">필요 시 입력 (0~5대)</div>
-                </div>
+          <Card
+            selected={draft.ladder > 0}
+            onClick={() => updateDraft({ ladder: draft.ladder > 0 ? 0 : 1 })}
+          >
+            <div className="flex items-center gap-3">
+              <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={56} />
+              <div className="flex-1">
+                <div className="font-semibold">사다리차 사용</div>
+                <div className="text-xs text-[#6B7280]">필요하면 눌러서 선택하세요</div>
               </div>
-              <Counter value={draft.ladder} onChange={(n) => updateDraft({ ladder: n })} min={0} max={5} />
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                  draft.ladder > 0 ? "bg-[#0751D8] text-white" : "border-2 border-[#DFE6F2]"
+                }`}
+              >
+                {draft.ladder > 0 && <Check className="w-4 h-4" />}
+              </div>
             </div>
           </Card>
         </Field>
@@ -559,7 +570,7 @@ export function Step4() {
   const vehicles = [
     { key: "truck1t" as const, name: "1톤 차량", img: VEHICLE_IMG.truck1t, max: 10, val: draft.truck1t },
     { key: "truck5t" as const, name: "5톤 차량", img: VEHICLE_IMG.truck5t, max: 10, val: draft.truck5t },
-    { key: "ladder" as const, name: "사다리차", img: VEHICLE_IMG.ladder, max: 5, val: draft.ladder },
+    
   ];
   return (
     <MobileShell>
@@ -615,13 +626,12 @@ export function Step4() {
             </label>
           </div>
           <div className="mt-3 space-y-2">
-            <Field label="사다리차 금액 (원)">
-              <TextInput
-                type="number"
-                inputMode="numeric"
+            <Field label="사다리차 금액 (1,000원 단위)">
+              <MoneyInput
+                value={draft.ladderPrice}
+                onChange={(n) => updateDraft({ ladderPrice: n })}
+                step={1000}
                 placeholder="금액 입력"
-                value={draft.ladderPrice || ""}
-                onChange={(e) => updateDraft({ ladderPrice: Number(e.target.value) || 0 })}
               />
             </Field>
             <label className="flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
@@ -842,11 +852,31 @@ export function Step6() {
             className="pl-9"
           />
         </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setScreen("ai")}
+            className="py-3 rounded-2xl bg-white border-2 border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2 text-sm"
+          >
+            <Camera className="w-5 h-5" /> AI 사진 인식
+          </button>
+          <button
+            onClick={() => setScreen("ai")}
+            className="py-3 rounded-2xl bg-white border-2 border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2 text-sm"
+          >
+            <Video className="w-5 h-5" /> AI 동영상 촬영
+          </button>
+        </div>
         <button
-          onClick={() => setScreen("ai")}
-          className="w-full py-3 rounded-2xl bg-white border-2 border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2"
+          onClick={() => {
+            if (!room) return;
+            if (!confirm(`「${room.name}」의 품목을 전체 삭제할까요?`)) return;
+            updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items: {} } : r)) });
+            tap("soft");
+            toast.success("품목이 전체 삭제되었습니다");
+          }}
+          className="w-full py-3 rounded-2xl bg-white border border-[#FCA5A5] text-[#EF4444] font-bold flex items-center justify-center gap-2 text-sm"
         >
-          <Camera className="w-5 h-5" /> AI 사진 인식으로 자동 입력
+          <Trash2 className="w-4 h-4" /> 이 방 품목 전체 삭제
         </button>
         <div className="grid grid-cols-2 gap-3">
           {items.map((it) => {
@@ -892,6 +922,7 @@ export function AIRecognition() {
   const { draft, updateDraft, setScreen, currentRoomId } = useApp();
   const [results, setResults] = useState<{ id: string; name: string; qty: number; emoji: string }[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>("");
+  const [photoUrl, setPhotoUrl] = useState<string>("");
   const scan = () => {
     setResults([
       { id: "sofa", name: "소파", qty: 2, emoji: "🛋️" },
@@ -914,51 +945,114 @@ export function AIRecognition() {
   };
   return (
     <MobileShell>
-      <TopBar title="AI 사진 인식" onBack={() => setScreen("step6")} />
+      <TopBar title="AI 사진·동영상 인식" onBack={() => setScreen("step6")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto">
-        <Card className="text-center py-10">
-          {videoUrl ? (
-            <video src={videoUrl} controls className="w-full rounded-xl" />
-          ) : (
-            <>
-              <Camera className="w-16 h-16 mx-auto text-[#0751D8]" />
-              <div className="font-bold mt-3">사진 또는 동영상을 올려 주세요.</div>
-              <div className="text-sm text-[#6B7280] mt-1">
-                AI가 3D 입체 분석으로 가구·가전·잔짐을 자동 인식합니다.
-              </div>
-            </>
-          )}
-        </Card>
-        <label className="w-full py-4 rounded-2xl bg-white border-2 border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2 cursor-pointer">
-          <Video className="w-5 h-5" /> 동영상 촬영·업로드
-          <input
-            type="file"
-            accept="video/*"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              setVideoUrl(URL.createObjectURL(f));
-              tap("success");
-              toast.success("동영상 업로드 완료 — 3D 분석을 시작합니다");
-              scan();
-            }}
+        {(videoUrl || photoUrl) && (
+          <Card className="py-4">
+            {videoUrl ? (
+              <video src={videoUrl} controls className="w-full rounded-xl" />
+            ) : (
+              <img src={photoUrl} alt="업로드한 사진" className="w-full rounded-xl" />
+            )}
+          </Card>
+        )}
+        <Card className="flex items-center gap-3">
+          <img
+            src={aiRobotPhoto}
+            alt="AI 사진 인식 로봇"
+            width={768}
+            height={768}
+            loading="lazy"
+            className="w-24 h-24 object-contain drop-shadow-[0_12px_16px_rgba(7,81,216,0.25)]"
           />
-        </label>
+          <div className="flex-1">
+            <div className="font-bold text-lg">AI 사진 인식</div>
+            <div className="text-sm text-[#6B7280] mt-1 mb-3">사진을 촬영하여 AI가 짐을 분석합니다.</div>
+            <label className="block w-full py-3 rounded-2xl text-white text-center font-bold cursor-pointer shadow-[0_4px_0_#0645B0]" style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}>
+              사진 촬영
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  setVideoUrl("");
+                  setPhotoUrl(URL.createObjectURL(f));
+                  tap("success");
+                  scan();
+                }}
+              />
+            </label>
+          </div>
+        </Card>
+        <Card className="flex items-center gap-3">
+          <img
+            src={aiRobotVideo}
+            alt="AI 동영상 인식 로봇"
+            width={768}
+            height={768}
+            loading="lazy"
+            className="w-24 h-24 object-contain drop-shadow-[0_12px_16px_rgba(7,81,216,0.25)]"
+          />
+          <div className="flex-1">
+            <div className="font-bold text-lg">AI 동영상 인식</div>
+            <div className="text-sm text-[#6B7280] mt-1 mb-3">동영상을 촬영하여 AI가 짐을 분석합니다.</div>
+            <label className="block w-full py-3 rounded-2xl text-white text-center font-bold cursor-pointer shadow-[0_4px_0_#0645B0]" style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}>
+              동영상 촬영
+              <input
+                type="file"
+                accept="video/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  setPhotoUrl("");
+                  setVideoUrl(URL.createObjectURL(f));
+                  tap("success");
+                  toast.success("동영상 업로드 완료 — 3D 분석을 시작합니다");
+                  scan();
+                }}
+              />
+            </label>
+          </div>
+        </Card>
         <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={scan}
-            className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-semibold flex items-center justify-center gap-2"
-          >
-            <Camera className="w-5 h-5" /> 카메라 촬영
-          </button>
-          <button
-            onClick={scan}
-            className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-semibold flex items-center justify-center gap-2"
-          >
+          <label className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-semibold flex items-center justify-center gap-2 cursor-pointer">
             <ImageIcon className="w-5 h-5" /> 사진 불러오기
-          </button>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                setVideoUrl("");
+                setPhotoUrl(URL.createObjectURL(f));
+                scan();
+              }}
+            />
+          </label>
+          <label className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-semibold flex items-center justify-center gap-2 cursor-pointer">
+            <Video className="w-5 h-5" /> 동영상 불러오기
+            <input
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                setPhotoUrl("");
+                setVideoUrl(URL.createObjectURL(f));
+                scan();
+              }}
+            />
+          </label>
+        </div>
+        <div className="text-xs text-[#6B7280] bg-[#F5F7FB] rounded-xl px-3 py-2">
+          💡 밝고 선명하게 촬영할수록 인식률이 높아집니다.
         </div>
         {results.length > 0 && (
           <div className="space-y-2">
@@ -992,6 +1086,7 @@ export function AIRecognition() {
             onClick={() => {
               setResults([]);
               setVideoUrl("");
+              setPhotoUrl("");
             }}
             className="flex-1 py-4 rounded-2xl border border-[#E7EBF2] font-bold"
           >
@@ -1059,16 +1154,13 @@ export function OptionsScreen() {
             </div>
             {o.enabled && (
               <div className="mt-3 space-y-2">
-                <TextInput
-                  type="number"
-                  inputMode="numeric"
+                <MoneyInput
+                  value={o.price}
+                  step={1000}
                   placeholder="추가 금액 입력"
-                  value={o.price || ""}
-                  onChange={(e) =>
+                  onChange={(n) =>
                     updateDraft({
-                      options: draft.options.map((x, j) =>
-                        j === i ? { ...x, price: Number(e.target.value) || 0 } : x
-                      ),
+                      options: draft.options.map((x, j) => (j === i ? { ...x, price: n } : x)),
                     })
                   }
                 />
@@ -1092,11 +1184,33 @@ export function OptionsScreen() {
             )}
           </Card>
         ))}
+        <div className="space-y-2">
+          <div className="text-sm font-bold text-[#111827]">견적서 금액 빠른 추가</div>
+          <div className="flex flex-wrap gap-2">
+            {OPTION_PRESETS.filter((p) => !draft.options.some((o) => o.name === p.name)).map((p) => (
+              <button
+                key={p.name}
+                onClick={() => {
+                  tap("success");
+                  updateDraft({
+                    options: [
+                      ...draft.options,
+                      { id: `op_${Date.now()}_${p.name}`, name: p.name, enabled: true, price: p.price, separate: false },
+                    ],
+                  });
+                }}
+                className="px-3 py-2 rounded-full bg-white border border-[#DFE6F2] text-xs font-semibold text-[#0751D8] shadow-[0_2px_0_#E3E9F5]"
+              >
+                + {p.name} {p.price.toLocaleString("ko-KR")}원
+              </button>
+            ))}
+          </div>
+        </div>
         <button
           onClick={() => {
             const name = prompt("추가할 옵션 품목 이름");
             if (!name) return;
-            const price = Number(prompt("추가 금액 (원)", "0")) || 0;
+            const price = Number((prompt("추가 금액 (원)", "0") || "").replace(/[^\d]/g, "")) || 0;
             updateDraft({
               options: [
                 ...draft.options,
@@ -1107,7 +1221,7 @@ export function OptionsScreen() {
           }}
           className="w-full py-4 rounded-2xl border-2 border-dashed border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2"
         >
-          <Plus className="w-5 h-5" /> 옵션 품목 추가
+          <Plus className="w-5 h-5" /> 옵션 품목 직접 추가
         </button>
         {draft.moveType === "보관이사" && (
           <Card className="space-y-3">
@@ -1126,11 +1240,11 @@ export function OptionsScreen() {
                 onChange={(e) => updateDraft({ storageEnd: e.target.value })}
               />
             </Field>
-            <Field label="하루 보관 단가 (원)">
-              <TextInput
-                type="number"
+            <Field label="하루 보관 단가 (1,000원 단위)">
+              <MoneyInput
                 value={draft.storageDaily}
-                onChange={(e) => updateDraft({ storageDaily: Number(e.target.value) || 0 })}
+                onChange={(n) => updateDraft({ storageDaily: n })}
+                step={1000}
               />
             </Field>
             <div className="text-sm">
@@ -1152,6 +1266,7 @@ export function Result() {
   const { draft, setScreen, saveDraft, updateDraft } = useApp();
   const [detail, setDetail] = useState(false);
   const [edit, setEdit] = useState(false);
+  const [editTotal, setEditTotal] = useState(false);
   const [adjust, setAdjust] = useState(0);
   const calc = calcEstimate(draft);
   const total = calc.total + adjust;
@@ -1184,17 +1299,79 @@ export function Result() {
           style={{ background: "linear-gradient(135deg, #0A2A6C 0%, #0751D8 100%)" }}
         >
           <div className="text-sm opacity-90">예상 견적 금액</div>
-          <div className="text-4xl font-black my-3">{won(total)}</div>
-          <button
-            onClick={() => setDetail((v) => !v)}
-            className="text-sm bg-white/20 rounded-full px-4 py-2 font-semibold"
-          >
-            {detail ? "간단히 보기" : "상세 내역 보기"}
-          </button>
+          {editTotal ? (
+            <div className="my-3 bg-white rounded-2xl p-3">
+              <MoneyInput
+                value={total}
+                step={1000}
+                onChange={(n) => updateDraft({ totalOverride: n - adjust })}
+              />
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => {
+                    updateDraft({ totalOverride: null });
+                    tap("soft");
+                  }}
+                  className="flex-1 py-2 rounded-xl border border-[#DFE6F2] text-[#0751D8] text-sm font-bold"
+                >
+                  자동 계산으로 되돌리기
+                </button>
+                <button
+                  onClick={() => {
+                    setEditTotal(false);
+                    tap("success");
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-[#0751D8] text-white text-sm font-bold"
+                >
+                  적용
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-4xl font-black my-3">{won(total)}</div>
+          )}
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={() => setDetail((v) => !v)}
+              className="text-sm bg-white/20 rounded-full px-4 py-2 font-semibold"
+            >
+              {detail ? "간단히 보기" : "상세 내역 보기"}
+            </button>
+            <button
+              onClick={() => {
+                tap("soft");
+                setEditTotal((v) => !v);
+              }}
+              className="text-sm bg-white/20 rounded-full px-4 py-2 font-semibold flex items-center gap-1"
+            >
+              <Edit3 className="w-3.5 h-3.5" /> 금액 수정
+            </button>
+          </div>
         </div>
         {detail && (
-          <Card className="space-y-2">
-            {parts.map((p) => (
+          <Card className="space-y-3">
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-[#6B7280]">기본 운송료 (직접 수정 가능)</span>
+              </div>
+              <MoneyInput
+                value={calc.parts[0].amount}
+                step={1000}
+                onChange={(n) => updateDraft({ transportOverride: n })}
+              />
+              {draft.transportOverride !== null && draft.transportOverride !== undefined && (
+                <button
+                  onClick={() => {
+                    tap("soft");
+                    updateDraft({ transportOverride: null });
+                  }}
+                  className="mt-2 text-xs font-bold text-[#0751D8]"
+                >
+                  자동 계산으로 되돌리기
+                </button>
+              )}
+            </div>
+            {parts.slice(1).map((p) => (
               <div key={p.label} className="flex justify-between text-sm">
                 <span className="text-[#6B7280]">{p.label}</span>
                 <span className="font-semibold">{won(p.amount)}</span>
@@ -1243,14 +1420,6 @@ export function Result() {
                   onChange={(e) => updateDraft({ distanceKm: Number(e.target.value) || 0 })}
                 />
               </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="남자 작업자">
-                  <TextInput type="number" value={draft.workers} onChange={(e) => updateDraft({ workers: Number(e.target.value) || 0 })} />
-                </Field>
-                <Field label="주방 이모">
-                  <TextInput type="number" value={draft.kitchenStaff} onChange={(e) => updateDraft({ kitchenStaff: Number(e.target.value) || 0 })} />
-                </Field>
-              </div>
               <div className="grid grid-cols-3 gap-2">
                 <Field label="1톤">
                   <TextInput type="number" value={draft.truck1t} onChange={(e) => updateDraft({ truck1t: Number(e.target.value) || 0 })} />
@@ -1278,7 +1447,6 @@ export function Result() {
               <div className="text-[#6B7280]">출발: {draft.fromAddress} {draft.fromDetail}</div>
               <div className="text-[#6B7280]">도착: {draft.toAddress} {draft.toDetail}</div>
               <div>거리 {draft.distanceKm}km · {draft.workEnv} · {draft.fromFloor}층→{draft.toFloor}층</div>
-              <div>남자 {draft.workers}명 · 이모 {draft.kitchenStaff}명</div>
               <div>
                 1톤 {draft.truck1t} · 5톤 {draft.truck5t} · 사다리 {draft.ladder}
                 {(draft.ladderFrom || draft.ladderTo) &&
