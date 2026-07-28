@@ -481,7 +481,7 @@ export function Step2() {
           detail={draft.fromDetail}
           onSelect={(a, c) => {
             updateDraft({ fromAddress: a, distanceKm: 0, durationMin: 0 });
-            setFrom(c);
+            setFrom(c.x && c.y ? c : null);
           }}
           onDetail={(d) => updateDraft({ fromDetail: d })}
         />
@@ -491,7 +491,7 @@ export function Step2() {
           detail={draft.toDetail}
           onSelect={(a, c) => {
             updateDraft({ toAddress: a, distanceKm: 0, durationMin: 0 });
-            setTo(c);
+            setTo(c.x && c.y ? c : null);
           }}
           onDetail={(d) => updateDraft({ toDetail: d })}
         />
