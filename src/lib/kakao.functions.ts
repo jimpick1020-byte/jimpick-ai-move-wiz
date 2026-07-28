@@ -14,6 +14,17 @@ export const getKakaoJsKey = createServerFn({ method: "GET" }).handler(async () 
   return { key: process.env.KAKAO_MAP_JS_KEY ?? "" };
 });
 
+/** 카카오 API 오류를 사용자에게 보여줄 문구로 변환 */
+function kakaoErrorMessage(status: number, body: string): string {
+  if (body.includes("disabled OPEN_MAP_AND_LOCAL")) {
+    return "카카오 개발자 콘솔에서 [카카오맵] 서비스가 꺼져 있습니다. 내 애플리케이션 > 카카오맵 을 ON 으로 켜주세요.";
+  }
+  if (status === 401) return "카카오 REST API 키가 올바르지 않습니다. (REST API 키인지 확인해 주세요)";
+  if (status === 403) return "카카오 API 사용 권한이 없습니다. 앱 설정에서 카카오맵/로컬 서비스를 활성화해 주세요.";
+  if (status === 429) return "카카오 API 호출 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.";
+  return "주소 검색에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+}
+
 /** 주소·장소 검색 (카카오 로컬 API) */
 export const searchAddress = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ query: z.string().min(1).max(100) }).parse(d))
@@ -55,8 +66,10 @@ export const searchAddress = createServerFn({ method: "POST" })
       }
     }
     if (!addrRes.ok && !kwRes.ok) {
-      return { places: [], error: "주소 검색에 실패했습니다. 카카오 키를 확인해 주세요." };
+      const body = await kwRes.text().catch(() => "");
+      return { places: [], error: kakaoErrorMessage(kwRes.status, body) };
     }
+
 
     const seen = new Set<string>();
     return {
