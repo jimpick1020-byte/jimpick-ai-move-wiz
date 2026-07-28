@@ -11,8 +11,10 @@ const CATALOG = [
   ["waterpurifier", "정수기"], ["kimchi", "김치냉장고"], ["vanity", "화장대"], ["drawer", "서랍장"],
   ["dryer", "건조기"], ["airpurifier", "공기청정기"], ["riceCooker", "밥솥"], ["gasrange", "가스레인지"],
   ["dishrack", "식기건조대"], ["vacuum", "청소기"], ["drying", "빨래건조대"], ["toolbox", "공구함"],
-  ["plant", "화분"], ["box", "이삿짐 박스"], ["bag", "잡화 가방"],
+  ["plant", "화분"], ["box", "이삿짐 박스"], ["clothbox", "옷박스"], ["bigbox", "대박스"],
+  ["midbox", "중박스"], ["basket", "바구니"], ["bag", "잡화 가방"],
 ] as const;
+
 
 const ResultSchema = z.object({
   items: z.array(
