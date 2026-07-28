@@ -499,26 +499,37 @@ export function Step2() {
 // ============ Step 3: Work condition ============
 export function Step3() {
   const { draft, updateDraft, setScreen } = useApp();
-  const maxFloor = draft.workEnv === "계단" ? 6 : 50;
+  const hasStair = draft.workEnv.includes("계단");
+  const hasElev = draft.workEnv.includes("엘리베이터");
+  const maxFloor = hasStair ? 6 : 50;
+  const toggleEnv = (env: "계단" | "엘리베이터") => {
+    const stair = env === "계단" ? !hasStair : hasStair;
+    const elev = env === "엘리베이터" ? !hasElev : hasElev;
+    if (!stair && !elev) return;
+    const next: WorkEnv = stair && elev ? "계단+엘리베이터" : stair ? "계단" : "엘리베이터";
+    updateDraft(
+      stair
+        ? { workEnv: next, fromFloor: Math.min(draft.fromFloor, 6), toFloor: Math.min(draft.toFloor, 6) }
+        : { workEnv: next },
+    );
+  };
   return (
     <MobileShell>
       <TopBar title="3단계. 작업 조건" onBack={() => setScreen("step2")} />
       <div className="p-5 space-y-5 flex-1 overflow-auto">
-        <Field label="작업 환경">
+        <Field label="작업 환경 (중복 선택 가능)">
           <div className="grid grid-cols-2 gap-3">
             <Card
-              selected={draft.workEnv === "계단"}
-              onClick={() =>
-                updateDraft({ workEnv: "계단", fromFloor: Math.min(draft.fromFloor, 6), toFloor: Math.min(draft.toFloor, 6) })
-              }
+              selected={hasStair}
+              onClick={() => toggleEnv("계단")}
               className="text-center py-6"
             >
               <Art3D src={ENV_IMG["계단"]} alt="계단" size={72} className="mx-auto mb-2" />
               <div className="font-bold">계단 (수작업)</div>
             </Card>
             <Card
-              selected={draft.workEnv === "엘리베이터"}
-              onClick={() => updateDraft({ workEnv: "엘리베이터" })}
+              selected={hasElev}
+              onClick={() => toggleEnv("엘리베이터")}
               className="text-center py-6"
             >
               <Art3D src={ENV_IMG["엘리베이터"]} alt="엘리베이터" size={72} className="mx-auto mb-2" />
