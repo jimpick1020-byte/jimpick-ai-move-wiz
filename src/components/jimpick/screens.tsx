@@ -1201,6 +1201,16 @@ export function OptionsScreen() {
         >
           <Plus className="w-5 h-5" /> 옵션 품목 직접 추가
         </button>
+        <Card className="space-y-2">
+          <div className="font-bold">특약사항</div>
+          <textarea
+            value={draft.specialTerms}
+            onChange={(e) => updateDraft({ specialTerms: e.target.value })}
+            placeholder="예) 사다리차 사용료 별도, 주차 공간 확보 필요, 폐기물 처리 미포함 등"
+            rows={4}
+            className="w-full px-4 py-3 rounded-xl border border-[#DFE6F2] bg-gradient-to-b from-[#F8FAFD] to-white text-base shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] resize-none"
+          />
+        </Card>
         {draft.moveType === "보관이사" && (
           <Card className="space-y-3">
             <div className="font-bold">보관 정보</div>
