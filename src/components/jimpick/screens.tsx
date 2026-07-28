@@ -1184,28 +1184,6 @@ export function OptionsScreen() {
             )}
           </Card>
         ))}
-        <div className="space-y-2">
-          <div className="text-sm font-bold text-[#111827]">견적서 금액 빠른 추가</div>
-          <div className="flex flex-wrap gap-2">
-            {OPTION_PRESETS.filter((p) => !draft.options.some((o) => o.name === p.name)).map((p) => (
-              <button
-                key={p.name}
-                onClick={() => {
-                  tap("success");
-                  updateDraft({
-                    options: [
-                      ...draft.options,
-                      { id: `op_${Date.now()}_${p.name}`, name: p.name, enabled: true, price: p.price, separate: false },
-                    ],
-                  });
-                }}
-                className="px-3 py-2 rounded-full bg-white border border-[#DFE6F2] text-xs font-semibold text-[#0751D8] shadow-[0_2px_0_#E3E9F5]"
-              >
-                + {p.name} {p.price.toLocaleString("ko-KR")}원
-              </button>
-            ))}
-          </div>
-        </div>
         <button
           onClick={() => {
             const name = prompt("추가할 옵션 품목 이름");
