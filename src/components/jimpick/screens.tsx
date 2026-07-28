@@ -327,16 +327,7 @@ export function Step1() {
   );
 }
 
-// ============ Step 2: Address ============
-const SAMPLE_ADDRESSES = [
-  "서울특별시 강남구 테헤란로 123",
-  "서울특별시 마포구 월드컵북로 400",
-  "서울특별시 송파구 올림픽로 300",
-  "경기도 성남시 분당구 판교역로 235",
-  "인천광역시 연수구 송도과학로 100",
-  "부산광역시 해운대구 우동 1418",
-];
-
+// ============ Step 2: Address (카카오맵) ============
 function AddressSearch({
   label,
   value,
@@ -347,24 +338,44 @@ function AddressSearch({
   label: string;
   value: string;
   detail: string;
-  onSelect: (a: string) => void;
+  onSelect: (a: string, coord: { x: number; y: number }) => void;
   onDetail: (d: string) => void;
 }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
-  const results = q ? SAMPLE_ADDRESSES.filter((a) => a.includes(q)) : SAMPLE_ADDRESSES;
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<KakaoPlace[]>([]);
+
+  const run = async () => {
+    if (!q.trim()) return;
+    setLoading(true);
+    setOpen(true);
+    try {
+      const res = await searchAddress({ data: { query: q.trim() } });
+      if (res.error) toast.error(res.error);
+      setResults(res.places);
+      if (!res.error && res.places.length === 0) toast.info("검색 결과가 없습니다");
+    } catch {
+      toast.error("주소 검색에 실패했습니다");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Card className="space-y-3">
       <div className="font-bold">{label}</div>
       <div className="flex gap-2">
         <TextInput
-          placeholder="주소를 검색하세요 (예: 강남)"
+          placeholder="도로명·지번·건물명 검색"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") run();
+          }}
         />
         <button
-          onClick={() => setOpen(true)}
+          onClick={run}
           className="px-4 rounded-xl text-white font-semibold"
           style={{ background: "linear-gradient(135deg, #287BFF, #0751D8)" }}
         >
@@ -372,25 +383,27 @@ function AddressSearch({
         </button>
       </div>
       {open && (
-        <div className="border border-[#E7EBF2] rounded-xl max-h-48 overflow-auto bg-white">
-          {results.map((a) => (
-            <button
-              key={a}
-              onClick={() => {
-                onSelect(a);
-                setOpen(false);
-                setQ("");
-              }}
-              className="w-full text-left px-4 py-3 hover:bg-[#F5F7FB] text-sm border-b last:border-b-0 border-[#E7EBF2]"
-            >
-              {a}
-            </button>
-          ))}
+        <div className="border border-[#E7EBF2] rounded-xl max-h-52 overflow-auto bg-white">
+          {loading && <div className="px-4 py-3 text-sm text-[#6B7280]">검색 중...</div>}
+          {!loading &&
+            results.map((a, i) => (
+              <button
+                key={`${a.name}-${i}`}
+                onClick={() => {
+                  onSelect(a.roadAddress || a.address, { x: a.x, y: a.y });
+                  setOpen(false);
+                  setQ("");
+                  tap();
+                }}
+                className="w-full text-left px-4 py-3 hover:bg-[#F5F7FB] text-sm border-b last:border-b-0 border-[#E7EBF2]"
+              >
+                <div className="font-semibold">{a.name}</div>
+                <div className="text-xs text-[#6B7280]">{a.roadAddress || a.address}</div>
+              </button>
+            ))}
         </div>
       )}
-      {value && (
-        <div className="text-sm bg-[#F5F7FB] rounded-xl p-3 font-medium">{value}</div>
-      )}
+      {value && <div className="text-sm bg-[#F5F7FB] rounded-xl p-3 font-medium">{value}</div>}
       <TextInput
         placeholder="상세주소 (예: 101동 1203호)"
         value={detail}
@@ -402,13 +415,27 @@ function AddressSearch({
 
 export function Step2() {
   const { draft, updateDraft, setScreen } = useApp();
-  const hasBoth = draft.fromAddress && draft.toAddress;
+  const [from, setFrom] = useState<{ x: number; y: number } | null>(null);
+  const [to, setTo] = useState<{ x: number; y: number } | null>(null);
+  const hasBoth = Boolean(draft.fromAddress && draft.toAddress);
+
   useEffect(() => {
-    if (hasBoth && !draft.distanceKm) {
-      const km = 5 + Math.round(Math.random() * 40);
-      updateDraft({ distanceKm: km, durationMin: Math.round(km * 3) });
-    }
-  }, [hasBoth, draft.distanceKm, updateDraft]);
+    if (!from || !to) return;
+    let cancelled = false;
+    (async () => {
+      const res = await getRoute({ data: { originX: from.x, originY: from.y, destX: to.x, destY: to.y } });
+      if (cancelled) return;
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      updateDraft({ distanceKm: res.distanceKm, durationMin: res.durationMin });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [from?.x, from?.y, to?.x, to?.y]);
+
   return (
     <MobileShell>
       <TopBar title="2단계. 주소 검색" onBack={() => setScreen("step1")} />
@@ -417,29 +444,29 @@ export function Step2() {
           label="출발지"
           value={draft.fromAddress}
           detail={draft.fromDetail}
-          onSelect={(a) => updateDraft({ fromAddress: a, distanceKm: 0 })}
+          onSelect={(a, c) => {
+            updateDraft({ fromAddress: a, distanceKm: 0, durationMin: 0 });
+            setFrom(c);
+          }}
           onDetail={(d) => updateDraft({ fromDetail: d })}
         />
         <AddressSearch
           label="도착지"
           value={draft.toAddress}
           detail={draft.toDetail}
-          onSelect={(a) => updateDraft({ toAddress: a, distanceKm: 0 })}
+          onSelect={(a, c) => {
+            updateDraft({ toAddress: a, distanceKm: 0, durationMin: 0 });
+            setTo(c);
+          }}
           onDetail={(d) => updateDraft({ toDetail: d })}
         />
-        {hasBoth && (
+        {(from || to) && (
           <Card>
             <div className="font-bold mb-2">경로 안내</div>
-            <div className="h-40 rounded-xl bg-gradient-to-br from-[#DDE9FF] to-[#EEF4FF] relative overflow-hidden">
-              <div className="absolute top-4 left-4 w-4 h-4 rounded-full bg-[#0751D8] ring-4 ring-white" />
-              <div className="absolute bottom-4 right-4 w-4 h-4 rounded-full bg-[#EF4444] ring-4 ring-white" />
-              <svg className="absolute inset-0 w-full h-full">
-                <line x1="16" y1="16" x2="100%" y2="100%" stroke="#287BFF" strokeWidth="3" strokeDasharray="6 4" />
-              </svg>
-            </div>
+            <KakaoMap from={from} to={to} height={180} />
             <div className="grid grid-cols-2 gap-3 mt-3 text-center">
               <div>
-                <div className="text-xs text-[#6B7280]">거리</div>
+                <div className="text-xs text-[#6B7280]">실거리</div>
                 <div className="text-lg font-bold">{draft.distanceKm} km</div>
               </div>
               <div>
