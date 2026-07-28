@@ -1447,7 +1447,6 @@ export function Result() {
               <div className="text-[#6B7280]">출발: {draft.fromAddress} {draft.fromDetail}</div>
               <div className="text-[#6B7280]">도착: {draft.toAddress} {draft.toDetail}</div>
               <div>거리 {draft.distanceKm}km · {draft.workEnv} · {draft.fromFloor}층→{draft.toFloor}층</div>
-              <div>남자 {draft.workers}명 · 이모 {draft.kitchenStaff}명</div>
               <div>
                 1톤 {draft.truck1t} · 5톤 {draft.truck5t} · 사다리 {draft.ladder}
                 {(draft.ladderFrom || draft.ladderTo) &&
