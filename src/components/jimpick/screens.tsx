@@ -626,14 +626,31 @@ export function Step4() {
             </label>
           </div>
           <div className="mt-3 space-y-2">
-            <Field label="사다리차 금액 (1,000원 단위)">
+            <Field label="출발지 금액">
               <MoneyInput
-                value={draft.ladderPrice}
-                onChange={(n) => updateDraft({ ladderPrice: n })}
+                value={draft.ladderFromPrice}
+                onChange={(n) =>
+                  updateDraft({ ladderFromPrice: n, ladderPrice: n + draft.ladderToPrice })
+                }
                 step={1000}
                 placeholder="금액 입력"
               />
             </Field>
+            <Field label="도착지 금액">
+              <MoneyInput
+                value={draft.ladderToPrice}
+                onChange={(n) =>
+                  updateDraft({ ladderToPrice: n, ladderPrice: draft.ladderFromPrice + n })
+                }
+                step={1000}
+                placeholder="금액 입력"
+              />
+            </Field>
+            <div className="flex justify-between text-sm font-bold">
+              <span className="text-[#6B7280]">사다리차 합계</span>
+              <span className="text-[#0751D8]">{won(draft.ladderFromPrice + draft.ladderToPrice)}</span>
+            </div>
+
             <label className="flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
               <input
                 type="checkbox"
