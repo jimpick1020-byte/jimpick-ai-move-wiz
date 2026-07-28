@@ -959,29 +959,74 @@ export function Step6() {
 // ============ AI Recognition ============
 export function AIRecognition() {
   const { draft, updateDraft, setScreen, currentRoomId } = useApp();
-  const [results, setResults] = useState<{ id: string; name: string; qty: number; emoji: string }[]>([]);
+  const [results, setResults] = useState<DetectedItem[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [photoUrl, setPhotoUrl] = useState<string>("");
-  const scan = () => {
-    setResults([
-      { id: "sofa", name: "소파", qty: 2, emoji: "🛋️" },
-      { id: "fridge", name: "냉장고", qty: 1, emoji: "🧊" },
-      { id: "washer", name: "세탁기", qty: 1, emoji: "🌀" },
-      { id: "tv", name: "TV", qty: 1, emoji: "📺" },
-    ]);
-    toast.success("AI 인식 완료");
+  const [busy, setBusy] = useState(false);
+  const [onlyHigh, setOnlyHigh] = useState(true);
+
+  const THRESHOLD = 0.9;
+  const shown = onlyHigh ? results.filter((r) => r.confidence >= THRESHOLD) : results;
+  const lowCount = results.filter((r) => r.confidence < THRESHOLD).length;
+
+  const analyze = async (images: string[], source: "photo" | "video") => {
+    setBusy(true);
+    setResults([]);
+    try {
+      const res = await recognizeItems({ data: { images, source } });
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      setResults(res.items);
+      const high = res.items.filter((i) => i.confidence >= THRESHOLD).length;
+      if (high === 0) {
+        toast.info("90% 이상 확신하는 품목이 없습니다. 더 밝고 가까이 촬영해 주세요.");
+        setOnlyHigh(false);
+      } else {
+        toast.success(`AI 인식 완료 — 정확도 90% 이상 ${high}개 품목`);
+        tap("success");
+      }
+      if (res.roomGuess) toast.info(`추정 공간: ${res.roomGuess}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI 분석에 실패했습니다");
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const onPhoto = async (f: File) => {
+    setVideoUrl("");
+    setPhotoUrl(URL.createObjectURL(f));
+    const dataUrl = await fileToDataUrl(f);
+    await analyze([dataUrl], "photo");
+  };
+
+  const onVideo = async (f: File) => {
+    setPhotoUrl("");
+    setVideoUrl(URL.createObjectURL(f));
+    setBusy(true);
+    try {
+      const frames = await videoToFrames(f, 6);
+      await analyze(frames, "video");
+    } catch {
+      toast.error("동영상을 분석하지 못했습니다");
+      setBusy(false);
+    }
+  };
+
   const apply = () => {
     const room = draft.rooms.find((r) => r.id === currentRoomId) || draft.rooms[0];
     if (!room) return;
     const items = { ...room.items };
-    for (const r of results) items[r.id] = (items[r.id] || 0) + r.qty;
+    for (const r of shown) items[r.id] = (items[r.id] || 0) + r.qty;
     updateDraft({
       rooms: draft.rooms.map((x) => (x.id === room.id ? { ...x, items } : x)),
     });
-    toast.success(`「${room.name}」에 적용되었습니다`);
+    toast.success(`「${room.name}」에 ${shown.length}개 품목이 적용되었습니다`);
     setScreen("step6");
   };
+
   return (
     <MobileShell>
       <TopBar title="AI 사진·동영상 인식" onBack={() => setScreen("step6")} />
@@ -995,6 +1040,7 @@ export function AIRecognition() {
             )}
           </Card>
         )}
+
         <Card className="flex items-center gap-3">
           <img
             src={aiRobotPhoto}
@@ -1006,7 +1052,7 @@ export function AIRecognition() {
           />
           <div className="flex-1">
             <div className="font-bold text-lg">AI 사진 인식</div>
-            <div className="text-sm text-[#6B7280] mt-1 mb-3">사진을 촬영하여 AI가 짐을 분석합니다.</div>
+            <div className="text-sm text-[#6B7280] mt-1 mb-3">가구·가전을 90% 정확도로 자동 인식합니다.</div>
             <label className="block w-full py-3 rounded-2xl text-white text-center font-bold cursor-pointer shadow-[0_4px_0_#0645B0]" style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}>
               사진 촬영
               <input
@@ -1016,16 +1062,13 @@ export function AIRecognition() {
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (!f) return;
-                  setVideoUrl("");
-                  setPhotoUrl(URL.createObjectURL(f));
-                  tap("success");
-                  scan();
+                  if (f) onPhoto(f);
                 }}
               />
             </label>
           </div>
         </Card>
+
         <Card className="flex items-center gap-3">
           <img
             src={aiRobotVideo}
@@ -1037,7 +1080,7 @@ export function AIRecognition() {
           />
           <div className="flex-1">
             <div className="font-bold text-lg">AI 동영상 인식</div>
-            <div className="text-sm text-[#6B7280] mt-1 mb-3">동영상을 촬영하여 AI가 짐을 분석합니다.</div>
+            <div className="text-sm text-[#6B7280] mt-1 mb-3">방을 천천히 한 바퀴 촬영하면 장면을 나눠 분석합니다.</div>
             <label className="block w-full py-3 rounded-2xl text-white text-center font-bold cursor-pointer shadow-[0_4px_0_#0645B0]" style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}>
               동영상 촬영
               <input
@@ -1047,17 +1090,13 @@ export function AIRecognition() {
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (!f) return;
-                  setPhotoUrl("");
-                  setVideoUrl(URL.createObjectURL(f));
-                  tap("success");
-                  toast.success("동영상 업로드 완료 — 3D 분석을 시작합니다");
-                  scan();
+                  if (f) onVideo(f);
                 }}
               />
             </label>
           </div>
         </Card>
+
         <div className="grid grid-cols-2 gap-3">
           <label className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-semibold flex items-center justify-center gap-2 cursor-pointer">
             <ImageIcon className="w-5 h-5" /> 사진 불러오기
@@ -1067,53 +1106,73 @@ export function AIRecognition() {
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (!f) return;
-                setVideoUrl("");
-                setPhotoUrl(URL.createObjectURL(f));
-                scan();
+                if (f) onPhoto(f);
               }}
             />
           </label>
           <label className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-semibold flex items-center justify-center gap-2 cursor-pointer">
-            <Video className="w-5 h-5" /> 동영상 불러오기
+            <ImageIcon className="w-5 h-5" /> 동영상 불러오기
             <input
               type="file"
               accept="video/*"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (!f) return;
-                setPhotoUrl("");
-                setVideoUrl(URL.createObjectURL(f));
-                scan();
+                if (f) onVideo(f);
               }}
             />
           </label>
         </div>
+
+        {busy && (
+          <Card className="text-center py-6">
+            <div className="font-bold text-[#0751D8]">AI가 분석 중입니다...</div>
+            <div className="text-xs text-[#6B7280] mt-1">가구·가전을 찾아 수량을 세는 중</div>
+          </Card>
+        )}
+
         <div className="text-xs text-[#6B7280] bg-[#F5F7FB] rounded-xl px-3 py-2">
-          💡 밝고 선명하게 촬영할수록 인식률이 높아집니다.
+          💡 밝고 선명하게, 물건 전체가 나오도록 촬영할수록 인식률이 높아집니다.
         </div>
+
         {results.length > 0 && (
           <div className="space-y-2">
-            <div className="font-bold">인식 결과</div>
-            {results.map((r, i) => (
+            <div className="flex items-center justify-between">
+              <div className="font-bold">인식 결과</div>
+              <button
+                onClick={() => setOnlyHigh((v) => !v)}
+                className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#EDF2FB] text-[#0751D8]"
+              >
+                {onlyHigh ? `90% 이상만 보기 (숨김 ${lowCount})` : "전체 보기"}
+              </button>
+            </div>
+            {shown.map((r, i) => (
               <Card key={r.id} className="flex items-center gap-3">
                 <Art3D src={ITEM_IMG[r.id]} alt={r.name} size={48} />
                 <div className="flex-1">
                   <div className="font-semibold">{r.name}</div>
-                  <div className="text-xs text-[#6B7280]">인식됨</div>
+                  <div className="text-xs text-[#6B7280]">
+                    정확도 {Math.round(r.confidence * 100)}%{r.note ? ` · ${r.note}` : ""}
+                  </div>
                 </div>
                 <Counter
                   value={r.qty}
-                  onChange={(n) => setResults(results.map((x, j) => (j === i ? { ...x, qty: n } : x)))}
+                  onChange={(n) =>
+                    setResults(results.map((x) => (x.id === r.id ? { ...x, qty: n } : x)))
+                  }
                 />
                 <button
-                  onClick={() => setResults(results.filter((_, j) => j !== i))}
+                  onClick={() => setResults(results.filter((x) => x.id !== r.id))}
                   className="p-2 text-[#EF4444]"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-                <Check className="w-5 h-5 text-[#16A34A]" />
+                {r.confidence >= THRESHOLD ? (
+                  <Check className="w-5 h-5 text-[#16A34A]" />
+                ) : (
+                  <span className="text-[10px] font-bold text-[#F59E0B]">확인</span>
+                )}
+                <span className="sr-only">{i}</span>
               </Card>
             ))}
           </div>
@@ -1131,7 +1190,7 @@ export function AIRecognition() {
           >
             다시 촬영
           </button>
-          <PrimaryButton onClick={apply} className="flex-1">
+          <PrimaryButton onClick={apply} className="flex-1" disabled={shown.length === 0}>
             적용하기
           </PrimaryButton>
         </div>
