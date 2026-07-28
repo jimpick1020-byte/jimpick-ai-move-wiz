@@ -357,21 +357,30 @@ function AddressSearch({
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<KakaoPlace[]>([]);
 
-  const run = async () => {
-    if (!q.trim()) return;
+  const run = async (query?: string, silent = false) => {
+    const term = (query ?? q).trim();
+    if (!term) return;
     setLoading(true);
     setOpen(true);
     try {
-      const res = await searchAddress({ data: { query: q.trim() } });
-      if (res.error) toast.error(res.error);
+      const res = await searchAddress({ data: { query: term } });
+      if (res.error && !silent) toast.error(res.error);
       setResults(res.places);
-      if (!res.error && res.places.length === 0) toast.info("검색 결과가 없습니다");
+      if (!res.error && res.places.length === 0 && !silent) toast.info("검색 결과가 없습니다");
     } catch {
-      toast.error("주소 검색에 실패했습니다");
+      if (!silent) toast.error("주소 검색에 실패했습니다");
     } finally {
       setLoading(false);
     }
   };
+
+  // 입력하면 자동으로 검색 결과를 띄우고, 클릭하면 바로 등록됩니다.
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) return;
+    const t = setTimeout(() => run(term, true), 400);
+    return () => clearTimeout(t);
+  }, [q]);
 
   return (
     <Card className="space-y-3">
