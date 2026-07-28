@@ -75,7 +75,7 @@ export const recognizeItems = createServerFn({ method: "POST" })
     if (!key) return { items: [], roomGuess: null, error: "AI 키가 설정되지 않았습니다." };
 
     const gateway = createLovableAiGatewayProvider(key);
-    const model = gateway("google/gemini-3.1-pro-preview");
+    const model = gateway("google/gemini-3.6-flash");
 
     const valid = new Map(CATALOG.map(([id, name]) => [id, name] as const));
 
@@ -84,10 +84,11 @@ export const recognizeItems = createServerFn({ method: "POST" })
         model,
         output: Output.object({ schema: ResultSchema }),
         messages: [
-          { role: "system", content: SYSTEM },
           {
             role: "user",
             content: [
+              { type: "text", text: SYSTEM },
+
               {
                 type: "text",
                 text:
