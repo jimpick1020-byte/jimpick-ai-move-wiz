@@ -102,26 +102,72 @@ export const recognizeItems = createServerFn({ method: "POST" })
         ],
       });
 
-      const merged = new Map<string, DetectedItem>();
-      for (const it of output.items) {
-        const name = valid.get(it.id as never);
-        if (!name) continue;
-        const qty = Math.max(1, Math.min(20, Math.round(it.qty || 1)));
-        const conf = Math.max(0, Math.min(1, it.confidence ?? 0));
-        const prev = merged.get(it.id);
-        if (!prev || conf > prev.confidence) {
-          merged.set(it.id, { id: it.id, name, qty: Math.max(qty, prev?.qty ?? 0), confidence: conf, note: it.note ?? null });
-        } else {
-          prev.qty = Math.max(prev.qty, qty);
+      const normalize = (raw: z.infer<typeof ResultSchema>) => {
+        const merged = new Map<string, DetectedItem>();
+        for (const it of raw.items ?? []) {
+          const name = valid.get(it.id as never);
+          if (!name) continue;
+          const qty = Math.max(1, Math.min(20, Math.round(it.qty || 1)));
+          const conf = Math.max(0, Math.min(1, it.confidence ?? 0));
+          const prev = merged.get(it.id);
+          if (!prev || conf > prev.confidence) {
+            merged.set(it.id, {
+              id: it.id,
+              name,
+              qty: Math.max(qty, prev?.qty ?? 0),
+              confidence: conf,
+              note: it.note ?? null,
+            });
+          } else {
+            prev.qty = Math.max(prev.qty, qty);
+          }
         }
-      }
-
-      return {
-        items: [...merged.values()].sort((a, b) => b.confidence - a.confidence),
-        roomGuess: output.roomGuess ?? null,
+        return {
+          items: [...merged.values()].sort((a, b) => b.confidence - a.confidence),
+          roomGuess: raw.roomGuess ?? null,
+        };
       };
+
+      return normalize(output);
     } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
+        // 모델이 코드블록/여분 텍스트를 붙인 경우 직접 JSON을 추출해 복구합니다.
+        const text = error.text ?? "";
+        const start = text.indexOf("{");
+        const end = text.lastIndexOf("}");
+        if (start >= 0 && end > start) {
+          try {
+            const parsed = JSON.parse(text.slice(start, end + 1));
+            const items = Array.isArray(parsed?.items) ? parsed.items : [];
+            const merged = new Map<string, DetectedItem>();
+            for (const it of items) {
+              const name = valid.get(String(it?.id) as never);
+              if (!name) continue;
+              const qty = Math.max(1, Math.min(20, Math.round(Number(it.qty) || 1)));
+              const conf = Math.max(0, Math.min(1, Number(it.confidence) || 0));
+              const prev = merged.get(it.id);
+              if (!prev || conf > prev.confidence) {
+                merged.set(it.id, {
+                  id: it.id,
+                  name,
+                  qty: Math.max(qty, prev?.qty ?? 0),
+                  confidence: conf,
+                  note: typeof it.note === "string" ? it.note : null,
+                });
+              } else {
+                prev.qty = Math.max(prev.qty, qty);
+              }
+            }
+            if (merged.size > 0) {
+              return {
+                items: [...merged.values()].sort((a, b) => b.confidence - a.confidence),
+                roomGuess: typeof parsed?.roomGuess === "string" ? parsed.roomGuess : null,
+              };
+            }
+          } catch {
+            /* 복구 실패 시 아래 오류 메시지로 진행 */
+          }
+        }
         return { items: [], roomGuess: null, error: "AI 분석 결과를 해석하지 못했습니다. 다시 시도해 주세요." };
       }
       const msg = error instanceof Error ? error.message : "AI 분석에 실패했습니다.";
@@ -130,3 +176,4 @@ export const recognizeItems = createServerFn({ method: "POST" })
       return { items: [], roomGuess: null, error: msg };
     }
   });
+
