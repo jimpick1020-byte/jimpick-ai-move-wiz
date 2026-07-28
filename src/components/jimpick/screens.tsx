@@ -16,6 +16,8 @@ import {
   LogOut,
   Truck,
   ArrowUpDown,
+  Video,
+  Send,
 } from "lucide-react";
 import {
   useApp,
@@ -39,6 +41,7 @@ import {
   TextInput,
 } from "./ui";
 import { toast } from "sonner";
+import { tap } from "@/lib/feedback";
 
 // ============ Splash ============
 import truckImg from "@/assets/jimpick-truck.png";
@@ -473,6 +476,20 @@ export function Step3() {
             </Card>
           </div>
         </Field>
+        <Field label="사다리차">
+          <Card selected={draft.ladder > 0}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={56} />
+                <div>
+                  <div className="font-semibold">사다리차 대수</div>
+                  <div className="text-xs text-[#6B7280]">필요 시 입력 (0~5대)</div>
+                </div>
+              </div>
+              <Counter value={draft.ladder} onChange={(n) => updateDraft({ ladder: n })} min={0} max={5} />
+            </div>
+          </Card>
+        </Field>
         <Card>
           <div className="flex items-center justify-between">
             <div className="font-semibold">출발지 층수</div>
@@ -563,6 +580,64 @@ export function Step4() {
             </div>
           </Card>
         ))}
+        <Card selected={draft.ladderFrom || draft.ladderTo}>
+          <div className="flex items-center gap-3 mb-3">
+            <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={56} />
+            <div>
+              <div className="font-bold text-lg">사다리차 사용 위치</div>
+              <div className="text-xs text-[#6B7280]">출발지·도착지를 선택하세요</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex items-center gap-2 px-3 py-3 rounded-xl border border-[#DFE6F2] bg-white font-semibold text-sm">
+              <input
+                type="checkbox"
+                className="w-5 h-5"
+                checked={draft.ladderFrom}
+                onChange={(e) => {
+                  tap("soft");
+                  updateDraft({ ladderFrom: e.target.checked });
+                }}
+              />
+              출발지
+            </label>
+            <label className="flex items-center gap-2 px-3 py-3 rounded-xl border border-[#DFE6F2] bg-white font-semibold text-sm">
+              <input
+                type="checkbox"
+                className="w-5 h-5"
+                checked={draft.ladderTo}
+                onChange={(e) => {
+                  tap("soft");
+                  updateDraft({ ladderTo: e.target.checked });
+                }}
+              />
+              도착지
+            </label>
+          </div>
+          <div className="mt-3 space-y-2">
+            <Field label="사다리차 금액 (원)">
+              <TextInput
+                type="number"
+                inputMode="numeric"
+                placeholder="금액 입력"
+                value={draft.ladderPrice || ""}
+                onChange={(e) => updateDraft({ ladderPrice: Number(e.target.value) || 0 })}
+              />
+            </Field>
+            <label className="flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
+              <input
+                type="checkbox"
+                className="w-5 h-5"
+                checked={draft.ladderSeparate}
+                onChange={(e) => {
+                  tap("soft");
+                  updateDraft({ ladderSeparate: e.target.checked });
+                }}
+              />
+              별도 (견적 합계에서 제외)
+            </label>
+          </div>
+        </Card>
         <div className="text-xs text-[#6B7280] text-center px-4">
           ※ 차량은 견적 상황에 따라 변경될 수 있습니다.
         </div>
@@ -681,9 +756,41 @@ export function Step6() {
     if (!currentRoomId && draft.rooms[0]) setCurrentRoom(draft.rooms[0].id);
   }, [currentRoomId, draft.rooms, setCurrentRoom]);
   const room = draft.rooms.find((r) => r.id === roomId);
-  const items = ITEM_CATALOG.filter(
+  const catalog = [
+    ...ITEM_CATALOG,
+    ...(draft.customItems || []).map((c) => ({ ...c, emoji: "📦" })),
+  ].filter((i) => !(draft.hiddenItems || []).includes(i.id));
+  const items = catalog.filter(
     (i) => (cat === "전체" || i.cat === cat) && (!q || i.name.includes(q))
   );
+  const addItem = () => {
+    const name = prompt("추가할 품목 이름");
+    if (!name) return;
+    const catName =
+      prompt(`분류를 입력하세요 (가구/가전/주방/생활용품/잔짐)`, cat === "전체" ? "가구" : cat) || "잔짐";
+    const extra = Number(prompt("품목 추가금액 (원, 없으면 0)", "0")) || 0;
+    updateDraft({
+      customItems: [
+        ...(draft.customItems || []),
+        { id: `ci_${Date.now()}`, name, cat: catName, extra },
+      ],
+    });
+    tap("success");
+    toast.success(`「${name}」 품목이 추가되었습니다`);
+  };
+  const removeItem = (id: string, name: string) => {
+    if (!confirm(`「${name}」 품목을 목록에서 삭제할까요?`)) return;
+    updateDraft({
+      hiddenItems: [...(draft.hiddenItems || []), id],
+      customItems: (draft.customItems || []).filter((c) => c.id !== id),
+      rooms: draft.rooms.map((r) => {
+        const it = { ...r.items };
+        delete it[id];
+        return { ...r, items: it };
+      }),
+    });
+    tap("soft");
+  };
   const setQty = (itemId: string, qty: number) => {
     if (!room) return;
     const items = { ...room.items };
@@ -745,8 +852,19 @@ export function Step6() {
           {items.map((it) => {
             const qty = room?.items[it.id] || 0;
             return (
-              <Card key={it.id} selected={qty > 0} className="text-center py-4">
-                <Art3D src={ITEM_IMG[it.id]} alt={it.name} size={72} className="mb-2" />
+              <Card key={it.id} selected={qty > 0} className="text-center py-4 relative">
+                <button
+                  onClick={() => removeItem(it.id, it.name)}
+                  className="absolute top-2 right-2 p-1 text-[#EF4444]"
+                  aria-label="품목 삭제"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                {ITEM_IMG[it.id] ? (
+                  <Art3D src={ITEM_IMG[it.id]} alt={it.name} size={72} className="mb-2" />
+                ) : (
+                  <div className="h-[72px] flex items-center justify-center text-4xl mb-2">{it.emoji}</div>
+                )}
                 <div className="font-bold text-sm mb-2">{it.name}</div>
                 <div className="flex justify-center">
                   <Counter value={qty} onChange={(n) => setQty(it.id, n)} min={0} max={20} />
@@ -755,6 +873,12 @@ export function Step6() {
             );
           })}
         </div>
+        <button
+          onClick={addItem}
+          className="w-full py-4 rounded-2xl border-2 border-dashed border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2"
+        >
+          <Plus className="w-5 h-5" /> 품목 추가
+        </button>
       </div>
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("options")}>다음: 옵션·보관료</PrimaryButton>
@@ -767,6 +891,7 @@ export function Step6() {
 export function AIRecognition() {
   const { draft, updateDraft, setScreen, currentRoomId } = useApp();
   const [results, setResults] = useState<{ id: string; name: string; qty: number; emoji: string }[]>([]);
+  const [videoUrl, setVideoUrl] = useState<string>("");
   const scan = () => {
     setResults([
       { id: "sofa", name: "소파", qty: 2, emoji: "🛋️" },
@@ -792,12 +917,35 @@ export function AIRecognition() {
       <TopBar title="AI 사진 인식" onBack={() => setScreen("step6")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto">
         <Card className="text-center py-10">
-          <Camera className="w-16 h-16 mx-auto text-[#0751D8]" />
-          <div className="font-bold mt-3">사진을 찍거나 불러와 주세요.</div>
-          <div className="text-sm text-[#6B7280] mt-1">
-            AI가 가구와 가전, 잔짐을 자동으로 인식합니다.
-          </div>
+          {videoUrl ? (
+            <video src={videoUrl} controls className="w-full rounded-xl" />
+          ) : (
+            <>
+              <Camera className="w-16 h-16 mx-auto text-[#0751D8]" />
+              <div className="font-bold mt-3">사진 또는 동영상을 올려 주세요.</div>
+              <div className="text-sm text-[#6B7280] mt-1">
+                AI가 3D 입체 분석으로 가구·가전·잔짐을 자동 인식합니다.
+              </div>
+            </>
+          )}
         </Card>
+        <label className="w-full py-4 rounded-2xl bg-white border-2 border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2 cursor-pointer">
+          <Video className="w-5 h-5" /> 동영상 촬영·업로드
+          <input
+            type="file"
+            accept="video/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              setVideoUrl(URL.createObjectURL(f));
+              tap("success");
+              toast.success("동영상 업로드 완료 — 3D 분석을 시작합니다");
+              scan();
+            }}
+          />
+        </label>
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={scan}
@@ -841,7 +989,10 @@ export function AIRecognition() {
       <BottomButtonBar>
         <div className="flex gap-2">
           <button
-            onClick={() => setResults([])}
+            onClick={() => {
+              setResults([]);
+              setVideoUrl("");
+            }}
             className="flex-1 py-4 rounded-2xl border border-[#E7EBF2] font-bold"
           >
             다시 촬영
@@ -871,43 +1022,93 @@ export function OptionsScreen() {
     <MobileShell>
       <TopBar title="옵션·보관료 입력" onBack={() => setScreen("step6")} />
       <div className="p-5 space-y-3 flex-1 overflow-auto">
+        {draft.options.length === 0 && (
+          <div className="text-center text-[#6B7280] py-10 text-sm">
+            추가된 옵션 품목이 없습니다. 아래에서 직접 추가해 주세요.
+          </div>
+        )}
         {draft.options.map((o, i) => (
           <Card key={o.id}>
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-3 font-semibold">
+            <div className="flex items-center justify-between gap-2">
+              <label className="flex items-center gap-3 font-semibold flex-1">
                 <input
                   type="checkbox"
                   checked={o.enabled}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    tap("soft");
                     updateDraft({
                       options: draft.options.map((x, j) =>
                         j === i ? { ...x, enabled: e.target.checked } : x
                       ),
-                    })
-                  }
+                    });
+                  }}
                   className="w-5 h-5"
                 />
                 {o.name}
               </label>
+              <button
+                onClick={() => {
+                  tap("soft");
+                  updateDraft({ options: draft.options.filter((_, j) => j !== i) });
+                }}
+                className="p-2 text-[#EF4444]"
+                aria-label="옵션 삭제"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
             {o.enabled && (
-              <TextInput
-                type="number"
-                inputMode="numeric"
-                placeholder="금액 입력"
-                value={o.price || ""}
-                onChange={(e) =>
-                  updateDraft({
-                    options: draft.options.map((x, j) =>
-                      j === i ? { ...x, price: Number(e.target.value) || 0 } : x
-                    ),
-                  })
-                }
-                className="mt-3"
-              />
+              <div className="mt-3 space-y-2">
+                <TextInput
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="추가 금액 입력"
+                  value={o.price || ""}
+                  onChange={(e) =>
+                    updateDraft({
+                      options: draft.options.map((x, j) =>
+                        j === i ? { ...x, price: Number(e.target.value) || 0 } : x
+                      ),
+                    })
+                  }
+                />
+                <label className="flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5"
+                    checked={o.separate}
+                    onChange={(e) => {
+                      tap("soft");
+                      updateDraft({
+                        options: draft.options.map((x, j) =>
+                          j === i ? { ...x, separate: e.target.checked } : x
+                        ),
+                      });
+                    }}
+                  />
+                  별도 (견적 합계에서 제외)
+                </label>
+              </div>
             )}
           </Card>
         ))}
+        <button
+          onClick={() => {
+            const name = prompt("추가할 옵션 품목 이름");
+            if (!name) return;
+            const price = Number(prompt("추가 금액 (원)", "0")) || 0;
+            updateDraft({
+              options: [
+                ...draft.options,
+                { id: `op_${Date.now()}`, name, enabled: true, price, separate: false },
+              ],
+            });
+            tap("success");
+          }}
+          className="w-full py-4 rounded-2xl border-2 border-dashed border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2"
+        >
+          <Plus className="w-5 h-5" /> 옵션 품목 추가
+        </button>
         {draft.moveType === "보관이사" && (
           <Card className="space-y-3">
             <div className="font-bold">보관 정보</div>
@@ -950,15 +1151,29 @@ export function OptionsScreen() {
 export function Result() {
   const { draft, setScreen, saveDraft, updateDraft } = useApp();
   const [detail, setDetail] = useState(false);
-  const { total, parts } = calcEstimate(draft);
+  const [edit, setEdit] = useState(false);
+  const [adjust, setAdjust] = useState(0);
+  const calc = calcEstimate(draft);
+  const total = calc.total + adjust;
+  const parts = adjust ? [...calc.parts, { label: "할인·조정", amount: adjust }] : calc.parts;
   useEffect(() => {
     if (draft.total !== total) updateDraft({ total });
   }, [total, draft.total, updateDraft]);
   const sendSMS = () => {
     const msg = `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${draft.moveDate} ${draft.moveTime}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
     if (confirm(`아래 문자를 발송하시겠습니까?\n\n${msg}`)) {
+      tap("success");
       toast.success("문자 발송 완료 (데모)");
     }
+  };
+  const sendKakao = () => {
+    const msg = `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${draft.moveDate} ${draft.moveTime}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
+    tap("success");
+    try {
+      void navigator.clipboard?.writeText(msg);
+    } catch {}
+    window.open(`https://sharer.kakao.com/talk/friends/picker/link?text=${encodeURIComponent(msg)}`, "_blank");
+    toast.success("카카오톡으로 견적 내용을 전달했습니다 (내용 복사됨)");
   };
   return (
     <MobileShell>
@@ -992,30 +1207,115 @@ export function Result() {
           </Card>
         )}
         <Card className="space-y-2 text-sm">
-          <div className="font-bold text-base mb-2">이사 정보</div>
-          <div>👤 {draft.customerName} · {draft.phone}</div>
-          <div>📅 {draft.moveDate} {draft.moveTime}</div>
-          <div>🚚 {draft.moveType}</div>
-          <div className="text-[#6B7280]">출발: {draft.fromAddress} {draft.fromDetail}</div>
-          <div className="text-[#6B7280]">도착: {draft.toAddress} {draft.toDetail}</div>
-          <div>거리 {draft.distanceKm}km · {draft.workEnv} · {draft.fromFloor}층→{draft.toFloor}층</div>
-          <div>남자 {draft.workers}명 · 이모 {draft.kitchenStaff}명</div>
-          <div>1톤 {draft.truck1t} · 5톤 {draft.truck5t} · 사다리 {draft.ladder}</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="font-bold text-base">이사 정보</div>
+            <button
+              onClick={() => {
+                tap("soft");
+                setEdit((v) => !v);
+              }}
+              className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#EEF4FF] text-[#0751D8] flex items-center gap-1"
+            >
+              <Edit3 className="w-3.5 h-3.5" /> {edit ? "수정 완료" : "견적 수정"}
+            </button>
+          </div>
+          {edit ? (
+            <div className="space-y-3 pt-1">
+              <Field label="고객명">
+                <TextInput value={draft.customerName} onChange={(e) => updateDraft({ customerName: e.target.value })} />
+              </Field>
+              <Field label="연락처">
+                <TextInput value={draft.phone} onChange={(e) => updateDraft({ phone: formatPhone(e.target.value) })} />
+              </Field>
+              <Field label="이사일">
+                <TextInput type="date" value={draft.moveDate} onChange={(e) => updateDraft({ moveDate: e.target.value })} />
+              </Field>
+              <Field label="출발지">
+                <TextInput value={draft.fromAddress} onChange={(e) => updateDraft({ fromAddress: e.target.value })} />
+              </Field>
+              <Field label="도착지">
+                <TextInput value={draft.toAddress} onChange={(e) => updateDraft({ toAddress: e.target.value })} />
+              </Field>
+              <Field label="거리 (km)">
+                <TextInput
+                  type="number"
+                  value={draft.distanceKm}
+                  onChange={(e) => updateDraft({ distanceKm: Number(e.target.value) || 0 })}
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="남자 작업자">
+                  <TextInput type="number" value={draft.workers} onChange={(e) => updateDraft({ workers: Number(e.target.value) || 0 })} />
+                </Field>
+                <Field label="주방 이모">
+                  <TextInput type="number" value={draft.kitchenStaff} onChange={(e) => updateDraft({ kitchenStaff: Number(e.target.value) || 0 })} />
+                </Field>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <Field label="1톤">
+                  <TextInput type="number" value={draft.truck1t} onChange={(e) => updateDraft({ truck1t: Number(e.target.value) || 0 })} />
+                </Field>
+                <Field label="5톤">
+                  <TextInput type="number" value={draft.truck5t} onChange={(e) => updateDraft({ truck5t: Number(e.target.value) || 0 })} />
+                </Field>
+                <Field label="사다리">
+                  <TextInput type="number" value={draft.ladder} onChange={(e) => updateDraft({ ladder: Number(e.target.value) || 0 })} />
+                </Field>
+              </div>
+              <Field label="할인·조정 금액 (원, 음수 가능)">
+                <TextInput
+                  type="number"
+                  value={adjust}
+                  onChange={(e) => setAdjust(Number(e.target.value) || 0)}
+                />
+              </Field>
+            </div>
+          ) : (
+            <>
+              <div>👤 {draft.customerName} · {draft.phone}</div>
+              <div>📅 {draft.moveDate} {draft.moveTime}</div>
+              <div>🚚 {draft.moveType}</div>
+              <div className="text-[#6B7280]">출발: {draft.fromAddress} {draft.fromDetail}</div>
+              <div className="text-[#6B7280]">도착: {draft.toAddress} {draft.toDetail}</div>
+              <div>거리 {draft.distanceKm}km · {draft.workEnv} · {draft.fromFloor}층→{draft.toFloor}층</div>
+              <div>남자 {draft.workers}명 · 이모 {draft.kitchenStaff}명</div>
+              <div>
+                1톤 {draft.truck1t} · 5톤 {draft.truck5t} · 사다리 {draft.ladder}
+                {(draft.ladderFrom || draft.ladderTo) &&
+                  ` (${[draft.ladderFrom && "출발지", draft.ladderTo && "도착지"].filter(Boolean).join("·")}${
+                    draft.ladderSeparate ? " · 별도" : ""
+                  })`}
+              </div>
+              {draft.options.filter((o) => o.enabled).map((o) => (
+                <div key={o.id}>
+                  ➕ {o.name} · {o.separate ? "별도" : won(o.price)}
+                </div>
+              ))}
+            </>
+          )}
         </Card>
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={sendSMS} className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-bold flex items-center justify-center gap-2">
+          <button onClick={sendSMS} className="py-4 rounded-2xl bg-white border border-[#DFE6F2] font-bold flex items-center justify-center gap-2 shadow-[0_4px_0_#E3E9F5,0_10px_20px_-8px_rgba(15,23,42,0.25)] active:translate-y-[2px] active:shadow-[0_2px_0_#E3E9F5]">
             <MessageSquare className="w-5 h-5" /> 문자 발송
           </button>
           <button
-            onClick={() => {
-              saveDraft();
-              toast.success("견적이 저장되었습니다");
-            }}
-            className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-bold flex items-center justify-center gap-2"
+            onClick={sendKakao}
+            className="py-4 rounded-2xl font-bold flex items-center justify-center gap-2 text-[#3C1E1E] shadow-[0_4px_0_#D8B400,0_10px_20px_-8px_rgba(250,225,0,0.6)] active:translate-y-[2px] active:shadow-[0_2px_0_#D8B400]"
+            style={{ background: "linear-gradient(180deg, #FFEE58 0%, #FAE100 100%)" }}
           >
-            <Check className="w-5 h-5" /> 견적 저장
+            <Send className="w-5 h-5" /> 카카오톡 발송
           </button>
         </div>
+        <button
+          onClick={() => {
+            tap("success");
+            saveDraft();
+            toast.success("견적이 저장되었습니다");
+          }}
+          className="w-full py-4 rounded-2xl bg-white border border-[#DFE6F2] font-bold flex items-center justify-center gap-2 shadow-[0_4px_0_#E3E9F5,0_10px_20px_-8px_rgba(15,23,42,0.25)] active:translate-y-[2px] active:shadow-[0_2px_0_#E3E9F5]"
+        >
+          <Check className="w-5 h-5" /> 견적 저장
+        </button>
       </div>
       <BottomButtonBar>
         <PrimaryButton
@@ -1161,15 +1461,6 @@ export function SettingsScreen() {
           <Field label="대표자명"><TextInput defaultValue="짐픽 사장" /></Field>
           <Field label="연락처"><TextInput defaultValue="010-0000-0000" /></Field>
           <Field label="사업자등록번호"><TextInput defaultValue="000-00-00000" /></Field>
-        </Card>
-        <Card className="space-y-3">
-          <div className="font-bold">기본 요금</div>
-          <Field label="남자 작업자 1인당"><TextInput defaultValue="150000" /></Field>
-          <Field label="주방 이모 1인당"><TextInput defaultValue="150000" /></Field>
-          <Field label="1톤 차량"><TextInput defaultValue="250000" /></Field>
-          <Field label="5톤 차량"><TextInput defaultValue="850000" /></Field>
-          <Field label="사다리차"><TextInput defaultValue="200000" /></Field>
-          <Field label="거리 추가 단가 (km당)"><TextInput defaultValue="2000" /></Field>
         </Card>
         <Card className="space-y-3">
           <div className="font-bold">문자 기본 문구</div>

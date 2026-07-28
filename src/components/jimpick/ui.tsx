@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ChevronLeft, Home, ClipboardList, Users, Settings as SettingsIcon, Minus, Plus } from "lucide-react";
 import { useApp, type Screen } from "@/lib/jimpick";
+import { tap } from "@/lib/feedback";
 
 export function StatusBar() {
   return (
@@ -18,7 +19,7 @@ export function StatusBar() {
 export function MobileShell({ children, bg = "bg-[#F5F7FB]" }: { children: ReactNode; bg?: string }) {
   return (
     <div className="min-h-screen w-full flex justify-center bg-slate-200">
-      <div className={`w-full max-w-[430px] min-h-screen ${bg} relative shadow-xl flex flex-col`}>
+      <div className={`w-full max-w-[430px] min-h-screen ${bg} relative flex flex-col border-x border-[#D8E1F0] shadow-[0_30px_60px_-20px_rgba(7,81,216,0.35),inset_0_1px_0_#FFFFFF]`}>
         <StatusBar />
         {children}
       </div>
@@ -52,7 +53,10 @@ export function PrimaryButton({
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={() => {
+        tap("click");
+        onClick?.();
+      }}
       disabled={disabled}
       className={`relative w-full py-4 rounded-2xl text-white text-lg font-bold overflow-hidden transition-transform active:translate-y-[2px] active:shadow-[0_2px_0_#0645B0,0_6px_14px_rgba(7,81,216,0.25)] shadow-[0_5px_0_#0645B0,0_14px_26px_rgba(7,81,216,0.32)] disabled:opacity-50 disabled:shadow-none ${className}`}
       style={{
@@ -87,7 +91,10 @@ export function Counter({
   return (
     <div className="flex items-center gap-3">
       <button
-        onClick={() => onChange(Math.max(min, value - 1))}
+        onClick={() => {
+          tap("soft");
+          onChange(Math.max(min, value - 1));
+        }}
         className="w-10 h-10 rounded-full bg-gradient-to-b from-white to-[#EDF1F8] border border-[#DCE3EE] shadow-[0_3px_0_#DCE3EE,0_6px_12px_rgba(15,23,42,0.08)] flex items-center justify-center transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#DCE3EE]"
         aria-label="감소"
       >
@@ -95,7 +102,10 @@ export function Counter({
       </button>
       <span className="text-xl font-bold w-8 text-center tabular-nums">{value}</span>
       <button
-        onClick={() => onChange(Math.min(max, value + 1))}
+        onClick={() => {
+          tap("soft");
+          onChange(Math.min(max, value + 1));
+        }}
         className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-[0_3px_0_#0645B0,0_8px_16px_rgba(7,81,216,0.3)] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#0645B0]"
         style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
         aria-label="증가"
@@ -122,7 +132,10 @@ export function BottomNav() {
         return (
           <button
             key={key}
-            onClick={() => setScreen(key)}
+            onClick={() => {
+              tap("soft");
+              setScreen(key);
+            }}
             className="flex-1 py-3 flex flex-col items-center gap-1"
           >
             <Icon className={`w-6 h-6 ${active ? "text-[#0751D8]" : "text-[#6B7280]"}`} />
@@ -149,11 +162,18 @@ export function Card({
 }) {
   return (
     <div
-      onClick={onClick}
+      onClick={
+        onClick
+          ? () => {
+              tap("soft");
+              onClick();
+            }
+          : undefined
+      }
       className={`rounded-2xl border p-4 transition-all duration-200 ${
         selected
-          ? "border-[#287BFF] bg-gradient-to-b from-[#F5F9FF] to-[#E3EDFF] shadow-[0_8px_20px_rgba(40,123,255,0.22),inset_0_1px_0_#FFFFFF] ring-2 ring-[#287BFF]/25"
-          : "border-[#E7EBF2] bg-gradient-to-b from-white to-[#F8FAFD] shadow-[0_4px_14px_rgba(15,23,42,0.06),inset_0_1px_0_#FFFFFF]"
+          ? "border-[#287BFF] bg-gradient-to-b from-[#F5F9FF] to-[#DEEAFF] shadow-[0_14px_26px_-10px_rgba(40,123,255,0.45),0_3px_0_#BBD3FF,inset_0_1px_0_#FFFFFF] ring-2 ring-[#287BFF]/30"
+          : "border-[#DFE6F2] bg-gradient-to-b from-white to-[#F2F6FD] shadow-[0_10px_22px_-8px_rgba(15,23,42,0.18),0_2px_0_#E3E9F5,inset_0_1px_0_#FFFFFF]"
       } ${onClick ? "cursor-pointer active:scale-[0.98] active:shadow-[0_2px_8px_rgba(15,23,42,0.08)]" : ""} ${className}`}
     >
       {children}
@@ -175,7 +195,7 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full px-4 py-3 rounded-xl border border-[#E7EBF2] bg-white text-base focus:outline-none focus:border-[#287BFF] ${props.className ?? ""}`}
+      className={`w-full px-4 py-3 rounded-xl border border-[#DFE6F2] bg-gradient-to-b from-[#F8FAFD] to-white text-base shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] focus:shadow-[inset_0_2px_4px_rgba(15,23,42,0.06),0_0_0_3px_rgba(40,123,255,0.15)] ${props.className ?? ""}`}
     />
   );
 }

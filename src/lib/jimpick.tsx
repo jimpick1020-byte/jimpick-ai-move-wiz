@@ -18,6 +18,14 @@ export interface OptionItem {
   name: string;
   enabled: boolean;
   price: number;
+  /** 별도(견적 합계에서 제외) */
+  separate: boolean;
+}
+export interface CustomItem {
+  id: string;
+  name: string;
+  cat: string;
+  extra: number;
 }
 export interface Estimate {
   id: string;
@@ -42,7 +50,14 @@ export interface Estimate {
   truck1t: number;
   truck5t: number;
   ladder: number;
+  /** 사다리차 상세 */
+  ladderFrom: boolean;
+  ladderTo: boolean;
+  ladderPrice: number;
+  ladderSeparate: boolean;
   rooms: Room[];
+  customItems: CustomItem[];
+  hiddenItems: string[];
   options: OptionItem[];
   storageStart: string;
   storageEnd: string;
@@ -69,18 +84,31 @@ export const ITEM_CATALOG: { id: string; name: string; cat: string; emoji: strin
   { id: "kimchi", name: "김치냉장고", cat: "가전", emoji: "🥬", extra: 30000 },
   { id: "vanity", name: "화장대", cat: "가구", emoji: "💄" },
   { id: "drawer", name: "서랍장", cat: "가구", emoji: "🗄️" },
+  { id: "dryer", name: "건조기", cat: "가전", emoji: "♨️", extra: 20000 },
+  { id: "airpurifier", name: "공기청정기", cat: "가전", emoji: "🍃" },
+  { id: "riceCooker", name: "밥솥", cat: "주방", emoji: "🍚" },
+  { id: "gasrange", name: "가스레인지", cat: "주방", emoji: "🔥" },
+  { id: "dishrack", name: "식기건조대", cat: "주방", emoji: "🍽️" },
+  { id: "vacuum", name: "청소기", cat: "생활용품", emoji: "🧹" },
+  { id: "drying", name: "빨래건조대", cat: "생활용품", emoji: "🧺" },
+  { id: "toolbox", name: "공구함", cat: "생활용품", emoji: "🧰" },
+  { id: "plant", name: "화분", cat: "생활용품", emoji: "🪴" },
+  { id: "box", name: "이삿짐 박스", cat: "잔짐", emoji: "📦" },
+  { id: "bag", name: "잡화 가방", cat: "잔짐", emoji: "👜" },
 ];
 export const DEFAULT_ROOMS = ["안방", "작은방", "입구방", "거실", "부엌", "베란다"];
-export const DEFAULT_OPTIONS: Omit<OptionItem, "enabled" | "price">[] = [
-  { id: "aircon-move", name: "에어컨 이전 설치" },
-  { id: "tv-mount", name: "벽걸이 TV 설치" },
-  { id: "piano", name: "피아노 운반" },
-  { id: "stonebed", name: "돌침대" },
-  { id: "safe", name: "대형 금고" },
-  { id: "waste", name: "폐기물 처리" },
-  { id: "ladder-fee", name: "사다리차 비용" },
-  { id: "extra-work", name: "추가 작업비" },
-];
+/** 옵션 품목은 기본값 없이 사용자가 직접 추가합니다. */
+export const DEFAULT_OPTIONS: OptionItem[] = [];
+
+/** 30평대 기준 방별 기본 품목 배치 */
+export const PRESET_30PY: Record<string, RoomItems> = {
+  안방: { bed: 1, wardrobe: 2, vanity: 1, drawer: 1, aircon: 1 },
+  작은방: { bed: 1, desk: 1, chair: 1, shelf: 1, wardrobe: 1 },
+  입구방: { desk: 1, shelf: 1, drawer: 1, box: 4 },
+  거실: { sofa: 1, tv: 1, table: 1, chair: 4, aircon: 1, shelf: 1, airpurifier: 1 },
+  부엌: { fridge: 1, kimchi: 1, microwave: 1, waterpurifier: 1, riceCooker: 1, gasrange: 1, dishrack: 1 },
+  베란다: { washer: 1, dryer: 1, drying: 1, vacuum: 1, toolbox: 1, plant: 3, box: 5 },
+};
 
 // ============ Pricing ============
 export const PRICING = {
@@ -95,7 +123,8 @@ export const PRICING = {
 };
 
 export function calcEstimate(e: Estimate): { total: number; parts: { label: string; amount: number }[] } {
-  const transport = e.truck1t * PRICING.truck1t + e.truck5t * PRICING.truck5t + e.ladder * PRICING.ladder;
+  const ladderFee = e.ladderSeparate ? 0 : e.ladderPrice || e.ladder * PRICING.ladder;
+  const transport = e.truck1t * PRICING.truck1t + e.truck5t * PRICING.truck5t + ladderFee;
   const labor = e.workers * PRICING.worker + e.kitchenStaff * PRICING.kitchenStaff;
   const extraKm = Math.max(0, e.distanceKm - PRICING.baseKm);
   const distanceFee = extraKm * PRICING.perKm;
@@ -105,11 +134,13 @@ export function calcEstimate(e: Estimate): { total: number; parts: { label: stri
   let itemFee = 0;
   for (const r of e.rooms) {
     for (const [id, qty] of Object.entries(r.items)) {
-      const it = ITEM_CATALOG.find((x) => x.id === id);
+      const it = ITEM_CATALOG.find((x) => x.id === id) || (e.customItems || []).find((x) => x.id === id);
       if (it?.extra) itemFee += it.extra * qty;
     }
   }
-  const optionFee = e.options.filter((o) => o.enabled).reduce((s, o) => s + (o.price || 0), 0);
+  const optionFee = e.options
+    .filter((o) => o.enabled && !o.separate)
+    .reduce((s, o) => s + (o.price || 0), 0);
   let storageFee = 0;
   if (e.moveType === "보관이사" && e.storageStart && e.storageEnd) {
     const days = Math.max(
@@ -158,8 +189,14 @@ export function newEstimate(): Estimate {
     truck1t: 0,
     truck5t: 1,
     ladder: 0,
-    rooms: DEFAULT_ROOMS.map((n) => ({ id: `r_${n}`, name: n, items: {} })),
-    options: DEFAULT_OPTIONS.map((o) => ({ ...o, enabled: false, price: 0 })),
+    ladderFrom: false,
+    ladderTo: false,
+    ladderPrice: 0,
+    ladderSeparate: false,
+    rooms: DEFAULT_ROOMS.map((n) => ({ id: `r_${n}`, name: n, items: { ...(PRESET_30PY[n] || {}) } })),
+    customItems: [],
+    hiddenItems: [],
+    options: [...DEFAULT_OPTIONS],
     storageStart: "",
     storageEnd: "",
     storageDaily: 20000,
@@ -206,7 +243,7 @@ interface Ctx extends AppState {
 }
 
 const AppCtx = createContext<Ctx | null>(null);
-const STORAGE_KEY = "jimpick_v7_state";
+const STORAGE_KEY = "jimpick_v8_state";
 
 export function JimpickProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => {
