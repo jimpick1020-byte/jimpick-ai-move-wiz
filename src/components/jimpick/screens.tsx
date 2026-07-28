@@ -395,7 +395,7 @@ function AddressSearch({
           }}
         />
         <button
-          onClick={run}
+          onClick={() => run()}
           className="px-4 rounded-xl text-white font-semibold"
           style={{ background: "linear-gradient(135deg, #287BFF, #0751D8)" }}
         >
