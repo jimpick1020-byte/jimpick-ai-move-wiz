@@ -1151,15 +1151,29 @@ export function OptionsScreen() {
 export function Result() {
   const { draft, setScreen, saveDraft, updateDraft } = useApp();
   const [detail, setDetail] = useState(false);
-  const { total, parts } = calcEstimate(draft);
+  const [edit, setEdit] = useState(false);
+  const [adjust, setAdjust] = useState(0);
+  const calc = calcEstimate(draft);
+  const total = calc.total + adjust;
+  const parts = adjust ? [...calc.parts, { label: "할인·조정", amount: adjust }] : calc.parts;
   useEffect(() => {
     if (draft.total !== total) updateDraft({ total });
   }, [total, draft.total, updateDraft]);
   const sendSMS = () => {
     const msg = `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${draft.moveDate} ${draft.moveTime}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
     if (confirm(`아래 문자를 발송하시겠습니까?\n\n${msg}`)) {
+      tap("success");
       toast.success("문자 발송 완료 (데모)");
     }
+  };
+  const sendKakao = () => {
+    const msg = `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${draft.moveDate} ${draft.moveTime}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
+    tap("success");
+    try {
+      void navigator.clipboard?.writeText(msg);
+    } catch {}
+    window.open(`https://sharer.kakao.com/talk/friends/picker/link?text=${encodeURIComponent(msg)}`, "_blank");
+    toast.success("카카오톡으로 견적 내용을 전달했습니다 (내용 복사됨)");
   };
   return (
     <MobileShell>
@@ -1193,30 +1207,115 @@ export function Result() {
           </Card>
         )}
         <Card className="space-y-2 text-sm">
-          <div className="font-bold text-base mb-2">이사 정보</div>
-          <div>👤 {draft.customerName} · {draft.phone}</div>
-          <div>📅 {draft.moveDate} {draft.moveTime}</div>
-          <div>🚚 {draft.moveType}</div>
-          <div className="text-[#6B7280]">출발: {draft.fromAddress} {draft.fromDetail}</div>
-          <div className="text-[#6B7280]">도착: {draft.toAddress} {draft.toDetail}</div>
-          <div>거리 {draft.distanceKm}km · {draft.workEnv} · {draft.fromFloor}층→{draft.toFloor}층</div>
-          <div>남자 {draft.workers}명 · 이모 {draft.kitchenStaff}명</div>
-          <div>1톤 {draft.truck1t} · 5톤 {draft.truck5t} · 사다리 {draft.ladder}</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="font-bold text-base">이사 정보</div>
+            <button
+              onClick={() => {
+                tap("soft");
+                setEdit((v) => !v);
+              }}
+              className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#EEF4FF] text-[#0751D8] flex items-center gap-1"
+            >
+              <Edit3 className="w-3.5 h-3.5" /> {edit ? "수정 완료" : "견적 수정"}
+            </button>
+          </div>
+          {edit ? (
+            <div className="space-y-3 pt-1">
+              <Field label="고객명">
+                <TextInput value={draft.customerName} onChange={(e) => updateDraft({ customerName: e.target.value })} />
+              </Field>
+              <Field label="연락처">
+                <TextInput value={draft.phone} onChange={(e) => updateDraft({ phone: formatPhone(e.target.value) })} />
+              </Field>
+              <Field label="이사일">
+                <TextInput type="date" value={draft.moveDate} onChange={(e) => updateDraft({ moveDate: e.target.value })} />
+              </Field>
+              <Field label="출발지">
+                <TextInput value={draft.fromAddress} onChange={(e) => updateDraft({ fromAddress: e.target.value })} />
+              </Field>
+              <Field label="도착지">
+                <TextInput value={draft.toAddress} onChange={(e) => updateDraft({ toAddress: e.target.value })} />
+              </Field>
+              <Field label="거리 (km)">
+                <TextInput
+                  type="number"
+                  value={draft.distanceKm}
+                  onChange={(e) => updateDraft({ distanceKm: Number(e.target.value) || 0 })}
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="남자 작업자">
+                  <TextInput type="number" value={draft.workers} onChange={(e) => updateDraft({ workers: Number(e.target.value) || 0 })} />
+                </Field>
+                <Field label="주방 이모">
+                  <TextInput type="number" value={draft.kitchenStaff} onChange={(e) => updateDraft({ kitchenStaff: Number(e.target.value) || 0 })} />
+                </Field>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <Field label="1톤">
+                  <TextInput type="number" value={draft.truck1t} onChange={(e) => updateDraft({ truck1t: Number(e.target.value) || 0 })} />
+                </Field>
+                <Field label="5톤">
+                  <TextInput type="number" value={draft.truck5t} onChange={(e) => updateDraft({ truck5t: Number(e.target.value) || 0 })} />
+                </Field>
+                <Field label="사다리">
+                  <TextInput type="number" value={draft.ladder} onChange={(e) => updateDraft({ ladder: Number(e.target.value) || 0 })} />
+                </Field>
+              </div>
+              <Field label="할인·조정 금액 (원, 음수 가능)">
+                <TextInput
+                  type="number"
+                  value={adjust}
+                  onChange={(e) => setAdjust(Number(e.target.value) || 0)}
+                />
+              </Field>
+            </div>
+          ) : (
+            <>
+              <div>👤 {draft.customerName} · {draft.phone}</div>
+              <div>📅 {draft.moveDate} {draft.moveTime}</div>
+              <div>🚚 {draft.moveType}</div>
+              <div className="text-[#6B7280]">출발: {draft.fromAddress} {draft.fromDetail}</div>
+              <div className="text-[#6B7280]">도착: {draft.toAddress} {draft.toDetail}</div>
+              <div>거리 {draft.distanceKm}km · {draft.workEnv} · {draft.fromFloor}층→{draft.toFloor}층</div>
+              <div>남자 {draft.workers}명 · 이모 {draft.kitchenStaff}명</div>
+              <div>
+                1톤 {draft.truck1t} · 5톤 {draft.truck5t} · 사다리 {draft.ladder}
+                {(draft.ladderFrom || draft.ladderTo) &&
+                  ` (${[draft.ladderFrom && "출발지", draft.ladderTo && "도착지"].filter(Boolean).join("·")}${
+                    draft.ladderSeparate ? " · 별도" : ""
+                  })`}
+              </div>
+              {draft.options.filter((o) => o.enabled).map((o) => (
+                <div key={o.id}>
+                  ➕ {o.name} · {o.separate ? "별도" : won(o.price)}
+                </div>
+              ))}
+            </>
+          )}
         </Card>
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={sendSMS} className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-bold flex items-center justify-center gap-2">
+          <button onClick={sendSMS} className="py-4 rounded-2xl bg-white border border-[#DFE6F2] font-bold flex items-center justify-center gap-2 shadow-[0_4px_0_#E3E9F5,0_10px_20px_-8px_rgba(15,23,42,0.25)] active:translate-y-[2px] active:shadow-[0_2px_0_#E3E9F5]">
             <MessageSquare className="w-5 h-5" /> 문자 발송
           </button>
           <button
-            onClick={() => {
-              saveDraft();
-              toast.success("견적이 저장되었습니다");
-            }}
-            className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-bold flex items-center justify-center gap-2"
+            onClick={sendKakao}
+            className="py-4 rounded-2xl font-bold flex items-center justify-center gap-2 text-[#3C1E1E] shadow-[0_4px_0_#D8B400,0_10px_20px_-8px_rgba(250,225,0,0.6)] active:translate-y-[2px] active:shadow-[0_2px_0_#D8B400]"
+            style={{ background: "linear-gradient(180deg, #FFEE58 0%, #FAE100 100%)" }}
           >
-            <Check className="w-5 h-5" /> 견적 저장
+            <Send className="w-5 h-5" /> 카카오톡 발송
           </button>
         </div>
+        <button
+          onClick={() => {
+            tap("success");
+            saveDraft();
+            toast.success("견적이 저장되었습니다");
+          }}
+          className="w-full py-4 rounded-2xl bg-white border border-[#DFE6F2] font-bold flex items-center justify-center gap-2 shadow-[0_4px_0_#E3E9F5,0_10px_20px_-8px_rgba(15,23,42,0.25)] active:translate-y-[2px] active:shadow-[0_2px_0_#E3E9F5]"
+        >
+          <Check className="w-5 h-5" /> 견적 저장
+        </button>
       </div>
       <BottomButtonBar>
         <PrimaryButton
