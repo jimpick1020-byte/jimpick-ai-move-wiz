@@ -29,6 +29,7 @@ import {
   won,
   type MoveType,
   type Room,
+  type WorkEnv,
 } from "@/lib/jimpick";
 import {
   MobileShell,
@@ -356,21 +357,30 @@ function AddressSearch({
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<KakaoPlace[]>([]);
 
-  const run = async () => {
-    if (!q.trim()) return;
+  const run = async (query?: string, silent = false) => {
+    const term = (query ?? q).trim();
+    if (!term) return;
     setLoading(true);
     setOpen(true);
     try {
-      const res = await searchAddress({ data: { query: q.trim() } });
-      if (res.error) toast.error(res.error);
+      const res = await searchAddress({ data: { query: term } });
+      if (res.error && !silent) toast.error(res.error);
       setResults(res.places);
-      if (!res.error && res.places.length === 0) toast.info("검색 결과가 없습니다");
+      if (!res.error && res.places.length === 0 && !silent) toast.info("검색 결과가 없습니다");
     } catch {
-      toast.error("주소 검색에 실패했습니다");
+      if (!silent) toast.error("주소 검색에 실패했습니다");
     } finally {
       setLoading(false);
     }
   };
+
+  // 입력하면 자동으로 검색 결과를 띄우고, 클릭하면 바로 등록됩니다.
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) return;
+    const t = setTimeout(() => run(term, true), 400);
+    return () => clearTimeout(t);
+  }, [q]);
 
   return (
     <Card className="space-y-3">
@@ -385,7 +395,7 @@ function AddressSearch({
           }}
         />
         <button
-          onClick={run}
+          onClick={() => run()}
           className="px-4 rounded-xl text-white font-semibold"
           style={{ background: "linear-gradient(135deg, #287BFF, #0751D8)" }}
         >
@@ -499,26 +509,37 @@ export function Step2() {
 // ============ Step 3: Work condition ============
 export function Step3() {
   const { draft, updateDraft, setScreen } = useApp();
-  const maxFloor = draft.workEnv === "계단" ? 6 : 50;
+  const hasStair = draft.workEnv.includes("계단");
+  const hasElev = draft.workEnv.includes("엘리베이터");
+  const maxFloor = hasStair ? 6 : 50;
+  const toggleEnv = (env: "계단" | "엘리베이터") => {
+    const stair = env === "계단" ? !hasStair : hasStair;
+    const elev = env === "엘리베이터" ? !hasElev : hasElev;
+    if (!stair && !elev) return;
+    const next: WorkEnv = stair && elev ? "계단+엘리베이터" : stair ? "계단" : "엘리베이터";
+    updateDraft(
+      stair
+        ? { workEnv: next, fromFloor: Math.min(draft.fromFloor, 6), toFloor: Math.min(draft.toFloor, 6) }
+        : { workEnv: next },
+    );
+  };
   return (
     <MobileShell>
       <TopBar title="3단계. 작업 조건" onBack={() => setScreen("step2")} />
       <div className="p-5 space-y-5 flex-1 overflow-auto">
-        <Field label="작업 환경">
+        <Field label="작업 환경 (중복 선택 가능)">
           <div className="grid grid-cols-2 gap-3">
             <Card
-              selected={draft.workEnv === "계단"}
-              onClick={() =>
-                updateDraft({ workEnv: "계단", fromFloor: Math.min(draft.fromFloor, 6), toFloor: Math.min(draft.toFloor, 6) })
-              }
+              selected={hasStair}
+              onClick={() => toggleEnv("계단")}
               className="text-center py-6"
             >
               <Art3D src={ENV_IMG["계단"]} alt="계단" size={72} className="mx-auto mb-2" />
               <div className="font-bold">계단 (수작업)</div>
             </Card>
             <Card
-              selected={draft.workEnv === "엘리베이터"}
-              onClick={() => updateDraft({ workEnv: "엘리베이터" })}
+              selected={hasElev}
+              onClick={() => toggleEnv("엘리베이터")}
               className="text-center py-6"
             >
               <Art3D src={ENV_IMG["엘리베이터"]} alt="엘리베이터" size={72} className="mx-auto mb-2" />
@@ -829,12 +850,22 @@ export function Step6() {
     if (!currentRoomId && draft.rooms[0]) setCurrentRoom(draft.rooms[0].id);
   }, [currentRoomId, draft.rooms, setCurrentRoom]);
   const room = draft.rooms.find((r) => r.id === roomId);
+  // 방을 클릭하면 그 방에 선택된 품목만 보여줍니다.
+  const [onlySelected, setOnlySelected] = useState(true);
+  useEffect(() => {
+    setOnlySelected(true);
+  }, [roomId]);
   const catalog = [
     ...ITEM_CATALOG,
     ...(draft.customItems || []).map((c) => ({ ...c, emoji: "📦" })),
   ].filter((i) => !(draft.hiddenItems || []).includes(i.id));
+  const selectedCount = room ? Object.keys(room.items).length : 0;
+  const showSelectedOnly = onlySelected && !q && selectedCount > 0;
   const items = catalog.filter(
-    (i) => (cat === "전체" || i.cat === cat) && (!q || i.name.includes(q))
+    (i) =>
+      (showSelectedOnly
+        ? (room?.items[i.id] || 0) > 0
+        : cat === "전체" || i.cat === cat) && (!q || i.name.includes(q))
   );
   const addItem = () => {
     const name = prompt("추가할 품목 이름");
@@ -894,12 +925,30 @@ export function Step6() {
           ))}
         </div>
         <div className="flex gap-2 overflow-auto -mx-1 px-1">
+          <button
+            onClick={() => {
+              setOnlySelected(!onlySelected);
+              tap();
+            }}
+            className={`px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap ${
+              showSelectedOnly
+                ? "bg-[#0751D8] text-white"
+                : "bg-white border border-[#E7EBF2] text-[#6B7280]"
+            }`}
+          >
+            {showSelectedOnly ? `선택 품목만 (${selectedCount})` : "전체 품목 보기"}
+          </button>
           {CATEGORIES.filter((c) => c !== "전체").map((c) => (
             <button
               key={c}
-              onClick={() => setCat(c)}
+              onClick={() => {
+                setCat(c);
+                setOnlySelected(false);
+              }}
               className={`px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap ${
-                c === cat ? "bg-[#EEF4FF] text-[#0751D8] border border-[#287BFF]" : "bg-white border border-[#E7EBF2] text-[#6B7280]"
+                !showSelectedOnly && c === cat
+                  ? "bg-[#EEF4FF] text-[#0751D8] border border-[#287BFF]"
+                  : "bg-white border border-[#E7EBF2] text-[#6B7280]"
               }`}
             >
               {c}
