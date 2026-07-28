@@ -350,8 +350,6 @@ export function won(n: number) {
   return n.toLocaleString("ko-KR") + "원";
 }
 
-const STORAGE_KEY = "jimpick_v8_state";
-
 /** localStorage에서 견적 ID로 찾기 (공유 페이지 등 Provider 외부에서도 사용) */
 export function loadEstimateFromStorage(id: string): Estimate | null {
   if (typeof window === "undefined") return null;
@@ -364,4 +362,5 @@ export function loadEstimateFromStorage(id: string): Estimate | null {
     return null;
   }
 }
+
 
