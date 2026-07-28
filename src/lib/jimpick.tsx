@@ -239,6 +239,8 @@ export type Screen =
   | "result"
   | "history"
   | "customers"
+  | "signup"
+  | "subscription"
   | "settings";
 
 interface AppState {

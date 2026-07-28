@@ -18,6 +18,7 @@ import {
   Customers,
   SettingsScreen,
 } from "@/components/jimpick/screens";
+import { SignupScreen, SubscriptionScreen } from "@/components/jimpick/account";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -48,6 +49,8 @@ function Router() {
     case "result": return <Result />;
     case "history": return <History />;
     case "customers": return <Customers />;
+    case "signup": return <SignupScreen />;
+    case "subscription": return <SubscriptionScreen />;
     case "settings": return <SettingsScreen />;
     default: return <Splash />;
   }

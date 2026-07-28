@@ -46,6 +46,10 @@ import aiRobotPhoto from "@/assets/ai-robot-photo.png";
 import aiRobotVideo from "@/assets/ai-robot-video.png";
 import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
+import { KakaoMap } from "./KakaoMap";
+import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
+import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
+import { fileToDataUrl, videoToFrames } from "@/lib/media";
 
 // ============ Splash ============
 import truckImg from "@/assets/jimpick-truck.png";
@@ -101,7 +105,7 @@ export function Splash() {
 
 // ============ Login ============
 export function Login() {
-  const { login, savedId } = useApp();
+  const { login, savedId, setScreen } = useApp();
   const [id, setId] = useState(savedId || "");
   const [pw, setPw] = useState("");
   const [remember, setRemember] = useState(!!savedId);
@@ -150,6 +154,12 @@ export function Login() {
         </label>
         {err && <div className="text-sm text-[#EF4444]">{err}</div>}
         <PrimaryButton onClick={submit}>로그인</PrimaryButton>
+        <button
+          onClick={() => setScreen("signup")}
+          className="w-full py-3 rounded-2xl border border-[#0751D8] text-[#0751D8] font-bold bg-white"
+        >
+          업체 회원가입 · 구독 신청
+        </button>
         <div className="text-center text-sm text-[#6B7280]">아이디/비밀번호 찾기</div>
         <div className="text-center text-xs text-[#6B7280] pt-6">
           © JIMPICK · Ver 7.0.0
@@ -327,16 +337,7 @@ export function Step1() {
   );
 }
 
-// ============ Step 2: Address ============
-const SAMPLE_ADDRESSES = [
-  "서울특별시 강남구 테헤란로 123",
-  "서울특별시 마포구 월드컵북로 400",
-  "서울특별시 송파구 올림픽로 300",
-  "경기도 성남시 분당구 판교역로 235",
-  "인천광역시 연수구 송도과학로 100",
-  "부산광역시 해운대구 우동 1418",
-];
-
+// ============ Step 2: Address (카카오맵) ============
 function AddressSearch({
   label,
   value,
@@ -347,24 +348,44 @@ function AddressSearch({
   label: string;
   value: string;
   detail: string;
-  onSelect: (a: string) => void;
+  onSelect: (a: string, coord: { x: number; y: number }) => void;
   onDetail: (d: string) => void;
 }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
-  const results = q ? SAMPLE_ADDRESSES.filter((a) => a.includes(q)) : SAMPLE_ADDRESSES;
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<KakaoPlace[]>([]);
+
+  const run = async () => {
+    if (!q.trim()) return;
+    setLoading(true);
+    setOpen(true);
+    try {
+      const res = await searchAddress({ data: { query: q.trim() } });
+      if (res.error) toast.error(res.error);
+      setResults(res.places);
+      if (!res.error && res.places.length === 0) toast.info("검색 결과가 없습니다");
+    } catch {
+      toast.error("주소 검색에 실패했습니다");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Card className="space-y-3">
       <div className="font-bold">{label}</div>
       <div className="flex gap-2">
         <TextInput
-          placeholder="주소를 검색하세요 (예: 강남)"
+          placeholder="도로명·지번·건물명 검색"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") run();
+          }}
         />
         <button
-          onClick={() => setOpen(true)}
+          onClick={run}
           className="px-4 rounded-xl text-white font-semibold"
           style={{ background: "linear-gradient(135deg, #287BFF, #0751D8)" }}
         >
@@ -372,25 +393,27 @@ function AddressSearch({
         </button>
       </div>
       {open && (
-        <div className="border border-[#E7EBF2] rounded-xl max-h-48 overflow-auto bg-white">
-          {results.map((a) => (
-            <button
-              key={a}
-              onClick={() => {
-                onSelect(a);
-                setOpen(false);
-                setQ("");
-              }}
-              className="w-full text-left px-4 py-3 hover:bg-[#F5F7FB] text-sm border-b last:border-b-0 border-[#E7EBF2]"
-            >
-              {a}
-            </button>
-          ))}
+        <div className="border border-[#E7EBF2] rounded-xl max-h-52 overflow-auto bg-white">
+          {loading && <div className="px-4 py-3 text-sm text-[#6B7280]">검색 중...</div>}
+          {!loading &&
+            results.map((a, i) => (
+              <button
+                key={`${a.name}-${i}`}
+                onClick={() => {
+                  onSelect(a.roadAddress || a.address, { x: a.x, y: a.y });
+                  setOpen(false);
+                  setQ("");
+                  tap();
+                }}
+                className="w-full text-left px-4 py-3 hover:bg-[#F5F7FB] text-sm border-b last:border-b-0 border-[#E7EBF2]"
+              >
+                <div className="font-semibold">{a.name}</div>
+                <div className="text-xs text-[#6B7280]">{a.roadAddress || a.address}</div>
+              </button>
+            ))}
         </div>
       )}
-      {value && (
-        <div className="text-sm bg-[#F5F7FB] rounded-xl p-3 font-medium">{value}</div>
-      )}
+      {value && <div className="text-sm bg-[#F5F7FB] rounded-xl p-3 font-medium">{value}</div>}
       <TextInput
         placeholder="상세주소 (예: 101동 1203호)"
         value={detail}
@@ -402,13 +425,27 @@ function AddressSearch({
 
 export function Step2() {
   const { draft, updateDraft, setScreen } = useApp();
-  const hasBoth = draft.fromAddress && draft.toAddress;
+  const [from, setFrom] = useState<{ x: number; y: number } | null>(null);
+  const [to, setTo] = useState<{ x: number; y: number } | null>(null);
+  const hasBoth = Boolean(draft.fromAddress && draft.toAddress);
+
   useEffect(() => {
-    if (hasBoth && !draft.distanceKm) {
-      const km = 5 + Math.round(Math.random() * 40);
-      updateDraft({ distanceKm: km, durationMin: Math.round(km * 3) });
-    }
-  }, [hasBoth, draft.distanceKm, updateDraft]);
+    if (!from || !to) return;
+    let cancelled = false;
+    (async () => {
+      const res = await getRoute({ data: { originX: from.x, originY: from.y, destX: to.x, destY: to.y } });
+      if (cancelled) return;
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      updateDraft({ distanceKm: res.distanceKm, durationMin: res.durationMin });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [from?.x, from?.y, to?.x, to?.y]);
+
   return (
     <MobileShell>
       <TopBar title="2단계. 주소 검색" onBack={() => setScreen("step1")} />
@@ -417,29 +454,29 @@ export function Step2() {
           label="출발지"
           value={draft.fromAddress}
           detail={draft.fromDetail}
-          onSelect={(a) => updateDraft({ fromAddress: a, distanceKm: 0 })}
+          onSelect={(a, c) => {
+            updateDraft({ fromAddress: a, distanceKm: 0, durationMin: 0 });
+            setFrom(c);
+          }}
           onDetail={(d) => updateDraft({ fromDetail: d })}
         />
         <AddressSearch
           label="도착지"
           value={draft.toAddress}
           detail={draft.toDetail}
-          onSelect={(a) => updateDraft({ toAddress: a, distanceKm: 0 })}
+          onSelect={(a, c) => {
+            updateDraft({ toAddress: a, distanceKm: 0, durationMin: 0 });
+            setTo(c);
+          }}
           onDetail={(d) => updateDraft({ toDetail: d })}
         />
-        {hasBoth && (
+        {(from || to) && (
           <Card>
             <div className="font-bold mb-2">경로 안내</div>
-            <div className="h-40 rounded-xl bg-gradient-to-br from-[#DDE9FF] to-[#EEF4FF] relative overflow-hidden">
-              <div className="absolute top-4 left-4 w-4 h-4 rounded-full bg-[#0751D8] ring-4 ring-white" />
-              <div className="absolute bottom-4 right-4 w-4 h-4 rounded-full bg-[#EF4444] ring-4 ring-white" />
-              <svg className="absolute inset-0 w-full h-full">
-                <line x1="16" y1="16" x2="100%" y2="100%" stroke="#287BFF" strokeWidth="3" strokeDasharray="6 4" />
-              </svg>
-            </div>
+            <KakaoMap from={from} to={to} height={180} />
             <div className="grid grid-cols-2 gap-3 mt-3 text-center">
               <div>
-                <div className="text-xs text-[#6B7280]">거리</div>
+                <div className="text-xs text-[#6B7280]">실거리</div>
                 <div className="text-lg font-bold">{draft.distanceKm} km</div>
               </div>
               <div>
@@ -928,29 +965,74 @@ export function Step6() {
 // ============ AI Recognition ============
 export function AIRecognition() {
   const { draft, updateDraft, setScreen, currentRoomId } = useApp();
-  const [results, setResults] = useState<{ id: string; name: string; qty: number; emoji: string }[]>([]);
+  const [results, setResults] = useState<DetectedItem[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [photoUrl, setPhotoUrl] = useState<string>("");
-  const scan = () => {
-    setResults([
-      { id: "sofa", name: "소파", qty: 2, emoji: "🛋️" },
-      { id: "fridge", name: "냉장고", qty: 1, emoji: "🧊" },
-      { id: "washer", name: "세탁기", qty: 1, emoji: "🌀" },
-      { id: "tv", name: "TV", qty: 1, emoji: "📺" },
-    ]);
-    toast.success("AI 인식 완료");
+  const [busy, setBusy] = useState(false);
+  const [onlyHigh, setOnlyHigh] = useState(true);
+
+  const THRESHOLD = 0.9;
+  const shown = onlyHigh ? results.filter((r) => r.confidence >= THRESHOLD) : results;
+  const lowCount = results.filter((r) => r.confidence < THRESHOLD).length;
+
+  const analyze = async (images: string[], source: "photo" | "video") => {
+    setBusy(true);
+    setResults([]);
+    try {
+      const res = await recognizeItems({ data: { images, source } });
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      setResults(res.items);
+      const high = res.items.filter((i) => i.confidence >= THRESHOLD).length;
+      if (high === 0) {
+        toast.info("90% 이상 확신하는 품목이 없습니다. 더 밝고 가까이 촬영해 주세요.");
+        setOnlyHigh(false);
+      } else {
+        toast.success(`AI 인식 완료 — 정확도 90% 이상 ${high}개 품목`);
+        tap("success");
+      }
+      if (res.roomGuess) toast.info(`추정 공간: ${res.roomGuess}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI 분석에 실패했습니다");
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const onPhoto = async (f: File) => {
+    setVideoUrl("");
+    setPhotoUrl(URL.createObjectURL(f));
+    const dataUrl = await fileToDataUrl(f);
+    await analyze([dataUrl], "photo");
+  };
+
+  const onVideo = async (f: File) => {
+    setPhotoUrl("");
+    setVideoUrl(URL.createObjectURL(f));
+    setBusy(true);
+    try {
+      const frames = await videoToFrames(f, 6);
+      await analyze(frames, "video");
+    } catch {
+      toast.error("동영상을 분석하지 못했습니다");
+      setBusy(false);
+    }
+  };
+
   const apply = () => {
     const room = draft.rooms.find((r) => r.id === currentRoomId) || draft.rooms[0];
     if (!room) return;
     const items = { ...room.items };
-    for (const r of results) items[r.id] = (items[r.id] || 0) + r.qty;
+    for (const r of shown) items[r.id] = (items[r.id] || 0) + r.qty;
     updateDraft({
       rooms: draft.rooms.map((x) => (x.id === room.id ? { ...x, items } : x)),
     });
-    toast.success(`「${room.name}」에 적용되었습니다`);
+    toast.success(`「${room.name}」에 ${shown.length}개 품목이 적용되었습니다`);
     setScreen("step6");
   };
+
   return (
     <MobileShell>
       <TopBar title="AI 사진·동영상 인식" onBack={() => setScreen("step6")} />
@@ -964,6 +1046,7 @@ export function AIRecognition() {
             )}
           </Card>
         )}
+
         <Card className="flex items-center gap-3">
           <img
             src={aiRobotPhoto}
@@ -975,7 +1058,7 @@ export function AIRecognition() {
           />
           <div className="flex-1">
             <div className="font-bold text-lg">AI 사진 인식</div>
-            <div className="text-sm text-[#6B7280] mt-1 mb-3">사진을 촬영하여 AI가 짐을 분석합니다.</div>
+            <div className="text-sm text-[#6B7280] mt-1 mb-3">가구·가전을 90% 정확도로 자동 인식합니다.</div>
             <label className="block w-full py-3 rounded-2xl text-white text-center font-bold cursor-pointer shadow-[0_4px_0_#0645B0]" style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}>
               사진 촬영
               <input
@@ -985,16 +1068,13 @@ export function AIRecognition() {
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (!f) return;
-                  setVideoUrl("");
-                  setPhotoUrl(URL.createObjectURL(f));
-                  tap("success");
-                  scan();
+                  if (f) onPhoto(f);
                 }}
               />
             </label>
           </div>
         </Card>
+
         <Card className="flex items-center gap-3">
           <img
             src={aiRobotVideo}
@@ -1006,7 +1086,7 @@ export function AIRecognition() {
           />
           <div className="flex-1">
             <div className="font-bold text-lg">AI 동영상 인식</div>
-            <div className="text-sm text-[#6B7280] mt-1 mb-3">동영상을 촬영하여 AI가 짐을 분석합니다.</div>
+            <div className="text-sm text-[#6B7280] mt-1 mb-3">방을 천천히 한 바퀴 촬영하면 장면을 나눠 분석합니다.</div>
             <label className="block w-full py-3 rounded-2xl text-white text-center font-bold cursor-pointer shadow-[0_4px_0_#0645B0]" style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}>
               동영상 촬영
               <input
@@ -1016,17 +1096,13 @@ export function AIRecognition() {
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (!f) return;
-                  setPhotoUrl("");
-                  setVideoUrl(URL.createObjectURL(f));
-                  tap("success");
-                  toast.success("동영상 업로드 완료 — 3D 분석을 시작합니다");
-                  scan();
+                  if (f) onVideo(f);
                 }}
               />
             </label>
           </div>
         </Card>
+
         <div className="grid grid-cols-2 gap-3">
           <label className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-semibold flex items-center justify-center gap-2 cursor-pointer">
             <ImageIcon className="w-5 h-5" /> 사진 불러오기
@@ -1036,53 +1112,73 @@ export function AIRecognition() {
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (!f) return;
-                setVideoUrl("");
-                setPhotoUrl(URL.createObjectURL(f));
-                scan();
+                if (f) onPhoto(f);
               }}
             />
           </label>
           <label className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-semibold flex items-center justify-center gap-2 cursor-pointer">
-            <Video className="w-5 h-5" /> 동영상 불러오기
+            <ImageIcon className="w-5 h-5" /> 동영상 불러오기
             <input
               type="file"
               accept="video/*"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (!f) return;
-                setPhotoUrl("");
-                setVideoUrl(URL.createObjectURL(f));
-                scan();
+                if (f) onVideo(f);
               }}
             />
           </label>
         </div>
+
+        {busy && (
+          <Card className="text-center py-6">
+            <div className="font-bold text-[#0751D8]">AI가 분석 중입니다...</div>
+            <div className="text-xs text-[#6B7280] mt-1">가구·가전을 찾아 수량을 세는 중</div>
+          </Card>
+        )}
+
         <div className="text-xs text-[#6B7280] bg-[#F5F7FB] rounded-xl px-3 py-2">
-          💡 밝고 선명하게 촬영할수록 인식률이 높아집니다.
+          💡 밝고 선명하게, 물건 전체가 나오도록 촬영할수록 인식률이 높아집니다.
         </div>
+
         {results.length > 0 && (
           <div className="space-y-2">
-            <div className="font-bold">인식 결과</div>
-            {results.map((r, i) => (
+            <div className="flex items-center justify-between">
+              <div className="font-bold">인식 결과</div>
+              <button
+                onClick={() => setOnlyHigh((v) => !v)}
+                className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#EDF2FB] text-[#0751D8]"
+              >
+                {onlyHigh ? `90% 이상만 보기 (숨김 ${lowCount})` : "전체 보기"}
+              </button>
+            </div>
+            {shown.map((r, i) => (
               <Card key={r.id} className="flex items-center gap-3">
                 <Art3D src={ITEM_IMG[r.id]} alt={r.name} size={48} />
                 <div className="flex-1">
                   <div className="font-semibold">{r.name}</div>
-                  <div className="text-xs text-[#6B7280]">인식됨</div>
+                  <div className="text-xs text-[#6B7280]">
+                    정확도 {Math.round(r.confidence * 100)}%{r.note ? ` · ${r.note}` : ""}
+                  </div>
                 </div>
                 <Counter
                   value={r.qty}
-                  onChange={(n) => setResults(results.map((x, j) => (j === i ? { ...x, qty: n } : x)))}
+                  onChange={(n) =>
+                    setResults(results.map((x) => (x.id === r.id ? { ...x, qty: n } : x)))
+                  }
                 />
                 <button
-                  onClick={() => setResults(results.filter((_, j) => j !== i))}
+                  onClick={() => setResults(results.filter((x) => x.id !== r.id))}
                   className="p-2 text-[#EF4444]"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-                <Check className="w-5 h-5 text-[#16A34A]" />
+                {r.confidence >= THRESHOLD ? (
+                  <Check className="w-5 h-5 text-[#16A34A]" />
+                ) : (
+                  <span className="text-[10px] font-bold text-[#F59E0B]">확인</span>
+                )}
+                <span className="sr-only">{i}</span>
               </Card>
             ))}
           </div>
@@ -1100,7 +1196,7 @@ export function AIRecognition() {
           >
             다시 촬영
           </button>
-          <PrimaryButton onClick={apply} className="flex-1">
+          <PrimaryButton onClick={apply} className="flex-1" disabled={shown.length === 0}>
             적용하기
           </PrimaryButton>
         </div>
@@ -1555,11 +1651,19 @@ export function Customers() {
 
 // ============ Settings ============
 export function SettingsScreen() {
-  const { logout } = useApp();
+  const { logout, setScreen } = useApp();
   return (
     <MobileShell>
       <TopBar title="설정" />
       <div className="p-4 space-y-3 flex-1 overflow-auto">
+        <button
+          onClick={() => { tap(); setScreen("subscription"); }}
+          className="w-full text-left rounded-2xl p-4 text-white font-bold shadow-[0_6px_0_#0645B0]"
+          style={{ background: "linear-gradient(135deg, #287BFF 0%, #0751D8 100%)" }}
+        >
+          <div className="text-base">구독 · 결제 관리</div>
+          <div className="text-xs font-medium opacity-90 mt-1">요금제 변경, 결제 내역 확인</div>
+        </button>
         <Card className="space-y-3">
           <div className="font-bold">사업자 정보</div>
           <Field label="상호명"><TextInput defaultValue="JIMPICK" /></Field>
