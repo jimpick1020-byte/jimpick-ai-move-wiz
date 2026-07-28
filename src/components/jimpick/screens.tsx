@@ -925,12 +925,30 @@ export function Step6() {
           ))}
         </div>
         <div className="flex gap-2 overflow-auto -mx-1 px-1">
+          <button
+            onClick={() => {
+              setOnlySelected(!onlySelected);
+              tap();
+            }}
+            className={`px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap ${
+              showSelectedOnly
+                ? "bg-[#0751D8] text-white"
+                : "bg-white border border-[#E7EBF2] text-[#6B7280]"
+            }`}
+          >
+            {showSelectedOnly ? `선택 품목만 (${selectedCount})` : "전체 품목 보기"}
+          </button>
           {CATEGORIES.filter((c) => c !== "전체").map((c) => (
             <button
               key={c}
-              onClick={() => setCat(c)}
+              onClick={() => {
+                setCat(c);
+                setOnlySelected(false);
+              }}
               className={`px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap ${
-                c === cat ? "bg-[#EEF4FF] text-[#0751D8] border border-[#287BFF]" : "bg-white border border-[#E7EBF2] text-[#6B7280]"
+                !showSelectedOnly && c === cat
+                  ? "bg-[#EEF4FF] text-[#0751D8] border border-[#287BFF]"
+                  : "bg-white border border-[#E7EBF2] text-[#6B7280]"
               }`}
             >
               {c}
