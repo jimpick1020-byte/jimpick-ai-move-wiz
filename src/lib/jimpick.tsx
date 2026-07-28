@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 
 // ============ Types ============
 export type MoveType = "포장이사" | "반포장이사" | "일반이사" | "보관이사" | "사무실이사";
-export type WorkEnv = "계단" | "엘리베이터";
+export type WorkEnv = "계단" | "엘리베이터" | "계단+엘리베이터";
 export type EstimateStatus = "작성중" | "진행중" | "완료" | "취소";
 
 export interface RoomItems {
@@ -151,7 +151,7 @@ export function calcEstimate(e: Estimate): { total: number; parts: { label: stri
   const transport =
     e.transportOverride === null || e.transportOverride === undefined ? autoTransport : e.transportOverride;
   const stairFloors =
-    e.workEnv === "계단" ? Math.max(0, e.fromFloor - 1) + Math.max(0, e.toFloor - 1) : 0;
+    e.workEnv.includes("계단") ? Math.max(0, e.fromFloor - 1) + Math.max(0, e.toFloor - 1) : 0;
   const stairFee = stairFloors * PRICING.stairPerFloor;
   const optionFee = e.options
     .filter((o) => o.enabled && !o.separate)
