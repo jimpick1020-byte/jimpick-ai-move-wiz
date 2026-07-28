@@ -425,6 +425,19 @@ function AddressSearch({
             ))}
         </div>
       )}
+      {q.trim().length > 0 && (
+        <button
+          onClick={() => {
+            onSelect(q.trim(), { x: 0, y: 0 });
+            setOpen(false);
+            setQ("");
+            tap();
+          }}
+          className="w-full text-sm font-semibold rounded-xl py-2.5 border border-[#0751D8] text-[#0751D8] bg-white"
+        >
+          검색이 안 되면: 입력한 주소 그대로 사용
+        </button>
+      )}
       {value && <div className="text-sm bg-[#F5F7FB] rounded-xl p-3 font-medium">{value}</div>}
       <TextInput
         placeholder="상세주소 (예: 101동 1203호)"
@@ -468,7 +481,7 @@ export function Step2() {
           detail={draft.fromDetail}
           onSelect={(a, c) => {
             updateDraft({ fromAddress: a, distanceKm: 0, durationMin: 0 });
-            setFrom(c);
+            setFrom(c.x && c.y ? c : null);
           }}
           onDetail={(d) => updateDraft({ fromDetail: d })}
         />
@@ -478,7 +491,7 @@ export function Step2() {
           detail={draft.toDetail}
           onSelect={(a, c) => {
             updateDraft({ toAddress: a, distanceKm: 0, durationMin: 0 });
-            setTo(c);
+            setTo(c.x && c.y ? c : null);
           }}
           onDetail={(d) => updateDraft({ toDetail: d })}
         />
