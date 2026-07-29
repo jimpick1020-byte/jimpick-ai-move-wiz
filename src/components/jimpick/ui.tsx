@@ -41,6 +41,19 @@ export function MobileShell({ children, bg = "bg-[#F5F7FB]" }: { children: React
         <div
           className={`relative w-full min-h-screen ${bg} rounded-[24px] overflow-hidden flex flex-col shadow-[0_30px_60px_-20px_rgba(7,81,216,0.35),inset_0_1px_0_#FFFFFF]`}
         >
+          {/* 안쪽 회전 네온 테두리 */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-[6px] rounded-[18px] z-20 p-[2px]"
+            style={{
+              background: NEON_GRADIENT,
+              animation: "jp-spin 6s linear infinite",
+              WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+              opacity: 0.85,
+            }}
+          />
           <StatusBar />
           {children}
         </div>
