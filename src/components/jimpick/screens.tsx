@@ -27,6 +27,7 @@ import {
   CATEGORIES,
   OPTION_PRESETS,
   calcEstimate,
+  guessCategory,
   formatPhone,
   won,
   type MoveType,
@@ -57,7 +58,7 @@ import { fileToDataUrl, videoToFrames } from "@/lib/media";
 // ============ Splash ============
 import truckImg from "@/assets/jimpick-truck.png";
 import logoImg from "@/assets/jimpick-logo.png";
-import { Art3D, ITEM_IMG, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
+import { Art3D, ITEM_IMG, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG, guessItemImg } from "@/lib/jimpick-art";
 
 import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle } from "lucide-react";
 
