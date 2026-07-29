@@ -1475,6 +1475,7 @@ export function OptionsScreen() {
 export function Result() {
   const { draft, setScreen, saveDraft, updateDraft } = useApp();
   const [detail, setDetail] = useState(false);
+  const [detailEdit, setDetailEdit] = useState(false);
   const [edit, setEdit] = useState(false);
   
   const [adjust, setAdjust] = useState(0);
