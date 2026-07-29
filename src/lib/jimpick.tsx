@@ -183,13 +183,12 @@ export function calcEstimate(e: Estimate): { total: number; parts: { label: stri
     storageFee = days * (e.storageDaily || 0);
   }
   const extras = (e.extraCharges ?? []).reduce((s2, x) => s2 + (x.amount || 0), 0);
-  const sum = transport + stairFee + optionFee + storageFee + extras;
+  const sum = transport + optionFee + storageFee + extras;
   const total = e.totalOverride === null || e.totalOverride === undefined ? sum : e.totalOverride;
   return {
     total,
     parts: [
       { label: "기본 운송료", amount: transport },
-      { label: "계단 추가비", amount: stairFee },
       { label: "옵션 비용", amount: optionFee },
       { label: "보관료", amount: storageFee },
       ...(e.extraCharges ?? []).map((x) => ({ label: x.label || "추가 항목", amount: x.amount || 0 })),
