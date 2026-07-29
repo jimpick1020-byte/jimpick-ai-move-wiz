@@ -1357,6 +1357,9 @@ export function OptionsScreen() {
                   }}
                   className="w-5 h-5"
                 />
+                {guessItemImg(o.name) && (
+                  <Art3D src={guessItemImg(o.name)!} alt={o.name} size={44} />
+                )}
                 {o.name}
               </label>
               <button
