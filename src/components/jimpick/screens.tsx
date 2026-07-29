@@ -1526,19 +1526,109 @@ export function Result() {
               <button
                 onClick={() => {
                   tap("soft");
-                  setEdit(true);
+                  setDetailEdit((v) => !v);
                 }}
                 className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#EEF4FF] text-[#0751D8] flex items-center gap-1"
               >
-                <Edit3 className="w-3.5 h-3.5" /> 견적 수정
+                <Edit3 className="w-3.5 h-3.5" /> {detailEdit ? "수정 완료" : "내역 수정"}
               </button>
             </div>
-            {parts.map((p) => (
-              <div key={p.label} className="flex justify-between text-sm">
-                <span className="text-[#6B7280]">{p.label}</span>
-                <span className="font-semibold">{won(p.amount)}</span>
+
+            {detailEdit ? (
+              <div className="space-y-3">
+                <Field label="기본 운송료">
+                  <MoneyInput
+                    value={
+                      draft.transportOverride ?? (calc.parts.find((p) => p.label === "기본 운송료")?.amount ?? 0)
+                    }
+                    onChange={(n) => updateDraft({ transportOverride: n })}
+                    step={10000}
+                  />
+                </Field>
+                {calc.parts
+                  .filter((p) => ["계단 추가비", "옵션 비용", "보관료"].includes(p.label))
+                  .map((p) => (
+                    <div key={p.label} className="flex justify-between text-sm">
+                      <span className="text-[#6B7280]">{p.label}</span>
+                      <span className="font-semibold">{won(p.amount)}</span>
+                    </div>
+                  ))}
+                <div className="border-t border-[#E7EBF2] pt-3 space-y-3">
+                  {(draft.extraCharges ?? []).map((x) => (
+                    <div key={x.id} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <TextInput
+                          value={x.label}
+                          placeholder="항목명 (예: 보양 작업비)"
+                          onChange={(e) =>
+                            updateDraft({
+                              extraCharges: (draft.extraCharges ?? []).map((y) =>
+                                y.id === x.id ? { ...y, label: e.target.value } : y,
+                              ),
+                            })
+                          }
+                        />
+                        <button
+                          onClick={() => {
+                            tap("soft");
+                            updateDraft({
+                              extraCharges: (draft.extraCharges ?? []).filter((y) => y.id !== x.id),
+                            });
+                          }}
+                          className="shrink-0 w-10 h-10 rounded-xl border border-[#F3C7C7] text-[#EF4444] flex items-center justify-center"
+                          aria-label="항목 삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <MoneyInput
+                        value={x.amount}
+                        step={10000}
+                        onChange={(n) =>
+                          updateDraft({
+                            extraCharges: (draft.extraCharges ?? []).map((y) =>
+                              y.id === x.id ? { ...y, amount: n } : y,
+                            ),
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      tap("soft");
+                      updateDraft({
+                        extraCharges: [
+                          ...(draft.extraCharges ?? []),
+                          { id: `x_${Date.now()}`, label: "", amount: 0 },
+                        ],
+                      });
+                    }}
+                    className="w-full py-3 rounded-xl border-2 border-dashed border-[#BFD4FF] text-[#0751D8] font-bold text-sm"
+                  >
+                    + 항목 추가
+                  </button>
+                </div>
+                {draft.transportOverride !== null && draft.transportOverride !== undefined && (
+                  <button
+                    onClick={() => {
+                      tap("soft");
+                      updateDraft({ transportOverride: null });
+                    }}
+                    className="text-xs text-[#6B7280] underline"
+                  >
+                    기본 운송료 자동 계산으로 되돌리기
+                  </button>
+                )}
               </div>
-            ))}
+            ) : (
+              parts.map((p, i) => (
+                <div key={`${p.label}_${i}`} className="flex justify-between text-sm">
+                  <span className="text-[#6B7280]">{p.label}</span>
+                  <span className="font-semibold">{won(p.amount)}</span>
+                </div>
+              ))
+            )}
             <div className="border-t border-[#E7EBF2] pt-2 mt-2 flex justify-between font-bold">
               <span>합계</span>
               <span className="text-[#0751D8]">{won(total)}</span>
