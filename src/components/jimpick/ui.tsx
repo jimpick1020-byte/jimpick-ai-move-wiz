@@ -16,16 +16,39 @@ export function StatusBar() {
   );
 }
 
+const NEON_GRADIENT =
+  "conic-gradient(from var(--jp-angle), #ff007f, #7928ca, #00dfd8, #7928ca, #ff007f)";
+
 export function MobileShell({ children, bg = "bg-[#F5F7FB]" }: { children: ReactNode; bg?: string }) {
   return (
     <div className="min-h-screen w-full flex justify-center bg-slate-200">
-      <div className={`w-full max-w-[430px] min-h-screen ${bg} relative flex flex-col border-x border-[#D8E1F0] shadow-[0_30px_60px_-20px_rgba(7,81,216,0.35),inset_0_1px_0_#FFFFFF]`}>
-        <StatusBar />
-        {children}
+      <div className="relative w-full max-w-[430px] p-[3px]">
+        {/* 회전하는 네온 테두리 */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-[26px]"
+          style={{ background: NEON_GRADIENT, animation: "jp-spin 6s linear infinite" }}
+        />
+        {/* 뒤쪽 빛 번짐 */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -inset-2 rounded-[34px] blur-2xl"
+          style={{
+            background: NEON_GRADIENT,
+            animation: "jp-spin 6s linear infinite, jp-glow-pulse 3s ease-in-out infinite",
+          }}
+        />
+        <div
+          className={`relative w-full min-h-screen ${bg} rounded-[24px] overflow-hidden flex flex-col shadow-[0_30px_60px_-20px_rgba(7,81,216,0.35),inset_0_1px_0_#FFFFFF]`}
+        >
+          <StatusBar />
+          {children}
+        </div>
       </div>
     </div>
   );
 }
+
 
 export function TopBar({ title, onBack }: { title: string; onBack?: () => void }) {
   return (
