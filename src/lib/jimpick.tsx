@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 
 // ============ Types ============
 export type MoveType = "포장이사" | "반포장이사" | "일반이사" | "보관이사" | "사무실이사";
-export type WorkEnv = "계단" | "엘리베이터" | "계단+엘리베이터";
+export type WorkEnv = "없음" | "계단" | "엘리베이터" | "계단+엘리베이터";
 export type EstimateStatus = "작성중" | "진행중" | "완료" | "취소";
 
 export interface RoomItems {
@@ -62,6 +62,11 @@ export interface Estimate {
   ladderToPrice: number;
   ladderPrice: number;
   ladderSeparate: boolean;
+  /** 사다리차 출발지·도착지 별도 여부 (견적 합계에서 제외) */
+  ladderFromSeparate: boolean;
+  ladderToSeparate: boolean;
+  /** 상세 내역에서 직접 추가·수정하는 항목 */
+  extraCharges: { id: string; label: string; amount: number }[];
   /** 고객 메모 */
   memo: string;
   /** 특약사항 */
@@ -155,7 +160,14 @@ export const PRICING = {
 };
 
 export function calcEstimate(e: Estimate): { total: number; parts: { label: string; amount: number }[] } {
-  const ladderFee = e.ladderSeparate ? 0 : e.ladderPrice || e.ladder * PRICING.ladder;
+  const hasSidePrice = (e.ladderFromPrice || 0) + (e.ladderToPrice || 0) > 0;
+  const sideFee =
+    (e.ladderFromSeparate ? 0 : e.ladderFromPrice || 0) + (e.ladderToSeparate ? 0 : e.ladderToPrice || 0);
+  const ladderFee = e.ladderSeparate
+    ? 0
+    : hasSidePrice
+      ? sideFee
+      : e.ladderPrice || e.ladder * PRICING.ladder;
   const autoTransport = e.truck1t * PRICING.truck1t + e.truck5t * PRICING.truck5t + ladderFee;
   const transport =
     e.transportOverride === null || e.transportOverride === undefined ? autoTransport : e.transportOverride;
@@ -173,7 +185,8 @@ export function calcEstimate(e: Estimate): { total: number; parts: { label: stri
     );
     storageFee = days * (e.storageDaily || 0);
   }
-  const sum = transport + stairFee + optionFee + storageFee;
+  const extras = (e.extraCharges ?? []).reduce((s2, x) => s2 + (x.amount || 0), 0);
+  const sum = transport + stairFee + optionFee + storageFee + extras;
   const total = e.totalOverride === null || e.totalOverride === undefined ? sum : e.totalOverride;
   return {
     total,
@@ -182,6 +195,7 @@ export function calcEstimate(e: Estimate): { total: number; parts: { label: stri
       { label: "계단 추가비", amount: stairFee },
       { label: "옵션 비용", amount: optionFee },
       { label: "보관료", amount: storageFee },
+      ...(e.extraCharges ?? []).map((x) => ({ label: x.label || "추가 항목", amount: x.amount || 0 })),
     ],
   };
 }
@@ -222,6 +236,9 @@ export function newEstimate(): Estimate {
     ladderToPrice: 0,
     ladderPrice: 0,
     ladderSeparate: false,
+    ladderFromSeparate: false,
+    ladderToSeparate: false,
+    extraCharges: [],
     memo: "",
     specialTerms: "",
     rooms: DEFAULT_ROOMS.map((n) => ({ id: `r_${n}`, name: n, items: { ...(PRESET_30PY[n] || {}) } })),
@@ -254,7 +271,8 @@ export type Screen =
   | "customers"
   | "signup"
   | "subscription"
-  | "settings";
+  | "settings"
+  | "stats";
 
 interface AppState {
   loggedIn: boolean;

@@ -225,7 +225,7 @@ export function HomeScreen() {
           {[
             { label: "견적 내역", icon: ClipboardList, s: "history" as const },
             { label: "고객 관리", icon: Users, s: "customers" as const },
-            { label: "통계 확인", icon: BarChart3, s: "settings" as const },
+            { label: "통계 확인", icon: BarChart3, s: "stats" as const },
           ].map(({ label, icon: Icon, s }) => (
             <Card key={label} onClick={() => setScreen(s)} className="flex flex-col items-center py-4 gap-2">
               <Icon className="w-7 h-7 text-[#0751D8]" />
@@ -573,8 +573,8 @@ export function Step3() {
   const toggleEnv = (env: "계단" | "엘리베이터") => {
     const stair = env === "계단" ? !hasStair : hasStair;
     const elev = env === "엘리베이터" ? !hasElev : hasElev;
-    if (!stair && !elev) return;
-    const next: WorkEnv = stair && elev ? "계단+엘리베이터" : stair ? "계단" : "엘리베이터";
+    const next: WorkEnv =
+      stair && elev ? "계단+엘리베이터" : stair ? "계단" : elev ? "엘리베이터" : "없음";
     updateDraft(
       stair
         ? { workEnv: next, fromFloor: Math.min(draft.fromFloor, 6), toFloor: Math.min(draft.toFloor, 6) }
@@ -735,7 +735,7 @@ export function Step4() {
                   updateDraft({ ladderFrom: e.target.checked });
                 }}
               />
-              출발지(별도 체크)
+              출발지
             </label>
             <label className="flex items-center gap-2 px-3 py-3 rounded-xl border border-[#DFE6F2] bg-white font-semibold text-sm">
               <input
@@ -747,47 +747,62 @@ export function Step4() {
                   updateDraft({ ladderTo: e.target.checked });
                 }}
               />
-              도착지(별도 체크)
+              도착지
             </label>
           </div>
           <div className="mt-3 space-y-2">
-            <Field label="출발지 금액">
-              <MoneyInput
-                value={draft.ladderFromPrice}
-                onChange={(n) =>
-                  updateDraft({ ladderFromPrice: n, ladderPrice: n + draft.ladderToPrice })
-                }
-                step={1000}
-                placeholder="금액 입력"
-              />
-            </Field>
-            <Field label="도착지 금액">
-              <MoneyInput
-                value={draft.ladderToPrice}
-                onChange={(n) =>
-                  updateDraft({ ladderToPrice: n, ladderPrice: draft.ladderFromPrice + n })
-                }
-                step={1000}
-                placeholder="금액 입력"
-              />
-            </Field>
+            {draft.ladderFrom && (
+              <Field label="출발지 금액">
+                <MoneyInput
+                  value={draft.ladderFromPrice}
+                  onChange={(n) =>
+                    updateDraft({ ladderFromPrice: n, ladderPrice: n + draft.ladderToPrice })
+                  }
+                  step={10000}
+                  placeholder="금액 입력"
+                />
+                <label className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5"
+                    checked={draft.ladderFromSeparate}
+                    onChange={(e) => {
+                      tap("soft");
+                      updateDraft({ ladderFromSeparate: e.target.checked });
+                    }}
+                  />
+                  출발지 별도
+                </label>
+              </Field>
+            )}
+            {draft.ladderTo && (
+              <Field label="도착지 금액">
+                <MoneyInput
+                  value={draft.ladderToPrice}
+                  onChange={(n) =>
+                    updateDraft({ ladderToPrice: n, ladderPrice: draft.ladderFromPrice + n })
+                  }
+                  step={10000}
+                  placeholder="금액 입력"
+                />
+                <label className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5"
+                    checked={draft.ladderToSeparate}
+                    onChange={(e) => {
+                      tap("soft");
+                      updateDraft({ ladderToSeparate: e.target.checked });
+                    }}
+                  />
+                  도착지 별도
+                </label>
+              </Field>
+            )}
             <div className="flex justify-between text-sm font-bold">
               <span className="text-[#6B7280]">사다리차 합계</span>
               <span className="text-[#0751D8]">{won(draft.ladderFromPrice + draft.ladderToPrice)}</span>
             </div>
-
-            <label className="flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
-              <input
-                type="checkbox"
-                className="w-5 h-5"
-                checked={draft.ladderSeparate}
-                onChange={(e) => {
-                  tap("soft");
-                  updateDraft({ ladderSeparate: e.target.checked });
-                }}
-              />
-              별도 (견적 합계에서 제외)
-            </label>
           </div>
         </Card>
       </div>
@@ -1460,6 +1475,7 @@ export function OptionsScreen() {
 export function Result() {
   const { draft, setScreen, saveDraft, updateDraft } = useApp();
   const [detail, setDetail] = useState(false);
+  const [detailEdit, setDetailEdit] = useState(false);
   const [edit, setEdit] = useState(false);
   
   const [adjust, setAdjust] = useState(0);
@@ -1511,19 +1527,109 @@ export function Result() {
               <button
                 onClick={() => {
                   tap("soft");
-                  setEdit(true);
+                  setDetailEdit((v) => !v);
                 }}
                 className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#EEF4FF] text-[#0751D8] flex items-center gap-1"
               >
-                <Edit3 className="w-3.5 h-3.5" /> 견적 수정
+                <Edit3 className="w-3.5 h-3.5" /> {detailEdit ? "수정 완료" : "내역 수정"}
               </button>
             </div>
-            {parts.map((p) => (
-              <div key={p.label} className="flex justify-between text-sm">
-                <span className="text-[#6B7280]">{p.label}</span>
-                <span className="font-semibold">{won(p.amount)}</span>
+
+            {detailEdit ? (
+              <div className="space-y-3">
+                <Field label="기본 운송료">
+                  <MoneyInput
+                    value={
+                      draft.transportOverride ?? (calc.parts.find((p) => p.label === "기본 운송료")?.amount ?? 0)
+                    }
+                    onChange={(n) => updateDraft({ transportOverride: n })}
+                    step={10000}
+                  />
+                </Field>
+                {calc.parts
+                  .filter((p) => ["계단 추가비", "옵션 비용", "보관료"].includes(p.label))
+                  .map((p) => (
+                    <div key={p.label} className="flex justify-between text-sm">
+                      <span className="text-[#6B7280]">{p.label}</span>
+                      <span className="font-semibold">{won(p.amount)}</span>
+                    </div>
+                  ))}
+                <div className="border-t border-[#E7EBF2] pt-3 space-y-3">
+                  {(draft.extraCharges ?? []).map((x) => (
+                    <div key={x.id} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <TextInput
+                          value={x.label}
+                          placeholder="항목명 (예: 보양 작업비)"
+                          onChange={(e) =>
+                            updateDraft({
+                              extraCharges: (draft.extraCharges ?? []).map((y) =>
+                                y.id === x.id ? { ...y, label: e.target.value } : y,
+                              ),
+                            })
+                          }
+                        />
+                        <button
+                          onClick={() => {
+                            tap("soft");
+                            updateDraft({
+                              extraCharges: (draft.extraCharges ?? []).filter((y) => y.id !== x.id),
+                            });
+                          }}
+                          className="shrink-0 w-10 h-10 rounded-xl border border-[#F3C7C7] text-[#EF4444] flex items-center justify-center"
+                          aria-label="항목 삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <MoneyInput
+                        value={x.amount}
+                        step={10000}
+                        onChange={(n) =>
+                          updateDraft({
+                            extraCharges: (draft.extraCharges ?? []).map((y) =>
+                              y.id === x.id ? { ...y, amount: n } : y,
+                            ),
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      tap("soft");
+                      updateDraft({
+                        extraCharges: [
+                          ...(draft.extraCharges ?? []),
+                          { id: `x_${Date.now()}`, label: "", amount: 0 },
+                        ],
+                      });
+                    }}
+                    className="w-full py-3 rounded-xl border-2 border-dashed border-[#BFD4FF] text-[#0751D8] font-bold text-sm"
+                  >
+                    + 항목 추가
+                  </button>
+                </div>
+                {draft.transportOverride !== null && draft.transportOverride !== undefined && (
+                  <button
+                    onClick={() => {
+                      tap("soft");
+                      updateDraft({ transportOverride: null });
+                    }}
+                    className="text-xs text-[#6B7280] underline"
+                  >
+                    기본 운송료 자동 계산으로 되돌리기
+                  </button>
+                )}
               </div>
-            ))}
+            ) : (
+              parts.map((p, i) => (
+                <div key={`${p.label}_${i}`} className="flex justify-between text-sm">
+                  <span className="text-[#6B7280]">{p.label}</span>
+                  <span className="font-semibold">{won(p.amount)}</span>
+                </div>
+              ))
+            )}
             <div className="border-t border-[#E7EBF2] pt-2 mt-2 flex justify-between font-bold">
               <span>합계</span>
               <span className="text-[#0751D8]">{won(total)}</span>
@@ -1821,6 +1927,76 @@ export function SettingsScreen() {
         </button>
       </div>
       <BottomNav />
+    </MobileShell>
+  );
+}
+
+// ============ Stats ============
+export function StatsScreen() {
+  const { estimates, setScreen } = useApp();
+  const now = new Date();
+  const thisMonth = estimates.filter((e) => {
+    const d = new Date(e.createdAt);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  });
+  const sum = (list: typeof estimates) => list.reduce((s, e) => s + (e.total || 0), 0);
+  const avg = estimates.length ? Math.round(sum(estimates) / estimates.length) : 0;
+  const byType = Array.from(
+    estimates.reduce((m, e) => m.set(e.moveType, (m.get(e.moveType) ?? 0) + 1), new Map<string, number>()),
+  ).sort((a, b) => b[1] - a[1]);
+  const maxType = byType[0]?.[1] ?? 1;
+
+  return (
+    <MobileShell>
+      <TopBar title="통계 확인" onBack={() => setScreen("home")} />
+      <div className="p-5 space-y-4 flex-1 overflow-auto">
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: "전체 견적", value: `${estimates.length}건` },
+            { label: "이번 달 견적", value: `${thisMonth.length}건` },
+            { label: "이번 달 매출", value: won(sum(thisMonth)) },
+            { label: "평균 견적가", value: won(avg) },
+          ].map((c) => (
+            <Card key={c.label} className="py-4">
+              <div className="text-xs text-[#6B7280]">{c.label}</div>
+              <div className="text-lg font-black text-[#0751D8] mt-1">{c.value}</div>
+            </Card>
+          ))}
+        </div>
+        <Card className="space-y-3">
+          <div className="font-bold">이사 유형별 건수</div>
+          {byType.length === 0 && <div className="text-sm text-[#6B7280]">저장된 견적이 없습니다.</div>}
+          {byType.map(([name, count]) => (
+            <div key={name} className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span>{name}</span>
+                <span className="font-semibold">{count}건</span>
+              </div>
+              <div className="h-2 rounded-full bg-[#EEF4FF] overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${(count / maxType) * 100}%`,
+                    background: "linear-gradient(90deg, #4A94FF 0%, #0751D8 100%)",
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </Card>
+        <Card className="space-y-2">
+          <div className="font-bold">최근 견적</div>
+          {estimates.slice(0, 5).map((e) => (
+            <div key={e.id} className="flex justify-between text-sm">
+              <span className="text-[#6B7280]">
+                {e.customerName || "이름 없음"} · {e.moveDate || "-"}
+              </span>
+              <span className="font-semibold">{won(e.total || 0)}</span>
+            </div>
+          ))}
+          {estimates.length === 0 && <div className="text-sm text-[#6B7280]">기록이 없습니다.</div>}
+        </Card>
+      </div>
     </MobileShell>
   );
 }

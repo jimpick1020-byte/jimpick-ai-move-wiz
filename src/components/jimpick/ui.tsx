@@ -186,7 +186,7 @@ export function Counter({
 export function MoneyInput({
   value,
   onChange,
-  step = 1000,
+  step = 10000,
   placeholder = "0",
   className = "",
 }: {
@@ -196,19 +196,46 @@ export function MoneyInput({
   placeholder?: string;
   className?: string;
 }) {
-  const set = (n: number) => {
-    onChange(Math.max(0, n));
+  const timers = useRef<{ t?: ReturnType<typeof setTimeout>; i?: ReturnType<typeof setInterval> }>({});
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
+  const clear = () => {
+    if (timers.current.t) clearTimeout(timers.current.t);
+    if (timers.current.i) clearInterval(timers.current.i);
+    timers.current = {};
   };
+  useEffect(() => clear, []);
+
+  const bump = (dir: 1 | -1) => {
+    const base = Math.round(valueRef.current / step) * step;
+    const next = Math.max(0, base + dir * step);
+    if (next === valueRef.current) return;
+    valueRef.current = next;
+    onChange(next);
+  };
+
+  // 길게 누르면 금액이 계속 증가/감소합니다
+  const hold = (dir: 1 | -1) => {
+    tap("soft");
+    bump(dir);
+    clear();
+    timers.current.t = setTimeout(() => {
+      timers.current.i = setInterval(() => bump(dir), 100);
+    }, 400);
+  };
+
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <button
         type="button"
-        onClick={() => {
-          tap("soft");
-          set(Math.max(0, Math.round(value / step) * step - step));
-        }}
-        className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-b from-white to-[#EDF1F8] border border-[#DCE3EE] shadow-[0_3px_0_#DCE3EE] flex items-center justify-center active:translate-y-[2px] active:shadow-none"
-        aria-label="1000원 감소"
+        onPointerDown={() => hold(-1)}
+        onPointerUp={clear}
+        onPointerLeave={clear}
+        onPointerCancel={clear}
+        onContextMenu={(e) => e.preventDefault()}
+        className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-b from-white to-[#EDF1F8] border border-[#DCE3EE] shadow-[0_3px_0_#DCE3EE] flex items-center justify-center active:translate-y-[2px] active:shadow-none touch-none"
+        aria-label="금액 감소"
       >
         <Minus className="w-4 h-4 text-[#334155]" />
       </button>
@@ -217,20 +244,21 @@ export function MoneyInput({
           inputMode="numeric"
           placeholder={placeholder}
           value={value ? value.toLocaleString("ko-KR") : ""}
-          onChange={(e) => set(Number(e.target.value.replace(/[^\d]/g, "")) || 0)}
+          onChange={(e) => onChange(Math.max(0, Number(e.target.value.replace(/[^\d]/g, "")) || 0))}
           className="pr-8 text-right font-bold tabular-nums"
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[#6B7280]">원</span>
       </div>
       <button
         type="button"
-        onClick={() => {
-          tap("soft");
-          set(Math.round(value / step) * step + step);
-        }}
-        className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-white shadow-[0_3px_0_#0645B0] active:translate-y-[2px] active:shadow-none"
+        onPointerDown={() => hold(1)}
+        onPointerUp={clear}
+        onPointerLeave={clear}
+        onPointerCancel={clear}
+        onContextMenu={(e) => e.preventDefault()}
+        className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-white shadow-[0_3px_0_#0645B0] active:translate-y-[2px] active:shadow-none touch-none"
         style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
-        aria-label="1000원 증가"
+        aria-label="금액 증가"
       >
         <Plus className="w-4 h-4" />
       </button>
