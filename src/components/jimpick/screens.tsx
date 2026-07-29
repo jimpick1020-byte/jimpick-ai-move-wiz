@@ -1506,6 +1506,18 @@ export function Result() {
         </div>
         {detail && (
           <Card className="space-y-3">
+            <div className="flex items-center justify-between mb-1">
+              <div className="font-bold text-base">상세 내역</div>
+              <button
+                onClick={() => {
+                  tap("soft");
+                  setEdit(true);
+                }}
+                className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#EEF4FF] text-[#0751D8] flex items-center gap-1"
+              >
+                <Edit3 className="w-3.5 h-3.5" /> 견적 수정
+              </button>
+            </div>
             {parts.map((p) => (
               <div key={p.label} className="flex justify-between text-sm">
                 <span className="text-[#6B7280]">{p.label}</span>
