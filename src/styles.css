@@ -142,3 +142,33 @@
     color: var(--color-foreground);
   }
 }
+
+/* ===== JIMPICK 네온 프레임 / 캐릭터 애니메이션 ===== */
+@property --jp-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes jp-spin {
+  to { --jp-angle: 360deg; }
+}
+
+@keyframes jp-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes jp-glow-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.9; }
+}
+
+@utility jp-neon-frame {
+  position: relative;
+  isolation: isolate;
+}
+
+@utility jp-float {
+  animation: jp-float 3.6s ease-in-out infinite;
+}
