@@ -735,7 +735,7 @@ export function Step4() {
                   updateDraft({ ladderFrom: e.target.checked });
                 }}
               />
-              출발지
+              출발지(별도 체크)
             </label>
             <label className="flex items-center gap-2 px-3 py-3 rounded-xl border border-[#DFE6F2] bg-white font-semibold text-sm">
               <input
@@ -747,7 +747,7 @@ export function Step4() {
                   updateDraft({ ladderTo: e.target.checked });
                 }}
               />
-              도착지
+              도착지(별도 체크)
             </label>
           </div>
           <div className="mt-3 space-y-2">
@@ -790,9 +790,6 @@ export function Step4() {
             </label>
           </div>
         </Card>
-        <div className="text-xs text-[#6B7280] text-center px-4">
-          ※ 차량은 견적 상황에 따라 변경될 수 있습니다.
-        </div>
       </div>
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("step5")}>다음: 방·품목 입력</PrimaryButton>
@@ -983,19 +980,18 @@ export function Step6() {
           ))}
         </div>
         <div className="flex gap-2 overflow-auto -mx-1 px-1">
-          <button
-            onClick={() => {
-              setOnlySelected(!onlySelected);
-              tap();
-            }}
-            className={`px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap ${
-              showSelectedOnly
-                ? "bg-[#0751D8] text-white"
-                : "bg-white border border-[#E7EBF2] text-[#6B7280]"
-            }`}
-          >
-            {showSelectedOnly ? `선택 품목만 (${selectedCount})` : "전체 품목 보기"}
-          </button>
+          {showSelectedOnly && (
+            <button
+              onClick={() => {
+                setOnlySelected(false);
+                tap();
+              }}
+              className="px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap bg-white border border-[#E7EBF2] text-[#6B7280]"
+            >
+              전체 품목 보기
+            </button>
+          )}
+
           {CATEGORIES.filter((c) => c !== "전체").map((c) => (
             <button
               key={c}
@@ -1510,6 +1506,18 @@ export function Result() {
         </div>
         {detail && (
           <Card className="space-y-3">
+            <div className="flex items-center justify-between mb-1">
+              <div className="font-bold text-base">상세 내역</div>
+              <button
+                onClick={() => {
+                  tap("soft");
+                  setEdit(true);
+                }}
+                className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#EEF4FF] text-[#0751D8] flex items-center gap-1"
+              >
+                <Edit3 className="w-3.5 h-3.5" /> 견적 수정
+              </button>
+            </div>
             {parts.map((p) => (
               <div key={p.label} className="flex justify-between text-sm">
                 <span className="text-[#6B7280]">{p.label}</span>
