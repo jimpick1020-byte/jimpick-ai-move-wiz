@@ -1044,8 +1044,13 @@ export function Step6() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-                {ITEM_IMG[it.id] ? (
-                  <Art3D src={ITEM_IMG[it.id]} alt={it.name} size={72} className="mb-2" />
+                {ITEM_IMG[it.id] || guessItemImg(it.name) ? (
+                  <Art3D
+                    src={ITEM_IMG[it.id] || guessItemImg(it.name)!}
+                    alt={it.name}
+                    size={72}
+                    className="mb-2"
+                  />
                 ) : (
                   <div className="h-[72px] flex items-center justify-center text-4xl mb-2">{it.emoji}</div>
                 )}
