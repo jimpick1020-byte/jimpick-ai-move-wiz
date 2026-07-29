@@ -1930,3 +1930,73 @@ export function SettingsScreen() {
     </MobileShell>
   );
 }
+
+// ============ Stats ============
+export function StatsScreen() {
+  const { estimates, setScreen } = useApp();
+  const now = new Date();
+  const thisMonth = estimates.filter((e) => {
+    const d = new Date(e.createdAt);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  });
+  const sum = (list: typeof estimates) => list.reduce((s, e) => s + (e.total || 0), 0);
+  const avg = estimates.length ? Math.round(sum(estimates) / estimates.length) : 0;
+  const byType = Array.from(
+    estimates.reduce((m, e) => m.set(e.moveType, (m.get(e.moveType) ?? 0) + 1), new Map<string, number>()),
+  ).sort((a, b) => b[1] - a[1]);
+  const maxType = byType[0]?.[1] ?? 1;
+
+  return (
+    <MobileShell>
+      <TopBar title="통계 확인" onBack={() => setScreen("home")} />
+      <div className="p-5 space-y-4 flex-1 overflow-auto">
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: "전체 견적", value: `${estimates.length}건` },
+            { label: "이번 달 견적", value: `${thisMonth.length}건` },
+            { label: "이번 달 매출", value: won(sum(thisMonth)) },
+            { label: "평균 견적가", value: won(avg) },
+          ].map((c) => (
+            <Card key={c.label} className="py-4">
+              <div className="text-xs text-[#6B7280]">{c.label}</div>
+              <div className="text-lg font-black text-[#0751D8] mt-1">{c.value}</div>
+            </Card>
+          ))}
+        </div>
+        <Card className="space-y-3">
+          <div className="font-bold">이사 유형별 건수</div>
+          {byType.length === 0 && <div className="text-sm text-[#6B7280]">저장된 견적이 없습니다.</div>}
+          {byType.map(([name, count]) => (
+            <div key={name} className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span>{name}</span>
+                <span className="font-semibold">{count}건</span>
+              </div>
+              <div className="h-2 rounded-full bg-[#EEF4FF] overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${(count / maxType) * 100}%`,
+                    background: "linear-gradient(90deg, #4A94FF 0%, #0751D8 100%)",
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </Card>
+        <Card className="space-y-2">
+          <div className="font-bold">최근 견적</div>
+          {estimates.slice(0, 5).map((e) => (
+            <div key={e.id} className="flex justify-between text-sm">
+              <span className="text-[#6B7280]">
+                {e.customerName || "이름 없음"} · {e.moveDate || "-"}
+              </span>
+              <span className="font-semibold">{won(e.total || 0)}</span>
+            </div>
+          ))}
+          {estimates.length === 0 && <div className="text-sm text-[#6B7280]">기록이 없습니다.</div>}
+        </Card>
+      </div>
+    </MobileShell>
+  );
+}

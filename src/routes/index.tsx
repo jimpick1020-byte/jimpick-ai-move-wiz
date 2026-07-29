@@ -17,6 +17,7 @@ import {
   History,
   Customers,
   SettingsScreen,
+  StatsScreen,
 } from "@/components/jimpick/screens";
 import { SignupScreen, SubscriptionScreen } from "@/components/jimpick/account";
 
@@ -52,6 +53,7 @@ function Router() {
     case "signup": return <SignupScreen />;
     case "subscription": return <SubscriptionScreen />;
     case "settings": return <SettingsScreen />;
+    case "stats": return <StatsScreen />;
     default: return <Splash />;
   }
 }
