@@ -96,6 +96,8 @@ export function Art3D({
 
 /** 품목 이름만으로 알맞은 3D 이미지를 자동 매칭 */
 const NAME_IMG: { words: string[]; img: string }[] = [
+  { words: ["피아노", "디지털피아노", "건반"], img: piano },
+  { words: ["박스", "상자", "바구니", "잡화", "짐"], img: box },
   { words: ["침대", "매트리스"], img: bed },
   { words: ["장롱", "옷장", "붙박이", "수납장", "행거"], img: wardrobe },
   { words: ["소파", "쇼파"], img: sofa },
