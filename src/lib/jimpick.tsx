@@ -171,9 +171,6 @@ export function calcEstimate(e: Estimate): { total: number; parts: { label: stri
   const autoTransport = e.truck1t * PRICING.truck1t + e.truck5t * PRICING.truck5t + ladderFee;
   const transport =
     e.transportOverride === null || e.transportOverride === undefined ? autoTransport : e.transportOverride;
-  const stairFloors =
-    e.workEnv.includes("계단") ? Math.max(0, e.fromFloor - 1) + Math.max(0, e.toFloor - 1) : 0;
-  const stairFee = stairFloors * PRICING.stairPerFloor;
   const optionFee = e.options
     .filter((o) => o.enabled && !o.separate)
     .reduce((s, o) => s + (o.price || 0), 0);
@@ -186,13 +183,12 @@ export function calcEstimate(e: Estimate): { total: number; parts: { label: stri
     storageFee = days * (e.storageDaily || 0);
   }
   const extras = (e.extraCharges ?? []).reduce((s2, x) => s2 + (x.amount || 0), 0);
-  const sum = transport + stairFee + optionFee + storageFee + extras;
+  const sum = transport + optionFee + storageFee + extras;
   const total = e.totalOverride === null || e.totalOverride === undefined ? sum : e.totalOverride;
   return {
     total,
     parts: [
       { label: "기본 운송료", amount: transport },
-      { label: "계단 추가비", amount: stairFee },
       { label: "옵션 비용", amount: optionFee },
       { label: "보관료", amount: storageFee },
       ...(e.extraCharges ?? []).map((x) => ({ label: x.label || "추가 항목", amount: x.amount || 0 })),
@@ -395,3 +391,38 @@ export function loadEstimateFromStorage(id: string): Estimate | null {
 }
 
 
+
+/** 품목 이름만으로 분류(가구/가전/주방/생활용품/잔짐)를 자동 추정 */
+const CAT_KEYWORDS: { cat: string; words: string[] }[] = [
+  {
+    cat: "가전",
+    words: [
+      "냉장고","김치","세탁기","건조기","tv","티비","텔레비","에어컨","공기청정","청정기","컴퓨터","pc","모니터","프린터",
+      "스타일러","안마의자","비데","보일러","선풍기","히터","온풍기","제습기","가습기","오디오","스피커","전자","로봇청소기",
+    ],
+  },
+  {
+    cat: "주방",
+    words: ["전자레인지","레인지","정수기","밥솥","가스","인덕션","식기","오븐","에어프라이","커피","냄비","그릇","주방","싱크"],
+  },
+  {
+    cat: "가구",
+    words: ["침대","장롱","옷장","붙박이","소파","식탁","의자","책상","책장","화장대","서랍","선반","수납장","테이블","협탁","침구장","피아노","금고","진열장","거울","행거"],
+  },
+  {
+    cat: "생활용품",
+    words: ["청소기","건조대","공구","화분","자전거","유모차","운동","런닝","골프","캠핑","빨래","다리미","쓰레기","우산","신발","텐트"],
+  },
+  {
+    cat: "잔짐",
+    words: ["박스","바구니","가방","상자","잡화","기타","짐"],
+  },
+];
+
+export function guessCategory(name: string): string {
+  const n = name.toLowerCase().replace(/\s/g, "");
+  for (const { cat, words } of CAT_KEYWORDS) {
+    if (words.some((w) => n.includes(w))) return cat;
+  }
+  return "잔짐";
+}

@@ -27,6 +27,7 @@ import {
   CATEGORIES,
   OPTION_PRESETS,
   calcEstimate,
+  guessCategory,
   formatPhone,
   won,
   type MoveType,
@@ -57,7 +58,7 @@ import { fileToDataUrl, videoToFrames } from "@/lib/media";
 // ============ Splash ============
 import truckImg from "@/assets/jimpick-truck.png";
 import logoImg from "@/assets/jimpick-logo.png";
-import { Art3D, ITEM_IMG, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
+import { Art3D, ITEM_IMG, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG, guessItemImg } from "@/lib/jimpick-art";
 
 import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle } from "lucide-react";
 
@@ -940,18 +941,18 @@ export function Step6() {
   const addItem = () => {
     const name = prompt("추가할 품목 이름");
     if (!name) return;
-    const catName =
-      prompt(`분류를 입력하세요 (가구/가전/주방/생활용품/잔짐)`, cat === "전체" ? "가구" : cat) || "잔짐";
-    const extra = Number(prompt("품목 추가금액 (원, 없으면 0)", "0")) || 0;
+    // 이름만 입력하면 분류(가구/가전/주방/생활용품/잔짐)를 자동으로 판단합니다.
+    const catName = guessCategory(name);
     updateDraft({
       customItems: [
         ...(draft.customItems || []),
-        { id: `ci_${Date.now()}`, name, cat: catName, extra },
+        { id: `ci_${Date.now()}`, name, cat: catName, extra: 0 },
       ],
     });
     tap("success");
-    toast.success(`「${name}」 품목이 추가되었습니다`);
+    toast.success(`「${name}」 품목이 ${catName}(으)로 추가되었습니다`);
   };
+
   const removeItem = (id: string, name: string) => {
     if (!confirm(`「${name}」 품목을 목록에서 삭제할까요?`)) return;
     updateDraft({
@@ -995,17 +996,7 @@ export function Step6() {
           ))}
         </div>
         <div className="flex gap-2 overflow-auto -mx-1 px-1">
-          {showSelectedOnly && (
-            <button
-              onClick={() => {
-                setOnlySelected(false);
-                tap();
-              }}
-              className="px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap bg-white border border-[#E7EBF2] text-[#6B7280]"
-            >
-              전체 품목 보기
-            </button>
-          )}
+
 
           {CATEGORIES.filter((c) => c !== "전체").map((c) => (
             <button
@@ -1053,8 +1044,13 @@ export function Step6() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-                {ITEM_IMG[it.id] ? (
-                  <Art3D src={ITEM_IMG[it.id]} alt={it.name} size={72} className="mb-2" />
+                {ITEM_IMG[it.id] || guessItemImg(it.name) ? (
+                  <Art3D
+                    src={ITEM_IMG[it.id] || guessItemImg(it.name)!}
+                    alt={it.name}
+                    size={72}
+                    className="mb-2"
+                  />
                 ) : (
                   <div className="h-[72px] flex items-center justify-center text-4xl mb-2">{it.emoji}</div>
                 )}
@@ -1361,6 +1357,9 @@ export function OptionsScreen() {
                   }}
                   className="w-5 h-5"
                 />
+                {guessItemImg(o.name) && (
+                  <Art3D src={guessItemImg(o.name)!} alt={o.name} size={44} />
+                )}
                 {o.name}
               </label>
               <button
@@ -1547,7 +1546,7 @@ export function Result() {
                   />
                 </Field>
                 {calc.parts
-                  .filter((p) => ["계단 추가비", "옵션 비용", "보관료"].includes(p.label))
+                  .filter((p) => ["옵션 비용", "보관료"].includes(p.label))
                   .map((p) => (
                     <div key={p.label} className="flex justify-between text-sm">
                       <span className="text-[#6B7280]">{p.label}</span>

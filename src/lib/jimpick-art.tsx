@@ -88,3 +88,31 @@ export function Art3D({
     </span>
   );
 }
+
+/** 품목 이름만으로 알맞은 3D 이미지를 자동 매칭 */
+const NAME_IMG: { words: string[]; img: string }[] = [
+  { words: ["침대", "매트리스"], img: bed },
+  { words: ["장롱", "옷장", "붙박이", "수납장", "행거"], img: wardrobe },
+  { words: ["소파", "쇼파"], img: sofa },
+  { words: ["김치냉장고", "김치"], img: kimchi },
+  { words: ["냉장고"], img: fridge },
+  { words: ["세탁기", "건조기"], img: washer },
+  { words: ["tv", "티비", "텔레비", "모니터"], img: tv },
+  { words: ["식탁", "테이블"], img: table },
+  { words: ["의자", "체어"], img: chair },
+  { words: ["책상", "데스크", "컴퓨터", "pc"], img: desk },
+  { words: ["책장", "선반", "진열장"], img: shelf },
+  { words: ["에어컨", "공기청정", "제습", "가습", "선풍기"], img: aircon },
+  { words: ["전자레인지", "레인지", "오븐", "에어프라이", "밥솥"], img: microwave },
+  { words: ["정수기", "커피"], img: waterpurifier },
+  { words: ["화장대", "거울"], img: vanity },
+  { words: ["서랍", "협탁", "수납"], img: drawer },
+];
+
+export function guessItemImg(name: string): string | undefined {
+  const n = (name || "").toLowerCase().replace(/\s/g, "");
+  for (const { words, img } of NAME_IMG) {
+    if (words.some((w) => n.includes(w))) return img;
+  }
+  return undefined;
+}
