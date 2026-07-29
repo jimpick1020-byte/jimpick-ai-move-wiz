@@ -225,7 +225,7 @@ export function HomeScreen() {
           {[
             { label: "견적 내역", icon: ClipboardList, s: "history" as const },
             { label: "고객 관리", icon: Users, s: "customers" as const },
-            { label: "통계 확인", icon: BarChart3, s: "settings" as const },
+            { label: "통계 확인", icon: BarChart3, s: "stats" as const },
           ].map(({ label, icon: Icon, s }) => (
             <Card key={label} onClick={() => setScreen(s)} className="flex flex-col items-center py-4 gap-2">
               <Icon className="w-7 h-7 text-[#0751D8]" />
@@ -573,8 +573,8 @@ export function Step3() {
   const toggleEnv = (env: "계단" | "엘리베이터") => {
     const stair = env === "계단" ? !hasStair : hasStair;
     const elev = env === "엘리베이터" ? !hasElev : hasElev;
-    if (!stair && !elev) return;
-    const next: WorkEnv = stair && elev ? "계단+엘리베이터" : stair ? "계단" : "엘리베이터";
+    const next: WorkEnv =
+      stair && elev ? "계단+엘리베이터" : stair ? "계단" : elev ? "엘리베이터" : "없음";
     updateDraft(
       stair
         ? { workEnv: next, fromFloor: Math.min(draft.fromFloor, 6), toFloor: Math.min(draft.toFloor, 6) }
@@ -735,7 +735,7 @@ export function Step4() {
                   updateDraft({ ladderFrom: e.target.checked });
                 }}
               />
-              출발지(별도 체크)
+              출발지
             </label>
             <label className="flex items-center gap-2 px-3 py-3 rounded-xl border border-[#DFE6F2] bg-white font-semibold text-sm">
               <input
@@ -747,47 +747,62 @@ export function Step4() {
                   updateDraft({ ladderTo: e.target.checked });
                 }}
               />
-              도착지(별도 체크)
+              도착지
             </label>
           </div>
           <div className="mt-3 space-y-2">
-            <Field label="출발지 금액">
-              <MoneyInput
-                value={draft.ladderFromPrice}
-                onChange={(n) =>
-                  updateDraft({ ladderFromPrice: n, ladderPrice: n + draft.ladderToPrice })
-                }
-                step={1000}
-                placeholder="금액 입력"
-              />
-            </Field>
-            <Field label="도착지 금액">
-              <MoneyInput
-                value={draft.ladderToPrice}
-                onChange={(n) =>
-                  updateDraft({ ladderToPrice: n, ladderPrice: draft.ladderFromPrice + n })
-                }
-                step={1000}
-                placeholder="금액 입력"
-              />
-            </Field>
+            {draft.ladderFrom && (
+              <Field label="출발지 금액">
+                <MoneyInput
+                  value={draft.ladderFromPrice}
+                  onChange={(n) =>
+                    updateDraft({ ladderFromPrice: n, ladderPrice: n + draft.ladderToPrice })
+                  }
+                  step={10000}
+                  placeholder="금액 입력"
+                />
+                <label className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5"
+                    checked={draft.ladderFromSeparate}
+                    onChange={(e) => {
+                      tap("soft");
+                      updateDraft({ ladderFromSeparate: e.target.checked });
+                    }}
+                  />
+                  출발지 별도
+                </label>
+              </Field>
+            )}
+            {draft.ladderTo && (
+              <Field label="도착지 금액">
+                <MoneyInput
+                  value={draft.ladderToPrice}
+                  onChange={(n) =>
+                    updateDraft({ ladderToPrice: n, ladderPrice: draft.ladderFromPrice + n })
+                  }
+                  step={10000}
+                  placeholder="금액 입력"
+                />
+                <label className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5"
+                    checked={draft.ladderToSeparate}
+                    onChange={(e) => {
+                      tap("soft");
+                      updateDraft({ ladderToSeparate: e.target.checked });
+                    }}
+                  />
+                  도착지 별도
+                </label>
+              </Field>
+            )}
             <div className="flex justify-between text-sm font-bold">
               <span className="text-[#6B7280]">사다리차 합계</span>
               <span className="text-[#0751D8]">{won(draft.ladderFromPrice + draft.ladderToPrice)}</span>
             </div>
-
-            <label className="flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
-              <input
-                type="checkbox"
-                className="w-5 h-5"
-                checked={draft.ladderSeparate}
-                onChange={(e) => {
-                  tap("soft");
-                  updateDraft({ ladderSeparate: e.target.checked });
-                }}
-              />
-              별도 (견적 합계에서 제외)
-            </label>
           </div>
         </Card>
       </div>
