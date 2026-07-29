@@ -1546,7 +1546,7 @@ export function Result() {
                   />
                 </Field>
                 {calc.parts
-                  .filter((p) => ["계단 추가비", "옵션 비용", "보관료"].includes(p.label))
+                  .filter((p) => ["옵션 비용", "보관료"].includes(p.label))
                   .map((p) => (
                     <div key={p.label} className="flex justify-between text-sm">
                       <span className="text-[#6B7280]">{p.label}</span>
