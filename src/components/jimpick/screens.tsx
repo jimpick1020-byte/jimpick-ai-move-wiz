@@ -940,18 +940,18 @@ export function Step6() {
   const addItem = () => {
     const name = prompt("추가할 품목 이름");
     if (!name) return;
-    const catName =
-      prompt(`분류를 입력하세요 (가구/가전/주방/생활용품/잔짐)`, cat === "전체" ? "가구" : cat) || "잔짐";
-    const extra = Number(prompt("품목 추가금액 (원, 없으면 0)", "0")) || 0;
+    // 이름만 입력하면 분류(가구/가전/주방/생활용품/잔짐)를 자동으로 판단합니다.
+    const catName = guessCategory(name);
     updateDraft({
       customItems: [
         ...(draft.customItems || []),
-        { id: `ci_${Date.now()}`, name, cat: catName, extra },
+        { id: `ci_${Date.now()}`, name, cat: catName, extra: 0 },
       ],
     });
     tap("success");
-    toast.success(`「${name}」 품목이 추가되었습니다`);
+    toast.success(`「${name}」 품목이 ${catName}(으)로 추가되었습니다`);
   };
+
   const removeItem = (id: string, name: string) => {
     if (!confirm(`「${name}」 품목을 목록에서 삭제할까요?`)) return;
     updateDraft({
@@ -995,17 +995,7 @@ export function Step6() {
           ))}
         </div>
         <div className="flex gap-2 overflow-auto -mx-1 px-1">
-          {showSelectedOnly && (
-            <button
-              onClick={() => {
-                setOnlySelected(false);
-                tap();
-              }}
-              className="px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap bg-white border border-[#E7EBF2] text-[#6B7280]"
-            >
-              전체 품목 보기
-            </button>
-          )}
+
 
           {CATEGORIES.filter((c) => c !== "전체").map((c) => (
             <button
