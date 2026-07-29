@@ -15,6 +15,8 @@ import waterpurifier from "@/assets/item-waterpurifier.png";
 import kimchi from "@/assets/item-kimchi.png";
 import vanity from "@/assets/item-vanity.png";
 import drawer from "@/assets/item-drawer.png";
+import piano from "@/assets/item-piano.png";
+import box from "@/assets/item-box.png";
 
 import roomMaster from "@/assets/room-master.png";
 import roomSmall from "@/assets/room-small.png";
@@ -34,8 +36,11 @@ import envElevator from "@/assets/env-elevator.png";
 
 export const ITEM_IMG: Record<string, string> = {
   bed, wardrobe, sofa, fridge, washer, tv, table, chair,
-  desk, shelf, aircon, microwave, waterpurifier, kimchi, vanity, drawer,
+  desk, shelf, aircon, microwave, waterpurifier, kimchi, vanity, drawer, piano, box,
 };
+
+/** 매칭되는 3D 이미지가 없을 때 쓰는 기본 이미지 */
+export const FALLBACK_IMG = box;
 
 export const ROOM_IMG: Record<string, string> = {
   안방: roomMaster,
@@ -91,6 +96,8 @@ export function Art3D({
 
 /** 품목 이름만으로 알맞은 3D 이미지를 자동 매칭 */
 const NAME_IMG: { words: string[]; img: string }[] = [
+  { words: ["피아노", "디지털피아노", "건반"], img: piano },
+  { words: ["박스", "상자", "바구니", "잡화", "짐"], img: box },
   { words: ["침대", "매트리스"], img: bed },
   { words: ["장롱", "옷장", "붙박이", "수납장", "행거"], img: wardrobe },
   { words: ["소파", "쇼파"], img: sofa },
