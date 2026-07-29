@@ -171,9 +171,6 @@ export function calcEstimate(e: Estimate): { total: number; parts: { label: stri
   const autoTransport = e.truck1t * PRICING.truck1t + e.truck5t * PRICING.truck5t + ladderFee;
   const transport =
     e.transportOverride === null || e.transportOverride === undefined ? autoTransport : e.transportOverride;
-  const stairFloors =
-    e.workEnv.includes("계단") ? Math.max(0, e.fromFloor - 1) + Math.max(0, e.toFloor - 1) : 0;
-  const stairFee = stairFloors * PRICING.stairPerFloor;
   const optionFee = e.options
     .filter((o) => o.enabled && !o.separate)
     .reduce((s, o) => s + (o.price || 0), 0);
