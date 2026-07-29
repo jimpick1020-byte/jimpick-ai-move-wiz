@@ -943,15 +943,27 @@ export function Step6() {
     if (!name) return;
     // 이름만 입력하면 분류(가구/가전/주방/생활용품/잔짐)를 자동으로 판단합니다.
     const catName = guessCategory(name);
+    const newId = `ci_${Date.now()}`;
     updateDraft({
       customItems: [
         ...(draft.customItems || []),
-        { id: `ci_${Date.now()}`, name, cat: catName, extra: 0 },
+        { id: newId, name, cat: catName, extra: 0 },
       ],
+      // 현재 선택한 방(안방 등)에 바로 1개 추가됩니다.
+      rooms: draft.rooms.map((r) =>
+        r.id === roomId ? { ...r, items: { ...r.items, [newId]: 1 } } : r
+      ),
     });
+    // 추가한 품목이 목록에 계속 보이도록 검색어를 비우고 분류를 맞춰줍니다.
+    setQ("");
+    setCat(catName);
+    setOnlySelected(true);
     tap("success");
-    toast.success(`「${name}」 품목이 ${catName}(으)로 추가되었습니다`);
+    toast.success(
+      `「${name}」 품목이 ${room?.name || "선택한 방"}에 ${catName}(으)로 추가되었습니다`
+    );
   };
+
 
   const removeItem = (id: string, name: string) => {
     if (!confirm(`「${name}」 품목을 목록에서 삭제할까요?`)) return;
