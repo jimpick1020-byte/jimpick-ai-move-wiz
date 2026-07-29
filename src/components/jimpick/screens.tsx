@@ -88,9 +88,13 @@ export function Splash() {
           <div className="text-lg font-bold text-[#111827] mt-3">AI 이사 견적 앱</div>
           <div className="text-sm text-[#6B7280] mt-1">이사 견적, 더 쉽고 정확하게!</div>
         </div>
-        <div className="space-y-2.5 w-full mt-8">
+        <div className="space-y-2 w-full mt-8">
           {features.map(({ icon: Icon, label }) => (
-            <div key={label} className="flex items-center gap-3 px-2">
+            <div
+              key={label}
+              className="group flex items-center gap-3 px-3 py-2 rounded-2xl transition-all duration-200 hover:bg-gradient-to-r hover:from-[#F3F7FF] hover:to-[#FDF2FA] hover:shadow-[0_10px_24px_-14px_rgba(121,40,202,0.55)] hover:-translate-y-[1px]"
+            >
+              <Sparkles className="w-4 h-4 text-[#7928CA] shrink-0 transition-transform duration-200 group-hover:scale-125" />
               <div className="w-9 h-9 rounded-xl bg-[#EEF4FF] flex items-center justify-center">
                 <Icon className="w-5 h-5 text-[#0751D8]" />
               </div>
@@ -99,9 +103,21 @@ export function Splash() {
           ))}
         </div>
         <div className="mt-auto pt-6">
-          <img src={truckImg} alt="JIMPICK 트럭" className="w-full max-w-[340px]" />
+          <img src={truckImg} alt="JIMPICK 트럭" className="w-full max-w-[340px] jp-float" />
         </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            tap("click");
+            setScreen(loggedIn ? "home" : "login");
+          }}
+          className="w-full mt-4 py-4 rounded-2xl text-white text-lg font-black tracking-tight shadow-[0_14px_30px_-10px_rgba(121,40,202,0.6)] transition-transform active:translate-y-[2px]"
+          style={{ background: "linear-gradient(90deg,#ff007f 0%,#7928ca 50%,#00dfd8 100%)" }}
+        >
+          AI 견적 바로 시작하기
+        </button>
       </div>
+
     </MobileShell>
   );
 }
