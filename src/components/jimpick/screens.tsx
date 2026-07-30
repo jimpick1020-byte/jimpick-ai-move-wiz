@@ -30,6 +30,15 @@ import {
   guessCategory,
   formatPhone,
   won,
+  roomSummary,
+  formatMoveDateTime,
+  storageDays,
+  usesStorage,
+  getPricing,
+  savePricing,
+  DEFAULT_PRICING,
+  type Pricing,
+
   type MoveType,
   type Room,
   type WorkEnv,
@@ -475,7 +484,7 @@ export function Step2() {
   const { draft, updateDraft, setScreen } = useApp();
   const [path, setPath] = useState<{ x: number; y: number }[] | null>(null);
   const [routing, setRouting] = useState(false);
-  const [routeError, setRouteError] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
   const from = draft.fromX && draft.fromY ? { x: draft.fromX, y: draft.fromY } : null;
@@ -483,26 +492,31 @@ export function Step2() {
   const hasBoth = Boolean(draft.fromAddress && draft.toAddress);
 
   useEffect(() => {
+    // 출발지·도착지를 모두 선택하기 전에는 계산하지 않습니다.
     if (!from || !to) return;
     let cancelled = false;
     setRouting(true);
-    setRouteError(false);
+    setRouteError(null);
+    setPath(null);
     (async () => {
       try {
         const res = await getRoute({
           data: { originX: from.x, originY: from.y, destX: to.x, destY: to.y },
         });
         if (cancelled) return;
-        // 0km / 0분이 표시되지 않도록 실패로 처리합니다.
-        if (!res.distanceKm || !res.durationMin) {
-          setRouteError(true);
+        if (!res.ok || !res.distanceKm) {
+          // 실패 시 직선거리를 정상 거리처럼 표시하지 않습니다.
+          updateDraft({ distanceKm: 0, durationMin: 0 });
+          setRouteError(res.error ?? "도로 경로를 계산할 수 없습니다. 주소를 다시 확인해 주세요.");
           return;
         }
-        setPath(res.path ?? null);
+        setPath(res.path.length > 1 ? res.path : null);
         updateDraft({ distanceKm: res.distanceKm, durationMin: res.durationMin });
-        if (res.approx) toast.info("실제 경로를 불러오지 못해 예상 거리로 계산했습니다.");
       } catch {
-        if (!cancelled) setRouteError(true);
+        if (!cancelled) {
+          updateDraft({ distanceKm: 0, durationMin: 0 });
+          setRouteError("도로 경로를 계산할 수 없습니다. 주소를 다시 확인해 주세요.");
+        }
       } finally {
         if (!cancelled) setRouting(false);
       }
@@ -511,6 +525,7 @@ export function Step2() {
       cancelled = true;
     };
   }, [from?.x, from?.y, to?.x, to?.y, tick]);
+
 
   return (
     <MobileShell>
@@ -554,35 +569,34 @@ export function Step2() {
             <KakaoMap from={from} to={to} path={path} height={280} />
             {routeError && !routing ? (
               <div className="mt-3 rounded-xl bg-[#FFF1F1] border border-[#FFD4D4] p-3 text-center space-y-2">
-                <div className="text-xs font-semibold text-[#B91C1C]">
-                  거리 계산에 실패했습니다. 다시 계산을 눌러주세요.
-                </div>
+                <div className="text-xs font-semibold text-[#B91C1C] leading-relaxed">{routeError}</div>
                 <button
                   onClick={() => {
                     tap("click");
                     setTick((t) => t + 1);
                   }}
-                  className="px-4 py-2 rounded-xl bg-[#0751D8] text-white text-sm font-bold transition-transform active:scale-[0.97]"
+                  className="px-4 min-h-12 rounded-xl bg-[#0751D8] text-white text-sm font-bold transition-transform active:scale-[0.97]"
                 >
                   다시 계산
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 mt-3 text-center">
+              <div className="grid grid-cols-2 gap-3 mt-3 pb-1 text-center">
                 <div>
-                  <div className="text-xs text-[#6B7280]">실거리</div>
-                  <div className="text-lg font-bold">
-                    {routing ? "계산 중..." : to ? `${draft.distanceKm} km` : "-"}
+                  <div className="text-xs text-[#6B7280]">실거리 (도로 기준)</div>
+                  <div className="text-lg font-bold leading-7">
+                    {routing ? "계산 중..." : from && to && draft.distanceKm ? `${draft.distanceKm} km` : "-"}
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-[#6B7280]">예상 이동시간</div>
-                  <div className="text-lg font-bold">
-                    {routing ? "계산 중..." : to ? `${draft.durationMin} 분` : "-"}
+                  <div className="text-lg font-bold leading-7">
+                    {routing ? "계산 중..." : from && to && draft.durationMin ? `${draft.durationMin} 분` : "-"}
                   </div>
                 </div>
               </div>
             )}
+
           </Card>
         )}
       </div>
@@ -1034,7 +1048,11 @@ export function Step6() {
               }`}
             >
               {r.name}
-              {Object.keys(r.items).length > 0 && ` (${Object.values(r.items).reduce((a, b) => a + b, 0)})`}
+              {(() => {
+                const s = roomSummary(r.items);
+                return s.kinds > 0 ? ` · ${s.kinds}종 ${s.count}개` : "";
+              })()}
+
             </button>
           ))}
         </div>
@@ -1361,15 +1379,12 @@ export function AIRecognition() {
 // ============ Options & Storage ============
 export function OptionsScreen() {
   const { draft, updateDraft, setScreen } = useApp();
-  const days = useMemo(() => {
-    if (!draft.storageStart || !draft.storageEnd) return 0;
-    return Math.max(
-      0,
-      Math.round(
-        (new Date(draft.storageEnd).getTime() - new Date(draft.storageStart).getTime()) / 86400000
-      )
-    );
-  }, [draft.storageStart, draft.storageEnd]);
+  const days = useMemo(
+    () => storageDays(draft.storageStart, draft.storageEnd),
+    [draft.storageStart, draft.storageEnd],
+  );
+  const storageOn = usesStorage(draft);
+
   return (
     <MobileShell>
       <TopBar title="옵션·보관료 입력" onBack={() => setScreen("step6")} />
@@ -1469,7 +1484,21 @@ export function OptionsScreen() {
             className="w-full px-4 py-3 rounded-xl border border-[#DFE6F2] bg-gradient-to-b from-[#F8FAFD] to-white text-base shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] resize-none"
           />
         </Card>
-        {draft.moveType === "보관이사" && (
+        {draft.moveType !== "보관이사" && (
+          <label className="flex items-center gap-3 bg-white rounded-2xl border border-[#E7EBF2] px-4 min-h-14 py-3 font-semibold">
+            <input
+              type="checkbox"
+              className="w-5 h-5"
+              checked={Boolean(draft.storageEnabled)}
+              onChange={(e) => {
+                tap("soft");
+                updateDraft({ storageEnabled: e.target.checked });
+              }}
+            />
+            보관 서비스 추가
+          </label>
+        )}
+        {storageOn && (
           <Card className="space-y-3">
             <div className="font-bold">보관 정보</div>
             <Field label="보관 시작일">
@@ -1486,19 +1515,26 @@ export function OptionsScreen() {
                 onChange={(e) => updateDraft({ storageEnd: e.target.value })}
               />
             </Field>
-            <Field label="하루 보관 단가">
+            <Field label="하루 보관료">
               <MoneyInput
                 value={draft.storageDaily}
                 onChange={(n) => updateDraft({ storageDaily: n })}
                 step={1000}
               />
             </Field>
-            <div className="text-sm">
-              보관 일수: <b>{days}일</b> · 총 보관료:{" "}
-              <b className="text-[#0751D8]">{won(days * draft.storageDaily)}</b>
-            </div>
+            {days < 0 ? (
+              <div className="text-sm font-semibold text-[#EF4444]">
+                보관 종료일이 시작일보다 빠릅니다. 날짜를 다시 확인해 주세요.
+              </div>
+            ) : (
+              <div className="text-sm">
+                보관 일수: <b>{days}일</b> · 하루 {won(draft.storageDaily)} · 총 보관료:{" "}
+                <b className="text-[#0751D8]">{won(Math.max(0, days) * draft.storageDaily)}</b>
+              </div>
+            )}
           </Card>
         )}
+
       </div>
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("result")}>견적 계산 보기</PrimaryButton>
@@ -1518,25 +1554,31 @@ export function Result() {
   const calc = calcEstimate(draft);
   const total = calc.total + adjust;
   const parts = adjust ? [...calc.parts, { label: "할인·조정", amount: adjust }] : calc.parts;
+  const extraLabels = new Set((draft.extraCharges ?? []).map((x) => x.label || "추가 항목"));
+  const transportAuto = calc.parts
+    .filter((p) => p.label !== "옵션 비용" && p.label !== "보관료" && !extraLabels.has(p.label))
+    .reduce((s, p) => s + p.amount, 0);
+
   useEffect(() => {
     if (draft.total !== total) updateDraft({ total });
   }, [total, draft.total, updateDraft]);
+  const summaryText = () =>
+    `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${formatMoveDateTime(draft.moveDate, draft.moveTime)}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
   const sendSMS = () => {
-    const msg = `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${draft.moveDate} ${draft.moveTime}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
-    if (confirm(`아래 문자를 발송하시겠습니까?\n\n${msg}`)) {
-      tap("success");
-      toast.success("문자 발송 완료 (데모)");
-    }
+    tap("soft");
+    void navigator.clipboard?.writeText(summaryText()).catch(() => {});
+    toast("문자 발송은 준비 중인 기능입니다", {
+      description: "견적 내용을 복사했습니다. 문자 앱에 붙여넣어 보내주세요.",
+    });
   };
   const sendKakao = () => {
-    const msg = `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${draft.moveDate} ${draft.moveTime}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
-    tap("success");
-    try {
-      void navigator.clipboard?.writeText(msg);
-    } catch {}
-    window.open(`https://sharer.kakao.com/talk/friends/picker/link?text=${encodeURIComponent(msg)}`, "_blank");
-    toast.success("카카오톡으로 견적 내용을 전달했습니다 (내용 복사됨)");
+    tap("soft");
+    void navigator.clipboard?.writeText(summaryText()).catch(() => {});
+    toast("카카오톡 발송은 준비 중인 기능입니다", {
+      description: "견적 내용을 복사했습니다. 공유 링크와 함께 전달해 주세요.",
+    });
   };
+
   return (
     <MobileShell>
       <TopBar title="견적 결과" onBack={() => setScreen("options")} />
@@ -1576,7 +1618,7 @@ export function Result() {
                 <Field label="기본 운송료">
                   <MoneyInput
                     value={
-                      draft.transportOverride ?? (calc.parts.find((p) => p.label === "기본 운송료")?.amount ?? 0)
+                      draft.transportOverride ?? transportAuto
                     }
                     onChange={(n) => updateDraft({ transportOverride: n })}
                     step={10000}
@@ -1731,12 +1773,16 @@ export function Result() {
             </div>
           ) : (
             <>
-              <div>👤 {draft.customerName} · {draft.phone}</div>
-              <div>📅 {draft.moveDate} {draft.moveTime}</div>
+              <div>👤 {draft.customerName || "이름 미입력"} · {draft.phone || "연락처 미입력"}</div>
+              <div>📅 {formatMoveDateTime(draft.moveDate, draft.moveTime)}</div>
               <div>🚚 {draft.moveType}</div>
               <div className="text-[#6B7280]">출발: {draft.fromAddress} {draft.fromDetail}</div>
               <div className="text-[#6B7280]">도착: {draft.toAddress} {draft.toDetail}</div>
-              <div>거리 {draft.distanceKm}km · {draft.workEnv} · {draft.fromFloor}층→{draft.toFloor}층</div>
+              <div>
+                실거리 {draft.distanceKm}km
+                {draft.durationMin ? ` · 약 ${draft.durationMin}분` : ""} · {draft.workEnv} ·{" "}
+                {draft.fromFloor}층→{draft.toFloor}층
+              </div>
               <div>
                 1톤 {draft.truck1t} · 5톤 {draft.truck5t} · 사다리 {draft.ladder}
                 {(draft.ladderFrom || draft.ladderTo) &&
@@ -1744,12 +1790,37 @@ export function Result() {
                     draft.ladderSeparate ? " · 별도" : ""
                   })`}
               </div>
+              <div>
+                작업 인원: 남자 {draft.workers}명 · 주방 {draft.kitchenStaff}명
+              </div>
+              <div>
+                이삿짐:{" "}
+                {(() => {
+                  const t = draft.rooms.reduce(
+                    (acc, r) => {
+                      const s = roomSummary(r.items);
+                      return { kinds: acc.kinds + s.kinds, count: acc.count + s.count };
+                    },
+                    { kinds: 0, count: 0 },
+                  );
+                  return `${draft.rooms.length}개 공간 · ${t.kinds}종 총 ${t.count}개`;
+                })()}
+              </div>
+              {usesStorage(draft) && (
+                <div>
+                  보관: {draft.storageStart || "-"} ~ {draft.storageEnd || "-"} (
+                  {Math.max(0, storageDays(draft.storageStart, draft.storageEnd))}일 · 하루{" "}
+                  {won(draft.storageDaily)})
+                </div>
+              )}
               {draft.options.filter((o) => o.enabled).map((o) => (
                 <div key={o.id}>
                   ➕ {o.name} · {o.separate ? "별도" : won(o.price)}
                 </div>
               ))}
+              {draft.memo && <div className="text-[#6B7280]">메모: {draft.memo}</div>}
             </>
+
           )}
         </Card>
         <div className="grid grid-cols-2 gap-3">
@@ -1922,7 +1993,15 @@ export function Customers() {
 // ============ Settings ============
 export function SettingsScreen() {
   const { logout, setScreen } = useApp();
+  const [pricing, setPricing] = useState<Pricing>(DEFAULT_PRICING);
+  useEffect(() => setPricing(getPricing()), []);
+  const setP = (patch: Partial<Pricing>) => {
+    const next = { ...pricing, ...patch };
+    setPricing(next);
+    savePricing(next);
+  };
   return (
+
     <MobileShell>
       <TopBar title="설정" />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
@@ -1948,7 +2027,55 @@ export function SettingsScreen() {
             className="w-full px-4 py-3 rounded-xl border border-[#E7EBF2] bg-white text-sm min-h-24"
           />
         </Card>
+        <Card className="space-y-3">
+          <div className="font-bold">견적 단가 설정</div>
+          <div className="text-xs text-[#6B7280]">
+            여기서 저장한 단가로 모든 견적 금액이 자동 계산됩니다.
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="1톤 차량">
+              <MoneyInput value={pricing.truck1t} step={10000} onChange={(n) => setP({ truck1t: n })} />
+            </Field>
+            <Field label="5톤 차량">
+              <MoneyInput value={pricing.truck5t} step={10000} onChange={(n) => setP({ truck5t: n })} />
+            </Field>
+            <Field label="사다리차 1대">
+              <MoneyInput value={pricing.ladder} step={10000} onChange={(n) => setP({ ladder: n })} />
+            </Field>
+            <Field label="작업자 1인">
+              <MoneyInput value={pricing.worker} step={10000} onChange={(n) => setP({ worker: n })} />
+            </Field>
+            <Field label="주방 인력 1인">
+              <MoneyInput value={pricing.kitchenStaff} step={10000} onChange={(n) => setP({ kitchenStaff: n })} />
+            </Field>
+            <Field label="계단 1개층">
+              <MoneyInput value={pricing.stairPerFloor} step={1000} onChange={(n) => setP({ stairPerFloor: n })} />
+            </Field>
+            <Field label="기본 포함 거리 (km)">
+              <TextInput
+                type="number"
+                value={pricing.baseKm}
+                onChange={(e) => setP({ baseKm: Number(e.target.value) || 0 })}
+              />
+            </Field>
+            <Field label="초과 1km 단가">
+              <MoneyInput value={pricing.perKm} step={100} onChange={(n) => setP({ perKm: n })} />
+            </Field>
+          </div>
+          <button
+            onClick={() => {
+              tap("soft");
+              setPricing(DEFAULT_PRICING);
+              savePricing(DEFAULT_PRICING);
+              toast.success("기본 단가로 되돌렸습니다");
+            }}
+            className="text-xs text-[#6B7280] underline"
+          >
+            기본 단가로 되돌리기
+          </button>
+        </Card>
         <Card className="space-y-2 text-sm">
+
           <div className="font-bold text-base">구독 안내</div>
           <div>· 무료 체험 3일</div>
           <div>· 이후 월 22,000원 (부가세 포함)</div>

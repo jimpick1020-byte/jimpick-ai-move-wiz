@@ -78,6 +78,9 @@ export interface Estimate {
   storageStart: string;
   storageEnd: string;
   storageDaily: number;
+  /** 보관이사가 아니어도 보관 서비스를 추가한 경우 */
+  storageEnabled?: boolean;
+
   /** 기본 운송료 직접 입력 (null이면 자동 계산) */
   transportOverride?: number | null;
   /** 예상 견적 금액 직접 입력 (null이면 자동 합계) */
@@ -149,7 +152,18 @@ export const PRESET_30PY: Record<string, RoomItems> = {
 };
 
 // ============ Pricing ============
-export const PRICING = {
+export interface Pricing {
+  truck1t: number;
+  truck5t: number;
+  ladder: number;
+  worker: number;
+  kitchenStaff: number;
+  baseKm: number;
+  perKm: number;
+  stairPerFloor: number;
+}
+
+export const DEFAULT_PRICING: Pricing = {
   truck1t: 250000,
   truck5t: 850000,
   ladder: 200000,
@@ -160,42 +174,114 @@ export const PRICING = {
   stairPerFloor: 30000,
 };
 
-export function calcEstimate(e: Estimate): { total: number; parts: { label: string; amount: number }[] } {
-  const hasSidePrice = (e.ladderFromPrice || 0) + (e.ladderToPrice || 0) > 0;
+const PRICING_KEY = "jimpick_pricing_v1";
+
+/** 업체별 단가 (설정 화면에서 수정 가능) */
+export function getPricing(): Pricing {
+  if (typeof window === "undefined") return DEFAULT_PRICING;
+  try {
+    const raw = localStorage.getItem(PRICING_KEY);
+    if (!raw) return DEFAULT_PRICING;
+    return { ...DEFAULT_PRICING, ...(JSON.parse(raw) as Partial<Pricing>) };
+  } catch {
+    return DEFAULT_PRICING;
+  }
+}
+
+export function savePricing(p: Pricing) {
+  try {
+    localStorage.setItem(PRICING_KEY, JSON.stringify(p));
+  } catch {}
+}
+
+/** @deprecated getPricing() 사용 */
+export const PRICING = DEFAULT_PRICING;
+
+const num = (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+/** 보관 일수 (시작일·종료일 기준). 종료일이 빠르면 -1 */
+export function storageDays(start: string, end: string): number {
+  if (!start || !end) return 0;
+  const s = new Date(start).getTime();
+  const e = new Date(end).getTime();
+  if (!Number.isFinite(s) || !Number.isFinite(e)) return 0;
+  const d = Math.round((e - s) / 86400000);
+  return d < 0 ? -1 : d;
+}
+
+/** 보관 서비스 사용 여부 */
+export function usesStorage(e: Estimate): boolean {
+  return e.moveType === "보관이사" || Boolean(e.storageEnabled);
+}
+
+export function storageFeeOf(e: Estimate): number {
+  if (!usesStorage(e)) return 0;
+  const days = storageDays(e.storageStart, e.storageEnd);
+  if (days <= 0) return 0;
+  return days * Math.max(0, num(e.storageDaily));
+}
+
+/** 중앙 견적 계산 서비스 — 모든 화면이 이 함수만 사용합니다. */
+export function calcEstimate(
+  e: Estimate,
+  pricing: Pricing = getPricing(),
+): { total: number; parts: { label: string; amount: number }[] } {
+  const hasSidePrice = num(e.ladderFromPrice) + num(e.ladderToPrice) > 0;
   const sideFee =
-    (e.ladderFromSeparate ? 0 : e.ladderFromPrice || 0) + (e.ladderToSeparate ? 0 : e.ladderToPrice || 0);
+    (e.ladderFromSeparate ? 0 : num(e.ladderFromPrice)) + (e.ladderToSeparate ? 0 : num(e.ladderToPrice));
   const ladderFee = e.ladderSeparate
     ? 0
     : hasSidePrice
       ? sideFee
-      : e.ladderPrice || e.ladder * PRICING.ladder;
-  const autoTransport = e.truck1t * PRICING.truck1t + e.truck5t * PRICING.truck5t + ladderFee;
-  const transport =
-    e.transportOverride === null || e.transportOverride === undefined ? autoTransport : e.transportOverride;
+      : num(e.ladderPrice) || num(e.ladder) * pricing.ladder;
+
+  const truckFee = num(e.truck1t) * pricing.truck1t + num(e.truck5t) * pricing.truck5t;
+  const extraKm = Math.max(0, num(e.distanceKm) - pricing.baseKm);
+  const distanceFee = Math.round(extraKm * pricing.perKm);
+  const laborFee = num(e.workers) * pricing.worker + num(e.kitchenStaff) * pricing.kitchenStaff;
+  const stairFloors = e.workEnv.includes("계단")
+    ? Math.max(0, num(e.fromFloor) - 1) + Math.max(0, num(e.toFloor) - 1)
+    : 0;
+  const stairFee = stairFloors * pricing.stairPerFloor;
+
+  const autoTransport = truckFee + distanceFee + laborFee + stairFee + ladderFee;
+  const overridden = e.transportOverride !== null && e.transportOverride !== undefined;
+  const transport = overridden ? num(e.transportOverride) : autoTransport;
+
   const optionFee = e.options
     .filter((o) => o.enabled && !o.separate)
-    .reduce((s, o) => s + (o.price || 0), 0);
-  let storageFee = 0;
-  if (e.moveType === "보관이사" && e.storageStart && e.storageEnd) {
-    const days = Math.max(
-      0,
-      Math.round((new Date(e.storageEnd).getTime() - new Date(e.storageStart).getTime()) / 86400000)
-    );
-    storageFee = days * (e.storageDaily || 0);
-  }
-  const extras = (e.extraCharges ?? []).reduce((s2, x) => s2 + (x.amount || 0), 0);
+    .reduce((s, o) => s + Math.max(0, num(o.price)), 0);
+  const storageFee = storageFeeOf(e);
+  const extras = (e.extraCharges ?? []).reduce((s2, x) => s2 + num(x.amount), 0);
+
   const sum = transport + optionFee + storageFee + extras;
-  const total = e.totalOverride === null || e.totalOverride === undefined ? sum : e.totalOverride;
+  const raw = e.totalOverride === null || e.totalOverride === undefined ? sum : num(e.totalOverride);
+  const total = Math.max(0, Math.round(Number.isFinite(raw) ? raw : 0));
+
+  const parts = overridden
+    ? [{ label: "기본 운송료 (직접 입력)", amount: transport }]
+    : [
+        { label: "기본 차량비", amount: truckFee },
+        { label: `거리 추가비 (${pricing.baseKm}km 초과 ${extraKm.toFixed(1)}km)`, amount: distanceFee },
+        { label: `인건비 (남자 ${num(e.workers)}명 · 주방 ${num(e.kitchenStaff)}명)`, amount: laborFee },
+        { label: `계단 작업비 (${stairFloors}개층)`, amount: stairFee },
+        { label: "사다리차 비용", amount: ladderFee },
+      ].filter((p) => p.amount > 0);
+
   return {
     total,
     parts: [
-      { label: "기본 운송료", amount: transport },
-      { label: "옵션 비용", amount: optionFee },
-      { label: "보관료", amount: storageFee },
-      ...(e.extraCharges ?? []).map((x) => ({ label: x.label || "추가 항목", amount: x.amount || 0 })),
+      ...(parts.length > 0 ? parts : [{ label: "기본 운송료", amount: transport }]),
+      ...(optionFee > 0 ? [{ label: "옵션 비용", amount: optionFee }] : []),
+      ...(storageFee > 0 ? [{ label: "보관료", amount: storageFee }] : []),
+      ...(e.extraCharges ?? []).map((x) => ({ label: x.label || "추가 항목", amount: num(x.amount) })),
     ],
   };
 }
+
 
 
 // ============ Store ============
@@ -225,7 +311,8 @@ export function newEstimate(): Estimate {
     workers: 2,
     kitchenStaff: 1,
     truck1t: 0,
-    truck5t: 1,
+    truck5t: 0,
+
     ladder: 0,
     ladderFrom: false,
     ladderTo: false,
@@ -245,6 +332,8 @@ export function newEstimate(): Estimate {
     storageStart: "",
     storageEnd: "",
     storageDaily: 20000,
+    storageEnabled: false,
+
     transportOverride: null,
     totalOverride: null,
     total: 0,
@@ -376,8 +465,24 @@ export function formatPhone(v: string) {
   return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
 }
 export function won(n: number) {
-  return n.toLocaleString("ko-KR") + "원";
+  const v = Number.isFinite(n) ? Math.round(n) : 0;
+  return v.toLocaleString("ko-KR") + "원";
 }
+
+/** "2026-08-01" + "오전 09:00" → "2026년 8월 1일 오전 09:00" */
+export function formatMoveDateTime(date: string, time: string): string {
+  if (!date) return "이사 날짜 미입력";
+  const [y, m, d] = date.split("-").map(Number);
+  if (!y || !m || !d) return `${date} ${time ?? ""}`.trim();
+  return `${y}년 ${m}월 ${d}일${time ? ` ${time}` : ""}`;
+}
+
+/** 방별 품목 요약: 품목 종류 수와 총 수량 */
+export function roomSummary(items: RoomItems): { kinds: number; count: number } {
+  const values = Object.values(items || {}).filter((v) => Number(v) > 0);
+  return { kinds: values.length, count: values.reduce((a, b) => a + Number(b), 0) };
+}
+
 
 /** localStorage에서 견적 ID로 찾기 (공유 페이지 등 Provider 외부에서도 사용) */
 export function loadEstimateFromStorage(id: string): Estimate | null {

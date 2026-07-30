@@ -131,7 +131,10 @@ export function AIScan() {
   const [targetRoomId, setTargetRoomId] = useState<string>(currentRoom?.id ?? "");
   const [picking, setPicking] = useState(false);
   const [dupAsk, setDupAsk] = useState<string[] | null>(null);
+  const [shots, setShots] = useState<{ id: string; url: string; kind: "photo" | "video" }[]>([]);
   const [preview, setPreview] = useState<{ url: string; kind: "photo" | "video" } | null>(null);
+  const [newItem, setNewItem] = useState("");
+
   const startedAt = useRef<number>(0);
   const photoCamRef = useRef<HTMLInputElement>(null);
   const photoLibRef = useRef<HTMLInputElement>(null);
@@ -152,8 +155,6 @@ export function AIScan() {
 
   const analyze = async (images: string[], source: "photo" | "video") => {
     setBusy(true);
-    setResults([]);
-    setPacking(null);
     startedAt.current = Date.now();
     try {
       const res = await recognizeItems({ data: { images, source } });
@@ -161,8 +162,33 @@ export function AIScan() {
         toast.error(res.error);
         return;
       }
-      setResults(res.items);
-      setPacking(res.packingEstimate);
+      // 여러 장을 연속으로 찍어도 결과가 누적되도록 같은 품목은 큰 수량 기준으로 합칩니다.
+      setResults((prev) => {
+        const map = new Map(prev.map((p) => [p.id, p]));
+        for (const it of res.items) {
+          const old = map.get(it.id);
+          map.set(
+            it.id,
+            old
+              ? { ...old, qty: Math.max(old.qty, it.qty), confidence: Math.max(old.confidence, it.confidence) }
+              : it,
+          );
+        }
+        return Array.from(map.values());
+      });
+      const pe = res.packingEstimate;
+      setPacking((prev) =>
+        prev && pe
+          ? {
+              clothesBox: Math.max(prev.clothesBox, pe.clothesBox),
+              largeBox: Math.max(prev.largeBox, pe.largeBox),
+              mediumBox: Math.max(prev.mediumBox, pe.mediumBox),
+              basket: Math.max(prev.basket, pe.basket),
+              vinyl: Math.max(prev.vinyl, pe.vinyl),
+            }
+          : (pe ?? prev),
+      );
+
       setRoomGuess(res.roomGuess);
       setRoomConf(res.roomConfidence);
       // AI가 인식한 공간이 5단계에서 고른 방에 있으면 자동으로 선택합니다.
@@ -188,8 +214,14 @@ export function AIScan() {
     }
   };
 
+  const addShot = (f: File, kind: "photo" | "video") => {
+    const url = URL.createObjectURL(f);
+    setPreview({ url, kind });
+    setShots((s) => [...s, { id: `s_${Date.now()}`, url, kind }]);
+  };
+
   const onPhoto = async (f: File) => {
-    setPreview({ url: URL.createObjectURL(f), kind: "photo" });
+    addShot(f, "photo");
     setBusy(true);
     try {
       const dataUrl = await fileToDataUrl(f);
@@ -201,7 +233,7 @@ export function AIScan() {
   };
 
   const onVideo = async (f: File) => {
-    setPreview({ url: URL.createObjectURL(f), kind: "video" });
+    addShot(f, "video");
     setBusy(true);
     try {
       // 일정 간격으로 프레임을 뽑아 분석하고, 같은 물건은 최대 수량 기준으로 합칩니다.
@@ -210,6 +242,7 @@ export function AIScan() {
     } catch {
       toast.error("동영상을 분석하지 못했습니다");
       setBusy(false);
+
     }
   };
 
@@ -341,6 +374,63 @@ export function AIScan() {
           <UploadBtn label="동영상 불러오기" icon={Film} onClick={() => openPicker(videoLibRef)} />
         </div>
 
+        {shots.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-bold">촬영 목록 {shots.length}장</div>
+              <button
+                onClick={() => {
+                  tap("soft");
+                  setShots([]);
+                  setPreview(null);
+                  setResults([]);
+                  setPacking(null);
+                  setRoomGuess(null);
+                  setRoomConf(null);
+                }}
+                className="text-xs font-bold text-[#EF4444]"
+              >
+                전체 지우고 다시 촬영
+              </button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {shots.map((s) => (
+                <div key={s.id} className="relative shrink-0">
+                  <button
+                    onClick={() => {
+                      tap("soft");
+                      setPreview({ url: s.url, kind: s.kind });
+                    }}
+                    className={`w-20 h-20 rounded-xl overflow-hidden border-2 ${
+                      preview?.url === s.url ? "border-[#0751D8]" : "border-[#E7EBF2]"
+                    }`}
+                  >
+                    {s.kind === "video" ? (
+                      <video src={s.url} className="w-full h-full object-cover" muted />
+                    ) : (
+                      <img src={s.url} alt="촬영본" className="w-full h-full object-cover" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      tap("soft");
+                      setShots((list) => {
+                        const next = list.filter((x) => x.id !== s.id);
+                        setPreview(next.length ? { url: next[next.length - 1].url, kind: next[next.length - 1].kind } : null);
+                        return next;
+                      });
+                    }}
+                    aria-label="촬영본 삭제"
+                    className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#EF4444] text-white flex items-center justify-center shadow"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
 
         <Card>
           <div className="flex items-center justify-between">
@@ -398,9 +488,10 @@ export function AIScan() {
           </Card>
         )}
 
-        {results.length > 0 && (
+        {(results.length > 0 || shots.length > 0) && (
           <div className="space-y-2">
             <div className="font-bold">인식된 품목 {results.length}개</div>
+
             {results.map((r) => (
               <Card key={r.id} className="flex items-center gap-3">
                 <Art3D src={ITEM_IMG[r.id] || guessItemImg(r.name) || FALLBACK_IMG} alt={r.name} size={44} />
@@ -436,8 +527,33 @@ export function AIScan() {
                 </button>
               </Card>
             ))}
+
+            <Card className="flex items-center gap-2">
+              <input
+                value={newItem}
+                onChange={(e) => setNewItem(e.target.value)}
+                placeholder="빠진 품목 직접 추가 (예: 안마의자)"
+                className="flex-1 min-w-0 px-3 min-h-11 rounded-xl border border-[#DFE6F2] bg-white text-sm focus:outline-none focus:border-[#287BFF]"
+              />
+              <button
+                onClick={() => {
+                  const name = newItem.trim();
+                  if (!name) return;
+                  tap("soft");
+                  setResults((prev) => [
+                    ...prev,
+                    { id: `ai_${Date.now()}`, name, qty: 1, confidence: 1, note: "직접 추가" },
+                  ]);
+                  setNewItem("");
+                }}
+                className="shrink-0 px-4 min-h-11 rounded-xl bg-[#0751D8] text-white text-sm font-bold"
+              >
+                추가
+              </button>
+            </Card>
           </div>
         )}
+
       </div>
 
       {dupAsk && (

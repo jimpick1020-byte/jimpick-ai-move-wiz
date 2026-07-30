@@ -76,7 +76,7 @@ export const searchAddress = createServerFn({ method: "POST" })
     return { places: unique };
   });
 
-/** 출발지 → 도착지 실제 자동차 경로 거리·시간·경로선 (실패 시 직선거리 근사) */
+/** 출발지 → 도착지 실제 자동차 도로 경로 (카카오모빌리티 길찾기 API) */
 export const getRoute = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
@@ -92,46 +92,42 @@ export const getRoute = createServerFn({ method: "POST" })
     async ({
       data,
     }): Promise<{
+      ok: boolean;
       distanceKm: number;
       durationMin: number;
       path: { x: number; y: number }[];
-      approx?: boolean;
       error?: string;
     }> => {
-      const approx = () => {
-        const straight = haversineKm(data.originX, data.originY, data.destX, data.destY);
-        const km = Math.round(straight * 1.3 * 10) / 10;
-        return {
-          distanceKm: km,
-          durationMin: Math.max(5, Math.round((km / 40) * 60)),
-          path: [
-            { x: data.originX, y: data.originY },
-            { x: data.destX, y: data.destY },
-          ],
-          approx: true,
-        };
-      };
+      const fail = (error: string) => ({ ok: false, distanceKm: 0, durationMin: 0, path: [], error });
 
       const key = process.env.KAKAO_REST_API_KEY;
-      if (!key) return approx();
+      if (!key) return fail("도로 경로 API 키가 설정되지 않았습니다. 관리자에게 문의해 주세요.");
 
       try {
         const url =
           `https://apis-navi.kakaomobility.com/v1/directions?origin=${data.originX},${data.originY}` +
           `&destination=${data.destX},${data.destY}&priority=RECOMMEND&car_fuel=DIESEL`;
         const res = await fetch(url, { headers: { Authorization: `KakaoAK ${key}` } });
-        if (!res.ok) return approx();
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          console.error("[getRoute] kakao mobility error", res.status, body);
+          return fail("도로 경로를 계산할 수 없습니다. 주소를 다시 확인해 주세요.");
+        }
 
         const j = (await res.json()) as {
           routes?: {
             result_code?: number;
+            result_msg?: string;
             summary?: { distance: number; duration: number };
             sections?: { roads?: { vertexes?: number[] }[] }[];
           }[];
         };
         const route = j.routes?.[0];
         const s = route?.summary;
-        if (!s || (route?.result_code ?? 0) !== 0) return approx();
+        if (!s || (route?.result_code ?? -1) !== 0 || !s.distance) {
+          console.error("[getRoute] no route", route?.result_code, route?.result_msg);
+          return fail("도로 경로를 계산할 수 없습니다. 주소를 다시 확인해 주세요.");
+        }
 
         const path: { x: number; y: number }[] = [];
         for (const sec of route?.sections ?? []) {
@@ -142,16 +138,16 @@ export const getRoute = createServerFn({ method: "POST" })
         }
 
         return {
+          ok: true,
           distanceKm: Math.round((s.distance / 1000) * 10) / 10,
-          durationMin: Math.round(s.duration / 60),
-          path: path.length > 1 ? path : [
-            { x: data.originX, y: data.originY },
-            { x: data.destX, y: data.destY },
-          ],
+          durationMin: Math.max(1, Math.round(s.duration / 60)),
+          path,
         };
-      } catch {
-        return approx();
+      } catch (err) {
+        console.error("[getRoute] request failed", err);
+        return fail("도로 경로를 계산할 수 없습니다. 주소를 다시 확인해 주세요.");
       }
     },
   );
+
 
