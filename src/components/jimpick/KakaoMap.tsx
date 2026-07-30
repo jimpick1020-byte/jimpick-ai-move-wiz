@@ -135,6 +135,20 @@ export function KakaoMap({
           지도를 불러오는 중입니다
         </div>
       )}
+      {ready === false && (
+        <div className="absolute inset-0 rounded-xl bg-[#F5F7FB] flex items-center justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              setReady(null);
+              setAttempt((a) => a + 1);
+            }}
+            className="rounded-full bg-[#0751D8] px-4 py-2 text-xs font-bold text-white shadow-sm"
+          >
+            지도 다시 불러오기
+          </button>
+        </div>
+      )}
       {ready && from && !to && (
         <div className="absolute bottom-2 left-2 right-2 rounded-lg bg-white/95 border border-[#E7EBF2] px-3 py-2 text-[11px] font-semibold text-[#0751D8] text-center shadow-sm">
           도착지를 선택하면 이동 경로가 표시됩니다
