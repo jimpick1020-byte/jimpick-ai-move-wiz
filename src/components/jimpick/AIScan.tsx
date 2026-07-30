@@ -312,7 +312,7 @@ export function AIScan() {
         {(roomGuess || busy) && (
           <Card className="flex items-center gap-3">
             <span className="px-3 py-1.5 rounded-full bg-[#0867E8] text-white text-xs font-bold">
-              {busy ? "AI가 공간을 분석하는 중..." : `AI가 ${roomGuess}으로 인식했어요`}
+              {busy ? "AI가 공간과 이삿짐을 분석하고 있습니다..." : `AI가 ${roomGuess}으로 인식했어요`}
             </span>
             {!busy && roomConf != null && (
               <span
@@ -324,12 +324,19 @@ export function AIScan() {
           </Card>
         )}
 
+        {/* 숨은 file input — 버튼에서 코드로 실행합니다 */}
+        <input ref={photoCamRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleChange(onPhoto)} />
+        <input ref={photoLibRef} type="file" accept="image/*" className="hidden" onChange={handleChange(onPhoto)} />
+        <input ref={videoCamRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={handleChange(onVideo)} />
+        <input ref={videoLibRef} type="file" accept="video/*" className="hidden" onChange={handleChange(onVideo)} />
+
         <div className="grid grid-cols-2 gap-3">
-          <UploadBtn label="사진 촬영" icon={Camera} accept="image/*" capture onFile={onPhoto} />
-          <UploadBtn label="사진 불러오기" icon={ImageIcon} accept="image/*" onFile={onPhoto} />
-          <UploadBtn label="동영상 촬영" icon={Video} accept="video/*" capture onFile={onVideo} />
-          <UploadBtn label="동영상 불러오기" icon={Film} accept="video/*" onFile={onVideo} />
+          <UploadBtn label="사진 촬영" icon={Camera} onClick={() => openPicker(photoCamRef)} />
+          <UploadBtn label="사진 불러오기" icon={ImageIcon} onClick={() => openPicker(photoLibRef)} />
+          <UploadBtn label="동영상 촬영" icon={Video} onClick={() => openPicker(videoCamRef)} />
+          <UploadBtn label="동영상 불러오기" icon={Film} onClick={() => openPicker(videoLibRef)} />
         </div>
+
 
         <Card>
           <div className="flex items-center justify-between">
