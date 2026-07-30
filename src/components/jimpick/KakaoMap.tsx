@@ -117,28 +117,9 @@ export function KakaoMap({
     return () => {
       cancelled = true;
     };
-  }, [from?.x, from?.y, to?.x, to?.y, path?.length]);
+  }, [from?.x, from?.y, to?.x, to?.y, path?.length, attempt]);
 
 
-  if (ready === false) {
-    return (
-      <div
-        className="rounded-xl border border-[#FFD9A8] bg-[#FFF8EE] p-4 text-xs text-[#92400E] flex flex-col justify-center gap-1"
-        style={{ minHeight: height }}
-      >
-        <div className="font-bold text-sm">지도를 표시할 수 없습니다</div>
-        <div>카카오 지도 키가 없거나 도메인이 등록되지 않았습니다.</div>
-        <div>
-          카카오 개발자센터 &gt; 내 애플리케이션 &gt; 플랫폼 &gt; Web 사이트 도메인에{" "}
-          <span className="font-semibold break-all">https://jimpick-ai-move-wiz.lovable.app</span> 과{" "}
-          <span className="font-semibold break-all">
-            https://id-preview--9ef0e6b7-7d23-4428-8895-6a82ebf234c8.lovable.app
-          </span>{" "}
-          을 등록해 주세요.
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="relative">
