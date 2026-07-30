@@ -176,17 +176,19 @@ export function AIScan() {
         }
         return Array.from(map.values());
       });
+      const pe = res.packingEstimate;
       setPacking((prev) =>
-        prev
+        prev && pe
           ? {
-              clothesBox: Math.max(prev.clothesBox, res.packingEstimate.clothesBox),
-              largeBox: Math.max(prev.largeBox, res.packingEstimate.largeBox),
-              mediumBox: Math.max(prev.mediumBox, res.packingEstimate.mediumBox),
-              basket: Math.max(prev.basket, res.packingEstimate.basket),
-              vinyl: Math.max(prev.vinyl, res.packingEstimate.vinyl),
+              clothesBox: Math.max(prev.clothesBox, pe.clothesBox),
+              largeBox: Math.max(prev.largeBox, pe.largeBox),
+              mediumBox: Math.max(prev.mediumBox, pe.mediumBox),
+              basket: Math.max(prev.basket, pe.basket),
+              vinyl: Math.max(prev.vinyl, pe.vinyl),
             }
-          : res.packingEstimate,
+          : (pe ?? prev),
       );
+
       setRoomGuess(res.roomGuess);
       setRoomConf(res.roomConfidence);
       // AI가 인식한 공간이 5단계에서 고른 방에 있으면 자동으로 선택합니다.
