@@ -1379,15 +1379,12 @@ export function AIRecognition() {
 // ============ Options & Storage ============
 export function OptionsScreen() {
   const { draft, updateDraft, setScreen } = useApp();
-  const days = useMemo(() => {
-    if (!draft.storageStart || !draft.storageEnd) return 0;
-    return Math.max(
-      0,
-      Math.round(
-        (new Date(draft.storageEnd).getTime() - new Date(draft.storageStart).getTime()) / 86400000
-      )
-    );
-  }, [draft.storageStart, draft.storageEnd]);
+  const days = useMemo(
+    () => storageDays(draft.storageStart, draft.storageEnd),
+    [draft.storageStart, draft.storageEnd],
+  );
+  const storageOn = usesStorage(draft);
+
   return (
     <MobileShell>
       <TopBar title="옵션·보관료 입력" onBack={() => setScreen("step6")} />
