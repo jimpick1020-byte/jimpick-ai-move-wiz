@@ -1554,6 +1554,11 @@ export function Result() {
   const calc = calcEstimate(draft);
   const total = calc.total + adjust;
   const parts = adjust ? [...calc.parts, { label: "할인·조정", amount: adjust }] : calc.parts;
+  const extraLabels = new Set((draft.extraCharges ?? []).map((x) => x.label || "추가 항목"));
+  const transportAuto = calc.parts
+    .filter((p) => p.label !== "옵션 비용" && p.label !== "보관료" && !extraLabels.has(p.label))
+    .reduce((s, p) => s + p.amount, 0);
+
   useEffect(() => {
     if (draft.total !== total) updateDraft({ total });
   }, [total, draft.total, updateDraft]);
