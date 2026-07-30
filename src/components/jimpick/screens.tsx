@@ -1773,12 +1773,16 @@ export function Result() {
             </div>
           ) : (
             <>
-              <div>👤 {draft.customerName} · {draft.phone}</div>
-              <div>📅 {draft.moveDate} {draft.moveTime}</div>
+              <div>👤 {draft.customerName || "이름 미입력"} · {draft.phone || "연락처 미입력"}</div>
+              <div>📅 {formatMoveDateTime(draft.moveDate, draft.moveTime)}</div>
               <div>🚚 {draft.moveType}</div>
               <div className="text-[#6B7280]">출발: {draft.fromAddress} {draft.fromDetail}</div>
               <div className="text-[#6B7280]">도착: {draft.toAddress} {draft.toDetail}</div>
-              <div>거리 {draft.distanceKm}km · {draft.workEnv} · {draft.fromFloor}층→{draft.toFloor}층</div>
+              <div>
+                실거리 {draft.distanceKm}km
+                {draft.durationMin ? ` · 약 ${draft.durationMin}분` : ""} · {draft.workEnv} ·{" "}
+                {draft.fromFloor}층→{draft.toFloor}층
+              </div>
               <div>
                 1톤 {draft.truck1t} · 5톤 {draft.truck5t} · 사다리 {draft.ladder}
                 {(draft.ladderFrom || draft.ladderTo) &&
@@ -1786,12 +1790,37 @@ export function Result() {
                     draft.ladderSeparate ? " · 별도" : ""
                   })`}
               </div>
+              <div>
+                작업 인원: 남자 {draft.workers}명 · 주방 {draft.kitchenStaff}명
+              </div>
+              <div>
+                이삿짐:{" "}
+                {(() => {
+                  const t = draft.rooms.reduce(
+                    (acc, r) => {
+                      const s = roomSummary(r.items);
+                      return { kinds: acc.kinds + s.kinds, count: acc.count + s.count };
+                    },
+                    { kinds: 0, count: 0 },
+                  );
+                  return `${draft.rooms.length}개 공간 · ${t.kinds}종 총 ${t.count}개`;
+                })()}
+              </div>
+              {usesStorage(draft) && (
+                <div>
+                  보관: {draft.storageStart || "-"} ~ {draft.storageEnd || "-"} (
+                  {Math.max(0, storageDays(draft.storageStart, draft.storageEnd))}일 · 하루{" "}
+                  {won(draft.storageDaily)})
+                </div>
+              )}
               {draft.options.filter((o) => o.enabled).map((o) => (
                 <div key={o.id}>
                   ➕ {o.name} · {o.separate ? "별도" : won(o.price)}
                 </div>
               ))}
+              {draft.memo && <div className="text-[#6B7280]">메모: {draft.memo}</div>}
             </>
+
           )}
         </Card>
         <div className="grid grid-cols-2 gap-3">
