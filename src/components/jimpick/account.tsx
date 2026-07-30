@@ -59,7 +59,7 @@ export function SignupScreen() {
           },
         });
         if (error) throw error;
-        toast.success("가입 완료! 14일 무료 체험이 시작되었습니다");
+        toast.success("가입 완료! 3일 무료 체험이 시작되었습니다");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -131,7 +131,7 @@ export function SignupScreen() {
         </button>
 
         <div className="text-xs text-[#6B7280] leading-relaxed px-1">
-          가입 즉시 <b>14일 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능을 쓸 수 있습니다.
+          가입 즉시 <b>3일 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능을 쓸 수 있습니다.
         </div>
       </div>
       <BottomButtonBar>
@@ -204,7 +204,7 @@ export function SubscriptionScreen() {
         <div className="p-5 flex-1 flex flex-col items-center justify-center gap-4 text-center">
           <Crown className="w-12 h-12 text-[#0751D8]" />
           <div className="font-bold text-lg">업체 계정이 필요합니다</div>
-          <div className="text-sm text-[#6B7280]">가입하면 14일 무료 체험이 바로 시작됩니다.</div>
+          <div className="text-sm text-[#6B7280]">가입하면 3일 무료 체험이 바로 시작됩니다.</div>
         </div>
         <BottomButtonBar>
           <PrimaryButton onClick={() => setScreen("signup")}>업체 회원가입 / 로그인</PrimaryButton>
