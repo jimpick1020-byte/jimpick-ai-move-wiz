@@ -78,6 +78,9 @@ export interface Estimate {
   storageStart: string;
   storageEnd: string;
   storageDaily: number;
+  /** 보관이사가 아니어도 보관 서비스를 추가한 경우 */
+  storageEnabled?: boolean;
+
   /** 기본 운송료 직접 입력 (null이면 자동 계산) */
   transportOverride?: number | null;
   /** 예상 견적 금액 직접 입력 (null이면 자동 합계) */
