@@ -170,7 +170,14 @@ export function SubscriptionScreen() {
     tap("success");
     try {
       await subscribePlan({ data: { plan, method: "card" } });
-      toast.success(plan === "free" ? "무료 체험으로 변경되었습니다" : "결제가 완료되었습니다");
+      if (plan === "free") {
+        toast.success("무료 체험이 시작되었습니다 (3일)");
+      } else {
+        toast.success("구독이 활성화되었습니다", {
+          description: "실제 카드 결제는 시스템 연결 준비 중이며, 현재는 테스트 결제로 기록됩니다.",
+        });
+      }
+
       await refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "결제에 실패했습니다");
