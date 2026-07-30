@@ -162,7 +162,8 @@ export function KakaoMap({
     <div className="relative w-full block" style={{ height, minHeight: height }}>
       <div
         ref={ref}
-        className="w-full h-[320px] min-h-[320px] block rounded-xl overflow-hidden border border-[#E7EBF2] bg-[#F5F7FB]"
+        className="w-full h-full block rounded-xl overflow-hidden border border-[#E7EBF2] bg-[#F5F7FB]"
+        style={{ height, minHeight: height }}
       />
       {ready === null && (
         <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#EEF4FF] to-[#F5F7FB] animate-pulse flex items-center justify-center text-xs font-semibold text-[#6B7280]">

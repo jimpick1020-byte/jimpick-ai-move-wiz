@@ -115,8 +115,8 @@ export function Splash() {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            tap("click");
             setScreen(loggedIn ? "home" : "login");
+            setTimeout(() => tap("click"), 0);
           }}
           className="w-full mt-2 mb-1 py-5 rounded-2xl text-white text-lg font-black tracking-tight shadow-[0_14px_30px_-10px_rgba(121,40,202,0.6)] transition-transform active:translate-y-[2px]"
           style={{ background: "linear-gradient(90deg,#ff007f 0%,#7928ca 50%,#00dfd8 100%)" }}
@@ -549,9 +549,9 @@ export function Step2() {
           onDetail={(d) => updateDraft({ toDetail: d })}
         />
         {(from || to) && (
-          <Card>
+          <Card className="pb-5">
             <div className="font-bold mb-2">경로 안내</div>
-            <KakaoMap from={from} to={to} path={path} height={300} />
+            <KakaoMap from={from} to={to} path={path} height={280} />
             {routeError && !routing ? (
               <div className="mt-3 rounded-xl bg-[#FFF1F1] border border-[#FFD4D4] p-3 text-center space-y-2">
                 <div className="text-xs font-semibold text-[#B91C1C]">
@@ -1087,16 +1087,12 @@ export function Step6() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-                {ITEM_IMG[it.id] || guessItemImg(it.name) ? (
-                  <Art3D
-                    src={ITEM_IMG[it.id] || guessItemImg(it.name)!}
-                    alt={it.name}
-                    size={72}
-                    className="mb-2"
-                  />
-                ) : (
-                  <div className="h-[72px] flex items-center justify-center text-4xl mb-2">{it.emoji}</div>
-                )}
+                <Art3D
+                  src={ITEM_IMG[it.id] || guessItemImg(it.name) || FALLBACK_IMG}
+                  alt={it.name}
+                  size={72}
+                  className="mb-2"
+                />
                 <div className="font-bold text-sm mb-2">{it.name}</div>
                 <div className="flex justify-center">
                   <Counter value={qty} onChange={(n) => setQty(it.id, n)} min={0} max={20} />
@@ -1311,7 +1307,7 @@ export function AIRecognition() {
             </div>
             {shown.map((r, i) => (
               <Card key={r.id} className="flex items-center gap-3">
-                <Art3D src={ITEM_IMG[r.id]} alt={r.name} size={48} />
+                <Art3D src={ITEM_IMG[r.id] || guessItemImg(r.name) || FALLBACK_IMG} alt={r.name} size={48} />
                 <div className="flex-1">
                   <div className="font-semibold">{r.name}</div>
                   <div className="text-xs text-[#6B7280]">
