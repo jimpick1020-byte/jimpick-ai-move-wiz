@@ -59,14 +59,23 @@ export function KakaoMap({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState<boolean | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const ok = await loadKakaoSdk();
+      let ok = await loadKakaoSdk();
+      if (!ok && !cancelled) {
+        // 일시적 로드 실패 시 자동 재시도
+        await new Promise((r) => setTimeout(r, 800));
+        ok = await loadKakaoSdk();
+      }
       if (cancelled) return;
       setReady(ok);
-      if (!ok || !ref.current) return;
+      if (!ok || !ref.current) {
+        if (!ok && attempt < 2) setTimeout(() => !cancelled && setAttempt((a) => a + 1), 1500);
+        return;
+      }
 
       const kakao = window.kakao;
       const center = from ?? to ?? { x: 126.978, y: 37.5665 };
