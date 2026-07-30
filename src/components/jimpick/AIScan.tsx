@@ -133,6 +133,10 @@ export function AIScan() {
   const [dupAsk, setDupAsk] = useState<string[] | null>(null);
   const [preview, setPreview] = useState<{ url: string; kind: "photo" | "video" } | null>(null);
   const startedAt = useRef<number>(0);
+  const photoCamRef = useRef<HTMLInputElement>(null);
+  const photoLibRef = useRef<HTMLInputElement>(null);
+  const videoCamRef = useRef<HTMLInputElement>(null);
+  const videoLibRef = useRef<HTMLInputElement>(null);
 
   const targetRoom = draft.rooms.find((r) => r.id === targetRoomId) || currentRoom;
 
