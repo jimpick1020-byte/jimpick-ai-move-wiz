@@ -155,8 +155,6 @@ export function AIScan() {
 
   const analyze = async (images: string[], source: "photo" | "video") => {
     setBusy(true);
-    setResults([]);
-    setPacking(null);
     startedAt.current = Date.now();
     try {
       const res = await recognizeItems({ data: { images, source } });
@@ -164,8 +162,31 @@ export function AIScan() {
         toast.error(res.error);
         return;
       }
-      setResults(res.items);
-      setPacking(res.packingEstimate);
+      // 여러 장을 연속으로 찍어도 결과가 누적되도록 같은 품목은 큰 수량 기준으로 합칩니다.
+      setResults((prev) => {
+        const map = new Map(prev.map((p) => [p.id, p]));
+        for (const it of res.items) {
+          const old = map.get(it.id);
+          map.set(
+            it.id,
+            old
+              ? { ...old, qty: Math.max(old.qty, it.qty), confidence: Math.max(old.confidence, it.confidence) }
+              : it,
+          );
+        }
+        return Array.from(map.values());
+      });
+      setPacking((prev) =>
+        prev
+          ? {
+              clothesBox: Math.max(prev.clothesBox, res.packingEstimate.clothesBox),
+              largeBox: Math.max(prev.largeBox, res.packingEstimate.largeBox),
+              mediumBox: Math.max(prev.mediumBox, res.packingEstimate.mediumBox),
+              basket: Math.max(prev.basket, res.packingEstimate.basket),
+              vinyl: Math.max(prev.vinyl, res.packingEstimate.vinyl),
+            }
+          : res.packingEstimate,
+      );
       setRoomGuess(res.roomGuess);
       setRoomConf(res.roomConfidence);
       // AI가 인식한 공간이 5단계에서 고른 방에 있으면 자동으로 선택합니다.
@@ -191,8 +212,14 @@ export function AIScan() {
     }
   };
 
+  const addShot = (f: File, kind: "photo" | "video") => {
+    const url = URL.createObjectURL(f);
+    setPreview({ url, kind });
+    setShots((s) => [...s, { id: `s_${Date.now()}`, url, kind }]);
+  };
+
   const onPhoto = async (f: File) => {
-    setPreview({ url: URL.createObjectURL(f), kind: "photo" });
+    addShot(f, "photo");
     setBusy(true);
     try {
       const dataUrl = await fileToDataUrl(f);
@@ -204,7 +231,7 @@ export function AIScan() {
   };
 
   const onVideo = async (f: File) => {
-    setPreview({ url: URL.createObjectURL(f), kind: "video" });
+    addShot(f, "video");
     setBusy(true);
     try {
       // 일정 간격으로 프레임을 뽑아 분석하고, 같은 물건은 최대 수량 기준으로 합칩니다.
@@ -213,6 +240,7 @@ export function AIScan() {
     } catch {
       toast.error("동영상을 분석하지 못했습니다");
       setBusy(false);
+
     }
   };
 
