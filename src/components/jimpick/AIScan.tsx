@@ -527,8 +527,33 @@ export function AIScan() {
                 </button>
               </Card>
             ))}
+            ))}
+            <Card className="flex items-center gap-2">
+              <input
+                value={newItem}
+                onChange={(e) => setNewItem(e.target.value)}
+                placeholder="빠진 품목 직접 추가 (예: 안마의자)"
+                className="flex-1 min-w-0 px-3 min-h-11 rounded-xl border border-[#DFE6F2] bg-white text-sm focus:outline-none focus:border-[#287BFF]"
+              />
+              <button
+                onClick={() => {
+                  const name = newItem.trim();
+                  if (!name) return;
+                  tap("soft");
+                  setResults((prev) => [
+                    ...prev,
+                    { id: `ai_${Date.now()}`, name, qty: 1, confidence: 1, note: "직접 추가" },
+                  ]);
+                  setNewItem("");
+                }}
+                className="shrink-0 px-4 min-h-11 rounded-xl bg-[#0751D8] text-white text-sm font-bold"
+              >
+                추가
+              </button>
+            </Card>
           </div>
         )}
+
       </div>
 
       {dupAsk && (
