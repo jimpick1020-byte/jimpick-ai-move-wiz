@@ -2027,7 +2027,55 @@ export function SettingsScreen() {
             className="w-full px-4 py-3 rounded-xl border border-[#E7EBF2] bg-white text-sm min-h-24"
           />
         </Card>
+        <Card className="space-y-3">
+          <div className="font-bold">견적 단가 설정</div>
+          <div className="text-xs text-[#6B7280]">
+            여기서 저장한 단가로 모든 견적 금액이 자동 계산됩니다.
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="1톤 차량">
+              <MoneyInput value={pricing.truck1t} step={10000} onChange={(n) => setP({ truck1t: n })} />
+            </Field>
+            <Field label="5톤 차량">
+              <MoneyInput value={pricing.truck5t} step={10000} onChange={(n) => setP({ truck5t: n })} />
+            </Field>
+            <Field label="사다리차 1대">
+              <MoneyInput value={pricing.ladder} step={10000} onChange={(n) => setP({ ladder: n })} />
+            </Field>
+            <Field label="작업자 1인">
+              <MoneyInput value={pricing.worker} step={10000} onChange={(n) => setP({ worker: n })} />
+            </Field>
+            <Field label="주방 인력 1인">
+              <MoneyInput value={pricing.kitchenStaff} step={10000} onChange={(n) => setP({ kitchenStaff: n })} />
+            </Field>
+            <Field label="계단 1개층">
+              <MoneyInput value={pricing.stairPerFloor} step={1000} onChange={(n) => setP({ stairPerFloor: n })} />
+            </Field>
+            <Field label="기본 포함 거리 (km)">
+              <TextInput
+                type="number"
+                value={pricing.baseKm}
+                onChange={(e) => setP({ baseKm: Number(e.target.value) || 0 })}
+              />
+            </Field>
+            <Field label="초과 1km 단가">
+              <MoneyInput value={pricing.perKm} step={100} onChange={(n) => setP({ perKm: n })} />
+            </Field>
+          </div>
+          <button
+            onClick={() => {
+              tap("soft");
+              setPricing(DEFAULT_PRICING);
+              savePricing(DEFAULT_PRICING);
+              toast.success("기본 단가로 되돌렸습니다");
+            }}
+            className="text-xs text-[#6B7280] underline"
+          >
+            기본 단가로 되돌리기
+          </button>
+        </Card>
         <Card className="space-y-2 text-sm">
+
           <div className="font-bold text-base">구독 안내</div>
           <div>· 무료 체험 3일</div>
           <div>· 이후 월 22,000원 (부가세 포함)</div>
