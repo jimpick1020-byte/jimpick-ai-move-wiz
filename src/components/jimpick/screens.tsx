@@ -560,35 +560,34 @@ export function Step2() {
             <KakaoMap from={from} to={to} path={path} height={280} />
             {routeError && !routing ? (
               <div className="mt-3 rounded-xl bg-[#FFF1F1] border border-[#FFD4D4] p-3 text-center space-y-2">
-                <div className="text-xs font-semibold text-[#B91C1C]">
-                  거리 계산에 실패했습니다. 다시 계산을 눌러주세요.
-                </div>
+                <div className="text-xs font-semibold text-[#B91C1C] leading-relaxed">{routeError}</div>
                 <button
                   onClick={() => {
                     tap("click");
                     setTick((t) => t + 1);
                   }}
-                  className="px-4 py-2 rounded-xl bg-[#0751D8] text-white text-sm font-bold transition-transform active:scale-[0.97]"
+                  className="px-4 min-h-12 rounded-xl bg-[#0751D8] text-white text-sm font-bold transition-transform active:scale-[0.97]"
                 >
                   다시 계산
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 mt-3 text-center">
+              <div className="grid grid-cols-2 gap-3 mt-3 pb-1 text-center">
                 <div>
-                  <div className="text-xs text-[#6B7280]">실거리</div>
-                  <div className="text-lg font-bold">
-                    {routing ? "계산 중..." : to ? `${draft.distanceKm} km` : "-"}
+                  <div className="text-xs text-[#6B7280]">실거리 (도로 기준)</div>
+                  <div className="text-lg font-bold leading-7">
+                    {routing ? "계산 중..." : from && to && draft.distanceKm ? `${draft.distanceKm} km` : "-"}
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-[#6B7280]">예상 이동시간</div>
-                  <div className="text-lg font-bold">
-                    {routing ? "계산 중..." : to ? `${draft.durationMin} 분` : "-"}
+                  <div className="text-lg font-bold leading-7">
+                    {routing ? "계산 중..." : from && to && draft.durationMin ? `${draft.durationMin} 분` : "-"}
                   </div>
                 </div>
               </div>
             )}
+
           </Card>
         )}
       </div>
