@@ -58,14 +58,16 @@ function ScanStage({
       ) : (
         /* 3D 아이소메트릭 방 */
         <div className="absolute inset-0 flex items-center justify-center">
+          <div className="jp-float">
           <div
-            className="relative w-[150px] h-[110px] jp-float"
+            className="relative w-[150px] h-[110px]"
             style={{ transform: "rotateX(56deg) rotateZ(-45deg)", transformStyle: "preserve-3d" }}
           >
             <div className="absolute inset-0 rounded-md bg-gradient-to-br from-[#CFE2FF] to-[#9CC4FF] shadow-[0_20px_30px_-10px_rgba(8,103,232,0.5)]" />
             <div className="absolute left-3 top-3 w-14 h-10 rounded-sm bg-[#0867E8]/80" />
             <div className="absolute right-4 bottom-4 w-10 h-10 rounded-sm bg-[#4A94FF]/80" />
             <div className="absolute right-5 top-4 w-8 h-6 rounded-sm bg-[#0751D8]/70" />
+          </div>
           </div>
         </div>
       )}

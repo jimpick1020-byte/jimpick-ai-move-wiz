@@ -837,7 +837,7 @@ export function Step5() {
     const first = draft.rooms.find((r) => selected.includes(r.id));
     if (!first) return toast.error("방을 하나 이상 선택하세요");
     setCurrentRoom(first.id);
-    setScreen("step6");
+    setScreen("scan");
   };
 
 
@@ -905,7 +905,7 @@ export function Step5() {
         </div>
       )}
       <BottomButtonBar>
-        <PrimaryButton onClick={next}>다음: 품목 입력</PrimaryButton>
+        <PrimaryButton onClick={next}>다음: AI 공간 스캔</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
@@ -989,7 +989,7 @@ export function Step6() {
   };
   return (
     <MobileShell>
-      <TopBar title="6단계. 품목 입력" onBack={() => setScreen("step5")} />
+      <TopBar title="6단계. 품목 입력" onBack={() => setScreen("scan")} />
       <div className="p-4 space-y-3 flex-1 overflow-auto">
         <div className="flex gap-2 overflow-auto -mx-1 px-1">
           {draft.rooms.map((r) => (
@@ -1037,11 +1037,11 @@ export function Step6() {
           />
         </div>
         <button
-          onClick={() => setScreen("ai")}
+          onClick={() => setScreen("scan")}
           className="w-full py-3 rounded-2xl bg-white border-2 border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2 text-sm"
         >
           <Camera className="w-5 h-5" />
-          <Video className="w-5 h-5" /> AI 사진·동영상 인식
+          <Video className="w-5 h-5" /> AI 공간 스캔으로 품목 인식
         </button>
 
         <div className="grid grid-cols-2 gap-3">
