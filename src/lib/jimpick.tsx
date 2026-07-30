@@ -311,7 +311,8 @@ export function newEstimate(): Estimate {
     workers: 2,
     kitchenStaff: 1,
     truck1t: 0,
-    truck5t: 1,
+    truck5t: 0,
+
     ladder: 0,
     ladderFrom: false,
     ladderTo: false,
