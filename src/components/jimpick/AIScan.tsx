@@ -243,33 +243,52 @@ export function AIScan() {
     merge("sum");
   };
 
+  /** 숨은 file input을 코드로 열어 카메라/갤러리를 호출합니다 */
+  const openPicker = (ref: React.RefObject<HTMLInputElement | null>) => {
+    tap("click");
+    const el = ref.current;
+    if (!el) return;
+    try {
+      el.click();
+    } catch (err) {
+      console.error("[AIScan] file input 실행 실패", err);
+      toast.error("카메라 사용 권한을 허용해 주시거나 [사진 불러오기]를 이용해 주세요");
+    }
+    // 카메라 권한이 거부되면 파일 선택 없이 포커스만 돌아옵니다.
+    const onFocus = () => {
+      window.removeEventListener("focus", onFocus);
+      setTimeout(() => {
+        if (el.files && el.files.length === 0 && el.hasAttribute("capture")) {
+          toast.info("카메라 사용 권한을 허용해 주시거나 [사진 불러오기]를 이용해 주세요");
+        }
+      }, 800);
+    };
+    window.addEventListener("focus", onFocus);
+  };
+
+  const handleChange =
+    (onFile: (f: File) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const f = e.target.files?.[0];
+      if (f) onFile(f);
+      e.target.value = "";
+    };
+
   const UploadBtn = ({
     label,
     icon: Icon,
-    accept,
-    capture,
-    onFile,
+    onClick,
   }: {
     label: string;
     icon: typeof Camera;
-    accept: string;
-    capture?: boolean;
-    onFile: (f: File) => void;
+    onClick: () => void;
   }) => (
-    <label className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white border border-[#DFE6F2] font-bold text-sm text-[#0751D8] shadow-[0_10px_20px_-12px_rgba(8,103,232,0.55),inset_0_1px_0_#fff] cursor-pointer transition-transform active:scale-[0.97]">
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white border border-[#DFE6F2] font-bold text-sm text-[#0751D8] shadow-[0_10px_20px_-12px_rgba(8,103,232,0.55),inset_0_1px_0_#fff] cursor-pointer transition-transform active:scale-[0.97]"
+    >
       <Icon className="w-5 h-5" /> {label}
-      <input
-        type="file"
-        accept={accept}
-        {...(capture ? { capture: "environment" as const } : {})}
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) onFile(f);
-          e.target.value = "";
-        }}
-      />
-    </label>
+    </button>
   );
 
   const packRows = packing
