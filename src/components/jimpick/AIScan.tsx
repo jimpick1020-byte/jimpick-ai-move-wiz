@@ -374,6 +374,63 @@ export function AIScan() {
           <UploadBtn label="동영상 불러오기" icon={Film} onClick={() => openPicker(videoLibRef)} />
         </div>
 
+        {shots.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-bold">촬영 목록 {shots.length}장</div>
+              <button
+                onClick={() => {
+                  tap("soft");
+                  setShots([]);
+                  setPreview(null);
+                  setResults([]);
+                  setPacking(null);
+                  setRoomGuess(null);
+                  setRoomConf(null);
+                }}
+                className="text-xs font-bold text-[#EF4444]"
+              >
+                전체 지우고 다시 촬영
+              </button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {shots.map((s) => (
+                <div key={s.id} className="relative shrink-0">
+                  <button
+                    onClick={() => {
+                      tap("soft");
+                      setPreview({ url: s.url, kind: s.kind });
+                    }}
+                    className={`w-20 h-20 rounded-xl overflow-hidden border-2 ${
+                      preview?.url === s.url ? "border-[#0751D8]" : "border-[#E7EBF2]"
+                    }`}
+                  >
+                    {s.kind === "video" ? (
+                      <video src={s.url} className="w-full h-full object-cover" muted />
+                    ) : (
+                      <img src={s.url} alt="촬영본" className="w-full h-full object-cover" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      tap("soft");
+                      setShots((list) => {
+                        const next = list.filter((x) => x.id !== s.id);
+                        setPreview(next.length ? { url: next[next.length - 1].url, kind: next[next.length - 1].kind } : null);
+                        return next;
+                      });
+                    }}
+                    aria-label="촬영본 삭제"
+                    className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#EF4444] text-white flex items-center justify-center shadow"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
 
         <Card>
           <div className="flex items-center justify-between">
