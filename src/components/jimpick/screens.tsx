@@ -1993,7 +1993,15 @@ export function Customers() {
 // ============ Settings ============
 export function SettingsScreen() {
   const { logout, setScreen } = useApp();
+  const [pricing, setPricing] = useState<Pricing>(DEFAULT_PRICING);
+  useEffect(() => setPricing(getPricing()), []);
+  const setP = (patch: Partial<Pricing>) => {
+    const next = { ...pricing, ...patch };
+    setPricing(next);
+    savePricing(next);
+  };
   return (
+
     <MobileShell>
       <TopBar title="설정" />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
