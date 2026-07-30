@@ -1307,7 +1307,7 @@ export function AIRecognition() {
             </div>
             {shown.map((r, i) => (
               <Card key={r.id} className="flex items-center gap-3">
-                <Art3D src={ITEM_IMG[r.id]} alt={r.name} size={48} />
+                <Art3D src={ITEM_IMG[r.id] || guessItemImg(r.name) || FALLBACK_IMG} alt={r.name} size={48} />
                 <div className="flex-1">
                   <div className="font-semibold">{r.name}</div>
                   <div className="text-xs text-[#6B7280]">
