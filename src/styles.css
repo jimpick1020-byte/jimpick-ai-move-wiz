@@ -172,3 +172,13 @@
 @utility jp-float {
   animation: jp-float 3.6s ease-in-out infinite;
 }
+
+@keyframes jp-scan {
+  0% { top: 6%; opacity: 0.2; }
+  50% { opacity: 1; }
+  100% { top: 92%; opacity: 0.2; }
+}
+
+@utility jp-scanline {
+  animation: jp-scan 2.2s ease-in-out infinite;
+}

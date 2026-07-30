@@ -119,6 +119,7 @@ export const ITEM_CATALOG: { id: string; name: string; cat: string; emoji: strin
   { id: "midbox", name: "중박스", cat: "잔짐", emoji: "🗃️" },
   { id: "basket", name: "바구니", cat: "잔짐", emoji: "🧺" },
   { id: "bag", name: "잡화 가방", cat: "잔짐", emoji: "👜" },
+  { id: "vinyl", name: "비닐 포장", cat: "잔짐", emoji: "🛍️" },
 ];
 export const DEFAULT_ROOMS = ["안방", "작은방", "입구방", "거실", "부엌", "베란다"];
 /** 옵션 품목은 기본값 없이 사용자가 직접 추가합니다. */
@@ -260,6 +261,7 @@ export type Screen =
   | "step4"
   | "step5"
   | "step6"
+  | "scan"
   | "ai"
   | "options"
   | "result"
