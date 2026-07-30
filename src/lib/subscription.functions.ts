@@ -65,11 +65,13 @@ export const subscribePlan = createServerFn({ method: "POST" })
     z.object({ plan: z.enum(["free", "basic", "pro"]), method: z.enum(["card", "transfer"]).default("card") }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const plan = PLANS.find((p) => p.id === data.plan)!;
+    const plan = PLANS.find((p) => p.id === data.plan) ?? PLANS[PLANS.length - 1];
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const now = new Date();
-    const end = new Date(now.getTime() + 30 * 86400000);
+    // 무료 체험은 3일, 유료 구독은 30일 주기
+    const end = new Date(now.getTime() + (plan.price === 0 ? TRIAL_DAYS : 30) * 86400000);
+
 
     const { error: subErr } = await supabaseAdmin.from("subscriptions").upsert(
       {
