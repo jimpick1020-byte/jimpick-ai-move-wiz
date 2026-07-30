@@ -106,20 +106,40 @@ export function KakaoMap({
   if (ready === false) {
     return (
       <div
-        className="rounded-xl bg-gradient-to-br from-[#DDE9FF] to-[#EEF4FF] flex items-center justify-center text-xs text-[#6B7280] text-center px-4"
-        style={{ height }}
+        className="rounded-xl border border-[#FFD9A8] bg-[#FFF8EE] p-4 text-xs text-[#92400E] flex flex-col justify-center gap-1"
+        style={{ minHeight: height }}
       >
-        카카오 지도를 불러오지 못했습니다. 카카오 개발자센터에서 현재 도메인이 등록되어 있는지 확인해 주세요.
+        <div className="font-bold text-sm">지도를 표시할 수 없습니다</div>
+        <div>카카오 지도 키가 없거나 도메인이 등록되지 않았습니다.</div>
+        <div>
+          카카오 개발자센터 &gt; 내 애플리케이션 &gt; 플랫폼 &gt; Web 사이트 도메인에{" "}
+          <span className="font-semibold break-all">https://jimpick-ai-move-wiz.lovable.app</span> 을
+          등록해 주세요.
+        </div>
       </div>
     );
   }
 
-
   return (
-    <div
-      ref={ref}
-      className="rounded-xl overflow-hidden border border-[#E7EBF2]"
-      style={{ height }}
-    />
+    <div className="relative">
+      <div
+        ref={ref}
+        className="rounded-xl overflow-hidden border border-[#E7EBF2]"
+        style={{ height }}
+      />
+      {ready === null && (
+        <div
+          className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#EEF4FF] to-[#F5F7FB] animate-pulse flex items-center justify-center text-xs font-semibold text-[#6B7280]"
+        >
+          지도를 불러오는 중입니다
+        </div>
+      )}
+      {ready && from && !to && (
+        <div className="absolute bottom-2 left-2 right-2 rounded-lg bg-white/95 border border-[#E7EBF2] px-3 py-2 text-[11px] font-semibold text-[#0751D8] text-center shadow-sm">
+          도착지를 선택하면 이동 경로가 표시됩니다
+        </div>
+      )}
+    </div>
   );
 }
+
