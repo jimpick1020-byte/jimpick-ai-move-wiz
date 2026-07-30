@@ -1557,22 +1557,23 @@ export function Result() {
   useEffect(() => {
     if (draft.total !== total) updateDraft({ total });
   }, [total, draft.total, updateDraft]);
+  const summaryText = () =>
+    `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${formatMoveDateTime(draft.moveDate, draft.moveTime)}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
   const sendSMS = () => {
-    const msg = `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${draft.moveDate} ${draft.moveTime}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
-    if (confirm(`아래 문자를 발송하시겠습니까?\n\n${msg}`)) {
-      tap("success");
-      toast.success("문자 발송 완료 (데모)");
-    }
+    tap("soft");
+    void navigator.clipboard?.writeText(summaryText()).catch(() => {});
+    toast("문자 발송은 준비 중인 기능입니다", {
+      description: "견적 내용을 복사했습니다. 문자 앱에 붙여넣어 보내주세요.",
+    });
   };
   const sendKakao = () => {
-    const msg = `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${draft.moveDate} ${draft.moveTime}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
-    tap("success");
-    try {
-      void navigator.clipboard?.writeText(msg);
-    } catch {}
-    window.open(`https://sharer.kakao.com/talk/friends/picker/link?text=${encodeURIComponent(msg)}`, "_blank");
-    toast.success("카카오톡으로 견적 내용을 전달했습니다 (내용 복사됨)");
+    tap("soft");
+    void navigator.clipboard?.writeText(summaryText()).catch(() => {});
+    toast("카카오톡 발송은 준비 중인 기능입니다", {
+      description: "견적 내용을 복사했습니다. 공유 링크와 함께 전달해 주세요.",
+    });
   };
+
   return (
     <MobileShell>
       <TopBar title="견적 결과" onBack={() => setScreen("options")} />
