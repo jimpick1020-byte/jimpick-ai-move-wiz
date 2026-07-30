@@ -131,7 +131,10 @@ export function AIScan() {
   const [targetRoomId, setTargetRoomId] = useState<string>(currentRoom?.id ?? "");
   const [picking, setPicking] = useState(false);
   const [dupAsk, setDupAsk] = useState<string[] | null>(null);
+  const [shots, setShots] = useState<{ id: string; url: string; kind: "photo" | "video" }[]>([]);
   const [preview, setPreview] = useState<{ url: string; kind: "photo" | "video" } | null>(null);
+  const [newItem, setNewItem] = useState("");
+
   const startedAt = useRef<number>(0);
   const photoCamRef = useRef<HTMLInputElement>(null);
   const photoLibRef = useRef<HTMLInputElement>(null);
