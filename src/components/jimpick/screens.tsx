@@ -83,8 +83,10 @@ export function Splash() {
       >
         <div className="text-center">
           <div className="flex items-baseline justify-center gap-2">
-            <span className="text-5xl font-black text-[#0751D8] tracking-tight">JIMPICK</span>
-            <span className="text-lg font-bold text-white bg-[#0751D8] rounded-md px-2 py-0.5">7.0</span>
+            <span className="text-6xl font-black text-[#0751D8] tracking-tight drop-shadow-[0_4px_10px_rgba(7,81,216,0.25)]">
+              JIMPICK
+            </span>
+            <span className="text-xl font-bold text-white bg-[#0751D8] rounded-lg px-2.5 py-0.5">7.0</span>
           </div>
           <div className="text-lg font-bold text-[#111827] mt-3">AI 이사 견적 앱</div>
           <div className="text-sm text-[#6B7280] mt-1">이사 견적, 더 쉽고 정확하게!</div>
@@ -103,8 +105,12 @@ export function Splash() {
             </div>
           ))}
         </div>
-        <div className="mt-auto pt-6">
-          <img src={truckImg} alt="JIMPICK 트럭" className="w-full max-w-[340px] jp-float" />
+        <div className="mt-auto pt-4 pb-1">
+          <img
+            src={truckImg}
+            alt="JIMPICK 트럭"
+            className="w-full max-w-[320px] jp-float [image-rendering:auto]"
+          />
         </div>
         <button
           onClick={(e) => {
@@ -112,10 +118,10 @@ export function Splash() {
             tap("click");
             setScreen(loggedIn ? "home" : "login");
           }}
-          className="w-full mt-4 py-4 rounded-2xl text-white text-lg font-black tracking-tight shadow-[0_14px_30px_-10px_rgba(121,40,202,0.6)] transition-transform active:translate-y-[2px]"
+          className="w-full mt-2 mb-1 py-5 rounded-2xl text-white text-lg font-black tracking-tight shadow-[0_14px_30px_-10px_rgba(121,40,202,0.6)] transition-transform active:translate-y-[2px]"
           style={{ background: "linear-gradient(90deg,#ff007f 0%,#7928ca 50%,#00dfd8 100%)" }}
         >
-          AI 견적 바로 시작하기
+          견적 시작하기
         </button>
       </div>
 
