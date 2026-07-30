@@ -1618,7 +1618,7 @@ export function Result() {
                 <Field label="기본 운송료">
                   <MoneyInput
                     value={
-                      draft.transportOverride ?? (calc.parts.find((p) => p.label === "기본 운송료")?.amount ?? 0)
+                      draft.transportOverride ?? transportAuto
                     }
                     onChange={(n) => updateDraft({ transportOverride: n })}
                     step={10000}
