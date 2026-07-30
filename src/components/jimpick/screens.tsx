@@ -475,7 +475,7 @@ export function Step2() {
   const { draft, updateDraft, setScreen } = useApp();
   const [path, setPath] = useState<{ x: number; y: number }[] | null>(null);
   const [routing, setRouting] = useState(false);
-  const [routeError, setRouteError] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
   const from = draft.fromX && draft.fromY ? { x: draft.fromX, y: draft.fromY } : null;
@@ -483,26 +483,31 @@ export function Step2() {
   const hasBoth = Boolean(draft.fromAddress && draft.toAddress);
 
   useEffect(() => {
+    // 출발지·도착지를 모두 선택하기 전에는 계산하지 않습니다.
     if (!from || !to) return;
     let cancelled = false;
     setRouting(true);
-    setRouteError(false);
+    setRouteError(null);
+    setPath(null);
     (async () => {
       try {
         const res = await getRoute({
           data: { originX: from.x, originY: from.y, destX: to.x, destY: to.y },
         });
         if (cancelled) return;
-        // 0km / 0분이 표시되지 않도록 실패로 처리합니다.
-        if (!res.distanceKm || !res.durationMin) {
-          setRouteError(true);
+        if (!res.ok || !res.distanceKm) {
+          // 실패 시 직선거리를 정상 거리처럼 표시하지 않습니다.
+          updateDraft({ distanceKm: 0, durationMin: 0 });
+          setRouteError(res.error ?? "도로 경로를 계산할 수 없습니다. 주소를 다시 확인해 주세요.");
           return;
         }
-        setPath(res.path ?? null);
+        setPath(res.path.length > 1 ? res.path : null);
         updateDraft({ distanceKm: res.distanceKm, durationMin: res.durationMin });
-        if (res.approx) toast.info("실제 경로를 불러오지 못해 예상 거리로 계산했습니다.");
       } catch {
-        if (!cancelled) setRouteError(true);
+        if (!cancelled) {
+          updateDraft({ distanceKm: 0, durationMin: 0 });
+          setRouteError("도로 경로를 계산할 수 없습니다. 주소를 다시 확인해 주세요.");
+        }
       } finally {
         if (!cancelled) setRouting(false);
       }
@@ -511,6 +516,7 @@ export function Step2() {
       cancelled = true;
     };
   }, [from?.x, from?.y, to?.x, to?.y, tick]);
+
 
   return (
     <MobileShell>
