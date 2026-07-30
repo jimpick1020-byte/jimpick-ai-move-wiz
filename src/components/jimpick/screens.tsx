@@ -1087,16 +1087,12 @@ export function Step6() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-                {ITEM_IMG[it.id] || guessItemImg(it.name) ? (
-                  <Art3D
-                    src={ITEM_IMG[it.id] || guessItemImg(it.name)!}
-                    alt={it.name}
-                    size={72}
-                    className="mb-2"
-                  />
-                ) : (
-                  <div className="h-[72px] flex items-center justify-center text-4xl mb-2">{it.emoji}</div>
-                )}
+                <Art3D
+                  src={ITEM_IMG[it.id] || guessItemImg(it.name) || FALLBACK_IMG}
+                  alt={it.name}
+                  size={72}
+                  className="mb-2"
+                />
                 <div className="font-bold text-sm mb-2">{it.name}</div>
                 <div className="flex justify-center">
                   <Counter value={qty} onChange={(n) => setQty(it.id, n)} min={0} max={20} />
