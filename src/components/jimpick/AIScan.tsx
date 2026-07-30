@@ -248,7 +248,7 @@ export function AIScan() {
   };
 
   /** 숨은 file input을 코드로 열어 카메라/갤러리를 호출합니다 */
-  const openPicker = (ref: React.RefObject<HTMLInputElement | null>) => {
+  const openPicker = (ref: { current: HTMLInputElement | null }) => {
     tap("click");
     const el = ref.current;
     if (!el) return;
@@ -271,7 +271,7 @@ export function AIScan() {
   };
 
   const handleChange =
-    (onFile: (f: File) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    (onFile: (f: File) => void) => (e: { target: HTMLInputElement }) => {
       const f = e.target.files?.[0];
       if (f) onFile(f);
       e.target.value = "";
