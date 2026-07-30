@@ -13,33 +13,35 @@ export interface Plan {
   aiLimit: number;
 }
 
-/** 업체용 월 구독 요금제 */
+/** 무료 체험 기간(일) */
+export const TRIAL_DAYS = 3;
+
+/** 업체용 월 구독 요금제 (VAT 포함 월 22,000원 단일 요금제) */
 export const PLANS: Plan[] = [
   {
     id: "free",
     name: "무료 체험",
     price: 0,
-    desc: "14일 동안 모든 기능 체험",
-    features: ["견적 작성 무제한", "AI 인식 월 10회", "문자·카카오톡 발송"],
-    aiLimit: 10,
-  },
-  {
-    id: "basic",
-    name: "베이직",
-    price: 39000,
-    desc: "1인 사업자·소규모 업체",
-    features: ["견적 작성 무제한", "AI 인식 월 200회", "카카오맵 실거리 계산", "고객 관리"],
-    aiLimit: 200,
+    desc: `가입 후 ${TRIAL_DAYS}일 동안 모든 기능 체험`,
+    features: ["견적 작성 무제한", "AI 공간 스캔 체험", "카카오맵 실거리 계산"],
+    aiLimit: 20,
   },
   {
     id: "pro",
-    name: "프로",
-    price: 89000,
-    desc: "팀 단위 운영 업체",
-    features: ["베이직 전체 기능", "AI 인식 무제한", "직원 계정 5개", "견적서 브랜딩", "우선 지원"],
+    name: "업체 구독",
+    price: 22000,
+    desc: "월 22,000원 (부가세 포함) · 약정 없음",
+    features: [
+      "견적 작성 무제한",
+      "AI 공간 스캔 무제한",
+      "카카오맵 실거리·경로 계산",
+      "고객 관리 · 견적 통계",
+      "고객용 공유 링크",
+    ],
     aiLimit: 999999,
   },
 ];
+
 
 export const getMyAccount = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
