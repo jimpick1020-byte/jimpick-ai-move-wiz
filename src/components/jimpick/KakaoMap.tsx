@@ -9,16 +9,17 @@ declare global {
 
 let loadPromise: Promise<boolean> | null = null;
 
-async function loadKakaoSdk(): Promise<boolean> {
-  if (typeof window === "undefined") return false;
-  if (window.kakao?.maps) return true;
+/** SDK 스크립트를 동적으로 삽입하고 kakao.maps.load() 콜백까지 완료되면 resolve */
+function loadKakaoSdk(): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if (window.kakao?.maps?.Map) return Promise.resolve(true);
   if (loadPromise) return loadPromise;
 
   loadPromise = (async () => {
     const { key } = await getKakaoJsKey();
-    if (!key) return false;
-    const existing = document.querySelector<HTMLScriptElement>("script[data-kakao-sdk]");
-    if (!existing) {
+    if (!key) throw new Error("no kakao js key");
+
+    if (!document.querySelector("script[data-kakao-sdk]")) {
       await new Promise<void>((resolve, reject) => {
         const s = document.createElement("script");
         s.dataset.kakaoSdk = "1";
@@ -29,10 +30,17 @@ async function loadKakaoSdk(): Promise<boolean> {
         document.head.appendChild(s);
       });
     }
+
+    // 스크립트 태그가 이미 있어도 아직 평가 전일 수 있으므로 대기
+    for (let i = 0; i < 40 && !window.kakao?.maps; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    if (!window.kakao?.maps) throw new Error("kakao namespace missing");
+
+    // 반드시 load() 콜백 안에서 지도 API 사용 가능
     await new Promise<void>((resolve) => window.kakao.maps.load(() => resolve()));
     return true;
   })().catch(() => {
-    // 실패 시 다음 렌더에서 다시 시도할 수 있도록 초기화
     loadPromise = null;
     return false;
   });
@@ -50,7 +58,7 @@ export function KakaoMap({
   from,
   to,
   path,
-  height = 200,
+  height = 300,
 }: {
   from?: LatLng | null;
   to?: LatLng | null;
@@ -58,43 +66,55 @@ export function KakaoMap({
   height?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
+  const overlaysRef = useRef<any[]>([]);
   const [ready, setReady] = useState<boolean | null>(null);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      let ok = await loadKakaoSdk();
-      if (!ok && !cancelled) {
-        // 일시적 로드 실패 시 자동 재시도
-        await new Promise((r) => setTimeout(r, 800));
-        ok = await loadKakaoSdk();
-      }
+
+    loadKakaoSdk().then((ok) => {
       if (cancelled) return;
       setReady(ok);
-      if (!ok || !ref.current) {
-        if (!ok && attempt < 2) setTimeout(() => !cancelled && setAttempt((a) => a + 1), 1500);
-        return;
-      }
+      if (!ok || !ref.current) return;
 
       const kakao = window.kakao;
       const center = from ?? to ?? { x: 126.978, y: 37.5665 };
-      const map = new kakao.maps.Map(ref.current, {
-        center: new kakao.maps.LatLng(center.y, center.x),
-        level: 6,
+
+      // 지도 인스턴스는 한 번만 생성하고 이후에는 갱신만
+      if (!mapRef.current) {
+        mapRef.current = new kakao.maps.Map(ref.current, {
+          center: new kakao.maps.LatLng(center.y, center.x),
+          level: 6,
+        });
+      }
+      const map = mapRef.current;
+      // 컨테이너 크기 확정 후 재계산 (0px 렌더 방지)
+      requestAnimationFrame(() => {
+        map.relayout();
+        map.setCenter(new kakao.maps.LatLng(center.y, center.x));
       });
 
+      // 이전 마커/오버레이/경로 정리
+      overlaysRef.current.forEach((o) => o.setMap(null));
+      overlaysRef.current = [];
+
       const bounds = new kakao.maps.LatLngBounds();
+      let hasPoint = false;
+
       const add = (p: LatLng, label: string, color: string) => {
         const pos = new kakao.maps.LatLng(p.y, p.x);
-        new kakao.maps.Marker({ map, position: pos });
-        new kakao.maps.CustomOverlay({
+        const marker = new kakao.maps.Marker({ map, position: pos });
+        const overlay = new kakao.maps.CustomOverlay({
           map,
           position: pos,
           yAnchor: 2.1,
           content: `<div style="background:${color};color:#fff;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2)">${label}</div>`,
         });
+        overlaysRef.current.push(marker, overlay);
         bounds.extend(pos);
+        hasPoint = true;
       };
       if (from) add(from, "출발", "#0751D8");
       if (to) add(to, "도착", "#EF4444");
@@ -102,7 +122,7 @@ export function KakaoMap({
       const line = path && path.length > 1 ? path : from && to ? [from, to] : null;
       if (line) {
         const latlngs = line.map((p) => new kakao.maps.LatLng(p.y, p.x));
-        new kakao.maps.Polyline({
+        const poly = new kakao.maps.Polyline({
           map,
           path: latlngs,
           strokeWeight: 5,
@@ -110,28 +130,32 @@ export function KakaoMap({
           strokeOpacity: 0.9,
           strokeStyle: path && path.length > 1 ? "solid" : "shortdash",
         });
+        overlaysRef.current.push(poly);
         for (const ll of latlngs) bounds.extend(ll);
-        map.setBounds(bounds, 30, 30, 30, 30);
+        hasPoint = true;
       }
-    })();
+
+      if (hasPoint) {
+        requestAnimationFrame(() => {
+          map.relayout();
+          if (from && to) map.setBounds(bounds, 30, 30, 30, 30);
+        });
+      }
+    });
+
     return () => {
       cancelled = true;
     };
   }, [from?.x, from?.y, to?.x, to?.y, path?.length, attempt]);
 
-
-
   return (
-    <div className="relative">
+    <div className="relative w-full" style={{ height, minHeight: height }}>
       <div
         ref={ref}
-        className="rounded-xl overflow-hidden border border-[#E7EBF2]"
-        style={{ height }}
+        className="w-full h-full min-h-[300px] rounded-xl overflow-hidden border border-[#E7EBF2] bg-[#F5F7FB]"
       />
       {ready === null && (
-        <div
-          className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#EEF4FF] to-[#F5F7FB] animate-pulse flex items-center justify-center text-xs font-semibold text-[#6B7280]"
-        >
+        <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#EEF4FF] to-[#F5F7FB] animate-pulse flex items-center justify-center text-xs font-semibold text-[#6B7280]">
           지도를 불러오는 중입니다
         </div>
       )}
@@ -157,4 +181,5 @@ export function KakaoMap({
     </div>
   );
 }
+
 
