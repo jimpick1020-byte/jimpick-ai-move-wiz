@@ -332,6 +332,8 @@ export function newEstimate(): Estimate {
     storageStart: "",
     storageEnd: "",
     storageDaily: 20000,
+    storageEnabled: false,
+
     transportOverride: null,
     totalOverride: null,
     total: 0,
