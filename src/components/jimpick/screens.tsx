@@ -277,7 +277,7 @@ export function Step1() {
   return (
     <MobileShell>
       <TopBar title="1단계. 고객 정보 입력" onBack={() => setScreen("home")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto">
+      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         <Field label="고객명">
           <TextInput
             placeholder="홍길동"
@@ -469,6 +469,8 @@ export function Step2() {
   const { draft, updateDraft, setScreen } = useApp();
   const [path, setPath] = useState<{ x: number; y: number }[] | null>(null);
   const [routing, setRouting] = useState(false);
+  const [routeError, setRouteError] = useState(false);
+  const [tick, setTick] = useState(0);
 
   const from = draft.fromX && draft.fromY ? { x: draft.fromX, y: draft.fromY } : null;
   const to = draft.toX && draft.toY ? { x: draft.toX, y: draft.toY } : null;
@@ -478,17 +480,23 @@ export function Step2() {
     if (!from || !to) return;
     let cancelled = false;
     setRouting(true);
+    setRouteError(false);
     (async () => {
       try {
         const res = await getRoute({
           data: { originX: from.x, originY: from.y, destX: to.x, destY: to.y },
         });
         if (cancelled) return;
+        // 0km / 0분이 표시되지 않도록 실패로 처리합니다.
+        if (!res.distanceKm || !res.durationMin) {
+          setRouteError(true);
+          return;
+        }
         setPath(res.path ?? null);
         updateDraft({ distanceKm: res.distanceKm, durationMin: res.durationMin });
         if (res.approx) toast.info("실제 경로를 불러오지 못해 예상 거리로 계산했습니다.");
       } catch {
-        if (!cancelled) toast.error("경로를 계산하지 못했습니다.");
+        if (!cancelled) setRouteError(true);
       } finally {
         if (!cancelled) setRouting(false);
       }
@@ -496,12 +504,12 @@ export function Step2() {
     return () => {
       cancelled = true;
     };
-  }, [from?.x, from?.y, to?.x, to?.y]);
+  }, [from?.x, from?.y, to?.x, to?.y, tick]);
 
   return (
     <MobileShell>
       <TopBar title="2단계. 주소 검색" onBack={() => setScreen("step1")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto">
+      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         <AddressSearch
           label="출발지"
           value={draft.fromAddress}
@@ -538,20 +546,37 @@ export function Step2() {
           <Card>
             <div className="font-bold mb-2">경로 안내</div>
             <KakaoMap from={from} to={to} path={path} height={180} />
-            <div className="grid grid-cols-2 gap-3 mt-3 text-center">
-              <div>
-                <div className="text-xs text-[#6B7280]">실거리</div>
-                <div className="text-lg font-bold">
-                  {routing ? "계산 중..." : `${draft.distanceKm} km`}
+            {routeError && !routing ? (
+              <div className="mt-3 rounded-xl bg-[#FFF1F1] border border-[#FFD4D4] p-3 text-center space-y-2">
+                <div className="text-xs font-semibold text-[#B91C1C]">
+                  거리 계산에 실패했습니다. 다시 계산을 눌러주세요.
+                </div>
+                <button
+                  onClick={() => {
+                    tap("click");
+                    setTick((t) => t + 1);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-[#0751D8] text-white text-sm font-bold transition-transform active:scale-[0.97]"
+                >
+                  다시 계산
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 mt-3 text-center">
+                <div>
+                  <div className="text-xs text-[#6B7280]">실거리</div>
+                  <div className="text-lg font-bold">
+                    {routing ? "계산 중..." : to ? `${draft.distanceKm} km` : "-"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-[#6B7280]">예상 이동시간</div>
+                  <div className="text-lg font-bold">
+                    {routing ? "계산 중..." : to ? `${draft.durationMin} 분` : "-"}
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="text-xs text-[#6B7280]">예상 이동시간</div>
-                <div className="text-lg font-bold">
-                  {routing ? "계산 중..." : `${draft.durationMin} 분`}
-                </div>
-              </div>
-            </div>
+            )}
           </Card>
         )}
       </div>
@@ -585,7 +610,7 @@ export function Step3() {
   return (
     <MobileShell>
       <TopBar title="3단계. 작업 조건" onBack={() => setScreen("step2")} />
-      <div className="p-5 space-y-5 flex-1 overflow-auto">
+      <div className="p-5 space-y-5 flex-1 overflow-auto pb-24">
         <Field label="작업 환경 (중복 선택 가능)">
           <div className="grid grid-cols-2 gap-3">
             <Card
@@ -701,7 +726,7 @@ export function Step4() {
   return (
     <MobileShell>
       <TopBar title="4단계. 차량 선택" onBack={() => setScreen("step3")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto">
+      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         {vehicles.map((v) => (
           <Card key={v.key} selected={v.val > 0}>
             <div className="flex items-center justify-between">
@@ -844,7 +869,7 @@ export function Step5() {
   return (
     <MobileShell>
       <TopBar title="5단계. 방 선택" onBack={() => setScreen("step4")} />
-      <div className="p-5 space-y-3 flex-1 overflow-auto">
+      <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
         <div className="grid grid-cols-2 gap-3">
           {draft.rooms.map((r) => {
             const sel = selected.includes(r.id);
@@ -990,8 +1015,8 @@ export function Step6() {
   return (
     <MobileShell>
       <TopBar title="6단계. 품목 입력" onBack={() => setScreen("scan")} />
-      <div className="p-4 space-y-3 flex-1 overflow-auto">
-        <div className="flex gap-2 overflow-auto -mx-1 px-1">
+      <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
+        <div className="flex gap-2 overflow-x-auto overflow-y-visible -mx-4 px-4 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {draft.rooms.map((r) => (
             <button
               key={r.id}
@@ -1007,7 +1032,7 @@ export function Step6() {
             </button>
           ))}
         </div>
-        <div className="flex gap-2 overflow-auto -mx-1 px-1">
+        <div className="flex gap-2 overflow-x-auto overflow-y-visible -mx-4 px-4 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 
 
           {CATEGORIES.filter((c) => c !== "전체").map((c) => (
@@ -1162,7 +1187,7 @@ export function AIRecognition() {
   return (
     <MobileShell>
       <TopBar title="AI 사진·동영상 인식" onBack={() => setScreen("step6")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto">
+      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         {(videoUrl || photoUrl) && (
           <Card className="py-4">
             {videoUrl ? (
@@ -1346,7 +1371,7 @@ export function OptionsScreen() {
   return (
     <MobileShell>
       <TopBar title="옵션·보관료 입력" onBack={() => setScreen("step6")} />
-      <div className="p-5 space-y-3 flex-1 overflow-auto">
+      <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
         {draft.options.length === 0 && (
           <div className="text-center text-[#6B7280] py-10 text-sm">
             추가된 옵션 품목이 없습니다. 아래에서 직접 추가해 주세요.
@@ -1513,7 +1538,7 @@ export function Result() {
   return (
     <MobileShell>
       <TopBar title="견적 결과" onBack={() => setScreen("options")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto">
+      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         <div
           className="rounded-2xl p-6 text-white text-center"
           style={{ background: "linear-gradient(135deg, #0A2A6C 0%, #0751D8 100%)" }}
@@ -1786,7 +1811,7 @@ export function History() {
   return (
     <MobileShell>
       <TopBar title="견적 내역" />
-      <div className="p-4 space-y-3 flex-1 overflow-auto">
+      <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
         <TextInput
           placeholder="고객명·연락처·날짜 검색"
           value={q}
@@ -1859,7 +1884,7 @@ export function Customers() {
   return (
     <MobileShell>
       <TopBar title="고객 관리" />
-      <div className="p-4 space-y-3 flex-1 overflow-auto">
+      <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
         <TextInput placeholder="고객 검색" value={q} onChange={(e) => setQ(e.target.value)} />
         {list.length === 0 && <div className="text-center text-[#6B7280] py-16">고객 정보가 없습니다.</div>}
         {list.map((c) => (
@@ -1898,7 +1923,7 @@ export function SettingsScreen() {
   return (
     <MobileShell>
       <TopBar title="설정" />
-      <div className="p-4 space-y-3 flex-1 overflow-auto">
+      <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
         <button
           onClick={() => { tap(); setScreen("subscription"); }}
           className="w-full text-left rounded-2xl p-4 text-white font-bold shadow-[0_6px_0_#0645B0]"
@@ -1958,7 +1983,7 @@ export function StatsScreen() {
   return (
     <MobileShell>
       <TopBar title="통계 확인" onBack={() => setScreen("home")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto">
+      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         <div className="grid grid-cols-2 gap-3">
           {[
             { label: "전체 견적", value: `${estimates.length}건` },
