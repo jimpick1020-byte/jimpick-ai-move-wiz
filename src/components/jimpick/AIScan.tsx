@@ -488,9 +488,10 @@ export function AIScan() {
           </Card>
         )}
 
-        {results.length > 0 && (
+        {(results.length > 0 || shots.length > 0) && (
           <div className="space-y-2">
             <div className="font-bold">인식된 품목 {results.length}개</div>
+
             {results.map((r) => (
               <Card key={r.id} className="flex items-center gap-3">
                 <Art3D src={ITEM_IMG[r.id] || guessItemImg(r.name) || FALLBACK_IMG} alt={r.name} size={44} />
