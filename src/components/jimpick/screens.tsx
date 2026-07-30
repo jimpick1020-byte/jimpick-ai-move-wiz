@@ -549,9 +549,9 @@ export function Step2() {
           onDetail={(d) => updateDraft({ toDetail: d })}
         />
         {(from || to) && (
-          <Card>
+          <Card className="pb-5">
             <div className="font-bold mb-2">경로 안내</div>
-            <KakaoMap from={from} to={to} path={path} height={300} />
+            <KakaoMap from={from} to={to} path={path} height={280} />
             {routeError && !routing ? (
               <div className="mt-3 rounded-xl bg-[#FFF1F1] border border-[#FFD4D4] p-3 text-center space-y-2">
                 <div className="text-xs font-semibold text-[#B91C1C]">
