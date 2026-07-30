@@ -17,17 +17,25 @@ async function loadKakaoSdk(): Promise<boolean> {
   loadPromise = (async () => {
     const { key } = await getKakaoJsKey();
     if (!key) return false;
-    await new Promise<void>((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&autoload=false&libraries=services`;
-      s.async = true;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error("kakao sdk load failed"));
-      document.head.appendChild(s);
-    });
+    const existing = document.querySelector<HTMLScriptElement>("script[data-kakao-sdk]");
+    if (!existing) {
+      await new Promise<void>((resolve, reject) => {
+        const s = document.createElement("script");
+        s.dataset.kakaoSdk = "1";
+        s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&autoload=false&libraries=services`;
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("kakao sdk load failed"));
+        document.head.appendChild(s);
+      });
+    }
     await new Promise<void>((resolve) => window.kakao.maps.load(() => resolve()));
     return true;
-  })().catch(() => false);
+  })().catch(() => {
+    // 실패 시 다음 렌더에서 다시 시도할 수 있도록 초기화
+    loadPromise = null;
+    return false;
+  });
 
   return loadPromise;
 }
