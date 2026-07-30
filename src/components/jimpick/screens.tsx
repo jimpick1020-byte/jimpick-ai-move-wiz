@@ -1484,7 +1484,21 @@ export function OptionsScreen() {
             className="w-full px-4 py-3 rounded-xl border border-[#DFE6F2] bg-gradient-to-b from-[#F8FAFD] to-white text-base shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] resize-none"
           />
         </Card>
-        {draft.moveType === "보관이사" && (
+        {draft.moveType !== "보관이사" && (
+          <label className="flex items-center gap-3 bg-white rounded-2xl border border-[#E7EBF2] px-4 min-h-14 py-3 font-semibold">
+            <input
+              type="checkbox"
+              className="w-5 h-5"
+              checked={Boolean(draft.storageEnabled)}
+              onChange={(e) => {
+                tap("soft");
+                updateDraft({ storageEnabled: e.target.checked });
+              }}
+            />
+            보관 서비스 추가
+          </label>
+        )}
+        {storageOn && (
           <Card className="space-y-3">
             <div className="font-bold">보관 정보</div>
             <Field label="보관 시작일">
@@ -1501,19 +1515,26 @@ export function OptionsScreen() {
                 onChange={(e) => updateDraft({ storageEnd: e.target.value })}
               />
             </Field>
-            <Field label="하루 보관 단가">
+            <Field label="하루 보관료">
               <MoneyInput
                 value={draft.storageDaily}
                 onChange={(n) => updateDraft({ storageDaily: n })}
                 step={1000}
               />
             </Field>
-            <div className="text-sm">
-              보관 일수: <b>{days}일</b> · 총 보관료:{" "}
-              <b className="text-[#0751D8]">{won(days * draft.storageDaily)}</b>
-            </div>
+            {days < 0 ? (
+              <div className="text-sm font-semibold text-[#EF4444]">
+                보관 종료일이 시작일보다 빠릅니다. 날짜를 다시 확인해 주세요.
+              </div>
+            ) : (
+              <div className="text-sm">
+                보관 일수: <b>{days}일</b> · 하루 {won(draft.storageDaily)} · 총 보관료:{" "}
+                <b className="text-[#0751D8]">{won(Math.max(0, days) * draft.storageDaily)}</b>
+              </div>
+            )}
           </Card>
         )}
+
       </div>
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("result")}>견적 계산 보기</PrimaryButton>
