@@ -465,8 +465,24 @@ export function formatPhone(v: string) {
   return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
 }
 export function won(n: number) {
-  return n.toLocaleString("ko-KR") + "원";
+  const v = Number.isFinite(n) ? Math.round(n) : 0;
+  return v.toLocaleString("ko-KR") + "원";
 }
+
+/** "2026-08-01" + "오전 09:00" → "2026년 8월 1일 오전 09:00" */
+export function formatMoveDateTime(date: string, time: string): string {
+  if (!date) return "이사 날짜 미입력";
+  const [y, m, d] = date.split("-").map(Number);
+  if (!y || !m || !d) return `${date} ${time ?? ""}`.trim();
+  return `${y}년 ${m}월 ${d}일${time ? ` ${time}` : ""}`;
+}
+
+/** 방별 품목 요약: 품목 종류 수와 총 수량 */
+export function roomSummary(items: RoomItems): { kinds: number; count: number } {
+  const values = Object.values(items || {}).filter((v) => Number(v) > 0);
+  return { kinds: values.length, count: values.reduce((a, b) => a + Number(b), 0) };
+}
+
 
 /** localStorage에서 견적 ID로 찾기 (공유 페이지 등 Provider 외부에서도 사용) */
 export function loadEstimateFromStorage(id: string): Estimate | null {
