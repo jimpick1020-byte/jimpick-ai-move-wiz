@@ -17,17 +17,25 @@ async function loadKakaoSdk(): Promise<boolean> {
   loadPromise = (async () => {
     const { key } = await getKakaoJsKey();
     if (!key) return false;
-    await new Promise<void>((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&autoload=false&libraries=services`;
-      s.async = true;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error("kakao sdk load failed"));
-      document.head.appendChild(s);
-    });
+    const existing = document.querySelector<HTMLScriptElement>("script[data-kakao-sdk]");
+    if (!existing) {
+      await new Promise<void>((resolve, reject) => {
+        const s = document.createElement("script");
+        s.dataset.kakaoSdk = "1";
+        s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&autoload=false&libraries=services`;
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("kakao sdk load failed"));
+        document.head.appendChild(s);
+      });
+    }
     await new Promise<void>((resolve) => window.kakao.maps.load(() => resolve()));
     return true;
-  })().catch(() => false);
+  })().catch(() => {
+    // 실패 시 다음 렌더에서 다시 시도할 수 있도록 초기화
+    loadPromise = null;
+    return false;
+  });
 
   return loadPromise;
 }
@@ -51,14 +59,23 @@ export function KakaoMap({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState<boolean | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const ok = await loadKakaoSdk();
+      let ok = await loadKakaoSdk();
+      if (!ok && !cancelled) {
+        // 일시적 로드 실패 시 자동 재시도
+        await new Promise((r) => setTimeout(r, 800));
+        ok = await loadKakaoSdk();
+      }
       if (cancelled) return;
       setReady(ok);
-      if (!ok || !ref.current) return;
+      if (!ok || !ref.current) {
+        if (!ok && attempt < 2) setTimeout(() => !cancelled && setAttempt((a) => a + 1), 1500);
+        return;
+      }
 
       const kakao = window.kakao;
       const center = from ?? to ?? { x: 126.978, y: 37.5665 };
@@ -100,28 +117,9 @@ export function KakaoMap({
     return () => {
       cancelled = true;
     };
-  }, [from?.x, from?.y, to?.x, to?.y, path?.length]);
+  }, [from?.x, from?.y, to?.x, to?.y, path?.length, attempt]);
 
 
-  if (ready === false) {
-    return (
-      <div
-        className="rounded-xl border border-[#FFD9A8] bg-[#FFF8EE] p-4 text-xs text-[#92400E] flex flex-col justify-center gap-1"
-        style={{ minHeight: height }}
-      >
-        <div className="font-bold text-sm">지도를 표시할 수 없습니다</div>
-        <div>카카오 지도 키가 없거나 도메인이 등록되지 않았습니다.</div>
-        <div>
-          카카오 개발자센터 &gt; 내 애플리케이션 &gt; 플랫폼 &gt; Web 사이트 도메인에{" "}
-          <span className="font-semibold break-all">https://jimpick-ai-move-wiz.lovable.app</span> 과{" "}
-          <span className="font-semibold break-all">
-            https://id-preview--9ef0e6b7-7d23-4428-8895-6a82ebf234c8.lovable.app
-          </span>{" "}
-          을 등록해 주세요.
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="relative">
@@ -135,6 +133,20 @@ export function KakaoMap({
           className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#EEF4FF] to-[#F5F7FB] animate-pulse flex items-center justify-center text-xs font-semibold text-[#6B7280]"
         >
           지도를 불러오는 중입니다
+        </div>
+      )}
+      {ready === false && (
+        <div className="absolute inset-0 rounded-xl bg-[#F5F7FB] flex items-center justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              setReady(null);
+              setAttempt((a) => a + 1);
+            }}
+            className="rounded-full bg-[#0751D8] px-4 py-2 text-xs font-bold text-white shadow-sm"
+          >
+            지도 다시 불러오기
+          </button>
         </div>
       )}
       {ready && from && !to && (
