@@ -527,7 +527,7 @@ export function AIScan() {
                 </button>
               </Card>
             ))}
-            ))}
+
             <Card className="flex items-center gap-2">
               <input
                 value={newItem}
