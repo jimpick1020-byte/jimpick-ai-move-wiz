@@ -1048,7 +1048,11 @@ export function Step6() {
               }`}
             >
               {r.name}
-              {Object.keys(r.items).length > 0 && ` (${Object.values(r.items).reduce((a, b) => a + b, 0)})`}
+              {(() => {
+                const s = roomSummary(r.items);
+                return s.kinds > 0 ? ` · ${s.kinds}종 ${s.count}개` : "";
+              })()}
+
             </button>
           ))}
         </div>
