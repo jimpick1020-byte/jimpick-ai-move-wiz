@@ -115,8 +115,8 @@ export function Splash() {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            tap("click");
             setScreen(loggedIn ? "home" : "login");
+            setTimeout(() => tap("click"), 0);
           }}
           className="w-full mt-2 mb-1 py-5 rounded-2xl text-white text-lg font-black tracking-tight shadow-[0_14px_30px_-10px_rgba(121,40,202,0.6)] transition-transform active:translate-y-[2px]"
           style={{ background: "linear-gradient(90deg,#ff007f 0%,#7928ca 50%,#00dfd8 100%)" }}
