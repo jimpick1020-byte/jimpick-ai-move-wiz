@@ -305,8 +305,8 @@ export function AIScan() {
 
   const handleChange =
     (onFile: (f: File) => void) => (e: { target: HTMLInputElement }) => {
-      const f = e.target.files?.[0];
-      if (f) onFile(f);
+      const files = Array.from(e.target.files ?? []);
+      files.forEach((f) => onFile(f));
       e.target.value = "";
     };
 
@@ -363,7 +363,7 @@ export function AIScan() {
 
         {/* 숨은 file input — 버튼에서 코드로 실행합니다 */}
         <input ref={photoCamRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleChange(onPhoto)} />
-        <input ref={photoLibRef} type="file" accept="image/*" className="hidden" onChange={handleChange(onPhoto)} />
+        <input ref={photoLibRef} type="file" accept="image/*" multiple className="hidden" onChange={handleChange(onPhoto)} />
         <input ref={videoCamRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={handleChange(onVideo)} />
         <input ref={videoLibRef} type="file" accept="video/*" className="hidden" onChange={handleChange(onVideo)} />
 

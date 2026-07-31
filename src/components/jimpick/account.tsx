@@ -147,7 +147,7 @@ export function SignupScreen() {
 type Account = Awaited<ReturnType<typeof getMyAccount>>;
 
 export function SubscriptionScreen() {
-  const { setScreen } = useApp();
+  const { setScreen, loggedIn } = useApp();
   const { userId, email, loading } = useSession();
   const [account, setAccount] = useState<Account | null>(null);
   const [busy, setBusy] = useState<PlanId | null>(null);
@@ -204,7 +204,7 @@ export function SubscriptionScreen() {
     canceled: "해지됨",
   };
 
-  if (!loading && !userId) {
+  if (!loading && !userId && !loggedIn) {
     return (
       <MobileShell>
         <TopBar title="구독 · 결제" onBack={() => setScreen("home")} />
