@@ -136,6 +136,10 @@ export function AIScan() {
   const [newItem, setNewItem] = useState("");
 
   const startedAt = useRef<number>(0);
+  const photoCamRef = useRef<HTMLInputElement>(null);
+  const photoLibRef = useRef<HTMLInputElement>(null);
+  const videoCamRef = useRef<HTMLInputElement>(null);
+  const videoLibRef = useRef<HTMLInputElement>(null);
 
   const targetRoom = draft.rooms.find((r) => r.id === targetRoomId) || currentRoom;
 
@@ -276,39 +280,31 @@ export function AIScan() {
     merge("sum");
   };
 
+  const handleFiles = (files: FileList | null, kind: "photo" | "video") => {
+    const list = Array.from(files ?? []);
+    if (list.length === 0) return;
+    list.forEach((f) => (kind === "photo" ? onPhoto(f) : onVideo(f)));
+  };
+
   const UploadBtn = ({
     label,
     icon: Icon,
-    accept,
-    capture,
-    multiple,
-    onFile,
+    inputRef,
   }: {
     label: string;
     icon: typeof Camera;
-    accept: string;
-    capture?: boolean;
-    multiple?: boolean;
-    onFile: (f: File) => void;
+    inputRef: React.RefObject<HTMLInputElement | null>;
   }) => (
-    <label
+    <button
+      type="button"
+      onClick={() => {
+        tap("click");
+        inputRef.current?.click();
+      }}
       className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white border border-[#DFE6F2] font-bold text-sm text-[#0751D8] shadow-[0_10px_20px_-12px_rgba(8,103,232,0.55),inset_0_1px_0_#fff] cursor-pointer transition-transform active:scale-[0.97]"
-      onClick={() => tap("click")}
     >
       <Icon className="w-5 h-5" /> {label}
-      <input
-        type="file"
-        accept={accept}
-        {...(capture ? { capture: "environment" as const } : {})}
-        {...(multiple ? { multiple: true } : {})}
-        className="sr-only"
-        onChange={(e) => {
-          const files = Array.from(e.target.files ?? []);
-          files.forEach((f) => onFile(f));
-          e.target.value = "";
-        }}
-      />
-    </label>
+    </button>
   );
 
   const packRows = packing
@@ -344,13 +340,57 @@ export function AIScan() {
           </Card>
         )}
 
-        {/* 파일 선택은 label 안의 input을 직접 사용합니다 (모든 브라우저에서 동작) */}
+        {/* 숨겨진 input을 버튼 클릭으로 직접 실행합니다 */}
+        <input
+          ref={photoCamRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            handleFiles(e.target.files, "photo");
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={photoLibRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            handleFiles(e.target.files, "photo");
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={videoCamRef}
+          type="file"
+          accept="video/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            handleFiles(e.target.files, "video");
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={videoLibRef}
+          type="file"
+          accept="video/*"
+          className="hidden"
+          onChange={(e) => {
+            handleFiles(e.target.files, "video");
+            e.target.value = "";
+          }}
+        />
         <div className="grid grid-cols-2 gap-3">
-          <UploadBtn label="사진 촬영" icon={Camera} accept="image/*" capture onFile={onPhoto} />
-          <UploadBtn label="사진 불러오기" icon={ImageIcon} accept="image/*" multiple onFile={onPhoto} />
-          <UploadBtn label="동영상 촬영" icon={Video} accept="video/*" capture onFile={onVideo} />
-          <UploadBtn label="동영상 불러오기" icon={Film} accept="video/*" onFile={onVideo} />
+          <UploadBtn label="사진 촬영" icon={Camera} inputRef={photoCamRef} />
+          <UploadBtn label="사진 불러오기" icon={ImageIcon} inputRef={photoLibRef} />
+          <UploadBtn label="동영상 촬영" icon={Video} inputRef={videoCamRef} />
+          <UploadBtn label="동영상 불러오기" icon={Film} inputRef={videoLibRef} />
         </div>
+
 
 
         {shots.length > 0 && (
