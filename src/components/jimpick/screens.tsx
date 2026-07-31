@@ -1770,12 +1770,8 @@ export function Result() {
                   <TextInput type="number" value={draft.ladder} onChange={(e) => updateDraft({ ladder: Number(e.target.value) || 0 })} />
                 </Field>
               </div>
-              <Field label="할인·조정 금액 (원, 음수 가능)">
-                <TextInput
-                  type="number"
-                  value={adjust}
-                  onChange={(e) => setAdjust(Number(e.target.value) || 0)}
-                />
+              <Field label="할인·조정 금액 (1만원 단위 · 음수 가능)">
+                <MoneyInput value={adjust} step={10000} allowNegative onChange={setAdjust} />
               </Field>
             </div>
           ) : (
@@ -2045,28 +2041,6 @@ export function SettingsScreen() {
             </Field>
             <Field label="5톤 차량">
               <MoneyInput value={pricing.truck5t} step={10000} onChange={(n) => setP({ truck5t: n })} />
-            </Field>
-            <Field label="사다리차 1대">
-              <MoneyInput value={pricing.ladder} step={10000} onChange={(n) => setP({ ladder: n })} />
-            </Field>
-            <Field label="작업자 1인">
-              <MoneyInput value={pricing.worker} step={10000} onChange={(n) => setP({ worker: n })} />
-            </Field>
-            <Field label="주방 인력 1인">
-              <MoneyInput value={pricing.kitchenStaff} step={10000} onChange={(n) => setP({ kitchenStaff: n })} />
-            </Field>
-            <Field label="계단 1개층">
-              <MoneyInput value={pricing.stairPerFloor} step={1000} onChange={(n) => setP({ stairPerFloor: n })} />
-            </Field>
-            <Field label="기본 포함 거리 (km)">
-              <TextInput
-                type="number"
-                value={pricing.baseKm}
-                onChange={(e) => setP({ baseKm: Number(e.target.value) || 0 })}
-              />
-            </Field>
-            <Field label="초과 1km 단가">
-              <MoneyInput value={pricing.perKm} step={100} onChange={(n) => setP({ perKm: n })} />
             </Field>
           </div>
           <button

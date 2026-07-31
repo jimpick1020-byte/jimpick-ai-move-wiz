@@ -167,12 +167,15 @@ export function MoneyInput({
   step = 10000,
   placeholder = "0",
   className = "",
+  allowNegative = false,
 }: {
   value: number;
   onChange: (n: number) => void;
   step?: number;
   placeholder?: string;
   className?: string;
+  /** 음수 입력 허용 (할인 금액 등) */
+  allowNegative?: boolean;
 }) {
   const timers = useRef<{ t?: ReturnType<typeof setTimeout>; i?: ReturnType<typeof setInterval> }>({});
   const valueRef = useRef(value);
@@ -187,7 +190,8 @@ export function MoneyInput({
 
   const bump = (dir: 1 | -1) => {
     const base = Math.round(valueRef.current / step) * step;
-    const next = Math.max(0, base + dir * step);
+    const raw = base + dir * step;
+    const next = allowNegative ? raw : Math.max(0, raw);
     if (next === valueRef.current) return;
     valueRef.current = next;
     onChange(next);
@@ -222,7 +226,12 @@ export function MoneyInput({
           inputMode="numeric"
           placeholder={placeholder}
           value={value ? value.toLocaleString("ko-KR") : ""}
-          onChange={(e) => onChange(Math.max(0, Number(e.target.value.replace(/[^\d]/g, "")) || 0))}
+          onChange={(e) => {
+            const t = e.target.value;
+            const neg = allowNegative && /^\s*-/.test(t);
+            const n = Number(t.replace(/[^\d]/g, "")) || 0;
+            onChange(neg ? -n : allowNegative ? n : Math.max(0, n));
+          }}
           className="pr-8 text-right font-bold tabular-nums"
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[#6B7280]">원</span>
