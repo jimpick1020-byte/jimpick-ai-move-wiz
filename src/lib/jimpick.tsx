@@ -386,38 +386,34 @@ const AppCtx = createContext<Ctx | null>(null);
 const STORAGE_KEY = "jimpick_v8_state";
 
 export function JimpickProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(() => {
-    if (typeof window === "undefined")
-      return {
-        loggedIn: false,
-        savedId: "",
-        screen: "splash",
-        draft: newEstimate(),
-        estimates: [],
-        currentRoomId: "",
-      };
+  const [state, setState] = useState<AppState>(() => ({
+    loggedIn: false,
+    savedId: "",
+    screen: "splash" as Screen,
+    draft: newEstimate(),
+    estimates: [],
+    currentRoomId: "",
+  }));
+  const [hydrated, setHydrated] = useState(false);
+
+  // 하이드레이션 이후에 저장된 상태를 불러옵니다 (SSR 불일치 방지)
+  useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const s = JSON.parse(raw) as AppState;
-        return { ...s, screen: s.loggedIn ? "home" : "splash" };
+        setState({ ...s, screen: s.loggedIn ? "home" : "splash" });
       }
     } catch {}
-    return {
-      loggedIn: false,
-      savedId: "",
-      screen: "splash",
-      draft: newEstimate(),
-      estimates: [],
-      currentRoomId: "",
-    };
-  });
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {}
-  }, [state]);
+  }, [state, hydrated]);
 
   const ctx: Ctx = {
     ...state,
