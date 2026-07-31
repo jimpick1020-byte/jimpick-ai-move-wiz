@@ -361,18 +361,14 @@ export function AIScan() {
           </Card>
         )}
 
-        {/* 숨은 file input — 버튼에서 코드로 실행합니다 */}
-        <input ref={photoCamRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleChange(onPhoto)} />
-        <input ref={photoLibRef} type="file" accept="image/*" multiple className="hidden" onChange={handleChange(onPhoto)} />
-        <input ref={videoCamRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={handleChange(onVideo)} />
-        <input ref={videoLibRef} type="file" accept="video/*" className="hidden" onChange={handleChange(onVideo)} />
-
+        {/* 파일 선택은 label 안의 input을 직접 사용합니다 (모든 브라우저에서 동작) */}
         <div className="grid grid-cols-2 gap-3">
-          <UploadBtn label="사진 촬영" icon={Camera} onClick={() => openPicker(photoCamRef)} />
-          <UploadBtn label="사진 불러오기" icon={ImageIcon} onClick={() => openPicker(photoLibRef)} />
-          <UploadBtn label="동영상 촬영" icon={Video} onClick={() => openPicker(videoCamRef)} />
-          <UploadBtn label="동영상 불러오기" icon={Film} onClick={() => openPicker(videoLibRef)} />
+          <UploadBtn label="사진 촬영" icon={Camera} accept="image/*" capture onFile={onPhoto} />
+          <UploadBtn label="사진 불러오기" icon={ImageIcon} accept="image/*" multiple onFile={onPhoto} />
+          <UploadBtn label="동영상 촬영" icon={Video} accept="video/*" capture onFile={onVideo} />
+          <UploadBtn label="동영상 불러오기" icon={Film} accept="video/*" onFile={onVideo} />
         </div>
+
 
         {shots.length > 0 && (
           <div>
