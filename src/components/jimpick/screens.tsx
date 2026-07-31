@@ -326,7 +326,14 @@ export function Step1() {
           <TextInput
             type="date"
             value={draft.moveDate}
-            onChange={(e) => updateDraft({ moveDate: e.target.value })}
+            onChange={(e) =>
+              updateDraft({
+                moveDate: e.target.value,
+                storageStart: !draft.storageStart || draft.storageStart === draft.moveDate
+                  ? e.target.value
+                  : draft.storageStart,
+              })
+            }
           />
         </Field>
         <Field label="시작 시간">
