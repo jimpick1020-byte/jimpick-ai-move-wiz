@@ -340,13 +340,57 @@ export function AIScan() {
           </Card>
         )}
 
-        {/* 파일 선택은 label 안의 input을 직접 사용합니다 (모든 브라우저에서 동작) */}
+        {/* 숨겨진 input을 버튼 클릭으로 직접 실행합니다 */}
+        <input
+          ref={photoCamRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            handleFiles(e.target.files, "photo");
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={photoLibRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            handleFiles(e.target.files, "photo");
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={videoCamRef}
+          type="file"
+          accept="video/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            handleFiles(e.target.files, "video");
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={videoLibRef}
+          type="file"
+          accept="video/*"
+          className="hidden"
+          onChange={(e) => {
+            handleFiles(e.target.files, "video");
+            e.target.value = "";
+          }}
+        />
         <div className="grid grid-cols-2 gap-3">
-          <UploadBtn label="사진 촬영" icon={Camera} accept="image/*" capture onFile={onPhoto} />
-          <UploadBtn label="사진 불러오기" icon={ImageIcon} accept="image/*" multiple onFile={onPhoto} />
-          <UploadBtn label="동영상 촬영" icon={Video} accept="video/*" capture onFile={onVideo} />
-          <UploadBtn label="동영상 불러오기" icon={Film} accept="video/*" onFile={onVideo} />
+          <UploadBtn label="사진 촬영" icon={Camera} inputRef={photoCamRef} />
+          <UploadBtn label="사진 불러오기" icon={ImageIcon} inputRef={photoLibRef} />
+          <UploadBtn label="동영상 촬영" icon={Video} inputRef={videoCamRef} />
+          <UploadBtn label="동영상 불러오기" icon={Film} inputRef={videoLibRef} />
         </div>
+
 
 
         {shots.length > 0 && (
