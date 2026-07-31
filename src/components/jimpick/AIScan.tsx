@@ -136,10 +136,6 @@ export function AIScan() {
   const [newItem, setNewItem] = useState("");
 
   const startedAt = useRef<number>(0);
-  const photoCamRef = useRef<HTMLInputElement>(null);
-  const photoLibRef = useRef<HTMLInputElement>(null);
-  const videoCamRef = useRef<HTMLInputElement>(null);
-  const videoLibRef = useRef<HTMLInputElement>(null);
 
   const targetRoom = draft.rooms.find((r) => r.id === targetRoomId) || currentRoom;
 
@@ -280,52 +276,39 @@ export function AIScan() {
     merge("sum");
   };
 
-  /** 숨은 file input을 코드로 열어 카메라/갤러리를 호출합니다 */
-  const openPicker = (ref: { current: HTMLInputElement | null }) => {
-    tap("click");
-    const el = ref.current;
-    if (!el) return;
-    try {
-      el.click();
-    } catch (err) {
-      console.error("[AIScan] file input 실행 실패", err);
-      toast.error("카메라 사용 권한을 허용해 주시거나 [사진 불러오기]를 이용해 주세요");
-    }
-    // 카메라 권한이 거부되면 파일 선택 없이 포커스만 돌아옵니다.
-    const onFocus = () => {
-      window.removeEventListener("focus", onFocus);
-      setTimeout(() => {
-        if (el.files && el.files.length === 0 && el.hasAttribute("capture")) {
-          toast.info("카메라 사용 권한을 허용해 주시거나 [사진 불러오기]를 이용해 주세요");
-        }
-      }, 800);
-    };
-    window.addEventListener("focus", onFocus);
-  };
-
-  const handleChange =
-    (onFile: (f: File) => void) => (e: { target: HTMLInputElement }) => {
-      const files = Array.from(e.target.files ?? []);
-      files.forEach((f) => onFile(f));
-      e.target.value = "";
-    };
-
   const UploadBtn = ({
     label,
     icon: Icon,
-    onClick,
+    accept,
+    capture,
+    multiple,
+    onFile,
   }: {
     label: string;
     icon: typeof Camera;
-    onClick: () => void;
+    accept: string;
+    capture?: boolean;
+    multiple?: boolean;
+    onFile: (f: File) => void;
   }) => (
-    <button
-      type="button"
-      onClick={onClick}
+    <label
       className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white border border-[#DFE6F2] font-bold text-sm text-[#0751D8] shadow-[0_10px_20px_-12px_rgba(8,103,232,0.55),inset_0_1px_0_#fff] cursor-pointer transition-transform active:scale-[0.97]"
+      onClick={() => tap("click")}
     >
       <Icon className="w-5 h-5" /> {label}
-    </button>
+      <input
+        type="file"
+        accept={accept}
+        {...(capture ? { capture: "environment" as const } : {})}
+        {...(multiple ? { multiple: true } : {})}
+        className="sr-only"
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? []);
+          files.forEach((f) => onFile(f));
+          e.target.value = "";
+        }}
+      />
+    </label>
   );
 
   const packRows = packing
