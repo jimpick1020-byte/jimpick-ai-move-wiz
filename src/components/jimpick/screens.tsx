@@ -1105,7 +1105,15 @@ export function Step6() {
           {items.map((it) => {
             const qty = room?.items[it.id] || 0;
             return (
-              <Card key={it.id} selected={qty > 0} className="text-center py-4 relative">
+              <Card
+                key={it.id}
+                selected={qty > 0}
+                className={`text-center py-4 relative bg-white ${
+                  qty > 0
+                    ? "shadow-[0_5px_0_0_#CFE0FA,0_8px_18px_rgba(7,81,216,0.16),inset_0_1px_0_#fff]"
+                    : "shadow-[0_4px_0_0_#EDF2FA,0_6px_14px_rgba(15,23,42,0.06),inset_0_1px_0_#fff]"
+                }`}
+              >
                 <button
                   onClick={() => removeItem(it.id, it.name)}
                   className="absolute top-2 right-2 p-1 text-[#EF4444]"
@@ -1113,13 +1121,15 @@ export function Step6() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-                <Art3D
-                  src={ITEM_IMG[it.id] || guessItemImg(it.name) || FALLBACK_IMG}
-                  alt={it.name}
-                  size={72}
-                  className="mb-2"
-                />
-                <div className="font-bold text-sm mb-2">{it.name}</div>
+                <div className="mx-auto mb-2 w-[84px] h-[84px] rounded-2xl bg-gradient-to-b from-white to-[#F5F9FF] flex items-center justify-center shadow-[inset_0_1px_0_#fff]">
+                  <Art3D
+                    src={ITEM_IMG[it.id] || guessItemImg(it.name) || FALLBACK_IMG}
+                    alt={it.name}
+                    size={76}
+                  />
+                </div>
+                <div className="font-extrabold text-[15px] mb-2 text-[#0F172A]">{it.name}</div>
+
                 <div className="flex justify-center">
                   <Counter value={qty} onChange={(n) => setQty(it.id, n)} min={0} max={20} />
                 </div>
