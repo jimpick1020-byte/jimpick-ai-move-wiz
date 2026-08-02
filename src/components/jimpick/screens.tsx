@@ -69,7 +69,8 @@ import truckImg from "@/assets/jimpick-truck.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ITEM_IMG, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
 
-import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle } from "lucide-react";
+import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle, Mic, Hand, Calculator } from "lucide-react";
+import houseImg from "@/assets/step6-house.png";
 
 export function Splash() {
   const { setScreen, loggedIn } = useApp();
@@ -968,6 +969,7 @@ export function Step6() {
   const { draft, updateDraft, setScreen, currentRoomId, setCurrentRoom } = useApp();
   const [cat, setCat] = useState<string>("전체");
   const [q, setQ] = useState("");
+  const [mode, setMode] = useState<"3d" | "manual">("3d");
   const roomId = currentRoomId || draft.rooms[0]?.id;
   useEffect(() => {
     if (!currentRoomId && draft.rooms[0]) setCurrentRoom(draft.rooms[0].id);
@@ -1039,9 +1041,216 @@ export function Step6() {
       rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)),
     });
   };
+  // 방 라벨 위치 (3D 도면 이미지 기준 %)
+  const ROOM_POS: Record<string, { x: number; y: number; cx: number; cy: number }> = {
+    안방: { x: 30, y: 17, cx: 44, cy: 40 },
+    작은방: { x: 17, y: 44, cx: 8, cy: 60 },
+    입구방: { x: 31, y: 69, cx: 47, cy: 88 },
+    거실: { x: 57, y: 51, cx: 43, cy: 72 },
+    부엌: { x: 76, y: 33, cx: 92, cy: 47 },
+    베란다: { x: 72, y: 12, cx: 88, cy: 22 },
+  };
+  const roomTint: Record<string, string> = {
+    안방: "from-[#3B8BFF] to-[#0751D8]",
+    작은방: "from-[#6FCF77] to-[#2F9E44]",
+    입구방: "from-[#A78BFA] to-[#7C3AED]",
+    거실: "from-[#F472B6] to-[#DB2777]",
+    부엌: "from-[#FBBF24] to-[#D97706]",
+    베란다: "from-[#38BDF8] to-[#0284C7]",
+  };
+  const fallbackPos = (i: number) => ({
+    x: 20 + (i % 3) * 30,
+    y: 20 + Math.floor(i / 3) * 30,
+    cx: 12 + (i % 3) * 30,
+    cy: 34 + Math.floor(i / 3) * 30,
+  });
+
+  const voiceEdit = () => {
+    const SR =
+      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
+        .SpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
+    const applyText = (text: string) => {
+      const found = catalog.filter((i) => text.replace(/\s/g, "").includes(i.name));
+      if (!found.length) {
+        toast.info("인식된 품목이 없습니다. 예: 「침대 소파 냉장고」");
+        return;
+      }
+      const items = { ...(room?.items || {}) };
+      for (const f of found) items[f.id] = (items[f.id] || 0) + 1;
+      updateDraft({ rooms: draft.rooms.map((r) => (r.id === roomId ? { ...r, items } : r)) });
+      tap("success");
+      toast.success(`${found.map((f) => f.name).join(", ")} 추가되었습니다`);
+    };
+    if (!SR) {
+      const text = prompt(`${room?.name || "방"}에 추가할 품목을 말하듯 입력해 주세요`) || "";
+      if (text) applyText(text);
+      return;
+    }
+    type SRType = new () => {
+      lang: string;
+      start: () => void;
+      onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
+      onerror: () => void;
+    };
+    const rec = new (SR as SRType)();
+    rec.lang = "ko-KR";
+    rec.onresult = (e) => applyText(e.results[0][0].transcript);
+    rec.onerror = () => toast.error("음성 인식에 실패했습니다");
+    toast.info("듣고 있어요 — 품목을 말해 주세요");
+    rec.start();
+  };
+
+  if (mode === "3d") {
+    const totalKinds = draft.rooms.reduce((a, r) => a + roomSummary(r.items).kinds, 0);
+    const selRoomItems = Object.entries(room?.items || {})
+      .map(([id, qty]) => ({
+        name: catalog.find((c) => c.id === id)?.name || id,
+        img: ITEM_IMG[id] || guessItemImg(catalog.find((c) => c.id === id)?.name || "") || FALLBACK_IMG,
+        qty,
+      }))
+      .slice(0, 4);
+    return (
+      <MobileShell>
+        {/* 헤더 */}
+        <div className="px-4 pt-1 pb-3 bg-white border-b border-[#E7EBF2]">
+          <div className="flex items-center gap-2">
+            <img src={logoImg} alt="JIMPICK" className="w-9 h-9" />
+            <div className="flex-1 text-center">
+              <h1 className="text-[22px] font-black text-[#0F172A] leading-tight">
+                6단계. 3D 품목 확인
+              </h1>
+              <p className="text-[12px] text-[#6B7280] font-semibold">
+                {totalKinds > 0 ? "입력 완료 · 방별 자동 분류" : "방을 눌러 품목을 확인하세요"}
+              </p>
+            </div>
+            <div className="px-3 py-1.5 rounded-2xl border border-[#DCE8FA] bg-white shadow-[0_2px_0_#EDF2FA]">
+              <span className="text-[#0751D8] font-black text-lg">6</span>
+              <span className="text-[#9AA4B2] font-bold text-xs"> / 7</span>
+            </div>
+          </div>
+          <div className="mt-3 flex gap-1.5">
+            {[1, 2, 3, 4, 5, 6, 7].map((s) => (
+              <div
+                key={s}
+                className={`h-1.5 flex-1 rounded-full ${
+                  s < 6 ? "bg-[#8FC0FF]" : s === 6 ? "bg-[#0751D8]" : "bg-[#E7EBF2]"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto p-4 space-y-4 bg-gradient-to-b from-[#F2F8FF] to-[#EAF1FB]">
+          {/* 3D 도면 */}
+          <div className="relative w-full aspect-square">
+            <img
+              src={houseImg}
+              alt="3D 집 도면"
+              width={1024}
+              height={1024}
+              className="w-full h-full object-contain drop-shadow-[0_18px_28px_rgba(7,81,216,0.18)]"
+            />
+            {draft.rooms.map((r, i) => {
+              const p = ROOM_POS[r.name] || fallbackPos(i);
+              const s = roomSummary(r.items);
+              const active = r.id === roomId;
+              return (
+                <div key={r.id}>
+                  <button
+                    onClick={() => {
+                      tap("soft");
+                      setCurrentRoom(r.id);
+                    }}
+                    style={{ left: `${p.x}%`, top: `${p.y}%` }}
+                    className={`absolute -translate-x-1/2 -translate-y-1/2 px-3.5 py-1.5 rounded-2xl text-white text-[15px] font-black whitespace-nowrap bg-gradient-to-b ${
+                      roomTint[r.name] || "from-[#3B8BFF] to-[#0751D8]"
+                    } shadow-[0_4px_0_rgba(0,0,0,0.18),0_6px_14px_rgba(7,81,216,0.3),inset_0_1px_0_rgba(255,255,255,0.5)] active:translate-y-[-45%] transition-transform ${
+                      active ? "ring-4 ring-white/80 scale-105" : ""
+                    }`}
+                  >
+                    {r.name}
+                  </button>
+                  {s.count > 0 && (
+                    <span
+                      style={{ left: `${p.cx}%`, top: `${p.cy}%` }}
+                      className="absolute -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded-2xl whitespace-nowrap bg-white text-[#0F172A] text-[13px] font-black shadow-[0_3px_0_#E3E9F5,0_6px_12px_rgba(15,23,42,0.12)]"
+                    >
+                      {s.count}개
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+            {/* 선택된 방 품목 카드 */}
+            {selRoomItems.length > 0 && (
+              <div className="absolute left-0 top-[7%] w-[43%] rounded-2xl bg-white/95 backdrop-blur p-3 pt-5 shadow-[0_10px_24px_rgba(15,23,42,0.18)]">
+                <span className="absolute -top-4 -left-2 w-9 h-9 rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white flex items-center justify-center shadow-[0_4px_10px_rgba(7,81,216,0.4)]">
+                  <Check className="w-5 h-5" strokeWidth={3} />
+                </span>
+                <div className="space-y-1.5">
+                  {selRoomItems.map((it) => (
+                    <div key={it.name} className="flex items-center gap-2">
+                      <Art3D src={it.img} alt={it.name} size={24} />
+                      <span className="flex-1 text-[13px] font-extrabold text-[#0F172A] truncate">
+                        {it.name}
+                      </span>
+                      <span className="text-[13px] font-black tabular-nums">{it.qty}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 수정 버튼 */}
+          <div className="flex gap-3">
+            <button
+              onClick={voiceEdit}
+              className="flex-[1.4] flex items-center gap-2 pl-2 pr-4 py-2.5 rounded-full bg-white shadow-[0_5px_0_#DCE8FA,0_10px_20px_rgba(7,81,216,0.14),inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-[0_2px_0_#DCE8FA]"
+            >
+              <span className="w-11 h-11 rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] flex items-center justify-center text-white shadow-[0_4px_10px_rgba(7,81,216,0.4)]">
+                <Mic className="w-5 h-5" />
+              </span>
+              <span className="flex-1 text-[19px] font-black text-[#0751D8]">말로 수정하기</span>
+            </button>
+            <button
+              onClick={() => {
+                tap("soft");
+                setMode("manual");
+              }}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-full bg-white border border-[#DCE8FA] shadow-[0_5px_0_#EDF2FA,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
+            >
+              <Hand className="w-5 h-5 text-[#0751D8]" />
+              <span className="text-[17px] font-black text-[#0751D8]">직접 선택</span>
+            </button>
+          </div>
+          <p className="text-center text-[13px] font-bold text-[#6B7280]">
+            ✨ 방을 누르면 품목을 바로 수정할 수 있어요
+          </p>
+        </div>
+
+        <BottomButtonBar>
+          <PrimaryButton onClick={() => setScreen("options")}>
+            <span className="inline-flex items-center gap-2">
+              <Calculator className="w-6 h-6" /> 견적 계산하기
+            </span>
+          </PrimaryButton>
+          <button
+            onClick={() => setScreen("scan")}
+            className="w-full mt-2 py-1 text-[15px] font-bold text-[#6B7280] underline"
+          >
+            이전
+          </button>
+        </BottomButtonBar>
+      </MobileShell>
+    );
+  }
+
   return (
     <MobileShell>
-      <TopBar title="6단계. 품목 입력" onBack={() => setScreen("scan")} />
+      <TopBar title="6단계. 품목 입력" onBack={() => setMode("3d")} />
+
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
         <div className="flex gap-2.5 overflow-x-auto overflow-y-visible -mx-4 px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {draft.rooms.map((r) => (
