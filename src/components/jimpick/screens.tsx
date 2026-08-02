@@ -75,7 +75,7 @@ import houseImg from "@/assets/step6-house.png";
 export function Splash() {
   const { setScreen, loggedIn } = useApp();
   useEffect(() => {
-    const t = setTimeout(() => setScreen(loggedIn ? "home" : "login"), 900000);
+    const t = setTimeout(() => setScreen(loggedIn ? "home" : "login"), 2500);
     return () => clearTimeout(t);
   }, [setScreen, loggedIn]);
   const features = [
@@ -1109,7 +1109,7 @@ export function Step6() {
         img: ITEM_IMG[id] || guessItemImg(catalog.find((c) => c.id === id)?.name || "") || FALLBACK_IMG,
         qty,
       }))
-      .slice(0, 5);
+      .slice(0, 4);
     return (
       <MobileShell>
         {/* 헤더 */}
@@ -1174,7 +1174,7 @@ export function Step6() {
                   {s.count > 0 && (
                     <span
                       style={{ left: `${p.cx}%`, top: `${p.cy}%` }}
-                      className="absolute -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded-2xl bg-white text-[#0F172A] text-[13px] font-black shadow-[0_3px_0_#E3E9F5,0_6px_12px_rgba(15,23,42,0.12)]"
+                      className="absolute -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded-2xl whitespace-nowrap bg-white text-[#0F172A] text-[13px] font-black shadow-[0_3px_0_#E3E9F5,0_6px_12px_rgba(15,23,42,0.12)]"
                     >
                       {s.count}개
                     </span>
@@ -1184,7 +1184,7 @@ export function Step6() {
             })}
             {/* 선택된 방 품목 카드 */}
             {selRoomItems.length > 0 && (
-              <div className="absolute left-1 top-[26%] w-[46%] rounded-2xl bg-white/95 backdrop-blur p-3 pt-5 shadow-[0_10px_24px_rgba(15,23,42,0.18)]">
+              <div className="absolute left-0 top-[7%] w-[43%] rounded-2xl bg-white/95 backdrop-blur p-3 pt-5 shadow-[0_10px_24px_rgba(15,23,42,0.18)]">
                 <span className="absolute -top-4 -left-2 w-9 h-9 rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white flex items-center justify-center shadow-[0_4px_10px_rgba(7,81,216,0.4)]">
                   <Check className="w-5 h-5" strokeWidth={3} />
                 </span>

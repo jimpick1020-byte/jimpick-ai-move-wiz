@@ -387,9 +387,9 @@ const STORAGE_KEY = "jimpick_v8_state";
 
 export function JimpickProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => ({
-    loggedIn: true,
+    loggedIn: false,
     savedId: "",
-    screen: "step6" as Screen,
+    screen: "splash" as Screen,
     draft: newEstimate(),
     estimates: [],
     currentRoomId: "",
@@ -400,9 +400,9 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (false) {
+      if (raw) {
         const s = JSON.parse(raw) as AppState;
-        console.log("DBG-scr", location.hash); setState({ ...s, screen: (new URLSearchParams(location.hash.replace("#","?")).get("scr") as AppState["screen"]) || (s.loggedIn ? "home" : "splash") });
+        setState({ ...s, screen: s.loggedIn ? "home" : "splash" });
       }
     } catch {}
     setHydrated(true);
