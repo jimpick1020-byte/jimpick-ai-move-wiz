@@ -69,7 +69,8 @@ import truckImg from "@/assets/jimpick-truck.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ITEM_IMG, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
 
-import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle } from "lucide-react";
+import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle, Mic, Hand, Calculator, Check } from "lucide-react";
+import houseImg from "@/assets/step6-house.png";
 
 export function Splash() {
   const { setScreen, loggedIn } = useApp();
@@ -968,6 +969,7 @@ export function Step6() {
   const { draft, updateDraft, setScreen, currentRoomId, setCurrentRoom } = useApp();
   const [cat, setCat] = useState<string>("전체");
   const [q, setQ] = useState("");
+  const [mode, setMode] = useState<"3d" | "manual">("3d");
   const roomId = currentRoomId || draft.rooms[0]?.id;
   useEffect(() => {
     if (!currentRoomId && draft.rooms[0]) setCurrentRoom(draft.rooms[0].id);
