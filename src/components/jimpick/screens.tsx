@@ -1043,15 +1043,15 @@ export function Step6() {
     <MobileShell>
       <TopBar title="6단계. 품목 입력" onBack={() => setScreen("scan")} />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
-        <div className="flex gap-2 overflow-x-auto overflow-y-visible -mx-4 px-4 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-2.5 overflow-x-auto overflow-y-visible -mx-4 px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {draft.rooms.map((r) => (
             <button
               key={r.id}
               onClick={() => setCurrentRoom(r.id)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap ${
+              className={`px-5 py-3 rounded-2xl text-base font-extrabold whitespace-nowrap transition-all duration-150 active:translate-y-[3px] ${
                 r.id === roomId
-                  ? "bg-[#0751D8] text-white"
-                  : "bg-white border border-[#E7EBF2] text-[#6B7280]"
+                  ? "text-white bg-gradient-to-b from-[#3B8BFF] to-[#0751D8] shadow-[0_5px_0_0_#0640A8,0_8px_16px_rgba(7,81,216,0.35),inset_0_1px_0_rgba(255,255,255,0.55)] active:shadow-[0_2px_0_0_#0640A8,0_4px_10px_rgba(7,81,216,0.3)]"
+                  : "text-[#0751D8] bg-gradient-to-b from-white to-[#EAF2FF] shadow-[0_4px_0_0_#CFE0FA,0_6px_12px_rgba(7,81,216,0.14),inset_0_1px_0_#fff] active:shadow-[0_1px_0_0_#CFE0FA]"
               }`}
             >
               {r.name}
@@ -1063,7 +1063,7 @@ export function Step6() {
             </button>
           ))}
         </div>
-        <div className="flex gap-2 overflow-x-auto overflow-y-visible -mx-4 px-4 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-2.5 overflow-x-auto overflow-y-visible -mx-4 px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 
 
           {CATEGORIES.filter((c) => c !== "전체").map((c) => (
@@ -1073,16 +1073,17 @@ export function Step6() {
                 setCat(c);
                 setOnlySelected(false);
               }}
-              className={`px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap ${
+              className={`px-4 py-2.5 rounded-2xl text-[15px] font-extrabold whitespace-nowrap transition-all duration-150 active:translate-y-[2px] ${
                 !showSelectedOnly && c === cat
-                  ? "bg-[#EEF4FF] text-[#0751D8] border border-[#287BFF]"
-                  : "bg-white border border-[#E7EBF2] text-[#6B7280]"
+                  ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0B5FE0] shadow-[0_4px_0_0_#0640A8,0_6px_12px_rgba(7,81,216,0.3),inset_0_1px_0_rgba(255,255,255,0.5)] active:shadow-[0_1px_0_0_#0640A8]"
+                  : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F1F6FF] shadow-[0_3px_0_0_#DCE8FA,inset_0_1px_0_#fff] active:shadow-[0_1px_0_0_#DCE8FA]"
               }`}
             >
               {c}
             </button>
           ))}
         </div>
+
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]" />
           <TextInput
