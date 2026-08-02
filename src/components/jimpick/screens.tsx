@@ -75,7 +75,7 @@ import houseImg from "@/assets/step6-house.png";
 export function Splash() {
   const { setScreen, loggedIn } = useApp();
   useEffect(() => {
-    const t = setTimeout(() => setScreen(loggedIn ? "home" : "login"), 2500);
+    const t = setTimeout(() => setScreen(loggedIn ? "home" : "login"), 900000);
     return () => clearTimeout(t);
   }, [setScreen, loggedIn]);
   const features = [
