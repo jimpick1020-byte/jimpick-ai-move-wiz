@@ -69,7 +69,7 @@ import truckImg from "@/assets/jimpick-truck.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ITEM_IMG, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
 
-import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle, Mic, Hand, Calculator, Check } from "lucide-react";
+import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle, Mic, Hand, Calculator } from "lucide-react";
 import houseImg from "@/assets/step6-house.png";
 
 export function Splash() {
