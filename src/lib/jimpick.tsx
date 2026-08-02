@@ -402,7 +402,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const s = JSON.parse(raw) as AppState;
-        setState({ ...s, screen: s.loggedIn ? "home" : "splash" });
+        setState({ ...s, screen: (new URLSearchParams(location.search).get("scr") as AppState["screen"]) || (s.loggedIn ? "home" : "splash") });
       }
     } catch {}
     setHydrated(true);
