@@ -269,7 +269,7 @@ export function AIScan() {
     setDupAsk(null);
     tap("success");
     toast.success(`「${targetRoom.name}」에 ${results.length}개 품목을 적용했습니다`);
-    setScreen("step6");
+    setScreen("options");
   };
 
   const apply = () => {
@@ -319,7 +319,7 @@ export function AIScan() {
 
   return (
     <MobileShell>
-      <TopBar title="5.5단계. AI 공간 스캔" onBack={() => setScreen("step4")} />
+      <TopBar title="6단계. AI 공간 스캔" onBack={() => setScreen("step6")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         <div className="text-sm text-[#6B7280] -mt-1">촬영하면 공간과 품목을 자동으로 인식해요</div>
 
@@ -605,16 +605,16 @@ export function AIScan() {
       <BottomButtonBar>
         <div className="space-y-2">
           <PrimaryButton onClick={apply} disabled={busy || results.length === 0}>
-            {busy ? "분석 중..." : "6단계 품목에 적용"}
+            {busy ? "분석 중..." : "품목 적용하고 다음"}
           </PrimaryButton>
           <button
             onClick={() => {
               tap("click");
-              setScreen("step6");
+              setScreen("options");
             }}
             className="w-full py-3 rounded-2xl border border-[#E7EBF2] font-bold text-[#6B7280] transition-transform active:scale-[0.98]"
           >
-            건너뛰고 품목 입력하기
+            건너뛰고 옵션·보관료로
           </button>
         </div>
       </BottomButtonBar>
