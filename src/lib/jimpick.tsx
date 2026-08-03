@@ -411,7 +411,9 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     draft: newEstimate(),
     estimates: [],
     currentRoomId: "",
+    stepSnapshot: null,
   }));
+
   const [hydrated, setHydrated] = useState(false);
 
   // 하이드레이션 이후에 저장된 상태를 불러옵니다 (SSR 불일치 방지)
