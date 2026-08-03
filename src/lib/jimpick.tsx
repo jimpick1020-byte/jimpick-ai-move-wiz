@@ -141,15 +141,8 @@ export const OPTION_PRESETS: { name: string; price: number }[] = [
   { name: "주차/도로 사용료", price: 30000 },
 ];
 
-/** 30평대 기준 방별 기본 품목 배치 */
-export const PRESET_30PY: Record<string, RoomItems> = {
-  안방: { bed: 1, wardrobe: 2, vanity: 1, drawer: 1, aircon: 1 },
-  작은방: { bed: 1, desk: 1, chair: 1, shelf: 1, wardrobe: 1 },
-  입구방: { desk: 1, shelf: 1, drawer: 1, box: 4 },
-  거실: { sofa: 1, tv: 1, table: 1, chair: 4, aircon: 1, shelf: 1, airpurifier: 1 },
-  부엌: { fridge: 1, kimchi: 1, microwave: 1, waterpurifier: 1, riceCooker: 1, gasrange: 1, dishrack: 1 },
-  베란다: { washer: 1, dryer: 1, drying: 1, vacuum: 1, toolbox: 1, plant: 3, box: 5 },
-};
+/** 기본 품목 프리셋 없음 — 품목은 사장님이 직접 담습니다. */
+export const PRESET_30PY: Record<string, RoomItems> = {};
 
 // ============ Pricing ============
 export interface Pricing {
