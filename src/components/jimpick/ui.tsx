@@ -45,7 +45,11 @@ export function TopBar({ title, onBack }: { title: string; onBack?: () => void }
   return (
     <div className="flex items-center px-4 py-3 bg-white border-b border-[#E7EBF2]">
       {onBack && (
-        <button onClick={onBack} className="p-2 -ml-2" aria-label="이전">
+        <button
+          onClick={onBack}
+          className="mr-1 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] flex items-center justify-center text-[#0751D8] shadow-[0_4px_0_#DCE8FA,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#DCE8FA]"
+          aria-label="이전"
+        >
           <ChevronLeft className="w-6 h-6" />
         </button>
       )}

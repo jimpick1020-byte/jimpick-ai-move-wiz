@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   ClipboardList,
@@ -22,6 +22,8 @@ import {
   Mic,
   X,
   ChevronDown,
+  ChevronLeft,
+
 } from "lucide-react";
 
 import {
@@ -64,7 +66,9 @@ import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
-import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
+import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
+import { useServerFn } from "@tanstack/react-start";
+
 import { fileToDataUrl, videoToFrames } from "@/lib/media";
 
 // ============ Splash ============
@@ -960,6 +964,7 @@ function parseSpokenRoom(text: string, roomNames: string[]): string | null {
 export function Step6() {
   const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
   const [size, setSize] = useState<string>(() => {
+    if (draft.sizeTab) return draft.sizeTab;
     const n = draft.rooms.length;
     const hit = SIZE_TABS.find((t) => t.rooms.length === n);
     return hit ? hit.key : "30~40평";
@@ -969,8 +974,13 @@ export function Step6() {
   const [q, setQ] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [listening, setListening] = useState(false);
+  const [chat, setChat] = useState<{ role: "ai" | "me"; text: string }[]>([]);
+  const [pending, setPending] = useState<{ id: string; name: string; qty: number }[] | null>(null);
+  const askAi = useServerFn(parseVoiceOrder);
+  const recRef = useRef<{ stop: () => void } | null>(null);
 
   const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || SIZE_TABS[2]).rooms;
+
 
   const catalog = useMemo(
     () =>
@@ -987,15 +997,19 @@ export function Step6() {
     setSize(key);
     const rooms = (SIZE_TABS.find((t) => t.key === key) || SIZE_TABS[2]).rooms;
     const missing = rooms.filter((n) => !draft.rooms.some((r) => r.name === n));
-    if (missing.length) {
-      updateDraft({
-        rooms: [
-          ...draft.rooms,
-          ...missing.map((n) => ({ id: `r_${n}`, name: n, items: {} as Record<string, number> })),
-        ],
-      });
-    }
+    updateDraft({
+      sizeTab: key,
+      ...(missing.length
+        ? {
+            rooms: [
+              ...draft.rooms,
+              ...missing.map((n) => ({ id: `r_${n}`, name: n, items: {} as Record<string, number> })),
+            ],
+          }
+        : {}),
+    });
   };
+
 
   const roomOf = (name: string) => draft.rooms.find((r) => r.name === name);
   const room = openRoom ? roomOf(openRoom) : undefined;
@@ -1022,8 +1036,21 @@ export function Step6() {
     );
   };
 
-  /** 음성으로 품목 말하기 (Web Speech API + AI 해석 보조) */
-  const startVoice = () => {
+  /** AI가 목소리로 대답합니다 */
+  const say = (text: string) => {
+    setChat((c) => [...c.slice(-6), { role: "ai", text }]);
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "ko-KR";
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch {
+      /* 음성 합성 미지원 시 화면 대화만 표시 */
+    }
+  };
+
+  /** AI 음성 대화 시작 — 한 문장 듣고 대답하고 다시 듣습니다 */
+  const startVoice = (auto = false) => {
     const SR =
       (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
         .SpeechRecognition ||
@@ -1033,41 +1060,108 @@ export function Step6() {
       setPickerOpen(true);
       return;
     }
-    type SRType = { lang: string; interimResults: boolean; maxAlternatives: number; start: () => void; onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void; onerror: () => void; onend: () => void };
+    type SRType = {
+      lang: string;
+      interimResults: boolean;
+      continuous: boolean;
+      maxAlternatives: number;
+      start: () => void;
+      stop: () => void;
+      onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
+      onerror: () => void;
+      onend: () => void;
+    };
     const rec = new (SR as new () => SRType)();
+    recRef.current = rec;
     rec.lang = "ko-KR";
     rec.interimResults = false;
+    rec.continuous = false;
     rec.maxAlternatives = 1;
+    let got = false;
     rec.onresult = (e) => {
+      got = true;
       const text = Array.from({ length: e.results.length }, (_, i) => e.results[i][0].transcript).join(" ");
-      handleTranscript(text);
+      void handleTranscript(text);
     };
     rec.onerror = () => {
       toast.error("음성 인식을 사용할 수 없습니다. 마이크 권한을 확인해 주세요.");
       setListening(false);
+      recRef.current = null;
     };
-    rec.onend = () => setListening(false);
+    rec.onend = () => {
+      setListening(false);
+      recRef.current = null;
+      if (!got) say("잘 안 들렸어요. 마이크를 다시 눌러 말씀해 주세요.");
+    };
     setListening(true);
     tap("soft");
+    if (!auto) say("네 사장님, 어느 방에 무엇을 담을까요?");
     rec.start();
   };
 
-  /** 말한 문장을 해석해 방을 찾고 품목을 담습니다 */
-  const handleTranscript = (text: string) => {
+  const stopVoice = () => {
+    try {
+      recRef.current?.stop();
+    } catch {
+      /* 이미 종료된 경우 무시 */
+    }
+    recRef.current = null;
+    setListening(false);
+  };
+
+  /** 말한 문장을 AI가 해석해 방을 찾고 품목을 담습니다 (대화형) */
+  const handleTranscript = async (text: string) => {
+    setChat((c) => [...c.slice(-6), { role: "me", text }]);
     const roomNames = draft.rooms.map((r) => r.name);
     const spokenRoom = parseSpokenRoom(text, roomNames);
+    let items = parseSpokenItems(text, catalog);
+
+    // AI에게 물어 더 정확한 방·품목·수량을 받아옵니다
+    let aiRoom: string | null = null;
+    try {
+      const res = await askAi({ data: { text, rooms: roomNames } });
+      if (!res.error) {
+        aiRoom = res.room ?? null;
+        if (res.items.length > 0) items = res.items;
+      }
+    } catch {
+      /* AI 실패 시 로컬 해석 결과를 사용합니다 */
+    }
+
+    const roomName = aiRoom || spokenRoom;
     const target =
-      (spokenRoom ? draft.rooms.find((r) => r.name === spokenRoom) : undefined) ||
-      room ||
-      draft.rooms[0];
-    const local = parseSpokenItems(text, catalog);
-    if (!target || local.length === 0) {
-      toast.error(`"${text}" — 품목을 찾지 못했습니다. 다시 말씀해 주세요.`);
+      (roomName ? draft.rooms.find((r) => r.name === roomName) : undefined) || room;
+
+    // 방만 말한 경우 — 대기 중 품목이 있으면 담고, 없으면 품목을 물어봅니다
+    if (items.length === 0) {
+      if (target && pending && pending.length > 0) {
+        addSpokenTo(target, pending);
+        setPending(null);
+        say(`${target.name}에 담았습니다. 더 말씀하실 품목이 있나요?`);
+        setTimeout(() => startVoice(true), 900);
+        return;
+      }
+      say("품목을 못 알아들었어요. 예를 들어 '작은방 침대 하나 책상 두개' 처럼 말씀해 주세요.");
+      setTimeout(() => startVoice(true), 900);
       return;
     }
-    addSpokenTo(target, local);
-    if (spokenRoom) setOpenRoom(spokenRoom);
+
+    if (!target) {
+      setPending(items);
+      say(`${items.map((i) => `${i.name} ${i.qty}개`).join(", ")} 맞나요? 어느 방에 담을까요?`);
+      setTimeout(() => startVoice(true), 900);
+      return;
+    }
+
+    addSpokenTo(target, items);
+    setPending(null);
+    if (roomName) setOpenRoom(roomName);
+    say(
+      `${target.name}에 ${items.map((i) => `${i.name} ${i.qty}개`).join(", ")} 담았습니다. 더 있으면 말씀해 주세요.`
+    );
+    setTimeout(() => startVoice(true), 1200);
   };
+
 
 
 
@@ -1102,23 +1196,37 @@ export function Step6() {
   return (
     <MobileShell>
       {/* 헤더 */}
-      <div className="px-4 pt-1 pb-3 bg-white border-b border-[#E7EBF2]">
+      <div className="px-4 pt-2 pb-3 bg-white border-b border-[#E7EBF2]">
         <div className="flex items-center gap-2">
-          <img src={logoImg} alt="JIMPICK" className="w-9 h-9" />
-          <div className="flex-1 text-center">
-            <h1 className="text-[21px] font-black text-[#0F172A] leading-tight">
-              5단계. 공간별 품목
-            </h1>
-            <p className="text-[12px] text-[#6B7280] font-semibold">
-              {totalKinds > 0 ? "공간을 눌러 품목을 담아주세요" : "평수를 고르고 방을 추가·삭제하세요"}
-            </p>
-          </div>
-          <div className="px-3 py-1.5 rounded-2xl border border-[#DCE8FA] bg-white shadow-[0_2px_0_#EDF2FA]">
-            <span className="text-[#0751D8] font-black text-lg">5</span>
-            <span className="text-[#9AA4B2] font-bold text-xs"> / 7</span>
+          <button
+            onClick={() => {
+              tap("soft");
+              setScreen("step4");
+            }}
+            aria-label="4단계로 돌아가기"
+            className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] flex items-center justify-center text-[#0751D8] shadow-[0_4px_0_#DCE8FA,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#DCE8FA]"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <h1 className="flex-1 text-center text-[20px] font-black text-[#0F172A] leading-tight">
+            5단계. 공간별 품목
+          </h1>
+          <div className="shrink-0 px-3 py-1.5 rounded-2xl border border-[#DCE8FA] bg-gradient-to-b from-white to-[#F4F8FF] shadow-[0_3px_0_#EDF2FA,inset_0_1px_0_#fff]">
+            <span className="text-[#0751D8] font-black text-[17px]">5</span>
+            <span className="text-[#9AA4B2] font-bold text-[12px]"> / 7</span>
           </div>
         </div>
-        <div className="mt-3 flex gap-1.5">
+
+        {/* 구분 일자선 */}
+        <div className="mt-2.5 h-px w-full bg-[#E7EBF2]" />
+
+        <p className="mt-2 text-center text-[12px] text-[#6B7280] font-semibold">
+          {totalKinds > 0
+            ? `${size} · 공간을 눌러 품목을 담아주세요`
+            : `${size} · 평수를 고르고 방을 추가·삭제하세요`}
+        </p>
+
+        <div className="mt-2 flex gap-1.5">
           {[1, 2, 3, 4, 5, 6, 7].map((s) => (
             <div
               key={s}
@@ -1129,6 +1237,7 @@ export function Step6() {
           ))}
         </div>
       </div>
+
 
       {/* 평수 선택 탭 */}
       <div className="bg-white border-b border-[#E7EBF2] px-4 py-3">
@@ -1185,30 +1294,47 @@ export function Step6() {
                   </div>
                 </button>
                 {s.count > 0 && (
-                  <span className="absolute top-2 left-2 min-w-6 h-6 px-1.5 rounded-full bg-[#0751D8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#0640A8]">
+                  <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.5)]">
                     {s.count}
                   </span>
                 )}
+
               </div>
             );
           })}
         </div>
 
-        {/* 음성으로 방·품목 한 번에 담기 */}
+        {/* AI 음성 대화로 방·품목 담기 */}
         <button
-          onClick={startVoice}
-          className={`mt-4 w-full py-4 rounded-2xl text-white font-black text-[16px] flex items-center justify-center gap-2 active:translate-y-[3px] active:shadow-none ${
+          onClick={() => (listening ? stopVoice() : startVoice())}
+          className={`mt-4 w-full py-4 rounded-2xl text-white font-black text-[16px] flex items-center justify-center gap-2 transition-transform active:translate-y-[3px] active:shadow-none ${
             listening
-              ? "bg-gradient-to-b from-[#FF7A9C] to-[#DB2777] shadow-[0_5px_0_#9D174D] animate-pulse"
-              : "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,0_12px_22px_rgba(7,81,216,0.3)]"
+              ? "bg-gradient-to-b from-[#FF7A9C] to-[#DB2777] shadow-[0_5px_0_#9D174D,0_14px_24px_-10px_rgba(219,39,119,0.6)] animate-pulse"
+              : "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,0_14px_24px_-8px_rgba(7,81,216,0.6),inset_0_1px_0_rgba(255,255,255,0.45)]"
           }`}
         >
           <Mic className="w-6 h-6" />
-          {listening ? "듣고 있어요… 말씀하세요" : "음성으로 방·품목 말하기"}
+          {listening ? "듣고 있어요… 말씀하세요" : "AI 음성으로 대화하며 담기"}
         </button>
         <p className="mt-1.5 text-center text-[12px] font-bold text-[#6B7280]">
           예) “작은방 침대 하나 책상과 의자 책장 서랍장”
         </p>
+
+        {/* AI와 주고받은 대화 */}
+        {chat.length > 0 && (
+          <div className="mt-3 space-y-1.5 rounded-2xl bg-white border border-[#DCE8FA] p-3 shadow-[0_6px_0_#EDF2FA,inset_0_1px_0_#fff]">
+            {chat.map((c, i) => (
+              <div
+                key={`${i}_${c.text}`}
+                className={`text-[13px] font-bold ${c.role === "ai" ? "text-[#0751D8]" : "text-[#0F172A] text-right"}`}
+              >
+                {c.role === "ai" ? "🤖 " : "🗣️ "}
+                {c.text}
+              </div>
+            ))}
+          </div>
+        )}
+
 
         <button
           onClick={() => setScreen("scan")}
@@ -1226,13 +1352,8 @@ export function Step6() {
             <Camera className="w-6 h-6" /> 다음: AI 공간 스캔
           </span>
         </PrimaryButton>
-        <button
-          onClick={() => setScreen("step4")}
-          className="w-full mt-2 py-1 text-[15px] font-bold text-[#6B7280] underline"
-        >
-          이전
-        </button>
       </BottomButtonBar>
+
 
       {/* 품목 추가 드로어 */}
       {room && (
@@ -1265,15 +1386,16 @@ export function Step6() {
             {/* 음성 버튼 */}
             <div className="px-4">
               <button
-                onClick={startVoice}
+                onClick={() => (listening ? stopVoice() : startVoice())}
                 className={`w-full py-4 rounded-2xl text-white font-black text-[17px] flex items-center justify-center gap-2 transition-transform active:translate-y-[3px] active:shadow-none ${
                   listening
-                    ? "bg-gradient-to-b from-[#FF7A9C] to-[#DB2777] shadow-[0_5px_0_#9D174D] animate-pulse"
-                    : "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,0_12px_22px_rgba(7,81,216,0.3)]"
+                    ? "bg-gradient-to-b from-[#FF7A9C] to-[#DB2777] shadow-[0_5px_0_#9D174D,0_14px_24px_-10px_rgba(219,39,119,0.6)] animate-pulse"
+                    : "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,0_14px_24px_-8px_rgba(7,81,216,0.6),inset_0_1px_0_rgba(255,255,255,0.45)]"
                 }`}
               >
                 <Mic className="w-6 h-6" />
-                {listening ? "듣고 있어요… 말씀하세요" : "음성으로 품목 말하기"}
+                {listening ? "듣고 있어요… 말씀하세요" : "AI 음성으로 대화하며 담기"}
+
               </button>
               <p className="mt-1.5 text-center text-[12px] font-bold text-[#6B7280]">
                 예) “냉장고 하나 세탁기 두개 추가해줘”
