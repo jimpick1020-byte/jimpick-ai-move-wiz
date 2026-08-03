@@ -341,6 +341,8 @@ export function newEstimate(): Estimate {
     memo: "",
     specialTerms: "",
     rooms: DEFAULT_ROOMS.map((n) => ({ id: `r_${n}`, name: n, items: {} as RoomItems })),
+    sizeTab: "30~40평",
+
     customItems: [],
     hiddenItems: [],
     options: [...DEFAULT_OPTIONS],
