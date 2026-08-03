@@ -69,7 +69,7 @@ import truckImg from "@/assets/jimpick-truck.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ITEM_IMG, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
 
-import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle, Mic, Hand, Calculator } from "lucide-react";
+import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle, Hand, Calculator } from "lucide-react";
 import houseImg from "@/assets/step6-house.png";
 
 export function Splash() {
@@ -861,104 +861,7 @@ export function Step4() {
         </Card>
       </div>
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("step5")}>다음: 방·품목 입력</PrimaryButton>
-      </BottomButtonBar>
-    </MobileShell>
-  );
-}
-
-// ============ Step 5: Rooms ============
-export function Step5() {
-  const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
-  const [selected, setSelected] = useState<string[]>(draft.rooms.map((r) => r.id));
-  const [deleting, setDeleting] = useState<Room | null>(null);
-  const addRoom = () => {
-    const name = prompt("추가할 방 이름을 입력하세요");
-    if (!name) return;
-    const room: Room = { id: `r_${Date.now()}`, name, items: {} };
-    updateDraft({ rooms: [...draft.rooms, room] });
-    setSelected([...selected, room.id]);
-  };
-  const removeRoom = (r: Room) => setDeleting(r);
-  const confirmDelete = () => {
-    if (!deleting) return;
-    updateDraft({ rooms: draft.rooms.filter((x) => x.id !== deleting.id) });
-    setSelected(selected.filter((x) => x !== deleting.id));
-    setDeleting(null);
-  };
-  const next = () => {
-    const first = draft.rooms.find((r) => selected.includes(r.id));
-    if (!first) return toast.error("방을 하나 이상 선택하세요");
-    setCurrentRoom(first.id);
-    setScreen("scan");
-  };
-
-
-  return (
-    <MobileShell>
-      <TopBar title="5단계. 방 선택" onBack={() => setScreen("step4")} />
-      <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
-        <div className="grid grid-cols-2 gap-3">
-          {draft.rooms.map((r) => {
-            const sel = selected.includes(r.id);
-            return (
-              <Card
-                key={r.id}
-                selected={sel}
-                onClick={() =>
-                  setSelected(sel ? selected.filter((x) => x !== r.id) : [...selected, r.id])
-                }
-                className="text-center py-5 relative"
-              >
-                <Art3D src={ROOM_IMG[r.name] || ROOM_IMG["거실"]} alt={r.name} size={84} className="mb-2" />
-                <div className="font-bold">{r.name}</div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeRoom(r);
-                  }}
-                  className="absolute top-2 right-2 p-1 text-[#EF4444]"
-                  aria-label="삭제"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </Card>
-            );
-          })}
-        </div>
-        <button
-          onClick={addRoom}
-          className="w-full py-4 rounded-2xl border-2 border-dashed border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2"
-        >
-          <Plus className="w-5 h-5" /> 방 추가
-        </button>
-      </div>
-      {deleting && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-6 z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4">
-            <div className="font-bold text-lg">방 삭제</div>
-            <div className="text-sm text-[#6B7280]">
-              「{deleting.name}」 방을 삭제하시겠습니까? 저장된 품목도 함께 삭제됩니다.
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setDeleting(null)}
-                className="flex-1 py-3 rounded-xl border border-[#E7EBF2] font-semibold"
-              >
-                취소
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="flex-1 py-3 rounded-xl bg-[#EF4444] text-white font-semibold"
-              >
-                삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      <BottomButtonBar>
-        <PrimaryButton onClick={next}>다음: AI 공간 스캔</PrimaryButton>
+        <PrimaryButton onClick={goScan}>다음: AI 공간 스캔</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
