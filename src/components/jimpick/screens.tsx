@@ -897,7 +897,7 @@ export function Step4() {
 
 // ============ Step 6: Items ============
 /** 평수별 집 구조(구획) */
-const SIZE_TABS: { key: string; rooms: string[] }[] = [
+export const SIZE_TABS: { key: string; rooms: string[] }[] = [
   { key: "10~20평", rooms: ["안방", "거실", "부엌", "베란다"] },
   { key: "20~30평", rooms: ["안방", "작은방", "거실", "부엌", "베란다"] },
   { key: "30~40평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다"] },
@@ -905,7 +905,7 @@ const SIZE_TABS: { key: string; rooms: string[] }[] = [
   { key: "50~60평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다", "옷방", "서재"] },
 ];
 
-const ROOM_TINT: Record<string, string> = {
+export const ROOM_TINT: Record<string, string> = {
   안방: "from-[#4C9BFF] to-[#0751D8]",
   작은방: "from-[#5FD08A] to-[#2F9E44]",
   입구방: "from-[#A78BFA] to-[#7C3AED]",
@@ -980,14 +980,16 @@ export function Step6() {
     updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
   };
 
-  // ---- AI 음성 인식 (말하면 AI가 품목·수량을 해석해 담아줍니다) ----
+  // ---- AI 음성 인식 (공간별로 말하면 AI가 품목·수량을 해석해 담아줍니다) ----
   const [listening, setListening] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [heard, setHeard] = useState("");
+  const [voiceRoom, setVoiceRoom] = useState<string | null>(null);
   const recRef = useRef<any>(null);
 
-  const applyVoice = async (text: string) => {
-    if (!text.trim() || !room) return;
+  const applyVoice = async (text: string, targetName: string) => {
+    const target0 = roomOf(targetName);
+    if (!text.trim() || !target0) return;
     setVoiceBusy(true);
     try {
       const res = await parseVoiceOrder({
@@ -1001,7 +1003,7 @@ export function Step6() {
         toast.info("품목을 알아듣지 못했어요. 다시 말씀해 주세요.");
         return;
       }
-      const target = (res.room && roomOf(res.room)) || room;
+      const target = (res.room && roomOf(res.room)) || target0;
       const items = { ...target.items };
       for (const it of res.items) items[it.id] = (items[it.id] || 0) + it.qty;
       updateDraft({
@@ -1018,7 +1020,7 @@ export function Step6() {
     }
   };
 
-  const toggleVoice = () => {
+  const toggleVoice = (targetName: string) => {
     tap("soft");
     if (listening) {
       recRef.current?.stop();
@@ -1037,11 +1039,12 @@ export function Step6() {
     rec.maxAlternatives = 1;
     recRef.current = rec;
     setHeard("");
+    setVoiceRoom(targetName);
     rec.onresult = (ev: any) => {
       let text = "";
       for (let i = 0; i < ev.results.length; i++) text += ev.results[i][0].transcript;
       setHeard(text);
-      if (ev.results[ev.results.length - 1].isFinal) void applyVoice(text);
+      if (ev.results[ev.results.length - 1].isFinal) void applyVoice(text, targetName);
     };
     rec.onerror = (ev: any) => {
       setListening(false);
@@ -1055,6 +1058,7 @@ export function Step6() {
       setListening(false);
     }
   };
+
 
 
   const addCustom = () => {
@@ -1198,6 +1202,22 @@ export function Step6() {
                     {s.kinds > 0 ? `품목 ${s.kinds}종 · 총 ${s.count}개` : "품목 없음"}
                   </div>
                 </button>
+                {/* 공간별 음성 인식 버튼 */}
+                <button
+                  onClick={() => toggleVoice(name)}
+                  className={`mt-1 w-full py-2 rounded-2xl text-[12px] font-black flex items-center justify-center gap-1 transition-all active:translate-y-[2px] ${
+                    listening && voiceRoom === name
+                      ? "text-white bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] shadow-[0_4px_0_#A81E20]"
+                      : "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_4px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
+                  }`}
+                >
+                  <Mic className="w-4 h-4" />
+                  {listening && voiceRoom === name
+                    ? "듣는 중"
+                    : voiceBusy && voiceRoom === name
+                      ? "정리 중"
+                      : "음성 담기"}
+                </button>
                 {s.count > 0 && (
                   <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.5)]">
                     {s.count}
@@ -1208,16 +1228,22 @@ export function Step6() {
             );
           })}
         </div>
+        {(heard || voiceBusy) && (
+          <div className="mt-3 px-3 py-2 rounded-2xl bg-white border border-[#DCE8FA] text-[13px] font-bold text-[#0F172A] shadow-[0_3px_0_#E1EAF8]">
+            {voiceRoom ? `「${voiceRoom}」 ` : ""}“{heard || "..."}”
+          </div>
+        )}
       </div>
 
 
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("scan")}>
+        <PrimaryButton onClick={() => setScreen("plan")}>
           <span className="inline-flex items-center gap-2">
-            <Camera className="w-6 h-6" /> 다음: AI 공간 스캔
+            다음: 3D 입체 평면도
           </span>
         </PrimaryButton>
       </BottomButtonBar>
+
 
 
       {/* 품목 추가 드로어 */}
@@ -1281,7 +1307,7 @@ export function Step6() {
             {/* AI 음성 인식으로 품목 담기 */}
             <div className="px-4 pt-3 space-y-2">
               <button
-                onClick={toggleVoice}
+                onClick={() => toggleVoice(room.name)}
                 className={`w-full py-4 rounded-2xl font-black text-[16px] flex items-center justify-center gap-2 transition-all active:translate-y-[3px] ${
                   listening
                     ? "text-white bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] shadow-[0_5px_0_#A81E20]"
@@ -1658,7 +1684,7 @@ export function OptionsScreen() {
 
   return (
     <MobileShell>
-      <TopBar title="7단계. 옵션·보관료" onBack={() => setScreen("scan")} />
+      <TopBar title="7단계. 옵션·보관료" onBack={() => setScreen("plan")} />
       <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
         {draft.options.length === 0 && (
           <div className="text-center text-[#6B7280] py-10 text-sm">
