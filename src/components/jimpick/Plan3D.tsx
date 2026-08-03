@@ -26,7 +26,7 @@ const PLAN_LAYOUT: Record<string, Record<string, string>> = {
 };
 
 export function Plan3D() {
-  const { draft, updateDraft, setScreen } = useApp();
+  const { draft, updateDraft, setScreen, restoreStepSnapshot } = useApp();
   const [size, setSize] = useState<string>(draft.sizeTab || "30~40평");
   const [open, setOpen] = useState<string | null>(null);
 
