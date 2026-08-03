@@ -749,10 +749,11 @@ export function Step3() {
 // ============ Step 4: Vehicles ============
 export function Step4() {
   const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
-  const goScan = () => {
+  const ladderUnit = getPricing().ladder;
+  const goNext = () => {
     const first = draft.rooms[0];
     if (first) setCurrentRoom(first.id);
-    setScreen("scan");
+    setScreen("step6");
   };
   const vehicles = [
     { key: "truck1t" as const, name: "1톤 차량", img: VEHICLE_IMG.truck1t, max: 10, val: draft.truck1t },
