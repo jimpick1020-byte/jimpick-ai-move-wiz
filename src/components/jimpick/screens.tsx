@@ -973,41 +973,6 @@ export function Step6() {
     cy: 34 + Math.floor(i / 3) * 30,
   });
 
-  const voiceEdit = () => {
-    const SR =
-      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
-        .SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
-    const applyText = (text: string) => {
-      const found = catalog.filter((i) => text.replace(/\s/g, "").includes(i.name));
-      if (!found.length) {
-        toast.info("인식된 품목이 없습니다. 예: 「침대 소파 냉장고」");
-        return;
-      }
-      const items = { ...(room?.items || {}) };
-      for (const f of found) items[f.id] = (items[f.id] || 0) + 1;
-      updateDraft({ rooms: draft.rooms.map((r) => (r.id === roomId ? { ...r, items } : r)) });
-      tap("success");
-      toast.success(`${found.map((f) => f.name).join(", ")} 추가되었습니다`);
-    };
-    if (!SR) {
-      const text = prompt(`${room?.name || "방"}에 추가할 품목을 말하듯 입력해 주세요`) || "";
-      if (text) applyText(text);
-      return;
-    }
-    type SRType = new () => {
-      lang: string;
-      start: () => void;
-      onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
-      onerror: () => void;
-    };
-    const rec = new (SR as SRType)();
-    rec.lang = "ko-KR";
-    rec.onresult = (e) => applyText(e.results[0][0].transcript);
-    rec.onerror = () => toast.error("음성 인식에 실패했습니다");
-    toast.info("듣고 있어요 — 품목을 말해 주세요");
-    rec.start();
-  };
 
   if (mode === "3d") {
     const totalKinds = draft.rooms.reduce((a, r) => a + roomSummary(r.items).kinds, 0);
@@ -1113,22 +1078,6 @@ export function Step6() {
 
           {/* 수정 버튼 */}
           <div className="flex gap-3">
-            <button
-              onClick={voiceEdit}
-              className="flex-[1.4] flex items-center gap-2 pl-2 pr-4 py-2.5 rounded-full bg-white shadow-[0_5px_0_#DCE8FA,0_10px_20px_rgba(7,81,216,0.14),inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-[0_2px_0_#DCE8FA]"
-            >
-              <span className="w-11 h-11 rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] flex items-center justify-center text-white shadow-[0_4px_10px_rgba(7,81,216,0.4)]">
-                <Mic className="w-5 h-5" />
-              </span>
-              <span className="flex-1 text-[19px] font-black text-[#0751D8]">말로 수정하기</span>
-            </button>
-            <button
-              onClick={() => {
-                tap("soft");
-                setMode("manual");
-              }}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-full bg-white border border-[#DCE8FA] shadow-[0_5px_0_#EDF2FA,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
-            >
               <Hand className="w-5 h-5 text-[#0751D8]" />
               <span className="text-[17px] font-black text-[#0751D8]">직접 선택</span>
             </button>
