@@ -1125,14 +1125,14 @@ export function Step6() {
           <img src={logoImg} alt="JIMPICK" className="w-9 h-9" />
           <div className="flex-1 text-center">
             <h1 className="text-[21px] font-black text-[#0F172A] leading-tight">
-              6단계. 공간별 품목
+              5단계. 공간별 품목
             </h1>
             <p className="text-[12px] text-[#6B7280] font-semibold">
-              {totalKinds > 0 ? "공간을 눌러 품목을 수정하세요" : "평수를 고르고 공간을 눌러주세요"}
+              {totalKinds > 0 ? "공간을 눌러 품목을 담아주세요" : "평수를 고르고 방을 추가·삭제하세요"}
             </p>
           </div>
           <div className="px-3 py-1.5 rounded-2xl border border-[#DCE8FA] bg-white shadow-[0_2px_0_#EDF2FA]">
-            <span className="text-[#0751D8] font-black text-lg">6</span>
+            <span className="text-[#0751D8] font-black text-lg">5</span>
             <span className="text-[#9AA4B2] font-bold text-xs"> / 7</span>
           </div>
         </div>
@@ -1141,7 +1141,7 @@ export function Step6() {
             <div
               key={s}
               className={`h-1.5 flex-1 rounded-full ${
-                s < 6 ? "bg-[#8FC0FF]" : s === 6 ? "bg-[#0751D8]" : "bg-[#E7EBF2]"
+                s < 5 ? "bg-[#8FC0FF]" : s === 5 ? "bg-[#0751D8]" : "bg-[#E7EBF2]"
               }`}
             />
           ))}
