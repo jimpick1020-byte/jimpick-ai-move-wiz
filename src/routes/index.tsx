@@ -9,7 +9,6 @@ import {
   Step2,
   Step3,
   Step4,
-  Step5,
   Step6,
   AIRecognition,
   OptionsScreen,
@@ -44,7 +43,6 @@ function Router() {
     case "step2": return <Step2 />;
     case "step3": return <Step3 />;
     case "step4": return <Step4 />;
-    case "step5": return <Step5 />;
     case "step6": return <Step6 />;
     case "scan": return <AIScan />;
     case "ai": return <AIRecognition />;

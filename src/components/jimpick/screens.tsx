@@ -69,7 +69,7 @@ import truckImg from "@/assets/jimpick-truck.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ITEM_IMG, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
 
-import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle, Mic, Hand, Calculator } from "lucide-react";
+import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle, Hand, Calculator } from "lucide-react";
 import houseImg from "@/assets/step6-house.png";
 
 export function Splash() {
@@ -745,7 +745,12 @@ export function Step3() {
 
 // ============ Step 4: Vehicles ============
 export function Step4() {
-  const { draft, updateDraft, setScreen } = useApp();
+  const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
+  const goScan = () => {
+    const first = draft.rooms[0];
+    if (first) setCurrentRoom(first.id);
+    setScreen("scan");
+  };
   const vehicles = [
     { key: "truck1t" as const, name: "1톤 차량", img: VEHICLE_IMG.truck1t, max: 10, val: draft.truck1t },
     { key: "truck5t" as const, name: "5톤 차량", img: VEHICLE_IMG.truck5t, max: 10, val: draft.truck5t },
@@ -861,104 +866,7 @@ export function Step4() {
         </Card>
       </div>
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("step5")}>다음: 방·품목 입력</PrimaryButton>
-      </BottomButtonBar>
-    </MobileShell>
-  );
-}
-
-// ============ Step 5: Rooms ============
-export function Step5() {
-  const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
-  const [selected, setSelected] = useState<string[]>(draft.rooms.map((r) => r.id));
-  const [deleting, setDeleting] = useState<Room | null>(null);
-  const addRoom = () => {
-    const name = prompt("추가할 방 이름을 입력하세요");
-    if (!name) return;
-    const room: Room = { id: `r_${Date.now()}`, name, items: {} };
-    updateDraft({ rooms: [...draft.rooms, room] });
-    setSelected([...selected, room.id]);
-  };
-  const removeRoom = (r: Room) => setDeleting(r);
-  const confirmDelete = () => {
-    if (!deleting) return;
-    updateDraft({ rooms: draft.rooms.filter((x) => x.id !== deleting.id) });
-    setSelected(selected.filter((x) => x !== deleting.id));
-    setDeleting(null);
-  };
-  const next = () => {
-    const first = draft.rooms.find((r) => selected.includes(r.id));
-    if (!first) return toast.error("방을 하나 이상 선택하세요");
-    setCurrentRoom(first.id);
-    setScreen("scan");
-  };
-
-
-  return (
-    <MobileShell>
-      <TopBar title="5단계. 방 선택" onBack={() => setScreen("step4")} />
-      <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
-        <div className="grid grid-cols-2 gap-3">
-          {draft.rooms.map((r) => {
-            const sel = selected.includes(r.id);
-            return (
-              <Card
-                key={r.id}
-                selected={sel}
-                onClick={() =>
-                  setSelected(sel ? selected.filter((x) => x !== r.id) : [...selected, r.id])
-                }
-                className="text-center py-5 relative"
-              >
-                <Art3D src={ROOM_IMG[r.name] || ROOM_IMG["거실"]} alt={r.name} size={84} className="mb-2" />
-                <div className="font-bold">{r.name}</div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeRoom(r);
-                  }}
-                  className="absolute top-2 right-2 p-1 text-[#EF4444]"
-                  aria-label="삭제"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </Card>
-            );
-          })}
-        </div>
-        <button
-          onClick={addRoom}
-          className="w-full py-4 rounded-2xl border-2 border-dashed border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2"
-        >
-          <Plus className="w-5 h-5" /> 방 추가
-        </button>
-      </div>
-      {deleting && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-6 z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4">
-            <div className="font-bold text-lg">방 삭제</div>
-            <div className="text-sm text-[#6B7280]">
-              「{deleting.name}」 방을 삭제하시겠습니까? 저장된 품목도 함께 삭제됩니다.
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setDeleting(null)}
-                className="flex-1 py-3 rounded-xl border border-[#E7EBF2] font-semibold"
-              >
-                취소
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="flex-1 py-3 rounded-xl bg-[#EF4444] text-white font-semibold"
-              >
-                삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      <BottomButtonBar>
-        <PrimaryButton onClick={next}>다음: AI 공간 스캔</PrimaryButton>
+        <PrimaryButton onClick={goScan}>다음: AI 공간 스캔</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
@@ -1065,41 +973,6 @@ export function Step6() {
     cy: 34 + Math.floor(i / 3) * 30,
   });
 
-  const voiceEdit = () => {
-    const SR =
-      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
-        .SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
-    const applyText = (text: string) => {
-      const found = catalog.filter((i) => text.replace(/\s/g, "").includes(i.name));
-      if (!found.length) {
-        toast.info("인식된 품목이 없습니다. 예: 「침대 소파 냉장고」");
-        return;
-      }
-      const items = { ...(room?.items || {}) };
-      for (const f of found) items[f.id] = (items[f.id] || 0) + 1;
-      updateDraft({ rooms: draft.rooms.map((r) => (r.id === roomId ? { ...r, items } : r)) });
-      tap("success");
-      toast.success(`${found.map((f) => f.name).join(", ")} 추가되었습니다`);
-    };
-    if (!SR) {
-      const text = prompt(`${room?.name || "방"}에 추가할 품목을 말하듯 입력해 주세요`) || "";
-      if (text) applyText(text);
-      return;
-    }
-    type SRType = new () => {
-      lang: string;
-      start: () => void;
-      onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
-      onerror: () => void;
-    };
-    const rec = new (SR as SRType)();
-    rec.lang = "ko-KR";
-    rec.onresult = (e) => applyText(e.results[0][0].transcript);
-    rec.onerror = () => toast.error("음성 인식에 실패했습니다");
-    toast.info("듣고 있어요 — 품목을 말해 주세요");
-    rec.start();
-  };
 
   if (mode === "3d") {
     const totalKinds = draft.rooms.reduce((a, r) => a + roomSummary(r.items).kinds, 0);
@@ -1206,20 +1079,11 @@ export function Step6() {
           {/* 수정 버튼 */}
           <div className="flex gap-3">
             <button
-              onClick={voiceEdit}
-              className="flex-[1.4] flex items-center gap-2 pl-2 pr-4 py-2.5 rounded-full bg-white shadow-[0_5px_0_#DCE8FA,0_10px_20px_rgba(7,81,216,0.14),inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-[0_2px_0_#DCE8FA]"
-            >
-              <span className="w-11 h-11 rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] flex items-center justify-center text-white shadow-[0_4px_10px_rgba(7,81,216,0.4)]">
-                <Mic className="w-5 h-5" />
-              </span>
-              <span className="flex-1 text-[19px] font-black text-[#0751D8]">말로 수정하기</span>
-            </button>
-            <button
               onClick={() => {
                 tap("soft");
                 setMode("manual");
               }}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-full bg-white border border-[#DCE8FA] shadow-[0_5px_0_#EDF2FA,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-full bg-white border border-[#DCE8FA] shadow-[0_5px_0_#EDF2FA,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
             >
               <Hand className="w-5 h-5 text-[#0751D8]" />
               <span className="text-[17px] font-black text-[#0751D8]">직접 선택</span>
@@ -2255,12 +2119,22 @@ export function SettingsScreen() {
           <div className="text-xs text-[#6B7280]">
             여기서 저장한 단가로 모든 견적 금액이 자동 계산됩니다.
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
             <Field label="1톤 차량">
-              <MoneyInput value={pricing.truck1t} step={10000} onChange={(n) => setP({ truck1t: n })} />
+              <MoneyInput
+                value={pricing.truck1t}
+                step={10000}
+                onChange={(n) => setP({ truck1t: n })}
+                inputClassName="h-14 py-0 leading-[3.5rem] text-[18px] font-bold text-[#111827]"
+              />
             </Field>
             <Field label="5톤 차량">
-              <MoneyInput value={pricing.truck5t} step={10000} onChange={(n) => setP({ truck5t: n })} />
+              <MoneyInput
+                value={pricing.truck5t}
+                step={10000}
+                onChange={(n) => setP({ truck5t: n })}
+                inputClassName="h-14 py-0 leading-[3.5rem] text-[18px] font-bold text-[#111827]"
+              />
             </Field>
           </div>
           <button

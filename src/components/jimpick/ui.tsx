@@ -167,6 +167,7 @@ export function MoneyInput({
   step = 10000,
   placeholder = "0",
   className = "",
+  inputClassName = "",
   allowNegative = false,
 }: {
   value: number;
@@ -174,6 +175,8 @@ export function MoneyInput({
   step?: number;
   placeholder?: string;
   className?: string;
+  /** 입력창에 추가할 클래스 */
+  inputClassName?: string;
   /** 음수 입력 허용 (할인 금액 등) */
   allowNegative?: boolean;
 }) {
@@ -232,7 +235,7 @@ export function MoneyInput({
             const n = Number(t.replace(/[^\d]/g, "")) || 0;
             onChange(neg ? -n : allowNegative ? n : Math.max(0, n));
           }}
-          className="pr-8 text-right font-bold tabular-nums"
+          className={`pr-8 text-right font-bold tabular-nums ${inputClassName}`}
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[#6B7280]">원</span>
       </div>

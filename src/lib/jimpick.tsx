@@ -241,13 +241,12 @@ export function calcEstimate(
   const truckFee = num(e.truck1t) * pricing.truck1t + num(e.truck5t) * pricing.truck5t;
   const extraKm = Math.max(0, num(e.distanceKm) - pricing.baseKm);
   const distanceFee = Math.round(extraKm * pricing.perKm);
-  const laborFee = num(e.workers) * pricing.worker + num(e.kitchenStaff) * pricing.kitchenStaff;
   const stairFloors = e.workEnv.includes("계단")
     ? Math.max(0, num(e.fromFloor) - 1) + Math.max(0, num(e.toFloor) - 1)
     : 0;
   const stairFee = stairFloors * pricing.stairPerFloor;
 
-  const autoTransport = truckFee + distanceFee + laborFee + stairFee + ladderFee;
+  const autoTransport = truckFee + distanceFee + stairFee + ladderFee;
   const overridden = e.transportOverride !== null && e.transportOverride !== undefined;
   const transport = overridden ? num(e.transportOverride) : autoTransport;
 
@@ -266,7 +265,6 @@ export function calcEstimate(
     : [
         { label: "기본 차량비", amount: truckFee },
         { label: `거리 추가비 (${pricing.baseKm}km 초과 ${extraKm.toFixed(1)}km)`, amount: distanceFee },
-        { label: `인건비 (남자 ${num(e.workers)}명 · 주방 ${num(e.kitchenStaff)}명)`, amount: laborFee },
         { label: `계단 작업비 (${stairFloors}개층)`, amount: stairFee },
         { label: "사다리차 비용", amount: ladderFee },
       ].filter((p) => p.amount > 0);
@@ -348,7 +346,6 @@ export type Screen =
   | "step2"
   | "step3"
   | "step4"
-  | "step5"
   | "step6"
   | "scan"
   | "ai"

@@ -191,7 +191,7 @@ export function AIScan() {
 
       setRoomGuess(res.roomGuess);
       setRoomConf(res.roomConfidence);
-      // AI가 인식한 공간이 5단계에서 고른 방에 있으면 자동으로 선택합니다.
+      // AI가 인식한 공간이 등록된 방에 있으면 자동으로 선택합니다.
       const matched = draft.rooms.find((r) => r.name === res.roomGuess);
       if (matched) setTargetRoomId(matched.id);
       logScan({
@@ -319,7 +319,7 @@ export function AIScan() {
 
   return (
     <MobileShell>
-      <TopBar title="5.5단계. AI 공간 스캔" onBack={() => setScreen("step5")} />
+      <TopBar title="5.5단계. AI 공간 스캔" onBack={() => setScreen("step4")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         <div className="text-sm text-[#6B7280] -mt-1">촬영하면 공간과 품목을 자동으로 인식해요</div>
 
