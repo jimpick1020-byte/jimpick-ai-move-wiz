@@ -235,7 +235,7 @@ export function MoneyInput({
             const n = Number(t.replace(/[^\d]/g, "")) || 0;
             onChange(neg ? -n : allowNegative ? n : Math.max(0, n));
           }}
-          className="pr-8 text-right font-bold tabular-nums"
+          className={`pr-8 text-right font-bold tabular-nums ${inputClassName}`}
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[#6B7280]">원</span>
       </div>
