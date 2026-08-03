@@ -1212,11 +1212,6 @@ export function Step6() {
             );
           })}
         </div>
-        {(heard || voiceBusy) && (
-          <div className="mt-3 px-3 py-2 rounded-2xl bg-white border border-[#DCE8FA] text-[13px] font-bold text-[#0F172A] shadow-[0_3px_0_#E1EAF8]">
-            {voiceRoom ? `「${voiceRoom}」 ` : ""}“{heard || "..."}”
-          </div>
-        )}
       </div>
 
 
