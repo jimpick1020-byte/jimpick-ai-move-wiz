@@ -795,7 +795,14 @@ export function Step4() {
                 checked={draft.ladderFrom}
                 onChange={(e) => {
                   tap("soft");
-                  updateDraft({ ladderFrom: e.target.checked });
+                  const on = e.target.checked;
+                  const price = on ? draft.ladderFromPrice || ladderUnit : 0;
+                  updateDraft({
+                    ladderFrom: on,
+                    ladderFromPrice: price,
+                    ladder: (on ? 1 : 0) + (draft.ladderTo ? 1 : 0),
+                    ladderPrice: price + draft.ladderToPrice,
+                  });
                 }}
               />
               출발지
@@ -807,7 +814,14 @@ export function Step4() {
                 checked={draft.ladderTo}
                 onChange={(e) => {
                   tap("soft");
-                  updateDraft({ ladderTo: e.target.checked });
+                  const on = e.target.checked;
+                  const price = on ? draft.ladderToPrice || ladderUnit : 0;
+                  updateDraft({
+                    ladderTo: on,
+                    ladderToPrice: price,
+                    ladder: (on ? 1 : 0) + (draft.ladderFrom ? 1 : 0),
+                    ladderPrice: draft.ladderFromPrice + price,
+                  });
                 }}
               />
               도착지
