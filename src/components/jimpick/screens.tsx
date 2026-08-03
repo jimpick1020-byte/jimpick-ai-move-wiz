@@ -995,15 +995,19 @@ export function Step6() {
     setSize(key);
     const rooms = (SIZE_TABS.find((t) => t.key === key) || SIZE_TABS[2]).rooms;
     const missing = rooms.filter((n) => !draft.rooms.some((r) => r.name === n));
-    if (missing.length) {
-      updateDraft({
-        rooms: [
-          ...draft.rooms,
-          ...missing.map((n) => ({ id: `r_${n}`, name: n, items: {} as Record<string, number> })),
-        ],
-      });
-    }
+    updateDraft({
+      sizeTab: key,
+      ...(missing.length
+        ? {
+            rooms: [
+              ...draft.rooms,
+              ...missing.map((n) => ({ id: `r_${n}`, name: n, items: {} as Record<string, number> })),
+            ],
+          }
+        : {}),
+    });
   };
+
 
   const roomOf = (name: string) => draft.rooms.find((r) => r.name === name);
   const room = openRoom ? roomOf(openRoom) : undefined;
