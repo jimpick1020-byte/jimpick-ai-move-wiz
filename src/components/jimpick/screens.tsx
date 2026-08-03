@@ -22,6 +22,8 @@ import {
   Mic,
   X,
   ChevronDown,
+  ChevronLeft,
+
 } from "lucide-react";
 
 import {
@@ -1384,15 +1386,16 @@ export function Step6() {
             {/* 음성 버튼 */}
             <div className="px-4">
               <button
-                onClick={startVoice}
+                onClick={() => (listening ? stopVoice() : startVoice())}
                 className={`w-full py-4 rounded-2xl text-white font-black text-[17px] flex items-center justify-center gap-2 transition-transform active:translate-y-[3px] active:shadow-none ${
                   listening
-                    ? "bg-gradient-to-b from-[#FF7A9C] to-[#DB2777] shadow-[0_5px_0_#9D174D] animate-pulse"
-                    : "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,0_12px_22px_rgba(7,81,216,0.3)]"
+                    ? "bg-gradient-to-b from-[#FF7A9C] to-[#DB2777] shadow-[0_5px_0_#9D174D,0_14px_24px_-10px_rgba(219,39,119,0.6)] animate-pulse"
+                    : "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,0_14px_24px_-8px_rgba(7,81,216,0.6),inset_0_1px_0_rgba(255,255,255,0.45)]"
                 }`}
               >
                 <Mic className="w-6 h-6" />
-                {listening ? "듣고 있어요… 말씀하세요" : "음성으로 품목 말하기"}
+                {listening ? "듣고 있어요… 말씀하세요" : "AI 음성으로 대화하며 담기"}
+
               </button>
               <p className="mt-1.5 text-center text-[12px] font-bold text-[#6B7280]">
                 예) “냉장고 하나 세탁기 두개 추가해줘”
