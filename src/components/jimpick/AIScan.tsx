@@ -4,22 +4,13 @@ import { toast } from "sonner";
 
 import { useApp, roomSummary } from "@/lib/jimpick";
 import { MobileShell, TopBar, PrimaryButton, BottomButtonBar, Card, Counter } from "./ui";
-import { Art3D, ITEM_IMG, ROOM_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
+import { Art3D, ITEM_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
 import { recognizeItems, type DetectedItem, type PackingEstimate } from "@/lib/ai.functions";
 import { fileToDataUrl, videoToFrames } from "@/lib/media";
 import { tap } from "@/lib/feedback";
 
 const HIGH = 0.9;
 const SCAN_LOG_KEY = "jimpick_scan_log";
-
-/** 평수별 기본 방 구성 (5단계와 동일) */
-const SIZE_TABS: { key: string; rooms: string[] }[] = [
-  { key: "10~20평", rooms: ["안방", "거실", "부엌", "베란다"] },
-  { key: "20~30평", rooms: ["안방", "작은방", "거실", "부엌", "베란다"] },
-  { key: "30~40평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다"] },
-  { key: "40~50평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다", "옷방"] },
-  { key: "50~60평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다", "옷방", "서재"] },
-];
 
 /** 분석 이력 기록 (정확도 검증용) */
 function logScan(entry: Record<string, unknown>) {
@@ -138,7 +129,6 @@ export function AIScan() {
   const [roomGuess, setRoomGuess] = useState<string | null>(null);
   const [roomConf, setRoomConf] = useState<number | null>(null);
   const [targetRoomId, setTargetRoomId] = useState<string>(currentRoom?.id ?? "");
-  const [size, setSize] = useState<string>(() => draft.sizeTab || "30~40평");
   const [dupAsk, setDupAsk] = useState<string[] | null>(null);
   const [shots, setShots] = useState<{ id: string; url: string; kind: "photo" | "video" }[]>([]);
   const [preview, setPreview] = useState<{ url: string; kind: "photo" | "video" } | null>(null);
@@ -151,27 +141,6 @@ export function AIScan() {
   const videoLibRef = useRef<HTMLInputElement>(null);
 
   const targetRoom = draft.rooms.find((r) => r.id === targetRoomId) || currentRoom;
-
-  const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || SIZE_TABS[2]).rooms;
-
-  /** 평수를 고르면 없는 방만 새로 만들고 기존 품목은 그대로 둡니다 */
-  const pickSize = (key: string) => {
-    tap("soft");
-    setSize(key);
-    const rooms = (SIZE_TABS.find((t) => t.key === key) || SIZE_TABS[2]).rooms;
-    const missing = rooms.filter((n) => !draft.rooms.some((r) => r.name === n));
-    updateDraft({
-      sizeTab: key,
-      ...(missing.length
-        ? {
-            rooms: [
-              ...draft.rooms,
-              ...missing.map((n) => ({ id: `r_${n}`, name: n, items: {} as Record<string, number> })),
-            ],
-          }
-        : {}),
-    });
-  };
 
   const tags = useMemo(
     () =>
@@ -516,7 +485,7 @@ export function AIScan() {
 
         <Card>
           <div className="text-xs text-[#6B7280]">적용할 방</div>
-          <div className="font-bold">{targetRoom?.name ?? "위 도면에서 방을 선택하세요"}</div>
+          <div className="font-bold">{targetRoom?.name ?? "위에서 방을 선택하세요"}</div>
         </Card>
 
         {packRows.length > 0 && (
