@@ -1170,42 +1170,80 @@ export function Step6() {
       {/* 디지털 3D 집 구조 */}
       <div className="flex-1 overflow-auto p-4 pb-6 bg-gradient-to-b from-[#EEF6FF] to-[#E6EEFA]">
         <div className="grid grid-cols-2 gap-3">
-          {sizeRooms.map((name) => {
-            const r = roomOf(name);
-            const s = roomSummary(r?.items || {});
+          {draft.rooms.map((r) => {
+            const name = r.name;
+            const s = roomSummary(r.items || {});
             return (
-              <button
-                key={name}
-                onClick={() => {
-                  tap("soft");
-                  if (r) setCurrentRoom(r.id);
-                  setOpenRoom(name);
-                  setPickerOpen(false);
-                  setQ("");
-                }}
-                className="relative text-left rounded-3xl p-3 bg-gradient-to-b from-white to-[#F2F7FF] border border-[#DCE8FA] shadow-[0_8px_0_#E1EAF8,0_16px_28px_-14px_rgba(7,81,216,0.4),inset_0_1px_0_#fff] active:translate-y-[4px] active:shadow-[0_2px_0_#E1EAF8] transition-transform"
+              <div
+                key={r.id}
+                className="relative rounded-3xl p-3 bg-gradient-to-b from-white to-[#F2F7FF] border border-[#DCE8FA] shadow-[0_8px_0_#E1EAF8,0_16px_28px_-14px_rgba(7,81,216,0.4),inset_0_1px_0_#fff]"
               >
-                <span
-                  className={`inline-block px-3 py-1 rounded-xl text-white text-[14px] font-black bg-gradient-to-b ${
-                    ROOM_TINT[name] || "from-[#4C9BFF] to-[#0751D8]"
-                  } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)]`}
+                <button
+                  onClick={() => {
+                    tap("soft");
+                    setCurrentRoom(r.id);
+                    setOpenRoom(name);
+                    setPickerOpen(false);
+                    setQ("");
+                  }}
+                  className="w-full text-left active:translate-y-[2px] transition-transform"
                 >
-                  {name}
-                </span>
-                <div className="mt-1 flex items-center justify-center h-[86px]">
-                  <Art3D src={ROOM_IMG[name] || ROOM_IMG["작은방"]} alt={name} size={82} />
-                </div>
-                <div className="text-center text-[12px] font-extrabold text-[#0F172A]">
-                  {s.kinds > 0 ? `품목 ${s.kinds}종 · 총 ${s.count}개` : "품목 없음"}
-                </div>
+                  <span
+                    className={`inline-block px-3 py-1 rounded-xl text-white text-[14px] font-black bg-gradient-to-b ${
+                      ROOM_TINT[name] || "from-[#4C9BFF] to-[#0751D8]"
+                    } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)]`}
+                  >
+                    {name}
+                  </span>
+                  <div className="mt-1 flex items-center justify-center h-[86px]">
+                    <Art3D src={ROOM_IMG[name] || ROOM_IMG["작은방"]} alt={name} size={82} />
+                  </div>
+                  <div className="text-center text-[12px] font-extrabold text-[#0F172A]">
+                    {s.kinds > 0 ? `품목 ${s.kinds}종 · 총 ${s.count}개` : "품목 없음"}
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    tap("soft");
+                    const rooms = draft.rooms.filter((x) => x.id !== r.id);
+                    updateDraft({ rooms });
+                    if (openRoom === name) setOpenRoom(null);
+                    toast.success(`「${name}」 공간을 삭제했습니다`);
+                  }}
+                  aria-label={`${name} 삭제`}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white text-[#EF4444] flex items-center justify-center shadow-[0_3px_0_#E3E9F5]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
                 {s.count > 0 && (
-                  <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-white text-[#0751D8] text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#E3E9F5]">
+                  <span className="absolute top-2 left-2 min-w-6 h-6 px-1.5 rounded-full bg-[#0751D8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#0640A8]">
                     {s.count}
                   </span>
                 )}
-              </button>
+              </div>
             );
           })}
+        </div>
+
+        {/* 음성으로 방·품목 한 번에 담기 */}
+        <button
+          onClick={startVoice}
+          disabled={aiThinking}
+          className={`mt-4 w-full py-4 rounded-2xl text-white font-black text-[16px] flex items-center justify-center gap-2 active:translate-y-[3px] active:shadow-none ${
+            listening
+              ? "bg-gradient-to-b from-[#FF7A9C] to-[#DB2777] shadow-[0_5px_0_#9D174D] animate-pulse"
+              : "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,0_12px_22px_rgba(7,81,216,0.3)]"
+          }`}
+        >
+          <Mic className="w-6 h-6" />
+          {listening ? "듣고 있어요… 말씀하세요" : aiThinking ? "AI가 해석 중..." : "음성으로 방·품목 말하기"}
+        </button>
+        <p className="mt-1.5 text-center text-[12px] font-bold text-[#6B7280]">
+          예) “작은방 침대 하나 책상과 의자 책장 서랍장” — ‘추가’를 안 붙여도 AI가 알아들어요
+        </p>
+
+        <div className="mt-4">
+          <RoomManager title="방 추가 · 삭제 (평수별 공간 구성)" />
         </div>
 
         <button
@@ -1218,13 +1256,13 @@ export function Step6() {
       </div>
 
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("options")}>
+        <PrimaryButton onClick={() => setScreen("scan")}>
           <span className="inline-flex items-center gap-2">
-            <Calculator className="w-6 h-6" /> 견적 계산하기
+            <Camera className="w-6 h-6" /> 다음: AI 공간 스캔
           </span>
         </PrimaryButton>
         <button
-          onClick={() => setScreen("scan")}
+          onClick={() => setScreen("step4")}
           className="w-full mt-2 py-1 text-[15px] font-bold text-[#6B7280] underline"
         >
           이전
