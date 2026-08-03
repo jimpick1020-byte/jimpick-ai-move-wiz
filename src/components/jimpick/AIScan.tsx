@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Camera, Image as ImageIcon, Video, Film, Trash2, Check, RefreshCw, Bot } from "lucide-react";
+import { RoomManager } from "./RoomManager";
 import { toast } from "sonner";
 
 import { useApp, DEFAULT_ROOMS } from "@/lib/jimpick";
