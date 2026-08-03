@@ -139,7 +139,7 @@ export function AIScan() {
   const [roomGuess, setRoomGuess] = useState<string | null>(null);
   const [roomConf, setRoomConf] = useState<number | null>(null);
   const [targetRoomId, setTargetRoomId] = useState<string>(currentRoom?.id ?? "");
-  const [picking, setPicking] = useState(false);
+  const [size, setSize] = useState<string>(() => draft.sizeTab || "30~40평");
   const [dupAsk, setDupAsk] = useState<string[] | null>(null);
   const [shots, setShots] = useState<{ id: string; url: string; kind: "photo" | "video" }[]>([]);
   const [preview, setPreview] = useState<{ url: string; kind: "photo" | "video" } | null>(null);
@@ -152,6 +152,27 @@ export function AIScan() {
   const videoLibRef = useRef<HTMLInputElement>(null);
 
   const targetRoom = draft.rooms.find((r) => r.id === targetRoomId) || currentRoom;
+
+  const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || SIZE_TABS[2]).rooms;
+
+  /** 평수를 고르면 없는 방만 새로 만들고 기존 품목은 그대로 둡니다 */
+  const pickSize = (key: string) => {
+    tap("soft");
+    setSize(key);
+    const rooms = (SIZE_TABS.find((t) => t.key === key) || SIZE_TABS[2]).rooms;
+    const missing = rooms.filter((n) => !draft.rooms.some((r) => r.name === n));
+    updateDraft({
+      sizeTab: key,
+      ...(missing.length
+        ? {
+            rooms: [
+              ...draft.rooms,
+              ...missing.map((n) => ({ id: `r_${n}`, name: n, items: {} as Record<string, number> })),
+            ],
+          }
+        : {}),
+    });
+  };
 
   const tags = useMemo(
     () =>
