@@ -1212,6 +1212,29 @@ export function Step6() {
               )}
             </div>
 
+            {/* AI 음성 인식으로 품목 담기 */}
+            <div className="px-4 pt-3 space-y-2">
+              <button
+                onClick={toggleVoice}
+                className={`w-full py-4 rounded-2xl font-black text-[16px] flex items-center justify-center gap-2 transition-all active:translate-y-[3px] ${
+                  listening
+                    ? "text-white bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] shadow-[0_5px_0_#A81E20]"
+                    : "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
+                }`}
+              >
+                <Mic className="w-5 h-5" />
+                {voiceBusy ? "AI가 듣고 정리하는 중..." : listening ? "듣고 있어요 — 누르면 종료" : "🎙️ 음성으로 품목 말하기"}
+              </button>
+              {(heard || voiceBusy) && (
+                <div className="px-3 py-2 rounded-2xl bg-[#F1F6FF] border border-[#DCE8FA] text-[13px] font-bold text-[#0F172A]">
+                  “{heard || "..."}”
+                </div>
+              )}
+              <p className="text-[11px] text-[#6B7280] font-semibold text-center">
+                예) “냉장고 하나 세탁기 두 개 침대 하나” — AI가 알아서 담아드려요
+              </p>
+            </div>
+
             {/* 직접 품목 선택 (기본 접힘) */}
             <div className="px-4 pt-3">
               <button
