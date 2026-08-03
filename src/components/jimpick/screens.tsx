@@ -64,7 +64,9 @@ import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
-import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
+import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
+import { useServerFn } from "@tanstack/react-start";
+
 import { fileToDataUrl, videoToFrames } from "@/lib/media";
 
 // ============ Splash ============
