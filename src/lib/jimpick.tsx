@@ -246,7 +246,7 @@ export function calcEstimate(
     : 0;
   const stairFee = stairFloors * pricing.stairPerFloor;
 
-  const autoTransport = truckFee + distanceFee + laborFee + stairFee + ladderFee;
+  const autoTransport = truckFee + distanceFee + stairFee + ladderFee;
   const overridden = e.transportOverride !== null && e.transportOverride !== undefined;
   const transport = overridden ? num(e.transportOverride) : autoTransport;
 
