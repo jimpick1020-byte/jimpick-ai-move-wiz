@@ -1237,11 +1237,12 @@ export function Step6() {
 
 
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("plan")}>
+        <PrimaryButton onClick={() => setScreen("ai")}>
           <span className="inline-flex items-center gap-2">
-            다음: 3D 입체 평면도
+            다음: AI 공간 스캔
           </span>
         </PrimaryButton>
+
       </BottomButtonBar>
 
 
@@ -1503,7 +1504,7 @@ export function AIRecognition() {
 
   return (
     <MobileShell>
-      <TopBar title="AI 사진·동영상 인식" onBack={() => setScreen("step6")} />
+      <TopBar title="6단계. AI 공간 스캔" onBack={() => setScreen("step6")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         {(videoUrl || photoUrl) && (
           <Card className="py-4">
@@ -1653,22 +1654,28 @@ export function AIRecognition() {
         )}
       </div>
       <BottomButtonBar>
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              setResults([]);
-              setVideoUrl("");
-              setPhotoUrl("");
-            }}
-            className="flex-1 py-4 rounded-2xl border border-[#E7EBF2] font-bold"
-          >
-            다시 촬영
-          </button>
-          <PrimaryButton onClick={apply} className="flex-1" disabled={shown.length === 0}>
-            적용하기
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setResults([]);
+                setVideoUrl("");
+                setPhotoUrl("");
+              }}
+              className="flex-1 py-4 rounded-2xl border border-[#E7EBF2] font-bold"
+            >
+              다시 촬영
+            </button>
+            <PrimaryButton onClick={apply} className="flex-1" disabled={shown.length === 0}>
+              적용하기
+            </PrimaryButton>
+          </div>
+          <PrimaryButton onClick={() => setScreen("options")}>
+            다음: 옵션·보관료
           </PrimaryButton>
         </div>
       </BottomButtonBar>
+
     </MobileShell>
   );
 }
@@ -1684,7 +1691,7 @@ export function OptionsScreen() {
 
   return (
     <MobileShell>
-      <TopBar title="7단계. 옵션·보관료" onBack={() => setScreen("plan")} />
+      <TopBar title="7단계. 옵션·보관료" onBack={() => setScreen("ai")} />
       <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
         {draft.options.length === 0 && (
           <div className="text-center text-[#6B7280] py-10 text-sm">
