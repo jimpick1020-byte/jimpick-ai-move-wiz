@@ -353,57 +353,37 @@ export function AIScan() {
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         <div className="text-sm text-[#6B7280] -mt-1">촬영하면 공간과 품목을 자동으로 인식해요</div>
 
-        {/* 평수를 고르면 방 도면이 나오고, 도면을 눌러 담을 방을 정합니다 */}
-        <div className="space-y-3">
-          <div className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {SIZE_TABS.map((t) => (
+        {/* 스캔 결과를 담을 방을 고릅니다 */}
+        <div className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {draft.rooms.map((r) => {
+            const s = roomSummary(r.items || {});
+            const on = r.id === targetRoom?.id;
+            return (
               <button
-                key={t.key}
-                onClick={() => pickSize(t.key)}
+                key={r.id}
+                onClick={() => {
+                  tap("soft");
+                  setTargetRoomId(r.id);
+                  setCurrentRoom(r.id);
+                }}
                 className={`px-4 py-2.5 rounded-2xl text-[14px] font-black whitespace-nowrap transition-all active:translate-y-[2px] ${
-                  t.key === size
+                  on
                     ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_4px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.5)]"
                     : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F1F6FF] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff]"
                 }`}
               >
-                {t.key}
+                {r.name}
+                <span className="ml-1 text-[11px] opacity-80">
+                  {s.kinds > 0 ? `${s.kinds}종` : ""}
+                </span>
               </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-3 gap-2.5">
-            {sizeRooms.map((name) => {
-              const r = draft.rooms.find((x) => x.name === name);
-              const s = roomSummary(r?.items || {});
-              const on = !!r && r.id === targetRoom?.id;
-              return (
-                <button
-                  key={name}
-                  onClick={() => {
-                    tap("soft");
-                    if (r) setTargetRoomId(r.id);
-                  }}
-                  className={`relative rounded-2xl p-2 text-center border transition-transform active:translate-y-[2px] ${
-                    on
-                      ? "border-[#287BFF] bg-gradient-to-b from-[#F5F9FF] to-[#DEEAFF] shadow-[0_6px_0_#BBD3FF,inset_0_1px_0_#fff]"
-                      : "border-[#DCE8FA] bg-gradient-to-b from-white to-[#F4F8FF] shadow-[0_5px_0_#EDF2FA,inset_0_1px_0_#fff]"
-                  }`}
-                >
-                  <Art3D src={ROOM_IMG[name] || ROOM_IMG["작은방"]} alt={name} size={58} />
-                  <div className="text-[12px] font-black text-[#0F172A]">{name}</div>
-                  <div className="text-[10px] font-bold text-[#6B7280]">
-                    {s.kinds > 0 ? `${s.kinds}종 · ${s.count}개` : "품목 없음"}
-                  </div>
-                  {on && (
-                    <span className="absolute top-1 right-1 px-1.5 rounded-full bg-[#0751D8] text-white text-[9px] font-black">
-                      적용
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+            );
+          })}
+          {draft.rooms.length === 0 && (
+            <span className="text-[13px] font-bold text-[#9AA4B2]">5단계에서 방을 먼저 만들어 주세요</span>
+          )}
         </div>
+
 
 
         <ScanStage scanning={busy} tags={tags} preview={preview} />
