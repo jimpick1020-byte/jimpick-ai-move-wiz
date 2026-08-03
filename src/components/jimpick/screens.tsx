@@ -1078,6 +1078,13 @@ export function Step6() {
 
           {/* 수정 버튼 */}
           <div className="flex gap-3">
+            <button
+              onClick={() => {
+                tap("soft");
+                setMode("manual");
+              }}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-full bg-white border border-[#DCE8FA] shadow-[0_5px_0_#EDF2FA,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
+            >
               <Hand className="w-5 h-5 text-[#0751D8]" />
               <span className="text-[17px] font-black text-[#0751D8]">직접 선택</span>
             </button>
