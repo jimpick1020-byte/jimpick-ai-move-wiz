@@ -745,7 +745,12 @@ export function Step3() {
 
 // ============ Step 4: Vehicles ============
 export function Step4() {
-  const { draft, updateDraft, setScreen } = useApp();
+  const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
+  const goScan = () => {
+    const first = draft.rooms[0];
+    if (first) setCurrentRoom(first.id);
+    setScreen("scan");
+  };
   const vehicles = [
     { key: "truck1t" as const, name: "1톤 차량", img: VEHICLE_IMG.truck1t, max: 10, val: draft.truck1t },
     { key: "truck5t" as const, name: "5톤 차량", img: VEHICLE_IMG.truck5t, max: 10, val: draft.truck5t },
