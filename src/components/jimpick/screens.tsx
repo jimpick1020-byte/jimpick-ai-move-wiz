@@ -2103,19 +2103,6 @@ export function Result() {
               <div>
                 작업 인원: 남자 {draft.workers}명 · 주방 {draft.kitchenStaff}명
               </div>
-              <div>
-                이삿짐:{" "}
-                {(() => {
-                  const t = draft.rooms.reduce(
-                    (acc, r) => {
-                      const s = roomSummary(r.items);
-                      return { kinds: acc.kinds + s.kinds, count: acc.count + s.count };
-                    },
-                    { kinds: 0, count: 0 },
-                  );
-                  return `${draft.rooms.length}개 공간 · ${t.kinds}종 총 ${t.count}개`;
-                })()}
-              </div>
               {usesStorage(draft) && (
                 <div>
                   보관: {draft.storageStart || "-"} ~ {draft.storageEnd || "-"} (
