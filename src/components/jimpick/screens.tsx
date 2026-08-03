@@ -1170,18 +1170,18 @@ export function Step6() {
       {/* 디지털 3D 집 구조 */}
       <div className="flex-1 overflow-auto p-4 pb-6 bg-gradient-to-b from-[#EEF6FF] to-[#E6EEFA]">
         <div className="grid grid-cols-2 gap-3">
-          {draft.rooms.map((r) => {
-            const name = r.name;
-            const s = roomSummary(r.items || {});
+          {sizeRooms.map((name) => {
+            const r = roomOf(name);
+            const s = roomSummary(r?.items || {});
             return (
               <div
-                key={r.id}
+                key={name}
                 className="relative rounded-3xl p-3 bg-gradient-to-b from-white to-[#F2F7FF] border border-[#DCE8FA] shadow-[0_8px_0_#E1EAF8,0_16px_28px_-14px_rgba(7,81,216,0.4),inset_0_1px_0_#fff]"
               >
                 <button
                   onClick={() => {
                     tap("soft");
-                    setCurrentRoom(r.id);
+                    if (r) setCurrentRoom(r.id);
                     setOpenRoom(name);
                     setPickerOpen(false);
                     setQ("");
@@ -1202,19 +1202,6 @@ export function Step6() {
                     {s.kinds > 0 ? `품목 ${s.kinds}종 · 총 ${s.count}개` : "품목 없음"}
                   </div>
                 </button>
-                <button
-                  onClick={() => {
-                    tap("soft");
-                    const rooms = draft.rooms.filter((x) => x.id !== r.id);
-                    updateDraft({ rooms });
-                    if (openRoom === name) setOpenRoom(null);
-                    toast.success(`「${name}」 공간을 삭제했습니다`);
-                  }}
-                  aria-label={`${name} 삭제`}
-                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white text-[#EF4444] flex items-center justify-center shadow-[0_3px_0_#E3E9F5]"
-                >
-                  <X className="w-4 h-4" />
-                </button>
                 {s.count > 0 && (
                   <span className="absolute top-2 left-2 min-w-6 h-6 px-1.5 rounded-full bg-[#0751D8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#0640A8]">
                     {s.count}
@@ -1228,7 +1215,6 @@ export function Step6() {
         {/* 음성으로 방·품목 한 번에 담기 */}
         <button
           onClick={startVoice}
-          disabled={aiThinking}
           className={`mt-4 w-full py-4 rounded-2xl text-white font-black text-[16px] flex items-center justify-center gap-2 active:translate-y-[3px] active:shadow-none ${
             listening
               ? "bg-gradient-to-b from-[#FF7A9C] to-[#DB2777] shadow-[0_5px_0_#9D174D] animate-pulse"
@@ -1236,15 +1222,11 @@ export function Step6() {
           }`}
         >
           <Mic className="w-6 h-6" />
-          {listening ? "듣고 있어요… 말씀하세요" : aiThinking ? "AI가 해석 중..." : "음성으로 방·품목 말하기"}
+          {listening ? "듣고 있어요… 말씀하세요" : "음성으로 방·품목 말하기"}
         </button>
         <p className="mt-1.5 text-center text-[12px] font-bold text-[#6B7280]">
-          예) “작은방 침대 하나 책상과 의자 책장 서랍장” — ‘추가’를 안 붙여도 AI가 알아들어요
+          예) “작은방 침대 하나 책상과 의자 책장 서랍장”
         </p>
-
-        <div className="mt-4">
-          <RoomManager title="방 추가 · 삭제 (평수별 공간 구성)" />
-        </div>
 
         <button
           onClick={() => setScreen("scan")}
@@ -1254,6 +1236,7 @@ export function Step6() {
           <Video className="w-5 h-5" /> AI 공간 스캔으로 품목 인식
         </button>
       </div>
+
 
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("scan")}>
