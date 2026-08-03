@@ -241,7 +241,6 @@ export function calcEstimate(
   const truckFee = num(e.truck1t) * pricing.truck1t + num(e.truck5t) * pricing.truck5t;
   const extraKm = Math.max(0, num(e.distanceKm) - pricing.baseKm);
   const distanceFee = Math.round(extraKm * pricing.perKm);
-  const laborFee = num(e.workers) * pricing.worker + num(e.kitchenStaff) * pricing.kitchenStaff;
   const stairFloors = e.workEnv.includes("계단")
     ? Math.max(0, num(e.fromFloor) - 1) + Math.max(0, num(e.toFloor) - 1)
     : 0;
