@@ -2119,12 +2119,22 @@ export function SettingsScreen() {
           <div className="text-xs text-[#6B7280]">
             여기서 저장한 단가로 모든 견적 금액이 자동 계산됩니다.
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
             <Field label="1톤 차량">
-              <MoneyInput value={pricing.truck1t} step={10000} onChange={(n) => setP({ truck1t: n })} />
+              <MoneyInput
+                value={pricing.truck1t}
+                step={10000}
+                onChange={(n) => setP({ truck1t: n })}
+                inputClassName="h-14 py-0 leading-[3.5rem] text-[18px] font-bold text-[#111827]"
+              />
             </Field>
             <Field label="5톤 차량">
-              <MoneyInput value={pricing.truck5t} step={10000} onChange={(n) => setP({ truck5t: n })} />
+              <MoneyInput
+                value={pricing.truck5t}
+                step={10000}
+                onChange={(n) => setP({ truck5t: n })}
+                inputClassName="h-14 py-0 leading-[3.5rem] text-[18px] font-bold text-[#111827]"
+              />
             </Field>
           </div>
           <button
