@@ -917,7 +917,7 @@ const ITEM_TABS = [
   { key: "특수/리스크", cats: ["생활용품", "잔짐"] },
 ];
 
-/** "냉장고 하나 세탁기 두개 추가" 같은 말에서 품목·수량을 뽑아냅니다 */
+/** "작은방 침대 하나 책상과 의자 책장 서랍장" 같은 말에서 방·품목·수량을 뽑아냅니다 */
 const KO_NUM: Record<string, number> = {
   하나: 1, 한: 1, 일: 1, 둘: 2, 두: 2, 이: 2, 셋: 3, 세: 3, 삼: 3, 넷: 4, 네: 4, 사: 4,
   다섯: 5, 오: 5, 여섯: 6, 육: 6, 일곱: 7, 칠: 7, 여덟: 8, 팔: 8, 아홉: 9, 구: 9, 열: 10,
@@ -927,10 +927,13 @@ function parseSpokenItems(
   catalog: { id: string; name: string }[]
 ): { id: string; name: string; qty: number }[] {
   const found: { id: string; name: string; qty: number }[] = [];
-  for (const it of catalog) {
-    const idx = text.indexOf(it.name);
+  // 긴 이름을 먼저 찾아 "김치냉장고"가 "냉장고"로 잡히지 않게 합니다
+  const sorted = [...catalog].sort((a, b) => b.name.length - a.name.length);
+  let rest = text;
+  for (const it of sorted) {
+    const idx = rest.indexOf(it.name);
     if (idx < 0) continue;
-    const after = text.slice(idx + it.name.length, idx + it.name.length + 8);
+    const after = rest.slice(idx + it.name.length, idx + it.name.length + 8);
     let qty = 1;
     const digit = after.match(/^\s*(\d+)/);
     if (digit) qty = Number(digit[1]);
@@ -939,9 +942,20 @@ function parseSpokenItems(
       if (word) qty = KO_NUM[word];
     }
     found.push({ id: it.id, name: it.name, qty: Math.max(1, Math.min(20, qty)) });
+    rest = rest.slice(0, idx) + " ".repeat(it.name.length) + rest.slice(idx + it.name.length);
   }
   return found;
 }
+
+/** 말한 문장에서 방 이름을 찾아냅니다 ("작은방 침대 하나..." → 작은방) */
+function parseSpokenRoom(text: string, roomNames: string[]): string | null {
+  const t = text.replace(/\s/g, "");
+  const hit = [...roomNames]
+    .sort((a, b) => b.length - a.length)
+    .find((n) => t.includes(n.replace(/\s/g, "")));
+  return hit || null;
+}
+
 
 export function Step6() {
   const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
