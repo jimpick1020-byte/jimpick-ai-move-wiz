@@ -1115,17 +1115,8 @@ export function Step6() {
             : `${size} · 평수를 고르고 방을 추가·삭제하세요`}
         </p>
 
-        <div className="mt-2 flex gap-1.5">
-          {[1, 2, 3, 4, 5, 6, 7].map((s) => (
-            <div
-              key={s}
-              className={`h-1.5 flex-1 rounded-full ${
-                s < 5 ? "bg-[#8FC0FF]" : s === 5 ? "bg-[#0751D8]" : "bg-[#E7EBF2]"
-              }`}
-            />
-          ))}
-        </div>
       </div>
+
 
 
       {/* 평수 선택 탭 */}
