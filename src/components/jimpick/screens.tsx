@@ -978,8 +978,81 @@ export function Step6() {
     updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
   };
 
+  // ---- AI 음성 인식 (말하면 AI가 품목·수량을 해석해 담아줍니다) ----
+  const [listening, setListening] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [heard, setHeard] = useState("");
+  const recRef = useRef<any>(null);
 
+  const applyVoice = async (text: string) => {
+    if (!text.trim() || !room) return;
+    setVoiceBusy(true);
+    try {
+      const res = await parseVoiceOrder({
+        data: { text, rooms: draft.rooms.map((r) => r.name) },
+      });
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      if (!res.items.length) {
+        toast.info("품목을 알아듣지 못했어요. 다시 말씀해 주세요.");
+        return;
+      }
+      const target = (res.room && roomOf(res.room)) || room;
+      const items = { ...target.items };
+      for (const it of res.items) items[it.id] = (items[it.id] || 0) + it.qty;
+      updateDraft({
+        rooms: draft.rooms.map((r) => (r.id === target.id ? { ...r, items } : r)),
+      });
+      tap("success");
+      toast.success(
+        `「${target.name}」에 ${res.items.map((i) => `${i.name} ${i.qty}`).join(", ")} 담았습니다`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "음성 해석에 실패했습니다");
+    } finally {
+      setVoiceBusy(false);
+    }
+  };
 
+  const toggleVoice = () => {
+    tap("soft");
+    if (listening) {
+      recRef.current?.stop();
+      return;
+    }
+    const SR =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("이 기기에서는 음성 인식을 지원하지 않습니다");
+      return;
+    }
+    const rec = new SR();
+    rec.lang = "ko-KR";
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    recRef.current = rec;
+    setHeard("");
+    rec.onresult = (ev: any) => {
+      let text = "";
+      for (let i = 0; i < ev.results.length; i++) text += ev.results[i][0].transcript;
+      setHeard(text);
+      if (ev.results[ev.results.length - 1].isFinal) void applyVoice(text);
+    };
+    rec.onerror = (ev: any) => {
+      setListening(false);
+      if (ev?.error === "not-allowed") toast.error("마이크 권한을 허용해 주세요");
+    };
+    rec.onend = () => setListening(false);
+    try {
+      rec.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
+  };
 
 
   const addCustom = () => {
