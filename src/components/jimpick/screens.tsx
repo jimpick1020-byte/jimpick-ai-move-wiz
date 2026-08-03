@@ -1504,7 +1504,7 @@ export function AIRecognition() {
 
   return (
     <MobileShell>
-      <TopBar title="AI 사진·동영상 인식" onBack={() => setScreen("step6")} />
+      <TopBar title="6단계. AI 공간 스캔" onBack={() => setScreen("step6")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         {(videoUrl || photoUrl) && (
           <Card className="py-4">
