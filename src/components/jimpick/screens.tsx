@@ -215,9 +215,6 @@ export function Login() {
 // ============ Home ============
 export function HomeScreen() {
   const { setScreen, resetDraft, estimates } = useApp();
-  // 첫 화면에는 견적 단가 기본 금액만 보여줍니다
-  const [pricing, setPricing] = useState<Pricing>(DEFAULT_PRICING);
-  useEffect(() => setPricing(getPricing()), []);
   const total = estimates.length;
   const done = estimates.filter((e) => e.status === "완료").length;
   const inProg = total - done;
@@ -261,33 +258,7 @@ export function HomeScreen() {
           ))}
         </div>
         <Card>
-          <div className="flex items-center justify-between">
-            <div className="font-bold">견적 단가 (기본 금액)</div>
-            <button
-              onClick={() => setScreen("settings")}
-              className="text-xs font-bold text-[#0751D8] underline"
-            >
-              수정
-            </button>
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {[
-              { label: "1톤 차량", v: pricing.truck1t },
-              { label: "5톤 차량", v: pricing.truck5t },
-            ].map((x) => (
-              <div
-                key={x.label}
-                className="rounded-2xl px-3 py-3 bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] shadow-[0_4px_0_#EDF2FA,inset_0_1px_0_#fff]"
-              >
-                <div className="text-xs text-[#6B7280] font-semibold">{x.label}</div>
-                <div className="text-[18px] font-black text-[#0751D8] tabular-nums">
-                  {won(x.v)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-        <Card>
+
           <div className="font-bold mb-3">오늘의 견적 현황</div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div>
@@ -1141,17 +1112,8 @@ export function Step6() {
             : `${size} · 평수를 고르고 방을 추가·삭제하세요`}
         </p>
 
-        <div className="mt-2 flex gap-1.5">
-          {[1, 2, 3, 4, 5, 6, 7].map((s) => (
-            <div
-              key={s}
-              className={`h-1.5 flex-1 rounded-full ${
-                s < 5 ? "bg-[#8FC0FF]" : s === 5 ? "bg-[#0751D8]" : "bg-[#E7EBF2]"
-              }`}
-            />
-          ))}
-        </div>
       </div>
+
 
 
       {/* 평수 선택 탭 */}

@@ -239,9 +239,9 @@ export function calcEstimate(
       ? sideFee
       : num(e.ladderPrice) || ladderCount * pricing.ladder;
 
-  /** 차량 선택은 견적 금액에 반영하지 않습니다 (사장님이 직접 입력) */
-  const truck5Fee = 0;
-  const truck1Fee = 0;
+  /** 차량 선택은 종류별로 1회만 금액에 반영합니다 (대수 곱하지 않음) */
+  const truck5Fee = num(e.truck5t) > 0 ? pricing.truck5t : 0;
+  const truck1Fee = num(e.truck1t) > 0 ? pricing.truck1t : 0;
   const extraKm = Math.max(0, num(e.distanceKm) - pricing.baseKm);
   const distanceFee = Math.round(extraKm * pricing.perKm);
   const stairFloors = e.workEnv.includes("계단")
@@ -249,7 +249,7 @@ export function calcEstimate(
     : 0;
   const stairFee = stairFloors * pricing.stairPerFloor;
 
-  /** 계단·엘리베이터 수작업 인원비 — 사다리차를 쓰지 않는 쪽만 인원 1명당 2만원 */
+  /** 수작업 비용 — 사다리차를 쓰지 않는 구간만 인원 1명당 2만원 */
   const manualWork = e.workEnv.includes("계단") || e.workEnv.includes("엘리베이터");
   const manualSides = manualWork ? (e.ladderFrom ? 0 : 1) + (e.ladderTo ? 0 : 1) : 0;
   const manualWorkers = Math.max(0, num(e.workers));
@@ -275,14 +275,17 @@ export function calcEstimate(
   const parts = overridden
     ? [{ label: "기본 운송료 (직접 입력)", amount: transport }]
     : [
+        { label: "기본 차량 비용 (5톤)", amount: truck5Fee },
+        { label: "차 증차비용 (1톤)", amount: truck1Fee },
         { label: `거리 추가비 (${pricing.baseKm}km 초과 ${extraKm.toFixed(1)}km)`, amount: distanceFee },
         { label: `계단 작업비 (${stairFloors}개층)`, amount: stairFee },
         {
-          label: `계단·엘리베이터 작업 인원비 (${manualSideLabel} 인원 ${manualWorkers}명 × 2만원)`,
+          label: `수작업 비용 (${manualSideLabel} 인원 ${manualWorkers}명 × ${manualSides}구간 × 2만원)`,
           amount: manualFee,
         },
         { label: "사다리차 비용", amount: ladderFee },
       ].filter((p) => p.amount > 0);
+
 
 
   return {
