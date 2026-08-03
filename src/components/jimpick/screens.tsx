@@ -1237,11 +1237,12 @@ export function Step6() {
 
 
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("plan")}>
+        <PrimaryButton onClick={() => setScreen("ai")}>
           <span className="inline-flex items-center gap-2">
-            다음: 3D 입체 평면도
+            다음: AI 공간 스캔
           </span>
         </PrimaryButton>
+
       </BottomButtonBar>
 
 
