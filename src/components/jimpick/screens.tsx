@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   ClipboardList,
@@ -962,6 +962,7 @@ function parseSpokenRoom(text: string, roomNames: string[]): string | null {
 export function Step6() {
   const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
   const [size, setSize] = useState<string>(() => {
+    if (draft.sizeTab) return draft.sizeTab;
     const n = draft.rooms.length;
     const hit = SIZE_TABS.find((t) => t.rooms.length === n);
     return hit ? hit.key : "30~40평";
@@ -971,8 +972,13 @@ export function Step6() {
   const [q, setQ] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [listening, setListening] = useState(false);
+  const [chat, setChat] = useState<{ role: "ai" | "me"; text: string }[]>([]);
+  const [pending, setPending] = useState<{ id: string; name: string; qty: number }[] | null>(null);
+  const askAi = useServerFn(parseVoiceOrder);
+  const recRef = useRef<{ stop: () => void } | null>(null);
 
   const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || SIZE_TABS[2]).rooms;
+
 
   const catalog = useMemo(
     () =>
