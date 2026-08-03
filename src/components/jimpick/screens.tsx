@@ -873,353 +873,471 @@ export function Step4() {
 }
 
 // ============ Step 6: Items ============
+/** 평수별 집 구조(구획) */
+const SIZE_TABS: { key: string; rooms: string[] }[] = [
+  { key: "10~20평", rooms: ["안방", "거실", "부엌", "베란다"] },
+  { key: "20~30평", rooms: ["안방", "작은방", "거실", "부엌", "베란다"] },
+  { key: "30~40평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다"] },
+  { key: "40~50평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다", "옷방"] },
+  { key: "50~60평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다", "옷방", "서재"] },
+];
+
+const ROOM_TINT: Record<string, string> = {
+  안방: "from-[#4C9BFF] to-[#0751D8]",
+  작은방: "from-[#5FD08A] to-[#2F9E44]",
+  입구방: "from-[#A78BFA] to-[#7C3AED]",
+  거실: "from-[#F472B6] to-[#DB2777]",
+  부엌: "from-[#FBBF24] to-[#D97706]",
+  베란다: "from-[#38BDF8] to-[#0284C7]",
+  옷방: "from-[#60A5FA] to-[#2563EB]",
+  서재: "from-[#94A3B8] to-[#475569]",
+};
+
+const ITEM_TABS = [
+  { key: "가전", cats: ["가전", "주방"] },
+  { key: "가구", cats: ["가구"] },
+  { key: "특수/리스크", cats: ["생활용품", "잔짐"] },
+];
+
+/** "냉장고 하나 세탁기 두개 추가" 같은 말에서 품목·수량을 뽑아냅니다 */
+const KO_NUM: Record<string, number> = {
+  하나: 1, 한: 1, 일: 1, 둘: 2, 두: 2, 이: 2, 셋: 3, 세: 3, 삼: 3, 넷: 4, 네: 4, 사: 4,
+  다섯: 5, 오: 5, 여섯: 6, 육: 6, 일곱: 7, 칠: 7, 여덟: 8, 팔: 8, 아홉: 9, 구: 9, 열: 10,
+};
+function parseSpokenItems(
+  text: string,
+  catalog: { id: string; name: string }[]
+): { id: string; name: string; qty: number }[] {
+  const found: { id: string; name: string; qty: number }[] = [];
+  for (const it of catalog) {
+    const idx = text.indexOf(it.name);
+    if (idx < 0) continue;
+    const after = text.slice(idx + it.name.length, idx + it.name.length + 8);
+    let qty = 1;
+    const digit = after.match(/^\s*(\d+)/);
+    if (digit) qty = Number(digit[1]);
+    else {
+      const word = Object.keys(KO_NUM).find((w) => after.replace(/\s/g, "").startsWith(w));
+      if (word) qty = KO_NUM[word];
+    }
+    found.push({ id: it.id, name: it.name, qty: Math.max(1, Math.min(20, qty)) });
+  }
+  return found;
+}
+
 export function Step6() {
-  const { draft, updateDraft, setScreen, currentRoomId, setCurrentRoom } = useApp();
-  const [cat, setCat] = useState<string>("전체");
+  const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
+  const [size, setSize] = useState<string>(() => {
+    const n = draft.rooms.length;
+    const hit = SIZE_TABS.find((t) => t.rooms.length === n);
+    return hit ? hit.key : "30~40평";
+  });
+  const [openRoom, setOpenRoom] = useState<string | null>(null);
+  const [tab, setTab] = useState<string>("가전");
   const [q, setQ] = useState("");
-  const [mode, setMode] = useState<"3d" | "manual">("3d");
-  const roomId = currentRoomId || draft.rooms[0]?.id;
-  useEffect(() => {
-    if (!currentRoomId && draft.rooms[0]) setCurrentRoom(draft.rooms[0].id);
-  }, [currentRoomId, draft.rooms, setCurrentRoom]);
-  const room = draft.rooms.find((r) => r.id === roomId);
-  // 방을 클릭하면 그 방에 선택된 품목만 보여줍니다.
-  const [onlySelected, setOnlySelected] = useState(true);
-  useEffect(() => {
-    setOnlySelected(true);
-  }, [roomId]);
-  const catalog = [
-    ...ITEM_CATALOG,
-    ...(draft.customItems || []).map((c) => ({ ...c, emoji: "📦" })),
-  ].filter((i) => !(draft.hiddenItems || []).includes(i.id));
-  const selectedCount = room ? Object.keys(room.items).length : 0;
-  const showSelectedOnly = onlySelected && !q && selectedCount > 0;
-  const items = catalog.filter(
-    (i) =>
-      (showSelectedOnly
-        ? (room?.items[i.id] || 0) > 0
-        : cat === "전체" || i.cat === cat) && (!q || i.name.includes(q))
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [listening, setListening] = useState(false);
+
+  const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || SIZE_TABS[2]).rooms;
+
+  const catalog = useMemo(
+    () =>
+      [
+        ...ITEM_CATALOG,
+        ...(draft.customItems || []).map((c) => ({ ...c, emoji: "📦" })),
+      ].filter((i) => !(draft.hiddenItems || []).includes(i.id)),
+    [draft.customItems, draft.hiddenItems]
   );
-  const addItem = () => {
-    const name = prompt("추가할 품목 이름");
-    if (!name) return;
-    // 이름만 입력하면 분류(가구/가전/주방/생활용품/잔짐)를 자동으로 판단합니다.
-    const catName = guessCategory(name);
-    const newId = `ci_${Date.now()}`;
-    updateDraft({
-      customItems: [
-        ...(draft.customItems || []),
-        { id: newId, name, cat: catName, extra: 0 },
-      ],
-      // 현재 선택한 방(안방 등)에 바로 1개 추가됩니다.
-      rooms: draft.rooms.map((r) =>
-        r.id === roomId ? { ...r, items: { ...r.items, [newId]: 1 } } : r
-      ),
-    });
-    // 추가한 품목이 목록에 계속 보이도록 검색어를 비우고 분류를 맞춰줍니다.
-    setQ("");
-    setCat(catName);
-    setOnlySelected(true);
-    tap("success");
-    toast.success(
-      `「${name}」 품목이 ${room?.name || "선택한 방"}에 ${catName}(으)로 추가되었습니다`
-    );
-  };
 
-
-  const removeItem = (id: string, name: string) => {
-    if (!confirm(`「${name}」 품목을 목록에서 삭제할까요?`)) return;
-    updateDraft({
-      hiddenItems: [...(draft.hiddenItems || []), id],
-      customItems: (draft.customItems || []).filter((c) => c.id !== id),
-      rooms: draft.rooms.map((r) => {
-        const it = { ...r.items };
-        delete it[id];
-        return { ...r, items: it };
-      }),
-    });
+  /** 평수를 고르면 없는 방만 새로 만들고, 기존 방 품목은 그대로 유지합니다 */
+  const pickSize = (key: string) => {
     tap("soft");
+    setSize(key);
+    const rooms = (SIZE_TABS.find((t) => t.key === key) || SIZE_TABS[2]).rooms;
+    const missing = rooms.filter((n) => !draft.rooms.some((r) => r.name === n));
+    if (missing.length) {
+      updateDraft({
+        rooms: [
+          ...draft.rooms,
+          ...missing.map((n) => ({ id: `r_${n}`, name: n, items: {} as Record<string, number> })),
+        ],
+      });
+    }
   };
+
+  const roomOf = (name: string) => draft.rooms.find((r) => r.name === name);
+  const room = openRoom ? roomOf(openRoom) : undefined;
+
   const setQty = (itemId: string, qty: number) => {
     if (!room) return;
     const items = { ...room.items };
     if (qty <= 0) delete items[itemId];
     else items[itemId] = qty;
-    updateDraft({
-      rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)),
-    });
+    updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
   };
-  // 방 라벨 위치 (3D 도면 이미지 기준 %)
-  const ROOM_POS: Record<string, { x: number; y: number; cx: number; cy: number }> = {
-    안방: { x: 30, y: 17, cx: 44, cy: 40 },
-    작은방: { x: 17, y: 44, cx: 8, cy: 60 },
-    입구방: { x: 31, y: 69, cx: 47, cy: 88 },
-    거실: { x: 57, y: 51, cx: 43, cy: 72 },
-    부엌: { x: 76, y: 33, cx: 92, cy: 47 },
-    베란다: { x: 72, y: 12, cx: 88, cy: 22 },
-  };
-  const roomTint: Record<string, string> = {
-    안방: "from-[#3B8BFF] to-[#0751D8]",
-    작은방: "from-[#6FCF77] to-[#2F9E44]",
-    입구방: "from-[#A78BFA] to-[#7C3AED]",
-    거실: "from-[#F472B6] to-[#DB2777]",
-    부엌: "from-[#FBBF24] to-[#D97706]",
-    베란다: "from-[#38BDF8] to-[#0284C7]",
-  };
-  const fallbackPos = (i: number) => ({
-    x: 20 + (i % 3) * 30,
-    y: 20 + Math.floor(i / 3) * 30,
-    cx: 12 + (i % 3) * 30,
-    cy: 34 + Math.floor(i / 3) * 30,
-  });
 
-
-  if (mode === "3d") {
-    const totalKinds = draft.rooms.reduce((a, r) => a + roomSummary(r.items).kinds, 0);
-    const selRoomItems = Object.entries(room?.items || {})
-      .map(([id, qty]) => ({
-        name: catalog.find((c) => c.id === id)?.name || id,
-        img: ITEM_IMG[id] || guessItemImg(catalog.find((c) => c.id === id)?.name || "") || FALLBACK_IMG,
-        qty,
-      }))
-      .slice(0, 4);
-    return (
-      <MobileShell>
-        {/* 헤더 */}
-        <div className="px-4 pt-1 pb-3 bg-white border-b border-[#E7EBF2]">
-          <div className="flex items-center gap-2">
-            <img src={logoImg} alt="JIMPICK" className="w-9 h-9" />
-            <div className="flex-1 text-center">
-              <h1 className="text-[22px] font-black text-[#0F172A] leading-tight">
-                6단계. 3D 품목 확인
-              </h1>
-              <p className="text-[12px] text-[#6B7280] font-semibold">
-                {totalKinds > 0 ? "입력 완료 · 방별 자동 분류" : "방을 눌러 품목을 확인하세요"}
-              </p>
-            </div>
-            <div className="px-3 py-1.5 rounded-2xl border border-[#DCE8FA] bg-white shadow-[0_2px_0_#EDF2FA]">
-              <span className="text-[#0751D8] font-black text-lg">6</span>
-              <span className="text-[#9AA4B2] font-bold text-xs"> / 7</span>
-            </div>
-          </div>
-          <div className="mt-3 flex gap-1.5">
-            {[1, 2, 3, 4, 5, 6, 7].map((s) => (
-              <div
-                key={s}
-                className={`h-1.5 flex-1 rounded-full ${
-                  s < 6 ? "bg-[#8FC0FF]" : s === 6 ? "bg-[#0751D8]" : "bg-[#E7EBF2]"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-auto p-4 space-y-4 bg-gradient-to-b from-[#F2F8FF] to-[#EAF1FB]">
-          {/* 3D 도면 */}
-          <div className="relative w-full aspect-square">
-            <img
-              src={houseImg}
-              alt="3D 집 도면"
-              width={1024}
-              height={1024}
-              className="w-full h-full object-contain drop-shadow-[0_18px_28px_rgba(7,81,216,0.18)]"
-            />
-            {draft.rooms.map((r, i) => {
-              const p = ROOM_POS[r.name] || fallbackPos(i);
-              const s = roomSummary(r.items);
-              const active = r.id === roomId;
-              return (
-                <div key={r.id}>
-                  <button
-                    onClick={() => {
-                      tap("soft");
-                      setCurrentRoom(r.id);
-                    }}
-                    style={{ left: `${p.x}%`, top: `${p.y}%` }}
-                    className={`absolute -translate-x-1/2 -translate-y-1/2 px-3.5 py-1.5 rounded-2xl text-white text-[15px] font-black whitespace-nowrap bg-gradient-to-b ${
-                      roomTint[r.name] || "from-[#3B8BFF] to-[#0751D8]"
-                    } shadow-[0_4px_0_rgba(0,0,0,0.18),0_6px_14px_rgba(7,81,216,0.3),inset_0_1px_0_rgba(255,255,255,0.5)] active:translate-y-[-45%] transition-transform ${
-                      active ? "ring-4 ring-white/80 scale-105" : ""
-                    }`}
-                  >
-                    {r.name}
-                  </button>
-                  {s.count > 0 && (
-                    <span
-                      style={{ left: `${p.cx}%`, top: `${p.cy}%` }}
-                      className="absolute -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded-2xl whitespace-nowrap bg-white text-[#0F172A] text-[13px] font-black shadow-[0_3px_0_#E3E9F5,0_6px_12px_rgba(15,23,42,0.12)]"
-                    >
-                      {s.count}개
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-            {/* 선택된 방 품목 카드 */}
-            {selRoomItems.length > 0 && (
-              <div className="absolute left-0 top-[7%] w-[43%] rounded-2xl bg-white/95 backdrop-blur p-3 pt-5 shadow-[0_10px_24px_rgba(15,23,42,0.18)]">
-                <span className="absolute -top-4 -left-2 w-9 h-9 rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white flex items-center justify-center shadow-[0_4px_10px_rgba(7,81,216,0.4)]">
-                  <Check className="w-5 h-5" strokeWidth={3} />
-                </span>
-                <div className="space-y-1.5">
-                  {selRoomItems.map((it) => (
-                    <div key={it.name} className="flex items-center gap-2">
-                      <Art3D src={it.img} alt={it.name} size={24} />
-                      <span className="flex-1 text-[13px] font-extrabold text-[#0F172A] truncate">
-                        {it.name}
-                      </span>
-                      <span className="text-[13px] font-black tabular-nums">{it.qty}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* 수정 버튼 */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => {
-                tap("soft");
-                setMode("manual");
-              }}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-full bg-white border border-[#DCE8FA] shadow-[0_5px_0_#EDF2FA,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
-            >
-              <Hand className="w-5 h-5 text-[#0751D8]" />
-              <span className="text-[17px] font-black text-[#0751D8]">직접 선택</span>
-            </button>
-          </div>
-          <p className="text-center text-[13px] font-bold text-[#6B7280]">
-            ✨ 방을 누르면 품목을 바로 수정할 수 있어요
-          </p>
-        </div>
-
-        <BottomButtonBar>
-          <PrimaryButton onClick={() => setScreen("options")}>
-            <span className="inline-flex items-center gap-2">
-              <Calculator className="w-6 h-6" /> 견적 계산하기
-            </span>
-          </PrimaryButton>
-          <button
-            onClick={() => setScreen("scan")}
-            className="w-full mt-2 py-1 text-[15px] font-bold text-[#6B7280] underline"
-          >
-            이전
-          </button>
-        </BottomButtonBar>
-      </MobileShell>
+  const addSpoken = (results: { id: string; name: string; qty: number }[]) => {
+    if (!room) return;
+    const items = { ...room.items };
+    for (const r of results) items[r.id] = (items[r.id] || 0) + r.qty;
+    updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
+    tap("success");
+    toast.success(
+      `${room.name}에 ${results.map((r) => `${r.name} ${r.qty}개`).join(", ")} 추가했습니다`
     );
-  }
+  };
+
+  /** 음성으로 품목 말하기 (Web Speech API) */
+  const startVoice = () => {
+    const SR =
+      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
+        .SpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("이 브라우저는 음성 인식을 지원하지 않습니다. 아래에서 직접 선택해 주세요.");
+      setPickerOpen(true);
+      return;
+    }
+    type SRType = { lang: string; interimResults: boolean; maxAlternatives: number; start: () => void; onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void; onerror: () => void; onend: () => void };
+    const rec = new (SR as new () => SRType)();
+    rec.lang = "ko-KR";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.onresult = (e) => {
+      const text = Array.from({ length: e.results.length }, (_, i) => e.results[i][0].transcript).join(" ");
+      const results = parseSpokenItems(text, catalog);
+      if (!results.length) {
+        toast.error(`"${text}" — 품목을 찾지 못했습니다. 다시 말씀해 주세요.`);
+        return;
+      }
+      addSpoken(results);
+    };
+    rec.onerror = () => {
+      toast.error("음성 인식을 사용할 수 없습니다. 마이크 권한을 확인해 주세요.");
+      setListening(false);
+    };
+    rec.onend = () => setListening(false);
+    setListening(true);
+    tap("soft");
+    rec.start();
+  };
+
+  const addCustom = () => {
+    const name = q.trim() || prompt("추가할 품목 이름") || "";
+    if (!name) return;
+    const catName = guessCategory(name);
+    const newId = `ci_${Date.now()}`;
+    updateDraft({
+      customItems: [...(draft.customItems || []), { id: newId, name, cat: catName, extra: 0 }],
+      rooms: draft.rooms.map((r) =>
+        r.id === room?.id ? { ...r, items: { ...r.items, [newId]: 1 } } : r
+      ),
+    });
+    setQ("");
+    tap("success");
+    toast.success(`「${name}」을(를) ${room?.name || "선택한 방"}에 추가했습니다`);
+  };
+
+  const tabCats = (ITEM_TABS.find((t) => t.key === tab) || ITEM_TABS[0]).cats;
+  const items = catalog.filter((i) =>
+    q ? i.name.includes(q) : tabCats.includes(i.cat)
+  );
+  const picked = Object.entries(room?.items || {}).map(([id, qty]) => ({
+    id,
+    qty,
+    name: catalog.find((c) => c.id === id)?.name || id,
+    img: ITEM_IMG[id] || guessItemImg(catalog.find((c) => c.id === id)?.name || "") || FALLBACK_IMG,
+  }));
+  const totalKinds = draft.rooms.reduce((a, r) => a + roomSummary(r.items).kinds, 0);
 
   return (
     <MobileShell>
-      <TopBar title="6단계. 품목 입력" onBack={() => setMode("3d")} />
+      {/* 헤더 */}
+      <div className="px-4 pt-1 pb-3 bg-white border-b border-[#E7EBF2]">
+        <div className="flex items-center gap-2">
+          <img src={logoImg} alt="JIMPICK" className="w-9 h-9" />
+          <div className="flex-1 text-center">
+            <h1 className="text-[21px] font-black text-[#0F172A] leading-tight">
+              6단계. 공간별 품목
+            </h1>
+            <p className="text-[12px] text-[#6B7280] font-semibold">
+              {totalKinds > 0 ? "공간을 눌러 품목을 수정하세요" : "평수를 고르고 공간을 눌러주세요"}
+            </p>
+          </div>
+          <div className="px-3 py-1.5 rounded-2xl border border-[#DCE8FA] bg-white shadow-[0_2px_0_#EDF2FA]">
+            <span className="text-[#0751D8] font-black text-lg">6</span>
+            <span className="text-[#9AA4B2] font-bold text-xs"> / 7</span>
+          </div>
+        </div>
+        <div className="mt-3 flex gap-1.5">
+          {[1, 2, 3, 4, 5, 6, 7].map((s) => (
+            <div
+              key={s}
+              className={`h-1.5 flex-1 rounded-full ${
+                s < 6 ? "bg-[#8FC0FF]" : s === 6 ? "bg-[#0751D8]" : "bg-[#E7EBF2]"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
 
-      <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
-        <div className="flex gap-2.5 overflow-x-auto overflow-y-visible -mx-4 px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {draft.rooms.map((r) => (
+      {/* 평수 선택 탭 */}
+      <div className="bg-white border-b border-[#E7EBF2] px-4 py-3">
+        <div className="flex gap-2 overflow-x-auto overflow-y-visible -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {SIZE_TABS.map((t) => (
             <button
-              key={r.id}
-              onClick={() => setCurrentRoom(r.id)}
-              className={`px-5 py-3 rounded-2xl text-base font-extrabold whitespace-nowrap transition-all duration-150 active:translate-y-[3px] ${
-                r.id === roomId
-                  ? "text-white bg-gradient-to-b from-[#3B8BFF] to-[#0751D8] shadow-[0_5px_0_0_#0640A8,0_8px_16px_rgba(7,81,216,0.35),inset_0_1px_0_rgba(255,255,255,0.55)] active:shadow-[0_2px_0_0_#0640A8,0_4px_10px_rgba(7,81,216,0.3)]"
-                  : "text-[#0751D8] bg-gradient-to-b from-white to-[#EAF2FF] shadow-[0_4px_0_0_#CFE0FA,0_6px_12px_rgba(7,81,216,0.14),inset_0_1px_0_#fff] active:shadow-[0_1px_0_0_#CFE0FA]"
+              key={t.key}
+              onClick={() => pickSize(t.key)}
+              className={`px-4 py-2.5 rounded-2xl text-[14px] font-black whitespace-nowrap transition-all duration-150 active:translate-y-[2px] ${
+                t.key === size
+                  ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_4px_0_#0640A8,0_8px_16px_rgba(7,81,216,0.32),inset_0_1px_0_rgba(255,255,255,0.5)] active:shadow-[0_1px_0_#0640A8]"
+                  : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F1F6FF] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff] active:shadow-[0_1px_0_#DCE8FA]"
               }`}
             >
-              {r.name}
-              {(() => {
-                const s = roomSummary(r.items);
-                return s.kinds > 0 ? ` · ${s.kinds}종 ${s.count}개` : "";
-              })()}
-
+              {t.key}
             </button>
           ))}
         </div>
-        <div className="flex gap-2.5 overflow-x-auto overflow-y-visible -mx-4 px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      </div>
 
-
-          {CATEGORIES.filter((c) => c !== "전체").map((c) => (
-            <button
-              key={c}
-              onClick={() => {
-                setCat(c);
-                setOnlySelected(false);
-              }}
-              className={`px-4 py-2.5 rounded-2xl text-[15px] font-extrabold whitespace-nowrap transition-all duration-150 active:translate-y-[2px] ${
-                !showSelectedOnly && c === cat
-                  ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0B5FE0] shadow-[0_4px_0_0_#0640A8,0_6px_12px_rgba(7,81,216,0.3),inset_0_1px_0_rgba(255,255,255,0.5)] active:shadow-[0_1px_0_0_#0640A8]"
-                  : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F1F6FF] shadow-[0_3px_0_0_#DCE8FA,inset_0_1px_0_#fff] active:shadow-[0_1px_0_0_#DCE8FA]"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
+      {/* 디지털 3D 집 구조 */}
+      <div className="flex-1 overflow-auto p-4 pb-6 bg-gradient-to-b from-[#EEF6FF] to-[#E6EEFA]">
+        <div className="grid grid-cols-2 gap-3">
+          {sizeRooms.map((name) => {
+            const r = roomOf(name);
+            const s = roomSummary(r?.items || {});
+            return (
+              <button
+                key={name}
+                onClick={() => {
+                  tap("soft");
+                  if (r) setCurrentRoom(r.id);
+                  setOpenRoom(name);
+                  setPickerOpen(false);
+                  setQ("");
+                }}
+                className="relative text-left rounded-3xl p-3 bg-gradient-to-b from-white to-[#F2F7FF] border border-[#DCE8FA] shadow-[0_8px_0_#E1EAF8,0_16px_28px_-14px_rgba(7,81,216,0.4),inset_0_1px_0_#fff] active:translate-y-[4px] active:shadow-[0_2px_0_#E1EAF8] transition-transform"
+              >
+                <span
+                  className={`inline-block px-3 py-1 rounded-xl text-white text-[14px] font-black bg-gradient-to-b ${
+                    ROOM_TINT[name] || "from-[#4C9BFF] to-[#0751D8]"
+                  } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)]`}
+                >
+                  {name}
+                </span>
+                <div className="mt-1 flex items-center justify-center h-[86px]">
+                  <Art3D src={ROOM_IMG[name] || ROOM_IMG["작은방"]} alt={name} size={82} />
+                </div>
+                <div className="text-center text-[12px] font-extrabold text-[#0F172A]">
+                  {s.kinds > 0 ? `품목 ${s.kinds}종 · 총 ${s.count}개` : "품목 없음"}
+                </div>
+                {s.count > 0 && (
+                  <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-white text-[#0751D8] text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#E3E9F5]">
+                    {s.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]" />
-          <TextInput
-            placeholder="품목명을 검색하세요"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="pl-9"
-          />
-        </div>
         <button
           onClick={() => setScreen("scan")}
-          className="w-full py-3 rounded-2xl bg-white border-2 border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2 text-sm"
+          className="mt-4 w-full py-3.5 rounded-2xl bg-white border border-[#DCE8FA] text-[#0751D8] font-black flex items-center justify-center gap-2 text-[15px] shadow-[0_5px_0_#EDF2FA,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
         >
           <Camera className="w-5 h-5" />
           <Video className="w-5 h-5" /> AI 공간 스캔으로 품목 인식
         </button>
+      </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          {items.map((it) => {
-            const qty = room?.items[it.id] || 0;
-            return (
-              <Card
-                key={it.id}
-                selected={qty > 0}
-                className={`text-center py-4 relative bg-white ${
-                  qty > 0
-                    ? "shadow-[0_5px_0_0_#CFE0FA,0_8px_18px_rgba(7,81,216,0.16),inset_0_1px_0_#fff]"
-                    : "shadow-[0_4px_0_0_#EDF2FA,0_6px_14px_rgba(15,23,42,0.06),inset_0_1px_0_#fff]"
+      <BottomButtonBar>
+        <PrimaryButton onClick={() => setScreen("options")}>
+          <span className="inline-flex items-center gap-2">
+            <Calculator className="w-6 h-6" /> 견적 계산하기
+          </span>
+        </PrimaryButton>
+        <button
+          onClick={() => setScreen("scan")}
+          className="w-full mt-2 py-1 text-[15px] font-bold text-[#6B7280] underline"
+        >
+          이전
+        </button>
+      </BottomButtonBar>
+
+      {/* 품목 추가 드로어 */}
+      {room && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div
+            className="absolute inset-0 bg-[#0F172A]/45 backdrop-blur-[2px]"
+            onClick={() => setOpenRoom(null)}
+          />
+          <div className="relative w-full max-w-md max-h-[86dvh] flex flex-col rounded-t-3xl bg-gradient-to-b from-white to-[#F5F9FF] shadow-[0_-14px_40px_rgba(7,81,216,0.28)] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+              <span
+                className={`px-3 py-1 rounded-xl text-white text-[15px] font-black bg-gradient-to-b ${
+                  ROOM_TINT[room.name] || "from-[#4C9BFF] to-[#0751D8]"
+                } shadow-[0_3px_0_rgba(0,0,0,0.18)]`}
+              >
+                {room.name}
+              </span>
+              <span className="text-[13px] font-extrabold text-[#6B7280]">
+                {roomSummary(room.items).kinds}종 · {roomSummary(room.items).count}개
+              </span>
+              <button
+                onClick={() => setOpenRoom(null)}
+                className="ml-auto w-9 h-9 rounded-full bg-white border border-[#DCE8FA] flex items-center justify-center shadow-[0_3px_0_#EDF2FA]"
+                aria-label="닫기"
+              >
+                <X className="w-5 h-5 text-[#334155]" />
+              </button>
+            </div>
+
+            {/* 음성 버튼 */}
+            <div className="px-4">
+              <button
+                onClick={startVoice}
+                className={`w-full py-4 rounded-2xl text-white font-black text-[17px] flex items-center justify-center gap-2 transition-transform active:translate-y-[3px] active:shadow-none ${
+                  listening
+                    ? "bg-gradient-to-b from-[#FF7A9C] to-[#DB2777] shadow-[0_5px_0_#9D174D] animate-pulse"
+                    : "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,0_12px_22px_rgba(7,81,216,0.3)]"
                 }`}
               >
-                <button
-                  onClick={() => removeItem(it.id, it.name)}
-                  className="absolute top-2 right-2 p-1 text-[#EF4444]"
-                  aria-label="품목 삭제"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-                <div className="mx-auto mb-2 w-[84px] h-[84px] rounded-2xl bg-gradient-to-b from-white to-[#F5F9FF] flex items-center justify-center shadow-[inset_0_1px_0_#fff]">
-                  <Art3D
-                    src={ITEM_IMG[it.id] || guessItemImg(it.name) || FALLBACK_IMG}
-                    alt={it.name}
-                    size={76}
+                <Mic className="w-6 h-6" />
+                {listening ? "듣고 있어요… 말씀하세요" : "음성으로 품목 말하기"}
+              </button>
+              <p className="mt-1.5 text-center text-[12px] font-bold text-[#6B7280]">
+                예) “냉장고 하나 세탁기 두개 추가해줘”
+              </p>
+            </div>
+
+            {/* 등록된 품목 뱃지 */}
+            <div className="px-4 pt-3">
+              {picked.length === 0 ? (
+                <p className="text-[13px] font-bold text-[#9AA4B2]">아직 등록된 품목이 없습니다</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {picked.map((p) => (
+                    <span
+                      key={p.id}
+                      className="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-2xl bg-gradient-to-b from-white to-[#EAF2FF] border border-[#CFE0FA] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff]"
+                    >
+                      <Art3D src={p.img} alt={p.name} size={26} />
+                      <span className="text-[13px] font-extrabold text-[#0F172A]">{p.name}</span>
+                      <span className="text-[13px] font-black text-[#0751D8] tabular-nums">
+                        {p.qty}
+                      </span>
+                      <button
+                        onClick={() => setQty(p.id, 0)}
+                        className="ml-0.5 text-[#94A3B8]"
+                        aria-label={`${p.name} 삭제`}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 직접 품목 선택 (기본 접힘) */}
+            <div className="px-4 pt-3">
+              <button
+                onClick={() => {
+                  tap("soft");
+                  setPickerOpen((v) => !v);
+                }}
+                className="w-full py-3.5 rounded-2xl bg-white border border-[#DCE8FA] flex items-center justify-center gap-2 font-black text-[16px] text-[#0751D8] shadow-[0_5px_0_#EDF2FA,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
+              >
+                <Hand className="w-5 h-5" /> 직접 품목 선택
+                <ChevronDown
+                  className={`w-5 h-5 transition-transform ${pickerOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+            </div>
+
+            {pickerOpen && (
+              <div className="flex-1 overflow-auto px-4 pt-3 space-y-3">
+                <div className="flex gap-2">
+                  {ITEM_TABS.map((t) => (
+                    <button
+                      key={t.key}
+                      onClick={() => {
+                        setTab(t.key);
+                        setQ("");
+                      }}
+                      className={`flex-1 py-2.5 rounded-2xl text-[14px] font-black transition-all active:translate-y-[2px] ${
+                        !q && t.key === tab
+                          ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0B5FE0] shadow-[0_4px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
+                          : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F1F6FF] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff]"
+                      }`}
+                    >
+                      {t.key}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]" />
+                  <TextInput
+                    placeholder="품목명을 검색하세요"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    className="pl-9"
                   />
                 </div>
-                <div className="font-extrabold text-[15px] mb-2 text-[#0F172A]">{it.name}</div>
 
-                <div className="flex justify-center">
-                  <Counter value={qty} onChange={(n) => setQty(it.id, n)} min={0} max={20} />
+                <div className="space-y-2">
+                  {items.map((it) => {
+                    const qty = room.items[it.id] || 0;
+                    return (
+                      <div
+                        key={it.id}
+                        className={`flex items-center gap-3 p-2.5 rounded-2xl border ${
+                          qty > 0
+                            ? "border-[#287BFF] bg-gradient-to-b from-[#F5F9FF] to-[#DEEAFF] shadow-[0_4px_0_#BBD3FF,inset_0_1px_0_#fff]"
+                            : "border-[#E3EBF7] bg-gradient-to-b from-white to-[#F7FAFF] shadow-[0_3px_0_#EDF2FA,inset_0_1px_0_#fff]"
+                        }`}
+                      >
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] flex items-center justify-center shadow-[inset_0_1px_0_#fff]">
+                          <Art3D
+                            src={ITEM_IMG[it.id] || guessItemImg(it.name) || FALLBACK_IMG}
+                            alt={it.name}
+                            size={50}
+                          />
+                        </div>
+                        <span className="flex-1 font-extrabold text-[15px] text-[#0F172A]">
+                          {it.name}
+                        </span>
+                        <Counter value={qty} onChange={(n) => setQty(it.id, n)} min={0} max={20} />
+                      </div>
+                    );
+                  })}
+                  {items.length === 0 && (
+                    <p className="py-3 text-center text-[13px] font-bold text-[#9AA4B2]">
+                      검색 결과가 없습니다
+                    </p>
+                  )}
                 </div>
-              </Card>
-            );
-          })}
+
+                <button
+                  onClick={addCustom}
+                  className="w-full py-3.5 mb-2 rounded-2xl border-2 border-dashed border-[#287BFF] text-[#0751D8] font-black flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-5 h-5" /> {q ? `「${q}」 품목 추가` : "품목 직접 추가"}
+                </button>
+              </div>
+            )}
+
+            <div className="px-4 pt-3">
+              <PrimaryButton onClick={() => setOpenRoom(null)}>
+                <span className="inline-flex items-center gap-2">
+                  <Check className="w-5 h-5" /> 이 공간 완료
+                </span>
+              </PrimaryButton>
+            </div>
+          </div>
         </div>
-        <button
-          onClick={addItem}
-          className="w-full py-4 rounded-2xl border-2 border-dashed border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2"
-        >
-          <Plus className="w-5 h-5" /> 품목 추가
-        </button>
-      </div>
-      <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("options")}>다음: 옵션·보관료</PrimaryButton>
-      </BottomButtonBar>
+      )}
     </MobileShell>
   );
 }
