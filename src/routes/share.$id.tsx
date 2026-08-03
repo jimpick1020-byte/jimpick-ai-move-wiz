@@ -2,6 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SharePage } from "@/components/jimpick/SharePage";
 
 export const Route = createFileRoute("/share/$id")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    staff: typeof search.staff === "string" ? search.staff : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "JIMPICK 고객용 견적서" },

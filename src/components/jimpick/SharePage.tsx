@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "@tanstack/react-router";
+import { Link, useParams, useSearch } from "@tanstack/react-router";
 import { Home, Phone, Calendar, MapPin, Truck, Package, CheckCircle } from "lucide-react";
 import {
   ITEM_CATALOG,
@@ -13,6 +13,8 @@ import truckImg from "@/assets/jimpick-truck.png";
 
 export function SharePage() {
   const { id } = useParams({ from: "/share/$id" });
+  const search = useSearch({ from: "/share/$id" }) as { staff?: string };
+  const staffMode = String(search?.staff ?? "") === "1";
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -65,7 +67,7 @@ export function SharePage() {
 
   return (
     <MobileShell bg="bg-white">
-      <TopBar title="고객용 견적서" />
+      <TopBar title={staffMode ? "직원용 작업 지시서" : "고객용 견적서"} />
       <div className="p-5 space-y-4 flex-1 overflow-auto">
         {/* Header branding */}
         <div className="text-center pb-2">
@@ -77,6 +79,16 @@ export function SharePage() {
         </div>
 
         {/* Total amount */}
+        {staffMode ? (
+          <div
+            className="rounded-2xl p-6 text-white text-center"
+            style={{ background: "linear-gradient(135deg, #0A2A6C 0%, #0751D8 100%)" }}
+          >
+            <div className="text-sm opacity-90">작업 지시서</div>
+            <div className="text-3xl font-black my-2">금액 미공개</div>
+            <div className="text-xs opacity-80">직원용 · 견적 금액은 표시되지 않습니다</div>
+          </div>
+        ) : (
         <div
           className="rounded-2xl p-6 text-white text-center"
           style={{ background: "linear-gradient(135deg, #0A2A6C 0%, #0751D8 100%)" }}
@@ -85,6 +97,7 @@ export function SharePage() {
           <div className="text-4xl font-black my-2">{won(total)}</div>
           <div className="text-xs opacity-80">VAT 별도</div>
         </div>
+        )}
 
         {/* Customer info */}
         <Card className="space-y-2 text-sm">
@@ -148,7 +161,7 @@ export function SharePage() {
             {enabledOptions.map((o) => (
               <div key={o.id} className="flex justify-between text-sm">
                 <span>{o.name}</span>
-                <span className="font-medium">{o.separate ? "별도" : won(o.price)}</span>
+                <span className="font-medium">{staffMode ? "포함" : o.separate ? "별도" : won(o.price)}</span>
               </div>
             ))}
           </Card>
@@ -162,7 +175,8 @@ export function SharePage() {
           </Card>
         )}
 
-        {/* Breakdown */}
+        {/* Breakdown — 직원용에서는 금액을 표시하지 않습니다 */}
+        {!staffMode && (
         <Card className="space-y-2">
           <div className="font-bold text-base">견적 내역</div>
           {calc.parts.map((p) => (
@@ -176,8 +190,10 @@ export function SharePage() {
             <span className="text-[#0751D8]">{won(total)}</span>
           </div>
         </Card>
+        )}
 
         {/* Contact CTA */}
+        {!staffMode && (
         <a
           href={`tel:${estimate.phone.replace(/-/g, "")}`}
           className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-white"
@@ -185,6 +201,7 @@ export function SharePage() {
         >
           <Phone className="w-5 h-5" /> 업체에 문의하기
         </a>
+        )}
 
         <div className="text-center text-xs text-[#6B7280] pt-2">
           © JIMPICK · 본 견적은 예상 금액이며 실제 이사 비용과 다를 수 있습니다.

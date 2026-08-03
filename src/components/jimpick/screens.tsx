@@ -64,7 +64,8 @@ import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
-import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
+import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
+import { RoomManager } from "./RoomManager";
 import { fileToDataUrl, videoToFrames } from "@/lib/media";
 
 // ============ Splash ============
@@ -749,10 +750,11 @@ export function Step3() {
 // ============ Step 4: Vehicles ============
 export function Step4() {
   const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
-  const goScan = () => {
+  const ladderUnit = getPricing().ladder;
+  const goNext = () => {
     const first = draft.rooms[0];
     if (first) setCurrentRoom(first.id);
-    setScreen("scan");
+    setScreen("step6");
   };
   const vehicles = [
     { key: "truck1t" as const, name: "1톤 차량", img: VEHICLE_IMG.truck1t, max: 10, val: draft.truck1t },
@@ -794,7 +796,14 @@ export function Step4() {
                 checked={draft.ladderFrom}
                 onChange={(e) => {
                   tap("soft");
-                  updateDraft({ ladderFrom: e.target.checked });
+                  const on = e.target.checked;
+                  const price = on ? draft.ladderFromPrice || ladderUnit : 0;
+                  updateDraft({
+                    ladderFrom: on,
+                    ladderFromPrice: price,
+                    ladder: (on ? 1 : 0) + (draft.ladderTo ? 1 : 0),
+                    ladderPrice: price + draft.ladderToPrice,
+                  });
                 }}
               />
               출발지
@@ -806,7 +815,14 @@ export function Step4() {
                 checked={draft.ladderTo}
                 onChange={(e) => {
                   tap("soft");
-                  updateDraft({ ladderTo: e.target.checked });
+                  const on = e.target.checked;
+                  const price = on ? draft.ladderToPrice || ladderUnit : 0;
+                  updateDraft({
+                    ladderTo: on,
+                    ladderToPrice: price,
+                    ladder: (on ? 1 : 0) + (draft.ladderFrom ? 1 : 0),
+                    ladderPrice: draft.ladderFromPrice + price,
+                  });
                 }}
               />
               도착지
@@ -869,7 +885,7 @@ export function Step4() {
         </Card>
       </div>
       <BottomButtonBar>
-        <PrimaryButton onClick={goScan}>다음: AI 공간 스캔</PrimaryButton>
+        <PrimaryButton onClick={goNext}>다음: 공간별 품목</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
@@ -902,7 +918,7 @@ const ITEM_TABS = [
   { key: "특수/리스크", cats: ["생활용품", "잔짐"] },
 ];
 
-/** "냉장고 하나 세탁기 두개 추가" 같은 말에서 품목·수량을 뽑아냅니다 */
+/** "작은방 침대 하나 책상과 의자 책장 서랍장" 같은 말에서 방·품목·수량을 뽑아냅니다 */
 const KO_NUM: Record<string, number> = {
   하나: 1, 한: 1, 일: 1, 둘: 2, 두: 2, 이: 2, 셋: 3, 세: 3, 삼: 3, 넷: 4, 네: 4, 사: 4,
   다섯: 5, 오: 5, 여섯: 6, 육: 6, 일곱: 7, 칠: 7, 여덟: 8, 팔: 8, 아홉: 9, 구: 9, 열: 10,
@@ -912,10 +928,13 @@ function parseSpokenItems(
   catalog: { id: string; name: string }[]
 ): { id: string; name: string; qty: number }[] {
   const found: { id: string; name: string; qty: number }[] = [];
-  for (const it of catalog) {
-    const idx = text.indexOf(it.name);
+  // 긴 이름을 먼저 찾아 "김치냉장고"가 "냉장고"로 잡히지 않게 합니다
+  const sorted = [...catalog].sort((a, b) => b.name.length - a.name.length);
+  let rest = text;
+  for (const it of sorted) {
+    const idx = rest.indexOf(it.name);
     if (idx < 0) continue;
-    const after = text.slice(idx + it.name.length, idx + it.name.length + 8);
+    const after = rest.slice(idx + it.name.length, idx + it.name.length + 8);
     let qty = 1;
     const digit = after.match(/^\s*(\d+)/);
     if (digit) qty = Number(digit[1]);
@@ -924,9 +943,20 @@ function parseSpokenItems(
       if (word) qty = KO_NUM[word];
     }
     found.push({ id: it.id, name: it.name, qty: Math.max(1, Math.min(20, qty)) });
+    rest = rest.slice(0, idx) + " ".repeat(it.name.length) + rest.slice(idx + it.name.length);
   }
   return found;
 }
+
+/** 말한 문장에서 방 이름을 찾아냅니다 ("작은방 침대 하나..." → 작은방) */
+function parseSpokenRoom(text: string, roomNames: string[]): string | null {
+  const t = text.replace(/\s/g, "");
+  const hit = [...roomNames]
+    .sort((a, b) => b.length - a.length)
+    .find((n) => t.includes(n.replace(/\s/g, "")));
+  return hit || null;
+}
+
 
 export function Step6() {
   const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
@@ -940,6 +970,7 @@ export function Step6() {
   const [q, setQ] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [listening, setListening] = useState(false);
+  const [aiThinking, setAiThinking] = useState(false);
 
   const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || SIZE_TABS[2]).rooms;
 
@@ -979,18 +1010,21 @@ export function Step6() {
     updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
   };
 
-  const addSpoken = (results: { id: string; name: string; qty: number }[]) => {
-    if (!room) return;
-    const items = { ...room.items };
+  const addSpokenTo = (
+    targetRoom: Room,
+    results: { id: string; name: string; qty: number }[],
+  ) => {
+    const items = { ...targetRoom.items };
     for (const r of results) items[r.id] = (items[r.id] || 0) + r.qty;
-    updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
+    updateDraft({ rooms: draft.rooms.map((r) => (r.id === targetRoom.id ? { ...r, items } : r)) });
+    setCurrentRoom(targetRoom.id);
     tap("success");
     toast.success(
-      `${room.name}에 ${results.map((r) => `${r.name} ${r.qty}개`).join(", ")} 추가했습니다`
+      `${targetRoom.name}에 ${results.map((r) => `${r.name} ${r.qty}개`).join(", ")} 추가했습니다`
     );
   };
 
-  /** 음성으로 품목 말하기 (Web Speech API) */
+  /** 음성으로 품목 말하기 (Web Speech API + AI 해석 보조) */
   const startVoice = () => {
     const SR =
       (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
@@ -1008,12 +1042,7 @@ export function Step6() {
     rec.maxAlternatives = 1;
     rec.onresult = (e) => {
       const text = Array.from({ length: e.results.length }, (_, i) => e.results[i][0].transcript).join(" ");
-      const results = parseSpokenItems(text, catalog);
-      if (!results.length) {
-        toast.error(`"${text}" — 품목을 찾지 못했습니다. 다시 말씀해 주세요.`);
-        return;
-      }
-      addSpoken(results);
+      void handleTranscript(text);
     };
     rec.onerror = () => {
       toast.error("음성 인식을 사용할 수 없습니다. 마이크 권한을 확인해 주세요.");
@@ -1024,6 +1053,41 @@ export function Step6() {
     tap("soft");
     rec.start();
   };
+
+  /** 말한 문장을 해석해 방을 찾고 품목을 담습니다. 못 찾으면 AI가 도와줍니다. */
+  const handleTranscript = async (text: string) => {
+    const roomNames = draft.rooms.map((r) => r.name);
+    const spokenRoom = parseSpokenRoom(text, roomNames);
+    const target =
+      (spokenRoom ? draft.rooms.find((r) => r.name === spokenRoom) : undefined) ||
+      room ||
+      draft.rooms[0];
+    const local = parseSpokenItems(text, catalog);
+    if (target && local.length > 0) {
+      addSpokenTo(target, local);
+      if (spokenRoom) setOpenRoom(spokenRoom);
+      return;
+    }
+    // AI 보조 해석 — "추가" 같은 말이 없어도 알아듣습니다
+    setAiThinking(true);
+    try {
+      const res = await parseVoiceOrder({ data: { text, rooms: roomNames } });
+      const aiTarget =
+        (res.room ? draft.rooms.find((r) => r.name === res.room) : undefined) || target;
+      if (!aiTarget || res.items.length === 0) {
+        toast.error(`"${text}" — 품목을 찾지 못했습니다. 다시 말씀해 주세요.`);
+        return;
+      }
+      addSpokenTo(aiTarget, res.items);
+      setOpenRoom(aiTarget.name);
+      toast.info("AI가 음성을 해석해 담았습니다");
+    } catch {
+      toast.error("AI 음성 해석에 실패했습니다. 다시 시도해 주세요.");
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
 
   const addCustom = () => {
     const name = q.trim() || prompt("추가할 품목 이름") || "";
@@ -1061,14 +1125,14 @@ export function Step6() {
           <img src={logoImg} alt="JIMPICK" className="w-9 h-9" />
           <div className="flex-1 text-center">
             <h1 className="text-[21px] font-black text-[#0F172A] leading-tight">
-              6단계. 공간별 품목
+              5단계. 공간별 품목
             </h1>
             <p className="text-[12px] text-[#6B7280] font-semibold">
-              {totalKinds > 0 ? "공간을 눌러 품목을 수정하세요" : "평수를 고르고 공간을 눌러주세요"}
+              {totalKinds > 0 ? "공간을 눌러 품목을 담아주세요" : "평수를 고르고 방을 추가·삭제하세요"}
             </p>
           </div>
           <div className="px-3 py-1.5 rounded-2xl border border-[#DCE8FA] bg-white shadow-[0_2px_0_#EDF2FA]">
-            <span className="text-[#0751D8] font-black text-lg">6</span>
+            <span className="text-[#0751D8] font-black text-lg">5</span>
             <span className="text-[#9AA4B2] font-bold text-xs"> / 7</span>
           </div>
         </div>
@@ -1077,7 +1141,7 @@ export function Step6() {
             <div
               key={s}
               className={`h-1.5 flex-1 rounded-full ${
-                s < 6 ? "bg-[#8FC0FF]" : s === 6 ? "bg-[#0751D8]" : "bg-[#E7EBF2]"
+                s < 5 ? "bg-[#8FC0FF]" : s === 5 ? "bg-[#0751D8]" : "bg-[#E7EBF2]"
               }`}
             />
           ))}
@@ -1106,42 +1170,80 @@ export function Step6() {
       {/* 디지털 3D 집 구조 */}
       <div className="flex-1 overflow-auto p-4 pb-6 bg-gradient-to-b from-[#EEF6FF] to-[#E6EEFA]">
         <div className="grid grid-cols-2 gap-3">
-          {sizeRooms.map((name) => {
-            const r = roomOf(name);
-            const s = roomSummary(r?.items || {});
+          {draft.rooms.map((r) => {
+            const name = r.name;
+            const s = roomSummary(r.items || {});
             return (
-              <button
-                key={name}
-                onClick={() => {
-                  tap("soft");
-                  if (r) setCurrentRoom(r.id);
-                  setOpenRoom(name);
-                  setPickerOpen(false);
-                  setQ("");
-                }}
-                className="relative text-left rounded-3xl p-3 bg-gradient-to-b from-white to-[#F2F7FF] border border-[#DCE8FA] shadow-[0_8px_0_#E1EAF8,0_16px_28px_-14px_rgba(7,81,216,0.4),inset_0_1px_0_#fff] active:translate-y-[4px] active:shadow-[0_2px_0_#E1EAF8] transition-transform"
+              <div
+                key={r.id}
+                className="relative rounded-3xl p-3 bg-gradient-to-b from-white to-[#F2F7FF] border border-[#DCE8FA] shadow-[0_8px_0_#E1EAF8,0_16px_28px_-14px_rgba(7,81,216,0.4),inset_0_1px_0_#fff]"
               >
-                <span
-                  className={`inline-block px-3 py-1 rounded-xl text-white text-[14px] font-black bg-gradient-to-b ${
-                    ROOM_TINT[name] || "from-[#4C9BFF] to-[#0751D8]"
-                  } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)]`}
+                <button
+                  onClick={() => {
+                    tap("soft");
+                    setCurrentRoom(r.id);
+                    setOpenRoom(name);
+                    setPickerOpen(false);
+                    setQ("");
+                  }}
+                  className="w-full text-left active:translate-y-[2px] transition-transform"
                 >
-                  {name}
-                </span>
-                <div className="mt-1 flex items-center justify-center h-[86px]">
-                  <Art3D src={ROOM_IMG[name] || ROOM_IMG["작은방"]} alt={name} size={82} />
-                </div>
-                <div className="text-center text-[12px] font-extrabold text-[#0F172A]">
-                  {s.kinds > 0 ? `품목 ${s.kinds}종 · 총 ${s.count}개` : "품목 없음"}
-                </div>
+                  <span
+                    className={`inline-block px-3 py-1 rounded-xl text-white text-[14px] font-black bg-gradient-to-b ${
+                      ROOM_TINT[name] || "from-[#4C9BFF] to-[#0751D8]"
+                    } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)]`}
+                  >
+                    {name}
+                  </span>
+                  <div className="mt-1 flex items-center justify-center h-[86px]">
+                    <Art3D src={ROOM_IMG[name] || ROOM_IMG["작은방"]} alt={name} size={82} />
+                  </div>
+                  <div className="text-center text-[12px] font-extrabold text-[#0F172A]">
+                    {s.kinds > 0 ? `품목 ${s.kinds}종 · 총 ${s.count}개` : "품목 없음"}
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    tap("soft");
+                    const rooms = draft.rooms.filter((x) => x.id !== r.id);
+                    updateDraft({ rooms });
+                    if (openRoom === name) setOpenRoom(null);
+                    toast.success(`「${name}」 공간을 삭제했습니다`);
+                  }}
+                  aria-label={`${name} 삭제`}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white text-[#EF4444] flex items-center justify-center shadow-[0_3px_0_#E3E9F5]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
                 {s.count > 0 && (
-                  <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-white text-[#0751D8] text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#E3E9F5]">
+                  <span className="absolute top-2 left-2 min-w-6 h-6 px-1.5 rounded-full bg-[#0751D8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#0640A8]">
                     {s.count}
                   </span>
                 )}
-              </button>
+              </div>
             );
           })}
+        </div>
+
+        {/* 음성으로 방·품목 한 번에 담기 */}
+        <button
+          onClick={startVoice}
+          disabled={aiThinking}
+          className={`mt-4 w-full py-4 rounded-2xl text-white font-black text-[16px] flex items-center justify-center gap-2 active:translate-y-[3px] active:shadow-none ${
+            listening
+              ? "bg-gradient-to-b from-[#FF7A9C] to-[#DB2777] shadow-[0_5px_0_#9D174D] animate-pulse"
+              : "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,0_12px_22px_rgba(7,81,216,0.3)]"
+          }`}
+        >
+          <Mic className="w-6 h-6" />
+          {listening ? "듣고 있어요… 말씀하세요" : aiThinking ? "AI가 해석 중..." : "음성으로 방·품목 말하기"}
+        </button>
+        <p className="mt-1.5 text-center text-[12px] font-bold text-[#6B7280]">
+          예) “작은방 침대 하나 책상과 의자 책장 서랍장” — ‘추가’를 안 붙여도 AI가 알아들어요
+        </p>
+
+        <div className="mt-4">
+          <RoomManager title="방 추가 · 삭제 (평수별 공간 구성)" />
         </div>
 
         <button
@@ -1154,13 +1256,13 @@ export function Step6() {
       </div>
 
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("options")}>
+        <PrimaryButton onClick={() => setScreen("scan")}>
           <span className="inline-flex items-center gap-2">
-            <Calculator className="w-6 h-6" /> 견적 계산하기
+            <Camera className="w-6 h-6" /> 다음: AI 공간 스캔
           </span>
         </PrimaryButton>
         <button
-          onClick={() => setScreen("scan")}
+          onClick={() => setScreen("step4")}
           className="w-full mt-2 py-1 text-[15px] font-bold text-[#6B7280] underline"
         >
           이전
@@ -1599,7 +1701,7 @@ export function OptionsScreen() {
 
   return (
     <MobileShell>
-      <TopBar title="옵션·보관료 입력" onBack={() => setScreen("step6")} />
+      <TopBar title="7단계. 옵션·보관료" onBack={() => setScreen("scan")} />
       <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
         {draft.options.length === 0 && (
           <div className="text-center text-[#6B7280] py-10 text-sm">
@@ -2001,19 +2103,6 @@ export function Result() {
               <div>
                 작업 인원: 남자 {draft.workers}명 · 주방 {draft.kitchenStaff}명
               </div>
-              <div>
-                이삿짐:{" "}
-                {(() => {
-                  const t = draft.rooms.reduce(
-                    (acc, r) => {
-                      const s = roomSummary(r.items);
-                      return { kinds: acc.kinds + s.kinds, count: acc.count + s.count };
-                    },
-                    { kinds: 0, count: 0 },
-                  );
-                  return `${draft.rooms.length}개 공간 · ${t.kinds}종 총 ${t.count}개`;
-                })()}
-              </div>
               {usesStorage(draft) && (
                 <div>
                   보관: {draft.storageStart || "-"} ~ {draft.storageEnd || "-"} (
@@ -2055,6 +2144,21 @@ export function Result() {
         >
           <LinkIcon className="w-5 h-5" /> 공유 링크 복사
         </button>
+        <button
+          onClick={() => {
+            tap("soft");
+            saveDraft();
+            const url = `${window.location.origin}/share/${draft.id}?staff=1`;
+            void navigator.clipboard?.writeText(url);
+            toast.success("직원용 작업 지시서 링크를 복사했습니다", {
+              description: "금액은 표시되지 않습니다 (미공개)",
+            });
+          }}
+          className="w-full py-4 rounded-2xl bg-gradient-to-b from-[#F1F6FF] to-[#E4EDFC] border border-[#DCE8FA] text-[#0751D8] font-black flex items-center justify-center gap-2 shadow-[0_4px_0_#D6E2F5] active:translate-y-[2px] active:shadow-[0_2px_0_#D6E2F5]"
+        >
+          <Users className="w-5 h-5" /> 직원용 공유 (금액 미공개)
+        </button>
+
         <button
           onClick={() => {
             tap("success");

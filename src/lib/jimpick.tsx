@@ -141,15 +141,8 @@ export const OPTION_PRESETS: { name: string; price: number }[] = [
   { name: "주차/도로 사용료", price: 30000 },
 ];
 
-/** 30평대 기준 방별 기본 품목 배치 */
-export const PRESET_30PY: Record<string, RoomItems> = {
-  안방: { bed: 1, wardrobe: 2, vanity: 1, drawer: 1, aircon: 1 },
-  작은방: { bed: 1, desk: 1, chair: 1, shelf: 1, wardrobe: 1 },
-  입구방: { desk: 1, shelf: 1, drawer: 1, box: 4 },
-  거실: { sofa: 1, tv: 1, table: 1, chair: 4, aircon: 1, shelf: 1, airpurifier: 1 },
-  부엌: { fridge: 1, kimchi: 1, microwave: 1, waterpurifier: 1, riceCooker: 1, gasrange: 1, dishrack: 1 },
-  베란다: { washer: 1, dryer: 1, drying: 1, vacuum: 1, toolbox: 1, plant: 3, box: 5 },
-};
+/** 기본 품목 프리셋 없음 — 품목은 사장님이 직접 담습니다. */
+export const PRESET_30PY: Record<string, RoomItems> = {};
 
 // ============ Pricing ============
 export interface Pricing {
@@ -224,6 +217,10 @@ export function storageFeeOf(e: Estimate): number {
   return days * Math.max(0, num(e.storageDaily));
 }
 
+/** 5톤 차량 1대에 기본 포함되는 인원 */
+export const BASE_WORKERS = 2;
+export const BASE_KITCHEN = 1;
+
 /** 중앙 견적 계산 서비스 — 모든 화면이 이 함수만 사용합니다. */
 export function calcEstimate(
   e: Estimate,
@@ -232,13 +229,15 @@ export function calcEstimate(
   const hasSidePrice = num(e.ladderFromPrice) + num(e.ladderToPrice) > 0;
   const sideFee =
     (e.ladderFromSeparate ? 0 : num(e.ladderFromPrice)) + (e.ladderToSeparate ? 0 : num(e.ladderToPrice));
+  const ladderCount = num(e.ladder) || (e.ladderFrom ? 1 : 0) + (e.ladderTo ? 1 : 0);
   const ladderFee = e.ladderSeparate
     ? 0
     : hasSidePrice
       ? sideFee
-      : num(e.ladderPrice) || num(e.ladder) * pricing.ladder;
+      : num(e.ladderPrice) || ladderCount * pricing.ladder;
 
-  const truckFee = num(e.truck1t) * pricing.truck1t + num(e.truck5t) * pricing.truck5t;
+  const truck5Fee = num(e.truck5t) * pricing.truck5t;
+  const truck1Fee = num(e.truck1t) * pricing.truck1t;
   const extraKm = Math.max(0, num(e.distanceKm) - pricing.baseKm);
   const distanceFee = Math.round(extraKm * pricing.perKm);
   const stairFloors = e.workEnv.includes("계단")
@@ -246,7 +245,11 @@ export function calcEstimate(
     : 0;
   const stairFee = stairFloors * pricing.stairPerFloor;
 
-  const autoTransport = truckFee + distanceFee + stairFee + ladderFee;
+  const extraWorkers = Math.max(0, num(e.workers) - BASE_WORKERS);
+  const extraKitchen = Math.max(0, num(e.kitchenStaff) - BASE_KITCHEN);
+  const staffFee = extraWorkers * pricing.worker + extraKitchen * pricing.kitchenStaff;
+
+  const autoTransport = truck5Fee + truck1Fee + staffFee + distanceFee + stairFee + ladderFee;
   const overridden = e.transportOverride !== null && e.transportOverride !== undefined;
   const transport = overridden ? num(e.transportOverride) : autoTransport;
 
@@ -263,7 +266,12 @@ export function calcEstimate(
   const parts = overridden
     ? [{ label: "기본 운송료 (직접 입력)", amount: transport }]
     : [
-        { label: "기본 차량비", amount: truckFee },
+        { label: `기본 5톤 비용 (${num(e.truck5t)}대)`, amount: truck5Fee },
+        { label: `1톤 차 증차비용 (${num(e.truck1t)}대)`, amount: truck1Fee },
+        {
+          label: `인원 추가비용 (남자 ${extraWorkers}명 · 주방 ${extraKitchen}명)`,
+          amount: staffFee,
+        },
         { label: `거리 추가비 (${pricing.baseKm}km 초과 ${extraKm.toFixed(1)}km)`, amount: distanceFee },
         { label: `계단 작업비 (${stairFloors}개층)`, amount: stairFee },
         { label: "사다리차 비용", amount: ladderFee },
@@ -323,7 +331,7 @@ export function newEstimate(): Estimate {
     extraCharges: [],
     memo: "",
     specialTerms: "",
-    rooms: DEFAULT_ROOMS.map((n) => ({ id: `r_${n}`, name: n, items: { ...(PRESET_30PY[n] || {}) } })),
+    rooms: DEFAULT_ROOMS.map((n) => ({ id: `r_${n}`, name: n, items: {} as RoomItems })),
     customItems: [],
     hiddenItems: [],
     options: [...DEFAULT_OPTIONS],
