@@ -248,11 +248,16 @@ export function calcEstimate(
     : 0;
   const stairFee = stairFloors * pricing.stairPerFloor;
 
-  const extraWorkers = Math.max(0, num(e.workers) - BASE_WORKERS);
-  const extraKitchen = Math.max(0, num(e.kitchenStaff) - BASE_KITCHEN);
-  const staffFee = extraWorkers * pricing.worker + extraKitchen * pricing.kitchenStaff;
+  /** 계단·엘리베이터 수작업 인원비 — 사다리차를 쓰지 않는 쪽만 인원 1명당 2만원 */
+  const manualWork = e.workEnv.includes("계단") || e.workEnv.includes("엘리베이터");
+  const manualSides = manualWork ? (e.ladderFrom ? 0 : 1) + (e.ladderTo ? 0 : 1) : 0;
+  const manualWorkers = Math.max(0, num(e.workers));
+  const MANUAL_PER_WORKER = 20000;
+  const manualFee = manualSides * manualWorkers * MANUAL_PER_WORKER;
+  const manualSideLabel =
+    manualSides === 2 ? "출발지·도착지" : manualSides === 1 ? (e.ladderFrom ? "도착지" : "출발지") : "";
 
-  const autoTransport = truck5Fee + truck1Fee + staffFee + distanceFee + stairFee + ladderFee;
+  const autoTransport = truck5Fee + truck1Fee + distanceFee + stairFee + manualFee + ladderFee;
   const overridden = e.transportOverride !== null && e.transportOverride !== undefined;
   const transport = overridden ? num(e.transportOverride) : autoTransport;
 
@@ -270,15 +275,16 @@ export function calcEstimate(
     ? [{ label: "기본 운송료 (직접 입력)", amount: transport }]
     : [
         { label: `기본 5톤 비용 (${num(e.truck5t)}대)`, amount: truck5Fee },
-        { label: `1톤 차 증차비용 (${num(e.truck1t)}대)`, amount: truck1Fee },
-        {
-          label: `인원 추가비용 (남자 ${extraWorkers}명 · 주방 ${extraKitchen}명)`,
-          amount: staffFee,
-        },
+        { label: `차량 증차 비용 (1톤 ${num(e.truck1t)}대 증차)`, amount: truck1Fee },
         { label: `거리 추가비 (${pricing.baseKm}km 초과 ${extraKm.toFixed(1)}km)`, amount: distanceFee },
         { label: `계단 작업비 (${stairFloors}개층)`, amount: stairFee },
+        {
+          label: `계단·엘리베이터 작업 인원비 (${manualSideLabel} 인원 ${manualWorkers}명 × 2만원)`,
+          amount: manualFee,
+        },
         { label: "사다리차 비용", amount: ladderFee },
       ].filter((p) => p.amount > 0);
+
 
   return {
     total,
