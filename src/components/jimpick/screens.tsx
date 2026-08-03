@@ -2146,6 +2146,21 @@ export function Result() {
         </button>
         <button
           onClick={() => {
+            tap("soft");
+            saveDraft();
+            const url = `${window.location.origin}/share/${draft.id}?staff=1`;
+            void navigator.clipboard?.writeText(url);
+            toast.success("직원용 작업 지시서 링크를 복사했습니다", {
+              description: "금액은 표시되지 않습니다 (미공개)",
+            });
+          }}
+          className="w-full py-4 rounded-2xl bg-gradient-to-b from-[#F1F6FF] to-[#E4EDFC] border border-[#DCE8FA] text-[#0751D8] font-black flex items-center justify-center gap-2 shadow-[0_4px_0_#D6E2F5] active:translate-y-[2px] active:shadow-[0_2px_0_#D6E2F5]"
+        >
+          <Users className="w-5 h-5" /> 직원용 공유 (금액 미공개)
+        </button>
+
+        <button
+          onClick={() => {
             tap("success");
             saveDraft();
             toast.success("견적이 저장되었습니다");
