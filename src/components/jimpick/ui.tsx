@@ -167,6 +167,7 @@ export function MoneyInput({
   step = 10000,
   placeholder = "0",
   className = "",
+  inputClassName = "",
   allowNegative = false,
 }: {
   value: number;
@@ -174,6 +175,8 @@ export function MoneyInput({
   step?: number;
   placeholder?: string;
   className?: string;
+  /** 입력창에 추가할 클래스 */
+  inputClassName?: string;
   /** 음수 입력 허용 (할인 금액 등) */
   allowNegative?: boolean;
 }) {
