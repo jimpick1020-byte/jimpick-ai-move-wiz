@@ -19,6 +19,9 @@ import {
   Video,
   Send,
   Link as LinkIcon,
+  Mic,
+  X,
+  ChevronDown,
 } from "lucide-react";
 
 import {
