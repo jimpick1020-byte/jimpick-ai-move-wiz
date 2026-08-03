@@ -23,6 +23,7 @@ import {
   X,
   ChevronDown,
   ChevronLeft,
+  Mic,
 
 } from "lucide-react";
 
@@ -66,7 +67,7 @@ import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
-import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
+import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
 
 import { fileToDataUrl, videoToFrames } from "@/lib/media";
 
@@ -1007,7 +1008,7 @@ export function Step6() {
       });
       tap("success");
       toast.success(
-        `「${target.name}」에 ${res.items.map((i) => `${i.name} ${i.qty}`).join(", ")} 담았습니다`,
+        `「${target.name}」에 ${res.items.map((i: { name: string; qty: number }) => `${i.name} ${i.qty}`).join(", ")} 담았습니다`,
       );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "음성 해석에 실패했습니다");
