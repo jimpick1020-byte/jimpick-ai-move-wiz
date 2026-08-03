@@ -437,7 +437,26 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
 
   const ctx: Ctx = {
     ...state,
-    setScreen: (screen) => setState((s) => ({ ...s, screen })),
+    setScreen: (screen) =>
+      setState((s) => {
+        // 5단계(품목 입력) 진입 직전 상태를 스냅샷으로 보관합니다
+        const entering5 = screen === "step6" && s.screen !== "step6" && s.screen !== "plan" && s.screen !== "ai";
+        return {
+          ...s,
+          screen,
+          stepSnapshot: entering5 ? JSON.parse(JSON.stringify(s.draft)) : s.stepSnapshot,
+        };
+      }),
+    restoreStepSnapshot: () => {
+      let ok = false;
+      setState((s) => {
+        if (!s.stepSnapshot) return s;
+        ok = true;
+        return { ...s, draft: JSON.parse(JSON.stringify(s.stepSnapshot)), currentRoomId: "" };
+      });
+      return ok || !!state.stepSnapshot;
+    },
+
     login: (id, remember) =>
       setState((s) => ({ ...s, loggedIn: true, savedId: remember ? id : "", screen: "home" })),
     logout: () => setState((s) => ({ ...s, loggedIn: false, screen: "login" })),
