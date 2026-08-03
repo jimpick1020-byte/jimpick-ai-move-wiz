@@ -3,7 +3,7 @@ import { Camera, Image as ImageIcon, Video, Film, Trash2, Check, RefreshCw, Bot 
 import { RoomManager } from "./RoomManager";
 import { toast } from "sonner";
 
-import { useApp, DEFAULT_ROOMS } from "@/lib/jimpick";
+import { useApp, DEFAULT_ROOMS, roomSummary } from "@/lib/jimpick";
 import { MobileShell, TopBar, PrimaryButton, BottomButtonBar, Card, Counter } from "./ui";
 import { Art3D, ITEM_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
 import { recognizeItems, type DetectedItem, type PackingEstimate } from "@/lib/ai.functions";
@@ -323,6 +323,25 @@ export function AIScan() {
       <TopBar title="6단계. AI 공간 스캔" onBack={() => setScreen("step6")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         <div className="text-sm text-[#6B7280] -mt-1">촬영하면 공간과 품목을 자동으로 인식해요</div>
+
+        {/* 5단계에서 고른 평수와 담을 방을 확인합니다 */}
+        <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-2xl bg-gradient-to-b from-white to-[#F2F7FF] border border-[#DCE8FA] shadow-[0_5px_0_#EDF2FA,inset_0_1px_0_#fff]">
+          <span className="px-2.5 py-1 rounded-xl text-white text-[12px] font-black bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_3px_0_#0640A8]">
+            5단계 {draft.sizeTab || "평수 미선택"}
+          </span>
+          <span className="text-[13px] font-extrabold text-[#0F172A]">
+            담을 방: {targetRoom?.name || "방 없음"}
+          </span>
+          <span className="text-[12px] font-bold text-[#6B7280]">
+            {targetRoom
+              ? (() => {
+                  const s = roomSummary(targetRoom.items);
+                  return s.kinds > 0 ? `품목 ${s.kinds}종 · 총 ${s.count}개` : "품목 없음";
+                })()
+              : "아래에서 방을 추가해 주세요"}
+          </span>
+        </div>
+
 
         <ScanStage scanning={busy} tags={tags} preview={preview} />
 
