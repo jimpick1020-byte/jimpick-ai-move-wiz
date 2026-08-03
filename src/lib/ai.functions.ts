@@ -224,3 +224,68 @@ export const recognizeItems = createServerFn({ method: "POST" })
   },
 );
 
+
+export interface VoiceItem {
+  id: string;
+  name: string;
+  qty: number;
+}
+
+/** 음성 문장을 AI가 해석해 방과 품목을 뽑아냅니다 ("추가" 같은 명령어가 없어도 동작) */
+export const parseVoiceOrder = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        text: z.string().min(1).max(500),
+        rooms: z.array(z.string()).max(30).default([]),
+      })
+      .parse(d),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{ room: string | null; items: VoiceItem[]; error?: string }> => {
+      const key = process.env.LOVABLE_API_KEY;
+      if (!key) return { room: null, items: [], error: "AI 키가 설정되지 않았습니다." };
+
+      const schema = z.object({
+        room: z.string().nullable(),
+        items: z.array(z.object({ id: z.string(), qty: z.number() })),
+      });
+      const valid = new Map(CATALOG.map(([id, name]) => [id, name] as const));
+      const gateway = createLovableAiGatewayProvider(key);
+
+      const prompt = `당신은 한국 이사 견적 앱의 음성 비서입니다.
+사장님이 말한 문장에서 "어느 방"에 "어떤 품목 몇 개"를 담으려는지 해석합니다.
+
+규칙:
+1. items의 id는 반드시 아래 목록에서만 고릅니다.
+${CATALOG.map(([id, name]) => `- ${id}: ${name}`).join("\n")}
+2. "추가", "넣어줘" 같은 명령어가 없어도 품목이 언급되면 담으려는 뜻으로 해석합니다.
+3. 수량이 없으면 1로 봅니다. "하나/두개/세개" 같은 한국어 수량도 숫자로 바꿉니다.
+4. room에는 다음 방 이름 중 하나를 넣고, 언급이 없으면 null 입니다: ${data.rooms.join(", ") || "없음"}.
+5. 목록에 없는 물건은 무시합니다.
+
+문장: "${data.text}"`;
+
+      try {
+        const { output } = await generateText({
+          model: gateway("google/gemini-3.6-flash"),
+          output: Output.object({ schema }),
+          messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
+        });
+        const items: VoiceItem[] = [];
+        for (const it of output.items ?? []) {
+          const name = valid.get(it.id as never);
+          if (!name) continue;
+          items.push({ id: it.id, name, qty: Math.max(1, Math.min(20, Math.round(it.qty || 1))) });
+        }
+        const room =
+          output.room && data.rooms.includes(output.room) ? output.room : null;
+        return { room, items };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "AI 해석에 실패했습니다.";
+        return { room: null, items: [], error: msg };
+      }
+    },
+  );
