@@ -64,8 +64,7 @@ import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
-import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
-import { RoomManager } from "./RoomManager";
+import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
 import { fileToDataUrl, videoToFrames } from "@/lib/media";
 
 // ============ Splash ============
@@ -970,7 +969,6 @@ export function Step6() {
   const [q, setQ] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [listening, setListening] = useState(false);
-  const [aiThinking, setAiThinking] = useState(false);
 
   const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || SIZE_TABS[2]).rooms;
 
@@ -1042,7 +1040,7 @@ export function Step6() {
     rec.maxAlternatives = 1;
     rec.onresult = (e) => {
       const text = Array.from({ length: e.results.length }, (_, i) => e.results[i][0].transcript).join(" ");
-      void handleTranscript(text);
+      handleTranscript(text);
     };
     rec.onerror = () => {
       toast.error("음성 인식을 사용할 수 없습니다. 마이크 권한을 확인해 주세요.");
@@ -1054,8 +1052,8 @@ export function Step6() {
     rec.start();
   };
 
-  /** 말한 문장을 해석해 방을 찾고 품목을 담습니다. 못 찾으면 AI가 도와줍니다. */
-  const handleTranscript = async (text: string) => {
+  /** 말한 문장을 해석해 방을 찾고 품목을 담습니다 */
+  const handleTranscript = (text: string) => {
     const roomNames = draft.rooms.map((r) => r.name);
     const spokenRoom = parseSpokenRoom(text, roomNames);
     const target =
@@ -1063,30 +1061,14 @@ export function Step6() {
       room ||
       draft.rooms[0];
     const local = parseSpokenItems(text, catalog);
-    if (target && local.length > 0) {
-      addSpokenTo(target, local);
-      if (spokenRoom) setOpenRoom(spokenRoom);
+    if (!target || local.length === 0) {
+      toast.error(`"${text}" — 품목을 찾지 못했습니다. 다시 말씀해 주세요.`);
       return;
     }
-    // AI 보조 해석 — "추가" 같은 말이 없어도 알아듣습니다
-    setAiThinking(true);
-    try {
-      const res = await parseVoiceOrder({ data: { text, rooms: roomNames } });
-      const aiTarget =
-        (res.room ? draft.rooms.find((r) => r.name === res.room) : undefined) || target;
-      if (!aiTarget || res.items.length === 0) {
-        toast.error(`"${text}" — 품목을 찾지 못했습니다. 다시 말씀해 주세요.`);
-        return;
-      }
-      addSpokenTo(aiTarget, res.items);
-      setOpenRoom(aiTarget.name);
-      toast.info("AI가 음성을 해석해 담았습니다");
-    } catch {
-      toast.error("AI 음성 해석에 실패했습니다. 다시 시도해 주세요.");
-    } finally {
-      setAiThinking(false);
-    }
+    addSpokenTo(target, local);
+    if (spokenRoom) setOpenRoom(spokenRoom);
   };
+
 
 
   const addCustom = () => {
@@ -1170,18 +1152,18 @@ export function Step6() {
       {/* 디지털 3D 집 구조 */}
       <div className="flex-1 overflow-auto p-4 pb-6 bg-gradient-to-b from-[#EEF6FF] to-[#E6EEFA]">
         <div className="grid grid-cols-2 gap-3">
-          {draft.rooms.map((r) => {
-            const name = r.name;
-            const s = roomSummary(r.items || {});
+          {sizeRooms.map((name) => {
+            const r = roomOf(name);
+            const s = roomSummary(r?.items || {});
             return (
               <div
-                key={r.id}
+                key={name}
                 className="relative rounded-3xl p-3 bg-gradient-to-b from-white to-[#F2F7FF] border border-[#DCE8FA] shadow-[0_8px_0_#E1EAF8,0_16px_28px_-14px_rgba(7,81,216,0.4),inset_0_1px_0_#fff]"
               >
                 <button
                   onClick={() => {
                     tap("soft");
-                    setCurrentRoom(r.id);
+                    if (r) setCurrentRoom(r.id);
                     setOpenRoom(name);
                     setPickerOpen(false);
                     setQ("");
@@ -1202,19 +1184,6 @@ export function Step6() {
                     {s.kinds > 0 ? `품목 ${s.kinds}종 · 총 ${s.count}개` : "품목 없음"}
                   </div>
                 </button>
-                <button
-                  onClick={() => {
-                    tap("soft");
-                    const rooms = draft.rooms.filter((x) => x.id !== r.id);
-                    updateDraft({ rooms });
-                    if (openRoom === name) setOpenRoom(null);
-                    toast.success(`「${name}」 공간을 삭제했습니다`);
-                  }}
-                  aria-label={`${name} 삭제`}
-                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white text-[#EF4444] flex items-center justify-center shadow-[0_3px_0_#E3E9F5]"
-                >
-                  <X className="w-4 h-4" />
-                </button>
                 {s.count > 0 && (
                   <span className="absolute top-2 left-2 min-w-6 h-6 px-1.5 rounded-full bg-[#0751D8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#0640A8]">
                     {s.count}
@@ -1228,7 +1197,6 @@ export function Step6() {
         {/* 음성으로 방·품목 한 번에 담기 */}
         <button
           onClick={startVoice}
-          disabled={aiThinking}
           className={`mt-4 w-full py-4 rounded-2xl text-white font-black text-[16px] flex items-center justify-center gap-2 active:translate-y-[3px] active:shadow-none ${
             listening
               ? "bg-gradient-to-b from-[#FF7A9C] to-[#DB2777] shadow-[0_5px_0_#9D174D] animate-pulse"
@@ -1236,15 +1204,11 @@ export function Step6() {
           }`}
         >
           <Mic className="w-6 h-6" />
-          {listening ? "듣고 있어요… 말씀하세요" : aiThinking ? "AI가 해석 중..." : "음성으로 방·품목 말하기"}
+          {listening ? "듣고 있어요… 말씀하세요" : "음성으로 방·품목 말하기"}
         </button>
         <p className="mt-1.5 text-center text-[12px] font-bold text-[#6B7280]">
-          예) “작은방 침대 하나 책상과 의자 책장 서랍장” — ‘추가’를 안 붙여도 AI가 알아들어요
+          예) “작은방 침대 하나 책상과 의자 책장 서랍장”
         </p>
-
-        <div className="mt-4">
-          <RoomManager title="방 추가 · 삭제 (평수별 공간 구성)" />
-        </div>
 
         <button
           onClick={() => setScreen("scan")}
@@ -1254,6 +1218,7 @@ export function Step6() {
           <Video className="w-5 h-5" /> AI 공간 스캔으로 품목 인식
         </button>
       </div>
+
 
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("scan")}>
