@@ -1194,23 +1194,37 @@ export function Step6() {
   return (
     <MobileShell>
       {/* 헤더 */}
-      <div className="px-4 pt-1 pb-3 bg-white border-b border-[#E7EBF2]">
+      <div className="px-4 pt-2 pb-3 bg-white border-b border-[#E7EBF2]">
         <div className="flex items-center gap-2">
-          <img src={logoImg} alt="JIMPICK" className="w-9 h-9" />
-          <div className="flex-1 text-center">
-            <h1 className="text-[21px] font-black text-[#0F172A] leading-tight">
-              5단계. 공간별 품목
-            </h1>
-            <p className="text-[12px] text-[#6B7280] font-semibold">
-              {totalKinds > 0 ? "공간을 눌러 품목을 담아주세요" : "평수를 고르고 방을 추가·삭제하세요"}
-            </p>
-          </div>
-          <div className="px-3 py-1.5 rounded-2xl border border-[#DCE8FA] bg-white shadow-[0_2px_0_#EDF2FA]">
-            <span className="text-[#0751D8] font-black text-lg">5</span>
-            <span className="text-[#9AA4B2] font-bold text-xs"> / 7</span>
+          <button
+            onClick={() => {
+              tap("soft");
+              setScreen("step4");
+            }}
+            aria-label="4단계로 돌아가기"
+            className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] flex items-center justify-center text-[#0751D8] shadow-[0_4px_0_#DCE8FA,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#DCE8FA]"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <h1 className="flex-1 text-center text-[20px] font-black text-[#0F172A] leading-tight">
+            5단계. 공간별 품목
+          </h1>
+          <div className="shrink-0 px-3 py-1.5 rounded-2xl border border-[#DCE8FA] bg-gradient-to-b from-white to-[#F4F8FF] shadow-[0_3px_0_#EDF2FA,inset_0_1px_0_#fff]">
+            <span className="text-[#0751D8] font-black text-[17px]">5</span>
+            <span className="text-[#9AA4B2] font-bold text-[12px]"> / 7</span>
           </div>
         </div>
-        <div className="mt-3 flex gap-1.5">
+
+        {/* 구분 일자선 */}
+        <div className="mt-2.5 h-px w-full bg-[#E7EBF2]" />
+
+        <p className="mt-2 text-center text-[12px] text-[#6B7280] font-semibold">
+          {totalKinds > 0
+            ? `${size} · 공간을 눌러 품목을 담아주세요`
+            : `${size} · 평수를 고르고 방을 추가·삭제하세요`}
+        </p>
+
+        <div className="mt-2 flex gap-1.5">
           {[1, 2, 3, 4, 5, 6, 7].map((s) => (
             <div
               key={s}
@@ -1221,6 +1235,7 @@ export function Step6() {
           ))}
         </div>
       </div>
+
 
       {/* 평수 선택 탭 */}
       <div className="bg-white border-b border-[#E7EBF2] px-4 py-3">
@@ -1277,30 +1292,47 @@ export function Step6() {
                   </div>
                 </button>
                 {s.count > 0 && (
-                  <span className="absolute top-2 left-2 min-w-6 h-6 px-1.5 rounded-full bg-[#0751D8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#0640A8]">
+                  <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.5)]">
                     {s.count}
                   </span>
                 )}
+
               </div>
             );
           })}
         </div>
 
-        {/* 음성으로 방·품목 한 번에 담기 */}
+        {/* AI 음성 대화로 방·품목 담기 */}
         <button
-          onClick={startVoice}
-          className={`mt-4 w-full py-4 rounded-2xl text-white font-black text-[16px] flex items-center justify-center gap-2 active:translate-y-[3px] active:shadow-none ${
+          onClick={() => (listening ? stopVoice() : startVoice())}
+          className={`mt-4 w-full py-4 rounded-2xl text-white font-black text-[16px] flex items-center justify-center gap-2 transition-transform active:translate-y-[3px] active:shadow-none ${
             listening
-              ? "bg-gradient-to-b from-[#FF7A9C] to-[#DB2777] shadow-[0_5px_0_#9D174D] animate-pulse"
-              : "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,0_12px_22px_rgba(7,81,216,0.3)]"
+              ? "bg-gradient-to-b from-[#FF7A9C] to-[#DB2777] shadow-[0_5px_0_#9D174D,0_14px_24px_-10px_rgba(219,39,119,0.6)] animate-pulse"
+              : "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,0_14px_24px_-8px_rgba(7,81,216,0.6),inset_0_1px_0_rgba(255,255,255,0.45)]"
           }`}
         >
           <Mic className="w-6 h-6" />
-          {listening ? "듣고 있어요… 말씀하세요" : "음성으로 방·품목 말하기"}
+          {listening ? "듣고 있어요… 말씀하세요" : "AI 음성으로 대화하며 담기"}
         </button>
         <p className="mt-1.5 text-center text-[12px] font-bold text-[#6B7280]">
           예) “작은방 침대 하나 책상과 의자 책장 서랍장”
         </p>
+
+        {/* AI와 주고받은 대화 */}
+        {chat.length > 0 && (
+          <div className="mt-3 space-y-1.5 rounded-2xl bg-white border border-[#DCE8FA] p-3 shadow-[0_6px_0_#EDF2FA,inset_0_1px_0_#fff]">
+            {chat.map((c, i) => (
+              <div
+                key={`${i}_${c.text}`}
+                className={`text-[13px] font-bold ${c.role === "ai" ? "text-[#0751D8]" : "text-[#0F172A] text-right"}`}
+              >
+                {c.role === "ai" ? "🤖 " : "🗣️ "}
+                {c.text}
+              </div>
+            ))}
+          </div>
+        )}
+
 
         <button
           onClick={() => setScreen("scan")}
@@ -1318,13 +1350,8 @@ export function Step6() {
             <Camera className="w-6 h-6" /> 다음: AI 공간 스캔
           </span>
         </PrimaryButton>
-        <button
-          onClick={() => setScreen("step4")}
-          className="w-full mt-2 py-1 text-[15px] font-bold text-[#6B7280] underline"
-        >
-          이전
-        </button>
       </BottomButtonBar>
+
 
       {/* 품목 추가 드로어 */}
       {room && (
