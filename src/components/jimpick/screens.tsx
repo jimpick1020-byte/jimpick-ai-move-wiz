@@ -23,6 +23,7 @@ import {
   X,
   ChevronDown,
   ChevronLeft,
+  Mic,
 
 } from "lucide-react";
 
@@ -66,7 +67,7 @@ import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
-import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
+import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
 
 import { fileToDataUrl, videoToFrames } from "@/lib/media";
 
@@ -214,6 +215,9 @@ export function Login() {
 // ============ Home ============
 export function HomeScreen() {
   const { setScreen, resetDraft, estimates } = useApp();
+  // 첫 화면에는 견적 단가 기본 금액만 보여줍니다
+  const [pricing, setPricing] = useState<Pricing>(DEFAULT_PRICING);
+  useEffect(() => setPricing(getPricing()), []);
   const total = estimates.length;
   const done = estimates.filter((e) => e.status === "완료").length;
   const inProg = total - done;
@@ -256,6 +260,33 @@ export function HomeScreen() {
             </Card>
           ))}
         </div>
+        <Card>
+          <div className="flex items-center justify-between">
+            <div className="font-bold">견적 단가 (기본 금액)</div>
+            <button
+              onClick={() => setScreen("settings")}
+              className="text-xs font-bold text-[#0751D8] underline"
+            >
+              수정
+            </button>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {[
+              { label: "1톤 차량", v: pricing.truck1t },
+              { label: "5톤 차량", v: pricing.truck5t },
+            ].map((x) => (
+              <div
+                key={x.label}
+                className="rounded-2xl px-3 py-3 bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] shadow-[0_4px_0_#EDF2FA,inset_0_1px_0_#fff]"
+              >
+                <div className="text-xs text-[#6B7280] font-semibold">{x.label}</div>
+                <div className="text-[18px] font-black text-[#0751D8] tabular-nums">
+                  {won(x.v)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
         <Card>
           <div className="font-bold mb-3">오늘의 견적 현황</div>
           <div className="grid grid-cols-3 gap-2 text-center">
@@ -978,8 +1009,81 @@ export function Step6() {
     updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
   };
 
+  // ---- AI 음성 인식 (말하면 AI가 품목·수량을 해석해 담아줍니다) ----
+  const [listening, setListening] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [heard, setHeard] = useState("");
+  const recRef = useRef<any>(null);
 
+  const applyVoice = async (text: string) => {
+    if (!text.trim() || !room) return;
+    setVoiceBusy(true);
+    try {
+      const res = await parseVoiceOrder({
+        data: { text, rooms: draft.rooms.map((r) => r.name) },
+      });
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      if (!res.items.length) {
+        toast.info("품목을 알아듣지 못했어요. 다시 말씀해 주세요.");
+        return;
+      }
+      const target = (res.room && roomOf(res.room)) || room;
+      const items = { ...target.items };
+      for (const it of res.items) items[it.id] = (items[it.id] || 0) + it.qty;
+      updateDraft({
+        rooms: draft.rooms.map((r) => (r.id === target.id ? { ...r, items } : r)),
+      });
+      tap("success");
+      toast.success(
+        `「${target.name}」에 ${res.items.map((i: { name: string; qty: number }) => `${i.name} ${i.qty}`).join(", ")} 담았습니다`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "음성 해석에 실패했습니다");
+    } finally {
+      setVoiceBusy(false);
+    }
+  };
 
+  const toggleVoice = () => {
+    tap("soft");
+    if (listening) {
+      recRef.current?.stop();
+      return;
+    }
+    const SR =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("이 기기에서는 음성 인식을 지원하지 않습니다");
+      return;
+    }
+    const rec = new SR();
+    rec.lang = "ko-KR";
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    recRef.current = rec;
+    setHeard("");
+    rec.onresult = (ev: any) => {
+      let text = "";
+      for (let i = 0; i < ev.results.length; i++) text += ev.results[i][0].transcript;
+      setHeard(text);
+      if (ev.results[ev.results.length - 1].isFinal) void applyVoice(text);
+    };
+    rec.onerror = (ev: any) => {
+      setListening(false);
+      if (ev?.error === "not-allowed") toast.error("마이크 권한을 허용해 주세요");
+    };
+    rec.onend = () => setListening(false);
+    try {
+      rec.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
+  };
 
 
   const addCustom = () => {
@@ -1210,6 +1314,29 @@ export function Step6() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* AI 음성 인식으로 품목 담기 */}
+            <div className="px-4 pt-3 space-y-2">
+              <button
+                onClick={toggleVoice}
+                className={`w-full py-4 rounded-2xl font-black text-[16px] flex items-center justify-center gap-2 transition-all active:translate-y-[3px] ${
+                  listening
+                    ? "text-white bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] shadow-[0_5px_0_#A81E20]"
+                    : "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
+                }`}
+              >
+                <Mic className="w-5 h-5" />
+                {voiceBusy ? "AI가 듣고 정리하는 중..." : listening ? "듣고 있어요 — 누르면 종료" : "🎙️ 음성으로 품목 말하기"}
+              </button>
+              {(heard || voiceBusy) && (
+                <div className="px-3 py-2 rounded-2xl bg-[#F1F6FF] border border-[#DCE8FA] text-[13px] font-bold text-[#0F172A]">
+                  “{heard || "..."}”
+                </div>
+              )}
+              <p className="text-[11px] text-[#6B7280] font-semibold text-center">
+                예) “냉장고 하나 세탁기 두 개 침대 하나” — AI가 알아서 담아드려요
+              </p>
             </div>
 
             {/* 직접 품목 선택 (기본 접힘) */}
