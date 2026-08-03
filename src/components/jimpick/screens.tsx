@@ -216,8 +216,6 @@ export function Login() {
 export function HomeScreen() {
   const { setScreen, resetDraft, estimates } = useApp();
   const total = estimates.length;
-
-  const total = estimates.length;
   const done = estimates.filter((e) => e.status === "완료").length;
   const inProg = total - done;
   const pct = total ? Math.round((done / total) * 100) : 0;
