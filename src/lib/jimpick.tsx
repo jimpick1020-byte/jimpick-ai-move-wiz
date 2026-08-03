@@ -346,7 +346,6 @@ export type Screen =
   | "step2"
   | "step3"
   | "step4"
-  | "step5"
   | "step6"
   | "scan"
   | "ai"
