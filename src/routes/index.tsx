@@ -18,7 +18,7 @@ import {
   SettingsScreen,
   StatsScreen,
 } from "@/components/jimpick/screens";
-import { Plan3D } from "@/components/jimpick/Plan3D";
+
 import { SignupScreen, SubscriptionScreen } from "@/components/jimpick/account";
 
 export const Route = createFileRoute("/")({
