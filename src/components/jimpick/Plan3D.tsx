@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Calculator, ChevronLeft } from "lucide-react";
+import { Calculator, ChevronLeft, RotateCcw } from "lucide-react";
 import { useApp, ITEM_CATALOG, roomSummary } from "@/lib/jimpick";
 import { MobileShell, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
 import { Art3D, ITEM_IMG, ROOM_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
