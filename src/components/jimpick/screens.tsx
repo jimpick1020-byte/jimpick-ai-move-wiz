@@ -1202,6 +1202,22 @@ export function Step6() {
                     {s.kinds > 0 ? `품목 ${s.kinds}종 · 총 ${s.count}개` : "품목 없음"}
                   </div>
                 </button>
+                {/* 공간별 음성 인식 버튼 */}
+                <button
+                  onClick={() => toggleVoice(name)}
+                  className={`mt-1 w-full py-2 rounded-2xl text-[12px] font-black flex items-center justify-center gap-1 transition-all active:translate-y-[2px] ${
+                    listening && voiceRoom === name
+                      ? "text-white bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] shadow-[0_4px_0_#A81E20]"
+                      : "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_4px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
+                  }`}
+                >
+                  <Mic className="w-4 h-4" />
+                  {listening && voiceRoom === name
+                    ? "듣는 중"
+                    : voiceBusy && voiceRoom === name
+                      ? "정리 중"
+                      : "음성 담기"}
+                </button>
                 {s.count > 0 && (
                   <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.5)]">
                     {s.count}
@@ -1212,16 +1228,22 @@ export function Step6() {
             );
           })}
         </div>
+        {(heard || voiceBusy) && (
+          <div className="mt-3 px-3 py-2 rounded-2xl bg-white border border-[#DCE8FA] text-[13px] font-bold text-[#0F172A] shadow-[0_3px_0_#E1EAF8]">
+            {voiceRoom ? `「${voiceRoom}」 ` : ""}“{heard || "..."}”
+          </div>
+        )}
       </div>
 
 
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("scan")}>
+        <PrimaryButton onClick={() => setScreen("plan")}>
           <span className="inline-flex items-center gap-2">
-            <Camera className="w-6 h-6" /> 다음: AI 공간 스캔
+            다음: 3D 입체 평면도
           </span>
         </PrimaryButton>
       </BottomButtonBar>
+
 
 
       {/* 품목 추가 드로어 */}
