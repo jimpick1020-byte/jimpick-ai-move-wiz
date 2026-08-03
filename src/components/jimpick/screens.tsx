@@ -215,9 +215,8 @@ export function Login() {
 // ============ Home ============
 export function HomeScreen() {
   const { setScreen, resetDraft, estimates } = useApp();
-  // 첫 화면에는 견적 단가 기본 금액만 보여줍니다
-  const [pricing, setPricing] = useState<Pricing>(DEFAULT_PRICING);
-  useEffect(() => setPricing(getPricing()), []);
+  const total = estimates.length;
+
   const total = estimates.length;
   const done = estimates.filter((e) => e.status === "완료").length;
   const inProg = total - done;
