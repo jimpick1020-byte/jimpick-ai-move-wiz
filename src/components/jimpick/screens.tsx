@@ -897,7 +897,7 @@ export function Step4() {
 
 // ============ Step 6: Items ============
 /** 평수별 집 구조(구획) */
-const SIZE_TABS: { key: string; rooms: string[] }[] = [
+export const SIZE_TABS: { key: string; rooms: string[] }[] = [
   { key: "10~20평", rooms: ["안방", "거실", "부엌", "베란다"] },
   { key: "20~30평", rooms: ["안방", "작은방", "거실", "부엌", "베란다"] },
   { key: "30~40평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다"] },
@@ -905,7 +905,7 @@ const SIZE_TABS: { key: string; rooms: string[] }[] = [
   { key: "50~60평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다", "옷방", "서재"] },
 ];
 
-const ROOM_TINT: Record<string, string> = {
+export const ROOM_TINT: Record<string, string> = {
   안방: "from-[#4C9BFF] to-[#0751D8]",
   작은방: "from-[#5FD08A] to-[#2F9E44]",
   입구방: "from-[#A78BFA] to-[#7C3AED]",
@@ -1684,7 +1684,7 @@ export function OptionsScreen() {
 
   return (
     <MobileShell>
-      <TopBar title="7단계. 옵션·보관료" onBack={() => setScreen("scan")} />
+      <TopBar title="7단계. 옵션·보관료" onBack={() => setScreen("plan")} />
       <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
         {draft.options.length === 0 && (
           <div className="text-center text-[#6B7280] py-10 text-sm">

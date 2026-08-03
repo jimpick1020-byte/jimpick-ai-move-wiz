@@ -363,7 +363,7 @@ export type Screen =
   | "step3"
   | "step4"
   | "step6"
-  | "scan"
+  | "plan"
   | "ai"
   | "options"
   | "result"
