@@ -1034,8 +1034,21 @@ export function Step6() {
     );
   };
 
-  /** 음성으로 품목 말하기 (Web Speech API + AI 해석 보조) */
-  const startVoice = () => {
+  /** AI가 목소리로 대답합니다 */
+  const say = (text: string) => {
+    setChat((c) => [...c.slice(-6), { role: "ai", text }]);
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "ko-KR";
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch {
+      /* 음성 합성 미지원 시 화면 대화만 표시 */
+    }
+  };
+
+  /** AI 음성 대화 시작 — 한 문장 듣고 대답하고 다시 듣습니다 */
+  const startVoice = (auto = false) => {
     const SR =
       (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
         .SpeechRecognition ||
@@ -1045,41 +1058,108 @@ export function Step6() {
       setPickerOpen(true);
       return;
     }
-    type SRType = { lang: string; interimResults: boolean; maxAlternatives: number; start: () => void; onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void; onerror: () => void; onend: () => void };
+    type SRType = {
+      lang: string;
+      interimResults: boolean;
+      continuous: boolean;
+      maxAlternatives: number;
+      start: () => void;
+      stop: () => void;
+      onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
+      onerror: () => void;
+      onend: () => void;
+    };
     const rec = new (SR as new () => SRType)();
+    recRef.current = rec;
     rec.lang = "ko-KR";
     rec.interimResults = false;
+    rec.continuous = false;
     rec.maxAlternatives = 1;
+    let got = false;
     rec.onresult = (e) => {
+      got = true;
       const text = Array.from({ length: e.results.length }, (_, i) => e.results[i][0].transcript).join(" ");
-      handleTranscript(text);
+      void handleTranscript(text);
     };
     rec.onerror = () => {
       toast.error("음성 인식을 사용할 수 없습니다. 마이크 권한을 확인해 주세요.");
       setListening(false);
+      recRef.current = null;
     };
-    rec.onend = () => setListening(false);
+    rec.onend = () => {
+      setListening(false);
+      recRef.current = null;
+      if (!got) say("잘 안 들렸어요. 마이크를 다시 눌러 말씀해 주세요.");
+    };
     setListening(true);
     tap("soft");
+    if (!auto) say("네 사장님, 어느 방에 무엇을 담을까요?");
     rec.start();
   };
 
-  /** 말한 문장을 해석해 방을 찾고 품목을 담습니다 */
-  const handleTranscript = (text: string) => {
+  const stopVoice = () => {
+    try {
+      recRef.current?.stop();
+    } catch {
+      /* 이미 종료된 경우 무시 */
+    }
+    recRef.current = null;
+    setListening(false);
+  };
+
+  /** 말한 문장을 AI가 해석해 방을 찾고 품목을 담습니다 (대화형) */
+  const handleTranscript = async (text: string) => {
+    setChat((c) => [...c.slice(-6), { role: "me", text }]);
     const roomNames = draft.rooms.map((r) => r.name);
     const spokenRoom = parseSpokenRoom(text, roomNames);
+    let items = parseSpokenItems(text, catalog);
+
+    // AI에게 물어 더 정확한 방·품목·수량을 받아옵니다
+    let aiRoom: string | null = null;
+    try {
+      const res = await askAi({ data: { text, rooms: roomNames } });
+      if (!res.error) {
+        aiRoom = res.room ?? null;
+        if (res.items.length > 0) items = res.items;
+      }
+    } catch {
+      /* AI 실패 시 로컬 해석 결과를 사용합니다 */
+    }
+
+    const roomName = aiRoom || spokenRoom;
     const target =
-      (spokenRoom ? draft.rooms.find((r) => r.name === spokenRoom) : undefined) ||
-      room ||
-      draft.rooms[0];
-    const local = parseSpokenItems(text, catalog);
-    if (!target || local.length === 0) {
-      toast.error(`"${text}" — 품목을 찾지 못했습니다. 다시 말씀해 주세요.`);
+      (roomName ? draft.rooms.find((r) => r.name === roomName) : undefined) || room;
+
+    // 방만 말한 경우 — 대기 중 품목이 있으면 담고, 없으면 품목을 물어봅니다
+    if (items.length === 0) {
+      if (target && pending && pending.length > 0) {
+        addSpokenTo(target, pending);
+        setPending(null);
+        say(`${target.name}에 담았습니다. 더 말씀하실 품목이 있나요?`);
+        setTimeout(() => startVoice(true), 900);
+        return;
+      }
+      say("품목을 못 알아들었어요. 예를 들어 '작은방 침대 하나 책상 두개' 처럼 말씀해 주세요.");
+      setTimeout(() => startVoice(true), 900);
       return;
     }
-    addSpokenTo(target, local);
-    if (spokenRoom) setOpenRoom(spokenRoom);
+
+    if (!target) {
+      setPending(items);
+      say(`${items.map((i) => `${i.name} ${i.qty}개`).join(", ")} 맞나요? 어느 방에 담을까요?`);
+      setTimeout(() => startVoice(true), 900);
+      return;
+    }
+
+    addSpokenTo(target, items);
+    setPending(null);
+    if (roomName) setOpenRoom(roomName);
+    say(
+      `${target.name}에 ${items.map((i) => `${i.name} ${i.qty}개`).join(", ")} 담았습니다. 더 있으면 말씀해 주세요.`
+    );
+    setTimeout(() => startVoice(true), 1200);
   };
+
 
 
 
