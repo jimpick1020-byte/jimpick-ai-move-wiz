@@ -969,6 +969,7 @@ export function Step6() {
   const [q, setQ] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [listening, setListening] = useState(false);
+  const [aiThinking, setAiThinking] = useState(false);
 
   const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || SIZE_TABS[2]).rooms;
 
