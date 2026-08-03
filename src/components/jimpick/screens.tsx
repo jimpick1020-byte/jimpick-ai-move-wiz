@@ -64,8 +64,7 @@ import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
-import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
-import { RoomManager } from "./RoomManager";
+import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
 import { fileToDataUrl, videoToFrames } from "@/lib/media";
 
 // ============ Splash ============
@@ -970,7 +969,6 @@ export function Step6() {
   const [q, setQ] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [listening, setListening] = useState(false);
-  const [aiThinking, setAiThinking] = useState(false);
 
   const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || SIZE_TABS[2]).rooms;
 
@@ -1042,7 +1040,7 @@ export function Step6() {
     rec.maxAlternatives = 1;
     rec.onresult = (e) => {
       const text = Array.from({ length: e.results.length }, (_, i) => e.results[i][0].transcript).join(" ");
-      void handleTranscript(text);
+      handleTranscript(text);
     };
     rec.onerror = () => {
       toast.error("음성 인식을 사용할 수 없습니다. 마이크 권한을 확인해 주세요.");
