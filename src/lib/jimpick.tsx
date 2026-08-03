@@ -72,9 +72,12 @@ export interface Estimate {
   /** 특약사항 */
   specialTerms: string;
   rooms: Room[];
+  /** 5단계에서 고른 평수 구간 (예: "30~40평") */
+  sizeTab?: string;
   customItems: CustomItem[];
   hiddenItems: string[];
   options: OptionItem[];
+
   storageStart: string;
   storageEnd: string;
   storageDaily: number;
