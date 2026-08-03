@@ -1285,7 +1285,7 @@ export function Step6() {
             {/* AI 음성 인식으로 품목 담기 */}
             <div className="px-4 pt-3 space-y-2">
               <button
-                onClick={toggleVoice}
+                onClick={() => toggleVoice(room.name)}
                 className={`w-full py-4 rounded-2xl font-black text-[16px] flex items-center justify-center gap-2 transition-all active:translate-y-[3px] ${
                   listening
                     ? "text-white bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] shadow-[0_5px_0_#A81E20]"
