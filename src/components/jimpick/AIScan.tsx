@@ -3,15 +3,24 @@ import { Camera, Image as ImageIcon, Video, Film, Trash2, Check, RefreshCw, Bot 
 import { RoomManager } from "./RoomManager";
 import { toast } from "sonner";
 
-import { useApp, DEFAULT_ROOMS, roomSummary } from "@/lib/jimpick";
+import { useApp, roomSummary } from "@/lib/jimpick";
 import { MobileShell, TopBar, PrimaryButton, BottomButtonBar, Card, Counter } from "./ui";
-import { Art3D, ITEM_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
+import { Art3D, ITEM_IMG, ROOM_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
 import { recognizeItems, type DetectedItem, type PackingEstimate } from "@/lib/ai.functions";
 import { fileToDataUrl, videoToFrames } from "@/lib/media";
 import { tap } from "@/lib/feedback";
 
 const HIGH = 0.9;
 const SCAN_LOG_KEY = "jimpick_scan_log";
+
+/** 평수별 기본 방 구성 (5단계와 동일) */
+const SIZE_TABS: { key: string; rooms: string[] }[] = [
+  { key: "10~20평", rooms: ["안방", "거실", "부엌", "베란다"] },
+  { key: "20~30평", rooms: ["안방", "작은방", "거실", "부엌", "베란다"] },
+  { key: "30~40평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다"] },
+  { key: "40~50평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다", "옷방"] },
+  { key: "50~60평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다", "옷방", "서재"] },
+];
 
 /** 분석 이력 기록 (정확도 검증용) */
 function logScan(entry: Record<string, unknown>) {
