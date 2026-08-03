@@ -1008,18 +1008,21 @@ export function Step6() {
     updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
   };
 
-  const addSpoken = (results: { id: string; name: string; qty: number }[]) => {
-    if (!room) return;
-    const items = { ...room.items };
+  const addSpokenTo = (
+    targetRoom: Room,
+    results: { id: string; name: string; qty: number }[],
+  ) => {
+    const items = { ...targetRoom.items };
     for (const r of results) items[r.id] = (items[r.id] || 0) + r.qty;
-    updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
+    updateDraft({ rooms: draft.rooms.map((r) => (r.id === targetRoom.id ? { ...r, items } : r)) });
+    setCurrentRoom(targetRoom.id);
     tap("success");
     toast.success(
-      `${room.name}에 ${results.map((r) => `${r.name} ${r.qty}개`).join(", ")} 추가했습니다`
+      `${targetRoom.name}에 ${results.map((r) => `${r.name} ${r.qty}개`).join(", ")} 추가했습니다`
     );
   };
 
-  /** 음성으로 품목 말하기 (Web Speech API) */
+  /** 음성으로 품목 말하기 (Web Speech API + AI 해석 보조) */
   const startVoice = () => {
     const SR =
       (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
@@ -1037,12 +1040,7 @@ export function Step6() {
     rec.maxAlternatives = 1;
     rec.onresult = (e) => {
       const text = Array.from({ length: e.results.length }, (_, i) => e.results[i][0].transcript).join(" ");
-      const results = parseSpokenItems(text, catalog);
-      if (!results.length) {
-        toast.error(`"${text}" — 품목을 찾지 못했습니다. 다시 말씀해 주세요.`);
-        return;
-      }
-      addSpoken(results);
+      void handleTranscript(text);
     };
     rec.onerror = () => {
       toast.error("음성 인식을 사용할 수 없습니다. 마이크 권한을 확인해 주세요.");
@@ -1053,6 +1051,41 @@ export function Step6() {
     tap("soft");
     rec.start();
   };
+
+  /** 말한 문장을 해석해 방을 찾고 품목을 담습니다. 못 찾으면 AI가 도와줍니다. */
+  const handleTranscript = async (text: string) => {
+    const roomNames = draft.rooms.map((r) => r.name);
+    const spokenRoom = parseSpokenRoom(text, roomNames);
+    const target =
+      (spokenRoom ? draft.rooms.find((r) => r.name === spokenRoom) : undefined) ||
+      room ||
+      draft.rooms[0];
+    const local = parseSpokenItems(text, catalog);
+    if (target && local.length > 0) {
+      addSpokenTo(target, local);
+      if (spokenRoom) setOpenRoom(spokenRoom);
+      return;
+    }
+    // AI 보조 해석 — "추가" 같은 말이 없어도 알아듣습니다
+    setAiThinking(true);
+    try {
+      const res = await parseVoiceOrder({ data: { text, rooms: roomNames } });
+      const aiTarget =
+        (res.room ? draft.rooms.find((r) => r.name === res.room) : undefined) || target;
+      if (!aiTarget || res.items.length === 0) {
+        toast.error(`"${text}" — 품목을 찾지 못했습니다. 다시 말씀해 주세요.`);
+        return;
+      }
+      addSpokenTo(aiTarget, res.items);
+      setOpenRoom(aiTarget.name);
+      toast.info("AI가 음성을 해석해 담았습니다");
+    } catch {
+      toast.error("AI 음성 해석에 실패했습니다. 다시 시도해 주세요.");
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
 
   const addCustom = () => {
     const name = q.trim() || prompt("추가할 품목 이름") || "";
