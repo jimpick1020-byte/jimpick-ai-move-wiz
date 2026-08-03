@@ -239,8 +239,9 @@ export function calcEstimate(
       ? sideFee
       : num(e.ladderPrice) || ladderCount * pricing.ladder;
 
-  const truck5Fee = num(e.truck5t) * pricing.truck5t;
-  const truck1Fee = num(e.truck1t) * pricing.truck1t;
+  /** 차량 선택은 견적 금액에 반영하지 않습니다 (사장님이 직접 입력) */
+  const truck5Fee = 0;
+  const truck1Fee = 0;
   const extraKm = Math.max(0, num(e.distanceKm) - pricing.baseKm);
   const distanceFee = Math.round(extraKm * pricing.perKm);
   const stairFloors = e.workEnv.includes("계단")
@@ -274,8 +275,6 @@ export function calcEstimate(
   const parts = overridden
     ? [{ label: "기본 운송료 (직접 입력)", amount: transport }]
     : [
-        { label: `기본 5톤 비용 (${num(e.truck5t)}대)`, amount: truck5Fee },
-        { label: `차량 증차 비용 (1톤 ${num(e.truck1t)}대 증차)`, amount: truck1Fee },
         { label: `거리 추가비 (${pricing.baseKm}km 초과 ${extraKm.toFixed(1)}km)`, amount: distanceFee },
         { label: `계단 작업비 (${stairFloors}개층)`, amount: stairFee },
         {

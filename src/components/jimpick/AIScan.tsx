@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Camera, Image as ImageIcon, Video, Film, Trash2, Check, RefreshCw, Bot } from "lucide-react";
-import { RoomManager } from "./RoomManager";
+import { Camera, Image as ImageIcon, Video, Film, Trash2, Check, Bot } from "lucide-react";
 import { toast } from "sonner";
 
 import { useApp, roomSummary } from "@/lib/jimpick";
@@ -622,7 +621,7 @@ export function AIScan() {
           </div>
         )}
 
-        <RoomManager title="공간 스캔용 방 추가 · 삭제" />
+        
       </div>
 
 
