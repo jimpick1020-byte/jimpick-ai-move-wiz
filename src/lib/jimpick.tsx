@@ -381,6 +381,8 @@ interface AppState {
   draft: Estimate;
   estimates: Estimate[];
   currentRoomId: string;
+  /** 5~6단계 진입 직전에 자동 저장되는 스냅샷 */
+  stepSnapshot?: Estimate | null;
 }
 
 interface Ctx extends AppState {
@@ -393,7 +395,10 @@ interface Ctx extends AppState {
   deleteEstimate: (id: string) => void;
   loadEstimate: (id: string) => void;
   setCurrentRoom: (id: string) => void;
+  /** 5~6단계 변경 직전 스냅샷으로 즉시 복원 */
+  restoreStepSnapshot: () => boolean;
 }
+
 
 const AppCtx = createContext<Ctx | null>(null);
 const STORAGE_KEY = "jimpick_v8_state";
