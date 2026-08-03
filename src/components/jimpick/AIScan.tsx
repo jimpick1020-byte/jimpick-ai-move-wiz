@@ -573,7 +573,9 @@ export function AIScan() {
           </div>
         )}
 
+        <RoomManager title="공간 스캔용 방 추가 · 삭제" />
       </div>
+
 
       {dupAsk && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-6 z-50">
