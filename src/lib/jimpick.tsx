@@ -278,11 +278,6 @@ export function calcEstimate(
         { label: "기본 차량 비용 (5톤)", amount: truck5Fee },
         { label: "차 증차비용 (1톤)", amount: truck1Fee },
         { label: `거리 추가비 (${pricing.baseKm}km 초과 ${extraKm.toFixed(1)}km)`, amount: distanceFee },
-        { label: `계단 작업비 (${stairFloors}개층)`, amount: stairFee },
-        {
-          label: `수작업 비용 (${manualSideLabel} 인원 ${manualWorkers}명 × ${manualSides}구간 × 2만원)`,
-          amount: manualFee,
-        },
         { label: "사다리차 비용", amount: ladderFee },
       ].filter((p) => p.amount > 0);
 
