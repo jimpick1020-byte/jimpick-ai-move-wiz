@@ -884,7 +884,7 @@ export function Step4() {
         </Card>
       </div>
       <BottomButtonBar>
-        <PrimaryButton onClick={goScan}>다음: AI 공간 스캔</PrimaryButton>
+        <PrimaryButton onClick={goNext}>다음: 공간별 품목</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
