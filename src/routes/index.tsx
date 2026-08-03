@@ -18,7 +18,7 @@ import {
   SettingsScreen,
   StatsScreen,
 } from "@/components/jimpick/screens";
-import { AIScan } from "@/components/jimpick/AIScan";
+import { Plan3D } from "@/components/jimpick/Plan3D";
 import { SignupScreen, SubscriptionScreen } from "@/components/jimpick/account";
 
 export const Route = createFileRoute("/")({
@@ -44,7 +44,7 @@ function Router() {
     case "step3": return <Step3 />;
     case "step4": return <Step4 />;
     case "step6": return <Step6 />;
-    case "scan": return <AIScan />;
+    case "plan": return <Plan3D />;
     case "ai": return <AIRecognition />;
     case "options": return <OptionsScreen />;
     case "result": return <Result />;
