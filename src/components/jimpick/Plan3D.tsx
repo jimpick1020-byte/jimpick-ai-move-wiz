@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Calculator, ChevronLeft } from "lucide-react";
+import { Calculator, ChevronLeft, RotateCcw } from "lucide-react";
 import { useApp, ITEM_CATALOG, roomSummary } from "@/lib/jimpick";
 import { MobileShell, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
 import { Art3D, ITEM_IMG, ROOM_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
@@ -26,7 +26,7 @@ const PLAN_LAYOUT: Record<string, Record<string, string>> = {
 };
 
 export function Plan3D() {
-  const { draft, updateDraft, setScreen } = useApp();
+  const { draft, updateDraft, setScreen, restoreStepSnapshot } = useApp();
   const [size, setSize] = useState<string>(draft.sizeTab || "30~40평");
   const [open, setOpen] = useState<string | null>(null);
 
@@ -88,11 +88,28 @@ export function Plan3D() {
           <h1 className="flex-1 text-center text-[20px] font-black text-[#0F172A] leading-tight">
             6단계. 3D 품목 확인
           </h1>
-          <div className="shrink-0 w-10" />
+          <button
+            onClick={() => {
+              tap("soft");
+              if (restoreStepSnapshot()) {
+                setSize(draft.sizeTab || "30~40평");
+                setOpen(null);
+                toast.success("5~6단계 변경 직전 상태로 복원했습니다");
+              } else {
+                toast.error("복원할 스냅샷이 없습니다");
+              }
+            }}
+            aria-label="5~6단계 변경 직전으로 복원"
+            className="shrink-0 h-10 px-3 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] flex items-center gap-1 text-[12px] font-black text-[#0751D8] shadow-[0_4px_0_#DCE8FA,inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#DCE8FA]"
+          >
+            <RotateCcw className="w-4 h-4" />
+            복원
+          </button>
         </div>
         <p className="mt-2 text-center text-[12px] text-[#6B7280] font-semibold">
           {size} 구조 · 품목 {totals.kinds}종 · 총 {totals.count}개
         </p>
+
       </div>
 
       {/* 평수 선택 */}
