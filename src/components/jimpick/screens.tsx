@@ -1654,22 +1654,28 @@ export function AIRecognition() {
         )}
       </div>
       <BottomButtonBar>
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              setResults([]);
-              setVideoUrl("");
-              setPhotoUrl("");
-            }}
-            className="flex-1 py-4 rounded-2xl border border-[#E7EBF2] font-bold"
-          >
-            다시 촬영
-          </button>
-          <PrimaryButton onClick={apply} className="flex-1" disabled={shown.length === 0}>
-            적용하기
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setResults([]);
+                setVideoUrl("");
+                setPhotoUrl("");
+              }}
+              className="flex-1 py-4 rounded-2xl border border-[#E7EBF2] font-bold"
+            >
+              다시 촬영
+            </button>
+            <PrimaryButton onClick={apply} className="flex-1" disabled={shown.length === 0}>
+              적용하기
+            </PrimaryButton>
+          </div>
+          <PrimaryButton onClick={() => setScreen("options")}>
+            다음: 옵션·보관료
           </PrimaryButton>
         </div>
       </BottomButtonBar>
+
     </MobileShell>
   );
 }
