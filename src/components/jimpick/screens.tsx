@@ -980,14 +980,16 @@ export function Step6() {
     updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
   };
 
-  // ---- AI 음성 인식 (말하면 AI가 품목·수량을 해석해 담아줍니다) ----
+  // ---- AI 음성 인식 (공간별로 말하면 AI가 품목·수량을 해석해 담아줍니다) ----
   const [listening, setListening] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [heard, setHeard] = useState("");
+  const [voiceRoom, setVoiceRoom] = useState<string | null>(null);
   const recRef = useRef<any>(null);
 
-  const applyVoice = async (text: string) => {
-    if (!text.trim() || !room) return;
+  const applyVoice = async (text: string, targetName: string) => {
+    const target0 = roomOf(targetName);
+    if (!text.trim() || !target0) return;
     setVoiceBusy(true);
     try {
       const res = await parseVoiceOrder({
@@ -1001,7 +1003,7 @@ export function Step6() {
         toast.info("품목을 알아듣지 못했어요. 다시 말씀해 주세요.");
         return;
       }
-      const target = (res.room && roomOf(res.room)) || room;
+      const target = (res.room && roomOf(res.room)) || target0;
       const items = { ...target.items };
       for (const it of res.items) items[it.id] = (items[it.id] || 0) + it.qty;
       updateDraft({
@@ -1018,7 +1020,7 @@ export function Step6() {
     }
   };
 
-  const toggleVoice = () => {
+  const toggleVoice = (targetName: string) => {
     tap("soft");
     if (listening) {
       recRef.current?.stop();
@@ -1037,11 +1039,12 @@ export function Step6() {
     rec.maxAlternatives = 1;
     recRef.current = rec;
     setHeard("");
+    setVoiceRoom(targetName);
     rec.onresult = (ev: any) => {
       let text = "";
       for (let i = 0; i < ev.results.length; i++) text += ev.results[i][0].transcript;
       setHeard(text);
-      if (ev.results[ev.results.length - 1].isFinal) void applyVoice(text);
+      if (ev.results[ev.results.length - 1].isFinal) void applyVoice(text, targetName);
     };
     rec.onerror = (ev: any) => {
       setListening(false);
@@ -1055,6 +1058,7 @@ export function Step6() {
       setListening(false);
     }
   };
+
 
 
   const addCustom = () => {
