@@ -338,7 +338,7 @@ export function newEstimate(): Estimate {
     extraCharges: [],
     memo: "",
     specialTerms: "",
-    rooms: DEFAULT_ROOMS.map((n) => ({ id: `r_${n}`, name: n, items: { ...(PRESET_30PY[n] || {}) } })),
+    rooms: DEFAULT_ROOMS.map((n) => ({ id: `r_${n}`, name: n, items: {} as RoomItems })),
     customItems: [],
     hiddenItems: [],
     options: [...DEFAULT_OPTIONS],
