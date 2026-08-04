@@ -917,10 +917,14 @@ export const ROOM_TINT: Record<string, string> = {
 };
 
 const ITEM_TABS = [
-  { key: "가전", cats: ["가전", "주방"] },
+  { key: "가전", cats: ["가전"] },
   { key: "가구", cats: ["가구"] },
-  { key: "특수/리스크", cats: ["생활용품", "잔짐"] },
+  { key: "주방", cats: ["주방"] },
+  { key: "생활", cats: ["생활용품"] },
+  { key: "잔짐", cats: ["잔짐"] },
+  { key: "특수", cats: ["특수"] },
 ];
+
 
 
 
@@ -944,7 +948,7 @@ export function Step6() {
     () =>
       [
         ...ITEM_CATALOG,
-        ...(draft.customItems || []).map((c) => ({ ...c, emoji: "📦" })),
+        ...(draft.customItems || []).map((c) => ({ ...c, emoji: "📦", sub: "직접 추가" })),
       ].filter((i) => !(draft.hiddenItems || []).includes(i.id)),
     [draft.customItems, draft.hiddenItems]
   );
@@ -980,12 +984,21 @@ export function Step6() {
     updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
   };
 
-  // ---- AI 음성 인식 (공간별로 말하면 AI가 품목·수량을 해석해 담아줍니다) ----
+  // ---- AI 음성 대화 (ChatGPT처럼 계속 듣고, "추가해줘"라고 말하면 담아줍니다) ----
+  type ChatMsg = { role: "user" | "ai"; text: string };
   const [listening, setListening] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [heard, setHeard] = useState("");
-  const [voiceRoom, setVoiceRoom] = useState<string | null>(null);
+  const [chat, setChat] = useState<ChatMsg[]>([]);
   const recRef = useRef<any>(null);
+  const keepRef = useRef(false);
+  const bufRef = useRef("");
+  const roomRef = useRef<string | null>(null);
+  const push = (m: ChatMsg) => setChat((c) => [...c.slice(-14), m]);
+
+  /** "추가해줘 / 담아줘 / 넣어줘 / 완료" 같은 마무리 신호 */
+  const isCommit = (t: string) =>
+    /(추가|담아|담기|넣어|등록|완료|됐어|됐다|끝|저장)/.test(t.replace(/\s/g, ""));
 
   const applyVoice = async (text: string, targetName: string) => {
     const target0 = roomOf(targetName);
@@ -996,11 +1009,11 @@ export function Step6() {
         data: { text, rooms: draft.rooms.map((r) => r.name) },
       });
       if (res.error) {
-        toast.error(res.error);
+        push({ role: "ai", text: res.error });
         return;
       }
       if (!res.items.length) {
-        toast.info("품목을 알아듣지 못했어요. 다시 말씀해 주세요.");
+        push({ role: "ai", text: "품목을 못 알아들었어요. 다시 말씀해 주세요." });
         return;
       }
       const target = (res.room && roomOf(res.room)) || target0;
@@ -1010,22 +1023,38 @@ export function Step6() {
         rooms: draft.rooms.map((r) => (r.id === target.id ? { ...r, items } : r)),
       });
       tap("success");
-      toast.success(
-        `「${target.name}」에 ${res.items.map((i: { name: string; qty: number }) => `${i.name} ${i.qty}`).join(", ")} 담았습니다`,
-      );
+      const summary = res.items
+        .map((i: { name: string; qty: number }) => `${i.name} ${i.qty}개`)
+        .join(", ");
+      push({ role: "ai", text: `「${target.name}」에 ${summary} 담았습니다. 더 말씀해 주세요!` });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "음성 해석에 실패했습니다");
+      push({ role: "ai", text: e instanceof Error ? e.message : "음성 해석에 실패했습니다" });
     } finally {
       setVoiceBusy(false);
     }
   };
 
-  const toggleVoice = (targetName: string) => {
-    tap("soft");
-    if (listening) {
-      recRef.current?.stop();
+  /** 지금까지 말한 내용을 담습니다 */
+  const commitNow = async () => {
+    const text = bufRef.current.trim();
+    bufRef.current = "";
+    setHeard("");
+    if (!text) {
+      push({ role: "ai", text: "아직 들은 내용이 없어요. 품목을 말씀해 주세요." });
       return;
     }
+    await applyVoice(text, roomRef.current || room?.name || "");
+  };
+
+  const stopVoice = () => {
+    keepRef.current = false;
+    try {
+      recRef.current?.stop();
+    } catch {}
+    setListening(false);
+  };
+
+  const startVoice = (targetName: string) => {
     const SR =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
@@ -1034,30 +1063,90 @@ export function Step6() {
     }
     const rec = new SR();
     rec.lang = "ko-KR";
-    rec.continuous = false;
+    rec.continuous = true;
     rec.interimResults = true;
     rec.maxAlternatives = 1;
     recRef.current = rec;
-    setHeard("");
-    setVoiceRoom(targetName);
+    roomRef.current = targetName;
+
     rec.onresult = (ev: any) => {
-      let text = "";
-      for (let i = 0; i < ev.results.length; i++) text += ev.results[i][0].transcript;
-      setHeard(text);
-      if (ev.results[ev.results.length - 1].isFinal) void applyVoice(text, targetName);
+      let interim = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const r = ev.results[i];
+        const t = r[0].transcript as string;
+        if (r.isFinal) {
+          const line = t.trim();
+          if (!line) continue;
+          push({ role: "user", text: line });
+          if (isCommit(line)) {
+            const full = (bufRef.current + " " + line).trim();
+            bufRef.current = "";
+            setHeard("");
+            void applyVoice(full, targetName);
+          } else {
+            bufRef.current = (bufRef.current + " " + line).trim();
+            push({
+              role: "ai",
+              text: "네, 듣고 있어요. 더 말씀하시고 마지막에 “추가해줘”라고 해주세요.",
+            });
+          }
+        } else {
+          interim += t;
+        }
+      }
+      if (interim) setHeard(interim);
     };
     rec.onerror = (ev: any) => {
-      setListening(false);
-      if (ev?.error === "not-allowed") toast.error("마이크 권한을 허용해 주세요");
+      if (ev?.error === "not-allowed") {
+        keepRef.current = false;
+        setListening(false);
+        toast.error("마이크 권한을 허용해 주세요");
+      }
     };
-    rec.onend = () => setListening(false);
+    // 브라우저가 자동 종료해도 대화를 계속 이어갑니다
+    rec.onend = () => {
+      if (keepRef.current) {
+        try {
+          rec.start();
+          return;
+        } catch {}
+      }
+      setListening(false);
+    };
     try {
       rec.start();
+      keepRef.current = true;
       setListening(true);
+      if (chat.length === 0)
+        push({
+          role: "ai",
+          text: `안녕하세요! 「${targetName}」에 담을 품목을 말씀해 주세요. 다 말한 뒤 “추가해줘”라고 하면 담아드려요.`,
+        });
     } catch {
       setListening(false);
     }
   };
+
+  const toggleVoice = (targetName: string) => {
+    tap("soft");
+    if (listening) stopVoice();
+    else startVoice(targetName);
+  };
+
+  // 모달을 닫으면 마이크를 정리합니다
+  useEffect(() => {
+    if (!openRoom) {
+      keepRef.current = false;
+      try {
+        recRef.current?.stop();
+      } catch {}
+      setListening(false);
+      setHeard("");
+      bufRef.current = "";
+      setChat([]);
+    }
+  }, [openRoom]);
+
 
 
 
@@ -1216,11 +1305,12 @@ export function Step6() {
 
 
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("ai")}>
+        <PrimaryButton onClick={() => setScreen("options")}>
           <span className="inline-flex items-center gap-2">
-            다음: AI 공간 스캔
+            다음: 옵션·보관료
           </span>
         </PrimaryButton>
+
 
       </BottomButtonBar>
 
@@ -1284,28 +1374,61 @@ export function Step6() {
               )}
             </div>
 
-            {/* AI 음성 인식으로 품목 담기 */}
+            {/* AI 음성 대화 (챗 형태) */}
             <div className="px-4 pt-3 space-y-2">
-              <button
-                onClick={() => toggleVoice(room.name)}
-                className={`w-full py-4 rounded-2xl font-black text-[16px] flex items-center justify-center gap-2 transition-all active:translate-y-[3px] ${
-                  listening
-                    ? "text-white bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] shadow-[0_5px_0_#A81E20]"
-                    : "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
-                }`}
-              >
-                <Mic className="w-5 h-5" />
-                {voiceBusy ? "AI가 듣고 정리하는 중..." : listening ? "듣고 있어요 — 누르면 종료" : "🎙️ 음성으로 품목 말하기"}
-              </button>
-              {(heard || voiceBusy) && (
-                <div className="px-3 py-2 rounded-2xl bg-[#F1F6FF] border border-[#DCE8FA] text-[13px] font-bold text-[#0F172A]">
-                  “{heard || "..."}”
+              {chat.length > 0 && (
+                <div className="max-h-[168px] overflow-auto space-y-1.5 p-2.5 rounded-2xl bg-[#F3F7FF] border border-[#E1EAF8]">
+                  {chat.map((m, i) => (
+                    <div
+                      key={i}
+                      className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <span
+                        className={`max-w-[85%] px-3 py-2 rounded-2xl text-[13px] font-bold leading-snug ${
+                          m.role === "user"
+                            ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_2px_0_#0640A8]"
+                            : "text-[#0F172A] bg-white border border-[#E1EAF8] shadow-[0_2px_0_#EDF2FA]"
+                        }`}
+                      >
+                        {m.text}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
+
+              {(heard || voiceBusy) && (
+                <div className="px-3 py-2 rounded-2xl bg-white border border-[#DCE8FA] text-[13px] font-bold text-[#0751D8]">
+                  {voiceBusy ? "AI가 정리하는 중..." : `“${heard}”`}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => toggleVoice(room.name)}
+                  className={`flex-1 py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-2 transition-all active:translate-y-[3px] ${
+                    listening
+                      ? "text-white bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] shadow-[0_5px_0_#A81E20]"
+                      : "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
+                  }`}
+                >
+                  <Mic className="w-5 h-5" />
+                  {listening ? "듣고 있어요 — 종료" : "🎙️ AI와 음성 대화"}
+                </button>
+                {listening && (
+                  <button
+                    onClick={() => void commitNow()}
+                    className="px-4 py-4 rounded-2xl font-black text-[15px] text-[#0751D8] bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] shadow-[0_5px_0_#DCE8FA,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
+                  >
+                    지금 담기
+                  </button>
+                )}
+              </div>
               <p className="text-[11px] text-[#6B7280] font-semibold text-center">
-                예) “냉장고 하나 세탁기 두 개 침대 하나” — AI가 알아서 담아드려요
+                예) “냉장고 하나, 세탁기 두 개” … 그리고 “추가해줘” — 말하는 동안 끊지 않아요
               </p>
             </div>
+
 
             {/* 직접 품목 선택 (기본 접힘) */}
             <div className="px-4 pt-3">
@@ -1325,15 +1448,16 @@ export function Step6() {
 
             {pickerOpen && (
               <div className="flex-1 overflow-auto px-4 pt-3 space-y-3">
-                <div className="flex gap-2">
+                <div className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {ITEM_TABS.map((t) => (
                     <button
                       key={t.key}
                       onClick={() => {
+                        tap("soft");
                         setTab(t.key);
                         setQ("");
                       }}
-                      className={`flex-1 py-2.5 rounded-2xl text-[14px] font-black transition-all active:translate-y-[2px] ${
+                      className={`shrink-0 px-4 py-2.5 rounded-2xl text-[14px] font-black whitespace-nowrap transition-all active:translate-y-[2px] ${
                         !q && t.key === tab
                           ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0B5FE0] shadow-[0_4px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
                           : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F1F6FF] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff]"
@@ -1354,38 +1478,80 @@ export function Step6() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  {items.map((it) => {
-                    const qty = room.items[it.id] || 0;
-                    return (
-                      <div
-                        key={it.id}
-                        className={`flex items-center gap-3 p-2.5 rounded-2xl border ${
-                          qty > 0
-                            ? "border-[#287BFF] bg-gradient-to-b from-[#F5F9FF] to-[#DEEAFF] shadow-[0_4px_0_#BBD3FF,inset_0_1px_0_#fff]"
-                            : "border-[#E3EBF7] bg-gradient-to-b from-white to-[#F7FAFF] shadow-[0_3px_0_#EDF2FA,inset_0_1px_0_#fff]"
-                        }`}
-                      >
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] flex items-center justify-center shadow-[inset_0_1px_0_#fff]">
-                          <Art3D
-                            src={ITEM_IMG[it.id] || guessItemImg(it.name) || FALLBACK_IMG}
-                            alt={it.name}
-                            size={50}
-                          />
-                        </div>
-                        <span className="flex-1 font-extrabold text-[15px] text-[#0F172A]">
-                          {it.name}
+                {/* 소분류로 묶어서 3D 카드로 보여줍니다 */}
+                <div className="space-y-4">
+                  {[...new Set(items.map((i) => i.sub || "기타"))].map((g) => (
+                    <div key={g}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="px-2.5 py-1 rounded-xl text-[12px] font-black text-white bg-gradient-to-b from-[#7FB6FF] to-[#2A6FD6] shadow-[0_2px_0_#1F5AB0]">
+                          {g}
                         </span>
-                        <Counter value={qty} onChange={(n) => setQty(it.id, n)} min={0} max={20} />
+                        <span className="flex-1 h-px bg-[#E1EAF8]" />
                       </div>
-                    );
-                  })}
+                      <div className="grid grid-cols-3 gap-2">
+                        {items
+                          .filter((i) => (i.sub || "기타") === g)
+                          .map((it) => {
+                            const qty = room.items[it.id] || 0;
+                            return (
+                              <div
+                                key={it.id}
+                                className={`relative rounded-2xl p-2 flex flex-col items-center gap-1 border transition-all ${
+                                  qty > 0
+                                    ? "border-[#287BFF] bg-gradient-to-b from-[#F5F9FF] to-[#DCE9FF] shadow-[0_5px_0_#BBD3FF,inset_0_1px_0_#fff]"
+                                    : "border-[#E3EBF7] bg-gradient-to-b from-white to-[#F7FAFF] shadow-[0_4px_0_#EDF2FA,inset_0_1px_0_#fff]"
+                                }`}
+                              >
+                                <button
+                                  onClick={() => {
+                                    tap("soft");
+                                    setQty(it.id, qty + 1);
+                                  }}
+                                  className="w-full flex flex-col items-center gap-1 active:translate-y-[2px] transition-transform"
+                                >
+                                  <Art3D
+                                    src={ITEM_IMG[it.id] || guessItemImg(it.name) || FALLBACK_IMG}
+                                    alt={it.name}
+                                    size={54}
+                                  />
+                                  <span className="text-[12px] font-extrabold text-[#0F172A] text-center leading-tight line-clamp-2">
+                                    {it.name}
+                                  </span>
+                                </button>
+                                {qty > 0 && (
+                                  <div className="w-full flex items-center justify-between gap-1">
+                                    <button
+                                      onClick={() => setQty(it.id, qty - 1)}
+                                      className="w-7 h-7 rounded-xl bg-white border border-[#CFE0FA] text-[#0751D8] font-black shadow-[0_2px_0_#DCE8FA]"
+                                      aria-label={`${it.name} 감소`}
+                                    >
+                                      −
+                                    </button>
+                                    <span className="text-[14px] font-black text-[#0751D8] tabular-nums">
+                                      {qty}
+                                    </span>
+                                    <button
+                                      onClick={() => setQty(it.id, qty + 1)}
+                                      className="w-7 h-7 rounded-xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white font-black shadow-[0_2px_0_#0640A8]"
+                                      aria-label={`${it.name} 증가`}
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  ))}
                   {items.length === 0 && (
                     <p className="py-3 text-center text-[13px] font-bold text-[#9AA4B2]">
                       검색 결과가 없습니다
                     </p>
                   )}
                 </div>
+
 
                 <button
                   onClick={addCustom}
@@ -1670,7 +1836,7 @@ export function OptionsScreen() {
 
   return (
     <MobileShell>
-      <TopBar title="7단계. 옵션·보관료" onBack={() => setScreen("ai")} />
+      <TopBar title="6단계. 옵션·보관료" onBack={() => setScreen("step6")} />
       <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
         {draft.options.length === 0 && (
           <div className="text-center text-[#6B7280] py-10 text-sm">
