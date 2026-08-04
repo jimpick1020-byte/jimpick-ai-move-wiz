@@ -948,7 +948,7 @@ export function Step6() {
     () =>
       [
         ...ITEM_CATALOG,
-        ...(draft.customItems || []).map((c) => ({ ...c, emoji: "📦" })),
+        ...(draft.customItems || []).map((c) => ({ ...c, emoji: "📦", sub: "직접 추가" })),
       ].filter((i) => !(draft.hiddenItems || []).includes(i.id)),
     [draft.customItems, draft.hiddenItems]
   );
