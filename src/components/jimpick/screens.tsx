@@ -1448,15 +1448,16 @@ export function Step6() {
 
             {pickerOpen && (
               <div className="flex-1 overflow-auto px-4 pt-3 space-y-3">
-                <div className="flex gap-2">
+                <div className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {ITEM_TABS.map((t) => (
                     <button
                       key={t.key}
                       onClick={() => {
+                        tap("soft");
                         setTab(t.key);
                         setQ("");
                       }}
-                      className={`flex-1 py-2.5 rounded-2xl text-[14px] font-black transition-all active:translate-y-[2px] ${
+                      className={`shrink-0 px-4 py-2.5 rounded-2xl text-[14px] font-black whitespace-nowrap transition-all active:translate-y-[2px] ${
                         !q && t.key === tab
                           ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0B5FE0] shadow-[0_4px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
                           : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F1F6FF] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff]"
@@ -1477,38 +1478,80 @@ export function Step6() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  {items.map((it) => {
-                    const qty = room.items[it.id] || 0;
-                    return (
-                      <div
-                        key={it.id}
-                        className={`flex items-center gap-3 p-2.5 rounded-2xl border ${
-                          qty > 0
-                            ? "border-[#287BFF] bg-gradient-to-b from-[#F5F9FF] to-[#DEEAFF] shadow-[0_4px_0_#BBD3FF,inset_0_1px_0_#fff]"
-                            : "border-[#E3EBF7] bg-gradient-to-b from-white to-[#F7FAFF] shadow-[0_3px_0_#EDF2FA,inset_0_1px_0_#fff]"
-                        }`}
-                      >
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] flex items-center justify-center shadow-[inset_0_1px_0_#fff]">
-                          <Art3D
-                            src={ITEM_IMG[it.id] || guessItemImg(it.name) || FALLBACK_IMG}
-                            alt={it.name}
-                            size={50}
-                          />
-                        </div>
-                        <span className="flex-1 font-extrabold text-[15px] text-[#0F172A]">
-                          {it.name}
+                {/* 소분류로 묶어서 3D 카드로 보여줍니다 */}
+                <div className="space-y-4">
+                  {[...new Set(items.map((i) => i.sub || "기타"))].map((g) => (
+                    <div key={g}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="px-2.5 py-1 rounded-xl text-[12px] font-black text-white bg-gradient-to-b from-[#7FB6FF] to-[#2A6FD6] shadow-[0_2px_0_#1F5AB0]">
+                          {g}
                         </span>
-                        <Counter value={qty} onChange={(n) => setQty(it.id, n)} min={0} max={20} />
+                        <span className="flex-1 h-px bg-[#E1EAF8]" />
                       </div>
-                    );
-                  })}
+                      <div className="grid grid-cols-3 gap-2">
+                        {items
+                          .filter((i) => (i.sub || "기타") === g)
+                          .map((it) => {
+                            const qty = room.items[it.id] || 0;
+                            return (
+                              <div
+                                key={it.id}
+                                className={`relative rounded-2xl p-2 flex flex-col items-center gap-1 border transition-all ${
+                                  qty > 0
+                                    ? "border-[#287BFF] bg-gradient-to-b from-[#F5F9FF] to-[#DCE9FF] shadow-[0_5px_0_#BBD3FF,inset_0_1px_0_#fff]"
+                                    : "border-[#E3EBF7] bg-gradient-to-b from-white to-[#F7FAFF] shadow-[0_4px_0_#EDF2FA,inset_0_1px_0_#fff]"
+                                }`}
+                              >
+                                <button
+                                  onClick={() => {
+                                    tap("soft");
+                                    setQty(it.id, qty + 1);
+                                  }}
+                                  className="w-full flex flex-col items-center gap-1 active:translate-y-[2px] transition-transform"
+                                >
+                                  <Art3D
+                                    src={ITEM_IMG[it.id] || guessItemImg(it.name) || FALLBACK_IMG}
+                                    alt={it.name}
+                                    size={54}
+                                  />
+                                  <span className="text-[12px] font-extrabold text-[#0F172A] text-center leading-tight line-clamp-2">
+                                    {it.name}
+                                  </span>
+                                </button>
+                                {qty > 0 && (
+                                  <div className="w-full flex items-center justify-between gap-1">
+                                    <button
+                                      onClick={() => setQty(it.id, qty - 1)}
+                                      className="w-7 h-7 rounded-xl bg-white border border-[#CFE0FA] text-[#0751D8] font-black shadow-[0_2px_0_#DCE8FA]"
+                                      aria-label={`${it.name} 감소`}
+                                    >
+                                      −
+                                    </button>
+                                    <span className="text-[14px] font-black text-[#0751D8] tabular-nums">
+                                      {qty}
+                                    </span>
+                                    <button
+                                      onClick={() => setQty(it.id, qty + 1)}
+                                      className="w-7 h-7 rounded-xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white font-black shadow-[0_2px_0_#0640A8]"
+                                      aria-label={`${it.name} 증가`}
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  ))}
                   {items.length === 0 && (
                     <p className="py-3 text-center text-[13px] font-bold text-[#9AA4B2]">
                       검색 결과가 없습니다
                     </p>
                   )}
                 </div>
+
 
                 <button
                   onClick={addCustom}
