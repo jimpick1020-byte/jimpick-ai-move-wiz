@@ -10,7 +10,8 @@ import {
   Step3,
   Step4,
   Step6,
-  AIRecognition,
+  OptionsScreen,
+
 
   OptionsScreen,
   Result,
