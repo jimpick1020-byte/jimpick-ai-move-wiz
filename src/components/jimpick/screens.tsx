@@ -917,10 +917,14 @@ export const ROOM_TINT: Record<string, string> = {
 };
 
 const ITEM_TABS = [
-  { key: "가전", cats: ["가전", "주방"] },
+  { key: "가전", cats: ["가전"] },
   { key: "가구", cats: ["가구"] },
-  { key: "특수/리스크", cats: ["생활용품", "잔짐"] },
+  { key: "주방", cats: ["주방"] },
+  { key: "생활", cats: ["생활용품"] },
+  { key: "잔짐", cats: ["잔짐"] },
+  { key: "특수", cats: ["특수"] },
 ];
+
 
 
 
