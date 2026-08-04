@@ -984,12 +984,21 @@ export function Step6() {
     updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
   };
 
-  // ---- AI 음성 인식 (공간별로 말하면 AI가 품목·수량을 해석해 담아줍니다) ----
+  // ---- AI 음성 대화 (ChatGPT처럼 계속 듣고, "추가해줘"라고 말하면 담아줍니다) ----
+  type ChatMsg = { role: "user" | "ai"; text: string };
   const [listening, setListening] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [heard, setHeard] = useState("");
-  const [voiceRoom, setVoiceRoom] = useState<string | null>(null);
+  const [chat, setChat] = useState<ChatMsg[]>([]);
   const recRef = useRef<any>(null);
+  const keepRef = useRef(false);
+  const bufRef = useRef("");
+  const roomRef = useRef<string | null>(null);
+  const push = (m: ChatMsg) => setChat((c) => [...c.slice(-14), m]);
+
+  /** "추가해줘 / 담아줘 / 넣어줘 / 완료" 같은 마무리 신호 */
+  const isCommit = (t: string) =>
+    /(추가|담아|담기|넣어|등록|완료|됐어|됐다|끝|저장)/.test(t.replace(/\s/g, ""));
 
   const applyVoice = async (text: string, targetName: string) => {
     const target0 = roomOf(targetName);
@@ -1000,11 +1009,11 @@ export function Step6() {
         data: { text, rooms: draft.rooms.map((r) => r.name) },
       });
       if (res.error) {
-        toast.error(res.error);
+        push({ role: "ai", text: res.error });
         return;
       }
       if (!res.items.length) {
-        toast.info("품목을 알아듣지 못했어요. 다시 말씀해 주세요.");
+        push({ role: "ai", text: "품목을 못 알아들었어요. 다시 말씀해 주세요." });
         return;
       }
       const target = (res.room && roomOf(res.room)) || target0;
@@ -1014,22 +1023,38 @@ export function Step6() {
         rooms: draft.rooms.map((r) => (r.id === target.id ? { ...r, items } : r)),
       });
       tap("success");
-      toast.success(
-        `「${target.name}」에 ${res.items.map((i: { name: string; qty: number }) => `${i.name} ${i.qty}`).join(", ")} 담았습니다`,
-      );
+      const summary = res.items
+        .map((i: { name: string; qty: number }) => `${i.name} ${i.qty}개`)
+        .join(", ");
+      push({ role: "ai", text: `「${target.name}」에 ${summary} 담았습니다. 더 말씀해 주세요!` });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "음성 해석에 실패했습니다");
+      push({ role: "ai", text: e instanceof Error ? e.message : "음성 해석에 실패했습니다" });
     } finally {
       setVoiceBusy(false);
     }
   };
 
-  const toggleVoice = (targetName: string) => {
-    tap("soft");
-    if (listening) {
-      recRef.current?.stop();
+  /** 지금까지 말한 내용을 담습니다 */
+  const commitNow = async () => {
+    const text = bufRef.current.trim();
+    bufRef.current = "";
+    setHeard("");
+    if (!text) {
+      push({ role: "ai", text: "아직 들은 내용이 없어요. 품목을 말씀해 주세요." });
       return;
     }
+    await applyVoice(text, roomRef.current || room?.name || "");
+  };
+
+  const stopVoice = () => {
+    keepRef.current = false;
+    try {
+      recRef.current?.stop();
+    } catch {}
+    setListening(false);
+  };
+
+  const startVoice = (targetName: string) => {
     const SR =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
@@ -1038,30 +1063,90 @@ export function Step6() {
     }
     const rec = new SR();
     rec.lang = "ko-KR";
-    rec.continuous = false;
+    rec.continuous = true;
     rec.interimResults = true;
     rec.maxAlternatives = 1;
     recRef.current = rec;
-    setHeard("");
-    setVoiceRoom(targetName);
+    roomRef.current = targetName;
+
     rec.onresult = (ev: any) => {
-      let text = "";
-      for (let i = 0; i < ev.results.length; i++) text += ev.results[i][0].transcript;
-      setHeard(text);
-      if (ev.results[ev.results.length - 1].isFinal) void applyVoice(text, targetName);
+      let interim = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const r = ev.results[i];
+        const t = r[0].transcript as string;
+        if (r.isFinal) {
+          const line = t.trim();
+          if (!line) continue;
+          push({ role: "user", text: line });
+          if (isCommit(line)) {
+            const full = (bufRef.current + " " + line).trim();
+            bufRef.current = "";
+            setHeard("");
+            void applyVoice(full, targetName);
+          } else {
+            bufRef.current = (bufRef.current + " " + line).trim();
+            push({
+              role: "ai",
+              text: "네, 듣고 있어요. 더 말씀하시고 마지막에 “추가해줘”라고 해주세요.",
+            });
+          }
+        } else {
+          interim += t;
+        }
+      }
+      if (interim) setHeard(interim);
     };
     rec.onerror = (ev: any) => {
-      setListening(false);
-      if (ev?.error === "not-allowed") toast.error("마이크 권한을 허용해 주세요");
+      if (ev?.error === "not-allowed") {
+        keepRef.current = false;
+        setListening(false);
+        toast.error("마이크 권한을 허용해 주세요");
+      }
     };
-    rec.onend = () => setListening(false);
+    // 브라우저가 자동 종료해도 대화를 계속 이어갑니다
+    rec.onend = () => {
+      if (keepRef.current) {
+        try {
+          rec.start();
+          return;
+        } catch {}
+      }
+      setListening(false);
+    };
     try {
       rec.start();
+      keepRef.current = true;
       setListening(true);
+      if (chat.length === 0)
+        push({
+          role: "ai",
+          text: `안녕하세요! 「${targetName}」에 담을 품목을 말씀해 주세요. 다 말한 뒤 “추가해줘”라고 하면 담아드려요.`,
+        });
     } catch {
       setListening(false);
     }
   };
+
+  const toggleVoice = (targetName: string) => {
+    tap("soft");
+    if (listening) stopVoice();
+    else startVoice(targetName);
+  };
+
+  // 모달을 닫으면 마이크를 정리합니다
+  useEffect(() => {
+    if (!openRoom) {
+      keepRef.current = false;
+      try {
+        recRef.current?.stop();
+      } catch {}
+      setListening(false);
+      setHeard("");
+      bufRef.current = "";
+      setChat([]);
+    }
+  }, [openRoom]);
+
 
 
 
