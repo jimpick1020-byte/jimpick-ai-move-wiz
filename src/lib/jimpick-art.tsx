@@ -97,24 +97,25 @@ export function Art3D({
 /** 품목 이름만으로 알맞은 3D 이미지를 자동 매칭 */
 const NAME_IMG: { words: string[]; img: string }[] = [
   { words: ["피아노", "디지털피아노", "건반"], img: piano },
-  { words: ["박스", "상자", "바구니", "잡화", "비닐", "짐"], img: box },
-  { words: ["침대", "매트리스"], img: bed },
-  { words: ["장롱", "옷장", "붙박이", "수납장", "행거"], img: wardrobe },
-  { words: ["소파", "쇼파"], img: sofa },
-  { words: ["김치냉장고", "김치"], img: kimchi },
-  { words: ["냉장고"], img: fridge },
-  { words: ["세탁기", "건조기"], img: washer },
-  { words: ["tv", "티비", "텔레비", "모니터"], img: tv },
-  { words: ["식탁", "테이블"], img: table },
-  { words: ["의자", "체어"], img: chair },
-  { words: ["책상", "데스크", "컴퓨터", "pc"], img: desk },
-  { words: ["책장", "선반", "진열장"], img: shelf },
-  { words: ["에어컨", "공기청정", "제습", "가습", "선풍기"], img: aircon },
-  { words: ["전자레인지", "레인지", "오븐", "에어프라이", "밥솥"], img: microwave },
+  { words: ["김치냉장고", "김치", "쌀통", "장독"], img: kimchi },
+  { words: ["냉장고", "냉동고", "와인셀러"], img: fridge },
+  { words: ["세탁기", "건조기", "스타일러"], img: washer },
+  { words: ["tv", "티비", "텔레비", "모니터", "프로젝터", "게임기"], img: tv },
+  { words: ["침대", "매트리스", "이불", "요"], img: bed },
+  { words: ["장롱", "옷장", "붙박이", "행거", "옷걸이"], img: wardrobe },
+  { words: ["소파", "쇼파", "리클라이너", "안마의자"], img: sofa },
+  { words: ["식탁", "테이블", "아일랜드", "대리석"], img: table },
+  { words: ["의자", "체어", "스툴"], img: chair },
+  { words: ["책상", "데스크", "컴퓨터", "pc", "프린터"], img: desk },
+  { words: ["책장", "선반", "진열장", "장식장", "파티션", "그릇장", "tv장", "거실장"], img: shelf },
+  { words: ["에어컨", "공기청정", "제습", "가습", "선풍기", "온풍", "히터", "스피커", "오디오"], img: aircon },
+  { words: ["전자레인지", "레인지", "오븐", "에어프라이", "밥솥", "인덕션", "토스터", "믹서", "포트", "식기세척"], img: microwave },
   { words: ["정수기", "커피"], img: waterpurifier },
-  { words: ["화장대", "거울"], img: vanity },
-  { words: ["서랍", "협탁", "수납"], img: drawer },
+  { words: ["화장대", "거울", "액자", "조명", "스탠드"], img: vanity },
+  { words: ["서랍", "협탁", "수납", "신발장", "정리함", "금고"], img: drawer },
+  { words: ["박스", "상자", "바구니", "잡화", "비닐", "짐", "가방", "캐리어"], img: box },
 ];
+
 
 export function guessItemImg(name: string): string | undefined {
   const n = (name || "").toLowerCase().replace(/\s/g, "");
