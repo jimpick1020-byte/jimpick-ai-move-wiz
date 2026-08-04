@@ -1305,11 +1305,12 @@ export function Step6() {
 
 
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("ai")}>
+        <PrimaryButton onClick={() => setScreen("options")}>
           <span className="inline-flex items-center gap-2">
-            다음: AI 공간 스캔
+            다음: 옵션·보관료
           </span>
         </PrimaryButton>
+
 
       </BottomButtonBar>
 
