@@ -1374,28 +1374,61 @@ export function Step6() {
               )}
             </div>
 
-            {/* AI 음성 인식으로 품목 담기 */}
+            {/* AI 음성 대화 (챗 형태) */}
             <div className="px-4 pt-3 space-y-2">
-              <button
-                onClick={() => toggleVoice(room.name)}
-                className={`w-full py-4 rounded-2xl font-black text-[16px] flex items-center justify-center gap-2 transition-all active:translate-y-[3px] ${
-                  listening
-                    ? "text-white bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] shadow-[0_5px_0_#A81E20]"
-                    : "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
-                }`}
-              >
-                <Mic className="w-5 h-5" />
-                {voiceBusy ? "AI가 듣고 정리하는 중..." : listening ? "듣고 있어요 — 누르면 종료" : "🎙️ 음성으로 품목 말하기"}
-              </button>
-              {(heard || voiceBusy) && (
-                <div className="px-3 py-2 rounded-2xl bg-[#F1F6FF] border border-[#DCE8FA] text-[13px] font-bold text-[#0F172A]">
-                  “{heard || "..."}”
+              {chat.length > 0 && (
+                <div className="max-h-[168px] overflow-auto space-y-1.5 p-2.5 rounded-2xl bg-[#F3F7FF] border border-[#E1EAF8]">
+                  {chat.map((m, i) => (
+                    <div
+                      key={i}
+                      className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <span
+                        className={`max-w-[85%] px-3 py-2 rounded-2xl text-[13px] font-bold leading-snug ${
+                          m.role === "user"
+                            ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_2px_0_#0640A8]"
+                            : "text-[#0F172A] bg-white border border-[#E1EAF8] shadow-[0_2px_0_#EDF2FA]"
+                        }`}
+                      >
+                        {m.text}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
+
+              {(heard || voiceBusy) && (
+                <div className="px-3 py-2 rounded-2xl bg-white border border-[#DCE8FA] text-[13px] font-bold text-[#0751D8]">
+                  {voiceBusy ? "AI가 정리하는 중..." : `“${heard}”`}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => toggleVoice(room.name)}
+                  className={`flex-1 py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-2 transition-all active:translate-y-[3px] ${
+                    listening
+                      ? "text-white bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] shadow-[0_5px_0_#A81E20]"
+                      : "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
+                  }`}
+                >
+                  <Mic className="w-5 h-5" />
+                  {listening ? "듣고 있어요 — 종료" : "🎙️ AI와 음성 대화"}
+                </button>
+                {listening && (
+                  <button
+                    onClick={() => void commitNow()}
+                    className="px-4 py-4 rounded-2xl font-black text-[15px] text-[#0751D8] bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] shadow-[0_5px_0_#DCE8FA,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
+                  >
+                    지금 담기
+                  </button>
+                )}
+              </div>
               <p className="text-[11px] text-[#6B7280] font-semibold text-center">
-                예) “냉장고 하나 세탁기 두 개 침대 하나” — AI가 알아서 담아드려요
+                예) “냉장고 하나, 세탁기 두 개” … 그리고 “추가해줘” — 말하는 동안 끊지 않아요
               </p>
             </div>
+
 
             {/* 직접 품목 선택 (기본 접힘) */}
             <div className="px-4 pt-3">
