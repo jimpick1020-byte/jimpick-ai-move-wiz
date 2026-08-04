@@ -1836,7 +1836,7 @@ export function OptionsScreen() {
 
   return (
     <MobileShell>
-      <TopBar title="7단계. 옵션·보관료" onBack={() => setScreen("ai")} />
+      <TopBar title="6단계. 옵션·보관료" onBack={() => setScreen("step6")} />
       <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
         {draft.options.length === 0 && (
           <div className="text-center text-[#6B7280] py-10 text-sm">
