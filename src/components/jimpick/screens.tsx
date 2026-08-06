@@ -83,6 +83,7 @@ import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { TruckGauge } from "./TruckGauge";
 import { ScanMascot, type MascotState } from "./ScanMascot";
+import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
 
 import {
   FileText,
@@ -2147,6 +2148,8 @@ export function Result() {
   const [detail, setDetail] = useState(false);
   const [detailEdit, setDetailEdit] = useState(false);
   const [edit, setEdit] = useState(false);
+  /** 견적 완료 확인창 */
+  const [confirmDone, setConfirmDone] = useState(false);
 
   const [adjust, setAdjust] = useState(0);
   const calc = calcEstimate(draft);
@@ -2162,12 +2165,38 @@ export function Result() {
   }, [total, draft.total, updateDraft]);
   const summaryText = () =>
     `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${formatMoveDateTime(draft.moveDate, draft.moveTime)}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
+  /** 고객에게 보낼 견적 문자 내용 */
+  const estimateMessage = () =>
+    buildEstimateMessage({
+      customerName: draft.customerName || "고객",
+      moveDateText: formatMoveDateTime(draft.moveDate, draft.moveTime),
+      fromAddress: `${draft.fromAddress} ${draft.fromDetail || ""}`.trim(),
+      toAddress: `${draft.toAddress} ${draft.toDetail || ""}`.trim(),
+      totalText: won(total),
+    });
+
+  /**
+   * 문자 앱을 내용이 채워진 채로 엽니다. 보내기는 사장님이 직접 누릅니다.
+   * 컴퓨터처럼 문자 앱이 없는 기기에서는 내용을 복사해 드립니다.
+   */
   const sendSMS = () => {
     tap("soft");
-    void navigator.clipboard?.writeText(summaryText()).catch(() => {});
-    toast("문자 발송은 준비 중인 기능입니다", {
-      description: "견적 내용을 복사했습니다. 문자 앱에 붙여넣어 보내주세요.",
-    });
+    const body = estimateMessage();
+    if (!isSendablePhone(draft.phone)) {
+      void navigator.clipboard?.writeText(body).catch(() => {});
+      toast.error("고객 연락처가 올바르지 않습니다", {
+        description: "1단계에서 휴대폰 번호를 확인해 주세요. 견적 내용은 복사해 두었습니다.",
+      });
+      return;
+    }
+    if (!hasSmsApp()) {
+      void navigator.clipboard?.writeText(body).catch(() => {});
+      toast("이 기기에는 문자 앱이 없습니다", {
+        description: "견적 내용을 복사했습니다. 휴대폰에서 열면 문자 앱이 바로 열립니다.",
+      });
+      return;
+    }
+    window.location.href = smsHref(draft.phone, body);
   };
   const sendKakao = () => {
     tap("soft");
@@ -2492,16 +2521,65 @@ export function Result() {
       </div>
 
       <BottomButtonBar>
-        <PrimaryButton
-          onClick={() => {
-            saveDraft();
-            toast.success("견적이 완료되었습니다");
-            setScreen("home");
-          }}
-        >
-          견적 완료
-        </PrimaryButton>
+        <PrimaryButton onClick={() => setConfirmDone(true)}>견적 완료</PrimaryButton>
       </BottomButtonBar>
+
+      {/* 견적 완료 확인 — 고객에게 문자를 보낼지 여기서 고릅니다 */}
+      {confirmDone && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div
+            className="absolute inset-0 bg-[#0F172A]/45 backdrop-blur-[2px]"
+            onClick={() => setConfirmDone(false)}
+          />
+          <div className="relative w-full max-w-md rounded-t-3xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_-14px_40px_rgba(7,81,216,0.28)]">
+            <div className="text-[19px] font-black text-[#0F172A]">견적을 완료할까요?</div>
+            <p className="mt-1.5 text-[13px] font-semibold leading-relaxed text-[#6B7280]">
+              {draft.customerName || "고객"}님 · {won(total)}
+              <br />
+              {isSendablePhone(draft.phone)
+                ? `${draft.phone} 로 견적 문자를 보낼 수 있습니다.`
+                : "연락처가 올바르지 않아 문자는 보낼 수 없습니다."}
+            </p>
+
+            <div className="mt-4 space-y-2">
+              <PrimaryButton
+                onClick={() => {
+                  setConfirmDone(false);
+                  saveDraft();
+                  toast.success("견적이 완료되었습니다");
+                  // 저장이 끝난 뒤 문자 앱을 엽니다
+                  sendSMS();
+                }}
+                disabled={!isSendablePhone(draft.phone)}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" /> 완료하고 문자 보내기
+                </span>
+              </PrimaryButton>
+
+              <button
+                onClick={() => {
+                  setConfirmDone(false);
+                  tap("success");
+                  saveDraft();
+                  toast.success("견적이 완료되었습니다");
+                  setScreen("home");
+                }}
+                className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-4 font-black text-[15px] text-[#0751D8] shadow-[0_4px_0_#EDF2FA] active:translate-y-[2px] active:shadow-none"
+              >
+                문자 없이 완료
+              </button>
+
+              <button
+                onClick={() => setConfirmDone(false)}
+                className="w-full py-3 text-[14px] font-bold text-[#94A3B8]"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </MobileShell>
   );
 }

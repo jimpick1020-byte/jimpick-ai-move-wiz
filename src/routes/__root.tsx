@@ -128,7 +128,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       // 홈 화면 아이콘 — iOS 는 apple-touch-icon, 안드로이드는 manifest 를 봅니다
-      { rel: "apple-touch-icon", href: "/app-icon-512.png" },
+      // iOS 는 180x180 을 그대로 씁니다 (큰 그림을 주면 홈 화면에서 흐려집니다)
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
       { rel: "icon", href: "/app-icon-512.png", type: "image/png", sizes: "512x512" },
       { rel: "manifest", href: "/manifest.webmanifest" },
     ],
