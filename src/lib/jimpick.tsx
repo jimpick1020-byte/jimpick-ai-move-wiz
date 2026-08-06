@@ -93,7 +93,14 @@ export interface Estimate {
 
 // ============ Constants ============
 export const CATEGORIES = ["전체", "가구", "가전", "주방", "생활용품", "잔짐", "특수"] as const;
-export const ITEM_CATALOG: { id: string; name: string; cat: string; emoji: string; sub?: string; extra?: number }[] = [
+export const ITEM_CATALOG: {
+  id: string;
+  name: string;
+  cat: string;
+  emoji: string;
+  sub?: string;
+  extra?: number;
+}[] = [
   // ===== 가전 =====
   { id: "fridge", name: "냉장고", cat: "가전", sub: "대형가전", emoji: "🧊", extra: 30000 },
   { id: "kimchi", name: "김치냉장고", cat: "가전", sub: "대형가전", emoji: "🥬", extra: 30000 },
@@ -105,13 +112,27 @@ export const ITEM_CATALOG: { id: string; name: string; cat: string; emoji: strin
   { id: "dryer", name: "건조기", cat: "가전", sub: "세탁가전", emoji: "♨️", extra: 20000 },
   { id: "styler", name: "스타일러", cat: "가전", sub: "세탁가전", emoji: "👔", extra: 20000 },
   { id: "tv", name: "TV", cat: "가전", sub: "영상·음향", emoji: "📺", extra: 10000 },
-  { id: "bigtv", name: "대형TV(75인치+)", cat: "가전", sub: "영상·음향", emoji: "📺", extra: 30000 },
+  {
+    id: "bigtv",
+    name: "대형TV(75인치+)",
+    cat: "가전",
+    sub: "영상·음향",
+    emoji: "📺",
+    extra: 30000,
+  },
   { id: "walltv", name: "벽걸이TV", cat: "가전", sub: "영상·음향", emoji: "📺", extra: 20000 },
   { id: "projector", name: "프로젝터", cat: "가전", sub: "영상·음향", emoji: "📽️" },
   { id: "speaker", name: "오디오·스피커", cat: "가전", sub: "영상·음향", emoji: "🔊" },
   { id: "console", name: "게임기", cat: "가전", sub: "영상·음향", emoji: "🎮" },
   { id: "aircon", name: "스탠드 에어컨", cat: "가전", sub: "냉난방", emoji: "❄️", extra: 30000 },
-  { id: "wallaircon", name: "벽걸이 에어컨", cat: "가전", sub: "냉난방", emoji: "❄️", extra: 20000 },
+  {
+    id: "wallaircon",
+    name: "벽걸이 에어컨",
+    cat: "가전",
+    sub: "냉난방",
+    emoji: "❄️",
+    extra: 20000,
+  },
   { id: "airpurifier", name: "공기청정기", cat: "가전", sub: "냉난방", emoji: "🍃" },
   { id: "dehumid", name: "제습기", cat: "가전", sub: "냉난방", emoji: "💨" },
   { id: "humid", name: "가습기", cat: "가전", sub: "냉난방", emoji: "💧" },
@@ -124,7 +145,14 @@ export const ITEM_CATALOG: { id: string; name: string; cat: string; emoji: strin
   { id: "robotvac", name: "로봇청소기", cat: "가전", sub: "사무·기타", emoji: "🤖" },
   { id: "bidet", name: "비데", cat: "가전", sub: "사무·기타", emoji: "🚽" },
   { id: "sewing", name: "재봉틀", cat: "가전", sub: "사무·기타", emoji: "🧵" },
-  { id: "digitalpiano", name: "디지털 피아노", cat: "가전", sub: "사무·기타", emoji: "🎹", extra: 20000 },
+  {
+    id: "digitalpiano",
+    name: "디지털 피아노",
+    cat: "가전",
+    sub: "사무·기타",
+    emoji: "🎹",
+    extra: 20000,
+  },
 
   // ===== 주방 =====
   { id: "microwave", name: "전자레인지", cat: "주방", sub: "주방가전", emoji: "🍱" },
@@ -167,12 +195,33 @@ export const ITEM_CATALOG: { id: string; name: string; cat: string; emoji: strin
   { id: "displaycase", name: "장식장·진열장", cat: "가구", sub: "거실", emoji: "🏺", extra: 10000 },
   { id: "shoerack", name: "신발장", cat: "가구", sub: "거실", emoji: "👟" },
   { id: "table", name: "식탁(4인)", cat: "가구", sub: "주방·식당", emoji: "🍽️", extra: 10000 },
-  { id: "table6", name: "식탁(6인 이상)", cat: "가구", sub: "주방·식당", emoji: "🍽️", extra: 20000 },
-  { id: "marbletable", name: "대리석 식탁", cat: "가구", sub: "주방·식당", emoji: "🪨", extra: 30000 },
+  {
+    id: "table6",
+    name: "식탁(6인 이상)",
+    cat: "가구",
+    sub: "주방·식당",
+    emoji: "🍽️",
+    extra: 20000,
+  },
+  {
+    id: "marbletable",
+    name: "대리석 식탁",
+    cat: "가구",
+    sub: "주방·식당",
+    emoji: "🪨",
+    extra: 30000,
+  },
   { id: "island", name: "아일랜드 식탁", cat: "가구", sub: "주방·식당", emoji: "🍽️", extra: 20000 },
   { id: "chair", name: "의자", cat: "가구", sub: "주방·식당", emoji: "🪑" },
   { id: "desk", name: "책상", cat: "가구", sub: "서재·사무", emoji: "🖥️", extra: 10000 },
-  { id: "officedesk", name: "사무용 책상", cat: "가구", sub: "서재·사무", emoji: "🖥️", extra: 10000 },
+  {
+    id: "officedesk",
+    name: "사무용 책상",
+    cat: "가구",
+    sub: "서재·사무",
+    emoji: "🖥️",
+    extra: 10000,
+  },
   { id: "officechair", name: "사무용 의자", cat: "가구", sub: "서재·사무", emoji: "🪑" },
   { id: "shelf", name: "책장", cat: "가구", sub: "서재·사무", emoji: "📚", extra: 10000 },
   { id: "wallshelf", name: "벽선반", cat: "가구", sub: "서재·사무", emoji: "🪵" },
@@ -193,7 +242,14 @@ export const ITEM_CATALOG: { id: string; name: string; cat: string; emoji: strin
   { id: "storagebin", name: "정리함", cat: "생활용품", sub: "생활", emoji: "🗃️" },
   { id: "luggage", name: "캐리어·여행가방", cat: "생활용품", sub: "생활", emoji: "🧳" },
   { id: "plant", name: "화분", cat: "생활용품", sub: "취미·레저", emoji: "🪴" },
-  { id: "bigplant", name: "대형화분", cat: "생활용품", sub: "취미·레저", emoji: "🌳", extra: 20000 },
+  {
+    id: "bigplant",
+    name: "대형화분",
+    cat: "생활용품",
+    sub: "취미·레저",
+    emoji: "🌳",
+    extra: 20000,
+  },
   { id: "bicycle", name: "자전거", cat: "생활용품", sub: "취미·레저", emoji: "🚲" },
   { id: "kickboard", name: "킥보드", cat: "생활용품", sub: "취미·레저", emoji: "🛴" },
   { id: "golf", name: "골프백", cat: "생활용품", sub: "취미·레저", emoji: "🏌️" },
@@ -207,7 +263,14 @@ export const ITEM_CATALOG: { id: string; name: string; cat: string; emoji: strin
 
   // ===== 특수·리스크 =====
   { id: "piano", name: "피아노", cat: "특수", sub: "특수운반", emoji: "🎹", extra: 100000 },
-  { id: "grandpiano", name: "그랜드 피아노", cat: "특수", sub: "특수운반", emoji: "🎹", extra: 200000 },
+  {
+    id: "grandpiano",
+    name: "그랜드 피아노",
+    cat: "특수",
+    sub: "특수운반",
+    emoji: "🎹",
+    extra: 200000,
+  },
   { id: "safe", name: "금고", cat: "특수", sub: "특수운반", emoji: "🔐", extra: 100000 },
   { id: "aquarium", name: "어항·수족관", cat: "특수", sub: "특수운반", emoji: "🐠", extra: 50000 },
   { id: "massagechair", name: "안마의자", cat: "특수", sub: "특수운반", emoji: "💆", extra: 50000 },
@@ -229,6 +292,275 @@ export const ITEM_CATALOG: { id: string; name: string; cat: string; emoji: strin
   { id: "blanketbag", name: "이불백", cat: "잔짐", sub: "포장 단위", emoji: "🛌" },
   { id: "vinyl", name: "비닐 포장", cat: "잔짐", sub: "포장 단위", emoji: "🛍️" },
 ];
+
+// ============ 트럭 적재량 ============
+/**
+ * 품목 1개가 차지하는 부피 (루베 = m³).
+ *
+ * 현장에서 쓰는 어림값입니다. 회사마다 기준이 다르면 이 숫자만 고치면
+ * 6단계 트럭 게이지가 통째로 따라 움직입니다.
+ */
+export const ITEM_VOLUME: Record<string, number> = {
+  // 가전
+  fridge: 1.0,
+  kimchi: 0.8,
+  minifridge: 0.3,
+  freezer: 0.6,
+  winecellar: 0.5,
+  washer: 0.6,
+  drumwasher: 0.7,
+  dryer: 0.6,
+  styler: 0.5,
+  tv: 0.3,
+  bigtv: 0.6,
+  walltv: 0.25,
+  projector: 0.1,
+  speaker: 0.25,
+  console: 0.08,
+  aircon: 0.5,
+  wallaircon: 0.3,
+  airpurifier: 0.2,
+  dehumid: 0.2,
+  humid: 0.1,
+  fan: 0.15,
+  heater: 0.15,
+  electricmat: 0.08,
+  pc: 0.2,
+  printer: 0.1,
+  vacuum: 0.1,
+  robotvac: 0.08,
+  bidet: 0.08,
+  sewing: 0.3,
+  digitalpiano: 0.5,
+  // 주방
+  microwave: 0.12,
+  oven: 0.15,
+  airfryer: 0.06,
+  gasrange: 0.1,
+  induction: 0.05,
+  dishwasher: 0.4,
+  waterpurifier: 0.2,
+  riceCooker: 0.05,
+  coffee: 0.08,
+  blender: 0.04,
+  toaster: 0.03,
+  kettle: 0.03,
+  dishrack: 0.1,
+  dishcabinet: 0.8,
+  kitchencabinet: 0.7,
+  potset: 0.15,
+  ricebin: 0.1,
+  kimchipot: 0.12,
+  // 가구
+  bed: 1.2,
+  bedq: 1.8,
+  bunkbed: 2.5,
+  babybed: 0.6,
+  mattress: 0.8,
+  wardrobe: 2.0,
+  builtin: 2.0,
+  hanger: 0.3,
+  vanity: 0.5,
+  drawer: 0.6,
+  nightstand: 0.2,
+  sofa: 1.6,
+  sofabig: 2.2,
+  recliner: 1.0,
+  floorsofa: 0.8,
+  tvstand: 0.7,
+  teatable: 0.4,
+  displaycase: 0.9,
+  shoerack: 0.5,
+  table: 0.8,
+  table6: 1.2,
+  marbletable: 1.2,
+  island: 1.0,
+  chair: 0.2,
+  desk: 0.6,
+  officedesk: 0.8,
+  officechair: 0.3,
+  shelf: 0.7,
+  wallshelf: 0.2,
+  partition: 0.3,
+  foldtable: 0.2,
+  // 생활용품
+  drying: 0.15,
+  toolbox: 0.08,
+  cleaning: 0.1,
+  ladder2: 0.2,
+  standlight: 0.15,
+  mirror: 0.2,
+  frame: 0.1,
+  curtain: 0.05,
+  carpet: 0.15,
+  blanket: 0.12,
+  storagebin: 0.12,
+  luggage: 0.15,
+  plant: 0.1,
+  bigplant: 0.4,
+  bicycle: 0.5,
+  kickboard: 0.15,
+  golf: 0.2,
+  camping: 0.3,
+  ski: 0.15,
+  fitness: 0.3,
+  stroller: 0.3,
+  babyitems: 0.2,
+  petcage: 0.2,
+  cattower: 0.35,
+  // 특수
+  piano: 1.5,
+  grandpiano: 3.0,
+  safe: 0.4,
+  aquarium: 0.8,
+  massagechair: 1.5,
+  treadmill: 1.2,
+  bike2: 0.6,
+  art: 0.3,
+  waste: 0.5,
+  // 잔짐
+  box: 0.1,
+  clothbox: 0.15,
+  bigbox: 0.12,
+  midbox: 0.08,
+  bookbox: 0.06,
+  kitchenbox: 0.08,
+  smallbox: 0.06,
+  basket: 0.06,
+  bag: 0.05,
+  blanketbag: 0.14,
+  vinyl: 0.05,
+};
+
+/** 목록에 없는 품목(직접 추가·AI 인식)은 분류만 보고 어림잡습니다 */
+const VOLUME_BY_CAT: Record<string, number> = {
+  가전: 0.4,
+  주방: 0.15,
+  가구: 0.8,
+  생활용품: 0.15,
+  특수: 1.0,
+  잔짐: 0.1,
+};
+const DEFAULT_VOLUME = 0.3;
+
+/**
+ * 차량 한 대가 싣는 부피 (루베).
+ * 적재함 실치수에서 쌓는 높이를 고려한 실적재 기준입니다.
+ *   1톤 탑차 약 2.8 × 1.6 × 1.8 m,  5톤 약 6.2 × 2.1 × 2.2 m
+ */
+export const TRUCK_CAPACITY = { truck1t: 8, truck5t: 28 } as const;
+
+/** 품목 1개의 부피 */
+export function volumeOf(id: string, cat?: string): number {
+  return ITEM_VOLUME[id] ?? VOLUME_BY_CAT[cat ?? ""] ?? DEFAULT_VOLUME;
+}
+
+export interface TruckLoad {
+  /** 담긴 짐 전체 부피 (루베) */
+  volume: number;
+  /** 4단계에서 고른 차량이 실을 수 있는 부피 */
+  capacity: number;
+  /** 적재율 0~ (100 이 꽉 참) */
+  percent: number;
+  /** 고른 차량으로 부족한 부피 */
+  shortage: number;
+  /**
+   * empty  담긴 짐 없음
+   * none   짐은 있는데 차량을 아직 안 고름
+   * ok     여유 있음 (85% 이하)
+   * tight  거의 꽉 참 (85~100%)
+   * over   넘침 — 차량을 늘려야 함
+   */
+  status: "empty" | "none" | "ok" | "tight" | "over";
+  /** 이 짐을 실으려면 최소 몇 대가 필요한지 */
+  need: { truck1t: number; truck5t: number };
+}
+
+/** 필요한 차량 조합을 가장 적은 대수로 계산 */
+export function suggestTrucks(volume: number): { truck1t: number; truck5t: number } {
+  if (volume <= 0) return { truck1t: 0, truck5t: 0 };
+  let truck5t = Math.floor(volume / TRUCK_CAPACITY.truck5t);
+  const rest = volume - truck5t * TRUCK_CAPACITY.truck5t;
+  let truck1t = Math.ceil(rest / TRUCK_CAPACITY.truck1t);
+  // 1톤 여러 대를 부르느니 5톤 한 대가 낫습니다
+  // (1톤들이 5톤 한 대의 3/4 이상을 채우면 5톤으로 올립니다)
+  if (truck1t * TRUCK_CAPACITY.truck1t >= TRUCK_CAPACITY.truck5t * 0.75) {
+    truck5t += 1;
+    truck1t = 0;
+  }
+  return { truck1t, truck5t };
+}
+
+/**
+ * 담긴 짐이 고른 차량에 들어가는지 계산합니다.
+ * 6단계 트럭 게이지가 이 값 하나로 움직입니다.
+ */
+export function calcTruckLoad(e: Estimate): TruckLoad {
+  const custom = new Map((e.customItems ?? []).map((c) => [c.id, c.cat]));
+  let volume = 0;
+  for (const room of e.rooms ?? []) {
+    for (const [id, qty] of Object.entries(room.items ?? {})) {
+      if (!qty || qty <= 0) continue;
+      const cat = ITEM_CATALOG.find((i) => i.id === id)?.cat ?? custom.get(id);
+      volume += volumeOf(id, cat) * qty;
+    }
+  }
+  volume = Math.round(volume * 100) / 100;
+
+  const capacity =
+    (e.truck1t || 0) * TRUCK_CAPACITY.truck1t + (e.truck5t || 0) * TRUCK_CAPACITY.truck5t;
+  const percent = capacity > 0 ? Math.round((volume / capacity) * 100) : 0;
+  const shortage = Math.max(0, Math.round((volume - capacity) * 100) / 100);
+
+  let status: TruckLoad["status"];
+  if (volume <= 0) status = "empty";
+  else if (capacity <= 0) status = "none";
+  else if (percent > 100) status = "over";
+  else if (percent >= 85) status = "tight";
+  else status = "ok";
+
+  return { volume, capacity, percent, shortage, status, need: suggestTrucks(volume) };
+}
+
+// ============ 자주 담는 품목 ============
+/** 이력이 없을 때 처음 보여 줄 기본 목록 */
+const DEFAULT_FREQUENT = ["fridge", "washer", "bed", "wardrobe", "sofa", "tv", "table", "midbox"];
+
+/**
+ * 지금까지 쓴 견적에서 자주 담은 품목을 뽑습니다.
+ *
+ * "몇 개를 담았나"가 아니라 "몇 건의 견적에 나왔나"로 셉니다.
+ * 박스를 20개 담은 견적 한 건 때문에 박스가 1등이 되는 걸 막기 위해서입니다.
+ */
+export function frequentItemIds(estimates: Estimate[], limit = 8): string[] {
+  const count = new Map<string, number>();
+  for (const e of estimates ?? []) {
+    const seen = new Set<string>();
+    for (const room of e.rooms ?? []) {
+      for (const [id, qty] of Object.entries(room.items ?? {})) {
+        if (qty > 0) seen.add(id);
+      }
+    }
+    for (const id of seen) count.set(id, (count.get(id) ?? 0) + 1);
+  }
+
+  const ranked = [...count.entries()]
+    // 딱 한 번 나온 품목은 "자주"가 아닙니다.
+    // (피아노를 한 번 옮겼다고 자주 담는 품목에 올라오면 안 됩니다)
+    .filter(([, n]) => n >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id]) => id)
+    // 지워졌거나 이 기기에 없는 직접추가 품목은 뺍니다
+    .filter((id) => ITEM_CATALOG.some((i) => i.id === id));
+
+  // 이력이 모자라면 기본 목록으로 채웁니다
+  const out = [...ranked];
+  for (const id of DEFAULT_FREQUENT) {
+    if (out.length >= limit) break;
+    if (!out.includes(id)) out.push(id);
+  }
+  return out.slice(0, limit);
+}
 
 export const DEFAULT_ROOMS = ["안방", "작은방", "입구방", "거실", "부엌", "베란다"];
 /** 옵션 품목은 기본값 없이 사용자가 직접 추가합니다. */
@@ -334,7 +666,8 @@ export function calcEstimate(
 ): { total: number; parts: { label: string; amount: number }[] } {
   const hasSidePrice = num(e.ladderFromPrice) + num(e.ladderToPrice) > 0;
   const sideFee =
-    (e.ladderFromSeparate ? 0 : num(e.ladderFromPrice)) + (e.ladderToSeparate ? 0 : num(e.ladderToPrice));
+    (e.ladderFromSeparate ? 0 : num(e.ladderFromPrice)) +
+    (e.ladderToSeparate ? 0 : num(e.ladderToPrice));
   const ladderCount = num(e.ladder) || (e.ladderFrom ? 1 : 0) + (e.ladderTo ? 1 : 0);
   const ladderFee = e.ladderSeparate
     ? 0
@@ -359,7 +692,13 @@ export function calcEstimate(
   const MANUAL_PER_WORKER = 20000;
   const manualFee = manualSides * manualWorkers * MANUAL_PER_WORKER;
   const manualSideLabel =
-    manualSides === 2 ? "출발지·도착지" : manualSides === 1 ? (e.ladderFrom ? "도착지" : "출발지") : "";
+    manualSides === 2
+      ? "출발지·도착지"
+      : manualSides === 1
+        ? e.ladderFrom
+          ? "도착지"
+          : "출발지"
+        : "";
 
   const autoTransport = truck5Fee + truck1Fee + distanceFee + stairFee + manualFee + ladderFee;
   const overridden = e.transportOverride !== null && e.transportOverride !== undefined;
@@ -372,7 +711,8 @@ export function calcEstimate(
   const extras = (e.extraCharges ?? []).reduce((s2, x) => s2 + num(x.amount), 0);
 
   const sum = transport + optionFee + storageFee + extras;
-  const raw = e.totalOverride === null || e.totalOverride === undefined ? sum : num(e.totalOverride);
+  const raw =
+    e.totalOverride === null || e.totalOverride === undefined ? sum : num(e.totalOverride);
   const total = Math.max(0, Math.round(Number.isFinite(raw) ? raw : 0));
 
   const parts = overridden
@@ -380,11 +720,12 @@ export function calcEstimate(
     : [
         { label: "기본 차량 비용 (5톤)", amount: truck5Fee },
         { label: "차 증차비용 (1톤)", amount: truck1Fee },
-        { label: `거리 추가비 (${pricing.baseKm}km 초과 ${extraKm.toFixed(1)}km)`, amount: distanceFee },
+        {
+          label: `거리 추가비 (${pricing.baseKm}km 초과 ${extraKm.toFixed(1)}km)`,
+          amount: distanceFee,
+        },
         { label: "사다리차 비용", amount: ladderFee },
       ].filter((p) => p.amount > 0);
-
-
 
   return {
     total,
@@ -392,12 +733,13 @@ export function calcEstimate(
       ...(parts.length > 0 ? parts : [{ label: "기본 운송료", amount: transport }]),
       ...(optionFee > 0 ? [{ label: "옵션 비용", amount: optionFee }] : []),
       ...(storageFee > 0 ? [{ label: "보관료", amount: storageFee }] : []),
-      ...(e.extraCharges ?? []).map((x) => ({ label: x.label || "추가 항목", amount: num(x.amount) })),
+      ...(e.extraCharges ?? []).map((x) => ({
+        label: x.label || "추가 항목",
+        amount: num(x.amount),
+      })),
     ],
   };
 }
-
-
 
 // ============ Store ============
 export function newEstimate(): Estimate {
@@ -502,7 +844,6 @@ interface Ctx extends AppState {
   restoreStepSnapshot: () => boolean;
 }
 
-
 const AppCtx = createContext<Ctx | null>(null);
 const STORAGE_KEY = "jimpick_v8_state";
 
@@ -543,7 +884,8 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     setScreen: (screen) =>
       setState((s) => {
         // 5단계(품목 입력) 진입 직전 상태를 스냅샷으로 보관합니다
-        const entering5 = screen === "step6" && s.screen !== "step6" && s.screen !== "plan" && s.screen !== "ai";
+        const entering5 =
+          screen === "step6" && s.screen !== "step6" && s.screen !== "plan" && s.screen !== "ai";
         return {
           ...s,
           screen,
@@ -564,8 +906,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       setState((s) => ({ ...s, loggedIn: true, savedId: remember ? id : "", screen: "home" })),
     logout: () => setState((s) => ({ ...s, loggedIn: false, screen: "login" })),
     updateDraft: (patch) => setState((s) => ({ ...s, draft: { ...s.draft, ...patch } })),
-    resetDraft: () =>
-      setState((s) => ({ ...s, draft: newEstimate(), currentRoomId: "" })),
+    resetDraft: () => setState((s) => ({ ...s, draft: newEstimate(), currentRoomId: "" })),
     saveDraft: () =>
       setState((s) => {
         const { total } = calcEstimate(s.draft);
@@ -621,7 +962,6 @@ export function roomSummary(items: RoomItems): { kinds: number; count: number } 
   return { kinds: values.length, count: values.reduce((a, b) => a + Number(b), 0) };
 }
 
-
 /** localStorage에서 견적 ID로 찾기 (공유 페이지 등 Provider 외부에서도 사용) */
 export function loadEstimateFromStorage(id: string): Estimate | null {
   if (typeof window === "undefined") return null;
@@ -635,32 +975,109 @@ export function loadEstimateFromStorage(id: string): Estimate | null {
   }
 }
 
-
-
 /** 품목 이름만으로 분류(가구/가전/주방/생활용품/잔짐)를 자동 추정 */
 const CAT_KEYWORDS: { cat: string; words: string[] }[] = [
   {
     cat: "가전",
     words: [
-      "냉장고","김치","세탁기","건조기","tv","티비","텔레비","에어컨","공기청정","청정기","컴퓨터","pc","모니터","프린터",
-      "스타일러","안마의자","비데","보일러","선풍기","히터","온풍기","제습기","가습기","오디오","스피커","전자","로봇청소기",
+      "냉장고",
+      "김치",
+      "세탁기",
+      "건조기",
+      "tv",
+      "티비",
+      "텔레비",
+      "에어컨",
+      "공기청정",
+      "청정기",
+      "컴퓨터",
+      "pc",
+      "모니터",
+      "프린터",
+      "스타일러",
+      "안마의자",
+      "비데",
+      "보일러",
+      "선풍기",
+      "히터",
+      "온풍기",
+      "제습기",
+      "가습기",
+      "오디오",
+      "스피커",
+      "전자",
+      "로봇청소기",
     ],
   },
   {
     cat: "주방",
-    words: ["전자레인지","레인지","정수기","밥솥","가스","인덕션","식기","오븐","에어프라이","커피","냄비","그릇","주방","싱크"],
+    words: [
+      "전자레인지",
+      "레인지",
+      "정수기",
+      "밥솥",
+      "가스",
+      "인덕션",
+      "식기",
+      "오븐",
+      "에어프라이",
+      "커피",
+      "냄비",
+      "그릇",
+      "주방",
+      "싱크",
+    ],
   },
   {
     cat: "가구",
-    words: ["침대","장롱","옷장","붙박이","소파","식탁","의자","책상","책장","화장대","서랍","선반","수납장","테이블","협탁","침구장","피아노","금고","진열장","거울","행거"],
+    words: [
+      "침대",
+      "장롱",
+      "옷장",
+      "붙박이",
+      "소파",
+      "식탁",
+      "의자",
+      "책상",
+      "책장",
+      "화장대",
+      "서랍",
+      "선반",
+      "수납장",
+      "테이블",
+      "협탁",
+      "침구장",
+      "피아노",
+      "금고",
+      "진열장",
+      "거울",
+      "행거",
+    ],
   },
   {
     cat: "생활용품",
-    words: ["청소기","건조대","공구","화분","자전거","유모차","운동","런닝","골프","캠핑","빨래","다리미","쓰레기","우산","신발","텐트"],
+    words: [
+      "청소기",
+      "건조대",
+      "공구",
+      "화분",
+      "자전거",
+      "유모차",
+      "운동",
+      "런닝",
+      "골프",
+      "캠핑",
+      "빨래",
+      "다리미",
+      "쓰레기",
+      "우산",
+      "신발",
+      "텐트",
+    ],
   },
   {
     cat: "잔짐",
-    words: ["박스","바구니","가방","상자","잡화","기타","짐"],
+    words: ["박스", "바구니", "가방", "상자", "잡화", "기타", "짐"],
   },
 ];
 

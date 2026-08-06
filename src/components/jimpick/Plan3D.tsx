@@ -3,25 +3,46 @@ import { toast } from "sonner";
 import { Calculator, ChevronLeft, RotateCcw } from "lucide-react";
 import { useApp, ITEM_CATALOG, roomSummary } from "@/lib/jimpick";
 import { MobileShell, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
-import { Art3D, ITEM_IMG, ROOM_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
+import { Art3D, ItemArt, ROOM_IMG } from "@/lib/jimpick-art";
 import { SIZE_TABS, ROOM_TINT } from "@/components/jimpick/screens";
 import { tap } from "@/lib/feedback";
 
 /** 평수별 3D 평면도 배치 (열 스팬으로 집 구조를 표현) */
 const PLAN_LAYOUT: Record<string, Record<string, string>> = {
   "10~20평": { 안방: "col-span-4", 거실: "col-span-4", 부엌: "col-span-2", 베란다: "col-span-2" },
-  "20~30평": { 안방: "col-span-2", 작은방: "col-span-2", 거실: "col-span-4", 부엌: "col-span-2", 베란다: "col-span-2" },
+  "20~30평": {
+    안방: "col-span-2",
+    작은방: "col-span-2",
+    거실: "col-span-4",
+    부엌: "col-span-2",
+    베란다: "col-span-2",
+  },
   "30~40평": {
-    안방: "col-span-2", 작은방: "col-span-2", 입구방: "col-span-2",
-    거실: "col-span-4", 부엌: "col-span-2", 베란다: "col-span-2",
+    안방: "col-span-2",
+    작은방: "col-span-2",
+    입구방: "col-span-2",
+    거실: "col-span-4",
+    부엌: "col-span-2",
+    베란다: "col-span-2",
   },
   "40~50평": {
-    안방: "col-span-2", 작은방: "col-span-2", 입구방: "col-span-2", 옷방: "col-span-2",
-    거실: "col-span-4", 부엌: "col-span-2", 베란다: "col-span-2",
+    안방: "col-span-2",
+    작은방: "col-span-2",
+    입구방: "col-span-2",
+    옷방: "col-span-2",
+    거실: "col-span-4",
+    부엌: "col-span-2",
+    베란다: "col-span-2",
   },
   "50~60평": {
-    안방: "col-span-2", 작은방: "col-span-2", 입구방: "col-span-2", 옷방: "col-span-2",
-    서재: "col-span-2", 거실: "col-span-4", 부엌: "col-span-2", 베란다: "col-span-2",
+    안방: "col-span-2",
+    작은방: "col-span-2",
+    입구방: "col-span-2",
+    옷방: "col-span-2",
+    서재: "col-span-2",
+    거실: "col-span-4",
+    부엌: "col-span-2",
+    베란다: "col-span-2",
   },
 };
 
@@ -52,7 +73,11 @@ export function Plan3D() {
         ? {
             rooms: [
               ...draft.rooms,
-              ...missing.map((n) => ({ id: `r_${n}`, name: n, items: {} as Record<string, number> })),
+              ...missing.map((n) => ({
+                id: `r_${n}`,
+                name: n,
+                items: {} as Record<string, number>,
+              })),
             ],
           }
         : {}),
@@ -109,7 +134,6 @@ export function Plan3D() {
         <p className="mt-2 text-center text-[12px] text-[#6B7280] font-semibold">
           {size} 구조 · 품목 {totals.kinds}종 · 총 {totals.count}개
         </p>
-
       </div>
 
       {/* 평수 선택 */}
@@ -167,7 +191,7 @@ export function Plan3D() {
                             key={id}
                             className="relative rounded-xl bg-gradient-to-b from-white to-[#EAF2FF] border border-[#CFE0FA] p-0.5 shadow-[0_2px_0_#DCE8FA,inset_0_1px_0_#fff]"
                           >
-                            <Art3D src={ITEM_IMG[id] || guessItemImg(nm) || FALLBACK_IMG} alt={nm} size={24} />
+                            <ItemArt id={id} name={nm} size={24} />
                             {qty > 1 && (
                               <span className="absolute -top-1 -right-1 px-1 rounded-full bg-[#0751D8] text-white text-[9px] font-black">
                                 {qty}
@@ -212,7 +236,10 @@ export function Plan3D() {
       {/* 공간별 품목 상세 */}
       {openRoom && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div className="absolute inset-0 bg-[#0F172A]/45 backdrop-blur-[2px]" onClick={() => setOpen(null)} />
+          <div
+            className="absolute inset-0 bg-[#0F172A]/45 backdrop-blur-[2px]"
+            onClick={() => setOpen(null)}
+          />
           <div className="relative w-full max-w-md max-h-[80dvh] overflow-auto rounded-t-3xl bg-gradient-to-b from-white to-[#F5F9FF] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-14px_40px_rgba(7,81,216,0.28)]">
             <div className="flex items-center gap-2">
               <span
@@ -237,9 +264,11 @@ export function Plan3D() {
                     key={id}
                     className="flex items-center gap-3 p-2.5 rounded-2xl bg-white border border-[#E3EBF7] shadow-[0_3px_0_#EDF2FA,inset_0_1px_0_#fff]"
                   >
-                    <Art3D src={ITEM_IMG[id] || guessItemImg(nm) || FALLBACK_IMG} alt={nm} size={40} />
+                    <ItemArt id={id} name={nm} size={40} />
                     <span className="flex-1 font-extrabold text-[15px] text-[#0F172A]">{nm}</span>
-                    <span className="font-black text-[15px] text-[#0751D8] tabular-nums">{qty}</span>
+                    <span className="font-black text-[15px] text-[#0751D8] tabular-nums">
+                      {qty}
+                    </span>
                   </div>
                 );
               })}

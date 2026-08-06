@@ -1,4 +1,6 @@
 // 3D 아트 에셋 레지스트리
+import { CharArt, ITEM_CHAR, guessCharKey, guessWorkCharKey } from "@/lib/jimpick-chars";
+
 import bed from "@/assets/item-bed.png";
 import wardrobe from "@/assets/item-wardrobe.png";
 import sofa from "@/assets/item-sofa.png";
@@ -33,10 +35,25 @@ import charFemale from "@/assets/char-female.png";
 import envStairs from "@/assets/env-stairs.png";
 import envElevator from "@/assets/env-elevator.png";
 
-
 export const ITEM_IMG: Record<string, string> = {
-  bed, wardrobe, sofa, fridge, washer, tv, table, chair,
-  desk, shelf, aircon, microwave, waterpurifier, kimchi, vanity, drawer, piano, box,
+  bed,
+  wardrobe,
+  sofa,
+  fridge,
+  washer,
+  tv,
+  table,
+  chair,
+  desk,
+  shelf,
+  aircon,
+  microwave,
+  waterpurifier,
+  kimchi,
+  vanity,
+  drawer,
+  piano,
+  box,
 };
 
 /** 매칭되는 3D 이미지가 없을 때 쓰는 기본 이미지 */
@@ -101,21 +118,26 @@ const NAME_IMG: { words: string[]; img: string }[] = [
   { words: ["냉장고", "냉동고", "와인셀러"], img: fridge },
   { words: ["세탁기", "건조기", "스타일러"], img: washer },
   { words: ["tv", "티비", "텔레비", "모니터", "프로젝터", "게임기"], img: tv },
-  { words: ["침대", "매트리스", "이불", "요"], img: bed },
-  { words: ["장롱", "옷장", "붙박이", "행거", "옷걸이"], img: wardrobe },
-  { words: ["소파", "쇼파", "리클라이너", "안마의자"], img: sofa },
-  { words: ["식탁", "테이블", "아일랜드", "대리석"], img: table },
+  { words: ["침대", "매트리스"], img: bed },
+  { words: ["장롱", "옷장", "붙박이"], img: wardrobe },
+  { words: ["소파", "쇼파", "리클라이너"], img: sofa },
+  { words: ["식탁", "테이블", "아일랜드"], img: table },
   { words: ["의자", "체어", "스툴"], img: chair },
-  { words: ["책상", "데스크", "컴퓨터", "pc", "프린터"], img: desk },
-  { words: ["책장", "선반", "진열장", "장식장", "파티션", "그릇장", "tv장", "거실장"], img: shelf },
-  { words: ["에어컨", "공기청정", "제습", "가습", "선풍기", "온풍", "히터", "스피커", "오디오"], img: aircon },
-  { words: ["전자레인지", "레인지", "오븐", "에어프라이", "밥솥", "인덕션", "토스터", "믹서", "포트", "식기세척"], img: microwave },
-  { words: ["정수기", "커피"], img: waterpurifier },
-  { words: ["화장대", "거울", "액자", "조명", "스탠드"], img: vanity },
-  { words: ["서랍", "협탁", "수납", "신발장", "정리함", "금고"], img: drawer },
-  { words: ["박스", "상자", "바구니", "잡화", "비닐", "짐", "가방", "캐리어"], img: box },
+  { words: ["책상", "데스크", "컴퓨터", "pc"], img: desk },
+  { words: ["책장", "선반", "진열장", "장식장", "파티션", "tv장", "거실장"], img: shelf },
+  {
+    words: ["에어컨", "공기청정", "제습", "가습", "온풍", "히터", "스피커", "오디오"],
+    img: aircon,
+  },
+  {
+    words: ["전자레인지", "레인지", "오븐", "인덕션", "토스터", "믹서", "포트", "식기세척"],
+    img: microwave,
+  },
+  { words: ["정수기"], img: waterpurifier },
+  { words: ["화장대"], img: vanity },
+  { words: ["서랍", "협탁", "수납"], img: drawer },
+  { words: ["박스", "상자", "짐"], img: box },
 ];
-
 
 export function guessItemImg(name: string): string | undefined {
   const n = (name || "").toLowerCase().replace(/\s/g, "");
@@ -123,4 +145,44 @@ export function guessItemImg(name: string): string | undefined {
     if (words.some((w) => n.includes(w))) return img;
   }
   return undefined;
+}
+
+/**
+ * 품목·옵션 그림 — 화면에서는 이것만 쓰면 됩니다.
+ *
+ * 고르는 차례
+ *   1) 옵션·작업 이름이면 작업 캐릭터 (에어컨 이전 설치, 입주 청소 …)
+ *   2) 3D 이미지가 있는 품목이면 그대로 3D  ← 기존 그림은 절대 바뀌지 않습니다
+ *   3) 품목 id 에 연결해 둔 캐릭터 (캠핑용품·자전거·캣타워 …)
+ *   4) 이름이 비슷한 3D 이미지 (냉동고 → 냉장고)
+ *   5) 이름이 비슷한 캐릭터 (직접 추가한 품목, AI 가 읽어 온 이름)
+ *   6) 기본 캐릭터(짐 보따리)
+ */
+export function ItemArt({
+  id,
+  name,
+  size = 64,
+  className = "",
+}: {
+  /** 카탈로그 품목 id (옵션처럼 id 가 없으면 비워 두세요) */
+  id?: string;
+  name: string;
+  size?: number;
+  className?: string;
+}) {
+  const work = guessWorkCharKey(name);
+  if (work) return <CharArt name={work} alt={name} size={size} className={className} />;
+
+  if (id && ITEM_IMG[id])
+    return <Art3D src={ITEM_IMG[id]} alt={name} size={size} className={className} />;
+
+  if (id && ITEM_CHAR[id])
+    return <CharArt name={ITEM_CHAR[id]} alt={name} size={size} className={className} />;
+
+  const img = guessItemImg(name);
+  if (img) return <Art3D src={img} alt={name} size={size} className={className} />;
+
+  return (
+    <CharArt name={guessCharKey(name) ?? "generic"} alt={name} size={size} className={className} />
+  );
 }

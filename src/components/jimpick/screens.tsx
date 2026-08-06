@@ -19,12 +19,10 @@ import {
   Video,
   Send,
   Link as LinkIcon,
-  
   X,
   ChevronDown,
   ChevronLeft,
   Mic,
-
 } from "lucide-react";
 
 import {
@@ -37,6 +35,8 @@ import {
   formatPhone,
   won,
   roomSummary,
+  calcTruckLoad,
+  frequentItemIds,
   formatMoveDateTime,
   storageDays,
   usesStorage,
@@ -44,7 +44,6 @@ import {
   savePricing,
   DEFAULT_PRICING,
   type Pricing,
-
   type MoveType,
   type Room,
   type WorkEnv,
@@ -74,9 +73,18 @@ import { fileToDataUrl, videoToFrames } from "@/lib/media";
 // ============ Splash ============
 import truckImg from "@/assets/jimpick-truck.png";
 import logoImg from "@/assets/jimpick-logo.png";
-import { Art3D, ITEM_IMG, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG, guessItemImg, FALLBACK_IMG } from "@/lib/jimpick-art";
+import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
+import { TruckGauge } from "./TruckGauge";
 
-import { FileText, Camera as CamIcon, MapPin, Sparkles, UserCircle, Hand, Calculator } from "lucide-react";
+import {
+  FileText,
+  Camera as CamIcon,
+  MapPin,
+  Sparkles,
+  UserCircle,
+  Hand,
+  Calculator,
+} from "lucide-react";
 import houseImg from "@/assets/step6-house.png";
 
 export function Splash() {
@@ -103,7 +111,9 @@ export function Splash() {
             <span className="text-6xl font-black text-[#0751D8] tracking-tight drop-shadow-[0_4px_10px_rgba(7,81,216,0.25)]">
               JIMPICK
             </span>
-            <span className="text-xl font-bold text-white bg-[#0751D8] rounded-lg px-2.5 py-0.5">7.0</span>
+            <span className="text-xl font-bold text-white bg-[#0751D8] rounded-lg px-2.5 py-0.5">
+              7.0
+            </span>
           </div>
           <div className="text-lg font-bold text-[#111827] mt-3">AI 이사 견적 앱</div>
           <div className="text-sm text-[#6B7280] mt-1">이사 견적, 더 쉽고 정확하게!</div>
@@ -141,7 +151,6 @@ export function Splash() {
           견적 시작하기
         </button>
       </div>
-
     </MobileShell>
   );
 }
@@ -204,9 +213,7 @@ export function Login() {
           업체 회원가입 · 구독 신청
         </button>
         <div className="text-center text-sm text-[#6B7280]">아이디/비밀번호 찾기</div>
-        <div className="text-center text-xs text-[#6B7280] pt-6">
-          © JIMPICK · Ver 7.0.0
-        </div>
+        <div className="text-center text-xs text-[#6B7280] pt-6">© JIMPICK · Ver 7.0.0</div>
       </div>
     </MobileShell>
   );
@@ -251,14 +258,17 @@ export function HomeScreen() {
             { label: "고객 관리", icon: Users, s: "customers" as const },
             { label: "통계 확인", icon: BarChart3, s: "stats" as const },
           ].map(({ label, icon: Icon, s }) => (
-            <Card key={label} onClick={() => setScreen(s)} className="flex flex-col items-center py-4 gap-2">
+            <Card
+              key={label}
+              onClick={() => setScreen(s)}
+              className="flex flex-col items-center py-4 gap-2"
+            >
               <Icon className="w-7 h-7 text-[#0751D8]" />
               <span className="text-sm font-semibold text-center">{label}</span>
             </Card>
           ))}
         </div>
         <Card>
-
           <div className="font-bold mb-3">오늘의 견적 현황</div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div>
@@ -338,9 +348,10 @@ export function Step1() {
             onChange={(e) =>
               updateDraft({
                 moveDate: e.target.value,
-                storageStart: !draft.storageStart || draft.storageStart === draft.moveDate
-                  ? e.target.value
-                  : draft.storageStart,
+                storageStart:
+                  !draft.storageStart || draft.storageStart === draft.moveDate
+                    ? e.target.value
+                    : draft.storageStart,
               })
             }
           />
@@ -350,7 +361,9 @@ export function Step1() {
             <select
               value={draft.moveTime.split(" ")[0]}
               onChange={(e) =>
-                updateDraft({ moveTime: `${e.target.value} ${draft.moveTime.split(" ")[1] || "09:00"}` })
+                updateDraft({
+                  moveTime: `${e.target.value} ${draft.moveTime.split(" ")[1] || "09:00"}`,
+                })
               }
               className="px-4 py-3 rounded-xl border border-[#E7EBF2] bg-white text-base"
             >
@@ -360,13 +373,17 @@ export function Step1() {
             <select
               value={draft.moveTime.split(" ")[1] || "09:00"}
               onChange={(e) =>
-                updateDraft({ moveTime: `${draft.moveTime.split(" ")[0] || "오전"} ${e.target.value}` })
+                updateDraft({
+                  moveTime: `${draft.moveTime.split(" ")[0] || "오전"} ${e.target.value}`,
+                })
               }
               className="px-4 py-3 rounded-xl border border-[#E7EBF2] bg-white text-base"
             >
-              {Array.from({ length: 12 }, (_, i) => `${String(i + 1).padStart(2, "0")}:00`).map((h) => (
-                <option key={h}>{h}</option>
-              ))}
+              {Array.from({ length: 12 }, (_, i) => `${String(i + 1).padStart(2, "0")}:00`).map(
+                (h) => (
+                  <option key={h}>{h}</option>
+                ),
+              )}
             </select>
           </div>
         </Field>
@@ -542,7 +559,6 @@ export function Step2() {
     };
   }, [from?.x, from?.y, to?.x, to?.y, tick]);
 
-
   return (
     <MobileShell>
       <TopBar title="2단계. 주소 검색" onBack={() => setScreen("step1")} />
@@ -585,7 +601,9 @@ export function Step2() {
             <KakaoMap from={from} to={to} path={path} height={280} />
             {routeError && !routing ? (
               <div className="mt-3 rounded-xl bg-[#FFF1F1] border border-[#FFD4D4] p-3 text-center space-y-2">
-                <div className="text-xs font-semibold text-[#B91C1C] leading-relaxed">{routeError}</div>
+                <div className="text-xs font-semibold text-[#B91C1C] leading-relaxed">
+                  {routeError}
+                </div>
                 <button
                   onClick={() => {
                     tap("click");
@@ -601,18 +619,25 @@ export function Step2() {
                 <div>
                   <div className="text-xs text-[#6B7280]">실거리 (도로 기준)</div>
                   <div className="text-lg font-bold leading-7">
-                    {routing ? "계산 중..." : from && to && draft.distanceKm ? `${draft.distanceKm} km` : "-"}
+                    {routing
+                      ? "계산 중..."
+                      : from && to && draft.distanceKm
+                        ? `${draft.distanceKm} km`
+                        : "-"}
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-[#6B7280]">예상 이동시간</div>
                   <div className="text-lg font-bold leading-7">
-                    {routing ? "계산 중..." : from && to && draft.durationMin ? `${draft.durationMin} 분` : "-"}
+                    {routing
+                      ? "계산 중..."
+                      : from && to && draft.durationMin
+                        ? `${draft.durationMin} 분`
+                        : "-"}
                   </div>
                 </div>
               </div>
             )}
-
           </Card>
         )}
       </div>
@@ -639,7 +664,11 @@ export function Step3() {
       stair && elev ? "계단+엘리베이터" : stair ? "계단" : elev ? "엘리베이터" : "없음";
     updateDraft(
       stair
-        ? { workEnv: next, fromFloor: Math.min(draft.fromFloor, 6), toFloor: Math.min(draft.toFloor, 6) }
+        ? {
+            workEnv: next,
+            fromFloor: Math.min(draft.fromFloor, 6),
+            toFloor: Math.min(draft.toFloor, 6),
+          }
         : { workEnv: next },
     );
   };
@@ -662,7 +691,12 @@ export function Step3() {
               onClick={() => toggleEnv("엘리베이터")}
               className="text-center py-6"
             >
-              <Art3D src={ENV_IMG["엘리베이터"]} alt="엘리베이터" size={72} className="mx-auto mb-2" />
+              <Art3D
+                src={ENV_IMG["엘리베이터"]}
+                alt="엘리베이터"
+                size={72}
+                className="mx-auto mb-2"
+              />
               <div className="font-bold">엘리베이터</div>
             </Card>
           </div>
@@ -720,7 +754,12 @@ export function Step3() {
                   <div className="text-xs text-[#6B7280]">0~10명</div>
                 </div>
               </div>
-              <Counter value={draft.workers} onChange={(n) => updateDraft({ workers: n })} min={0} max={10} />
+              <Counter
+                value={draft.workers}
+                onChange={(n) => updateDraft({ workers: n })}
+                min={0}
+                max={10}
+              />
             </div>
           </Card>
           <div className="h-2" />
@@ -742,7 +781,6 @@ export function Step3() {
             </div>
           </Card>
         </Field>
-
       </div>
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("step4")}>다음: 차량 선택</PrimaryButton>
@@ -761,9 +799,20 @@ export function Step4() {
     setScreen("step6");
   };
   const vehicles = [
-    { key: "truck1t" as const, name: "1톤 차량", img: VEHICLE_IMG.truck1t, max: 10, val: draft.truck1t },
-    { key: "truck5t" as const, name: "5톤 차량", img: VEHICLE_IMG.truck5t, max: 10, val: draft.truck5t },
-    
+    {
+      key: "truck1t" as const,
+      name: "1톤 차량",
+      img: VEHICLE_IMG.truck1t,
+      max: 10,
+      val: draft.truck1t,
+    },
+    {
+      key: "truck5t" as const,
+      name: "5톤 차량",
+      img: VEHICLE_IMG.truck5t,
+      max: 10,
+      val: draft.truck5t,
+    },
   ];
   return (
     <MobileShell>
@@ -780,7 +829,12 @@ export function Step4() {
                   <div className="text-xs text-[#6B7280]">최대 {v.max}대</div>
                 </div>
               </div>
-              <Counter value={v.val} onChange={(n) => updateDraft({ [v.key]: n } as any)} min={0} max={v.max} />
+              <Counter
+                value={v.val}
+                onChange={(n) => updateDraft({ [v.key]: n } as any)}
+                min={0}
+                max={v.max}
+              />
             </div>
           </Card>
         ))}
@@ -883,7 +937,9 @@ export function Step4() {
             )}
             <div className="flex justify-between text-sm font-bold">
               <span className="text-[#6B7280]">사다리차 합계</span>
-              <span className="text-[#0751D8]">{won(draft.ladderFromPrice + draft.ladderToPrice)}</span>
+              <span className="text-[#0751D8]">
+                {won(draft.ladderFromPrice + draft.ladderToPrice)}
+              </span>
             </div>
           </div>
         </Card>
@@ -925,11 +981,8 @@ const ITEM_TABS = [
   { key: "특수", cats: ["특수"] },
 ];
 
-
-
-
 export function Step6() {
-  const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
+  const { draft, updateDraft, setScreen, setCurrentRoom, estimates } = useApp();
   const [size, setSize] = useState<string>(() => {
     if (draft.sizeTab) return draft.sizeTab;
     const n = draft.rooms.length;
@@ -943,14 +996,13 @@ export function Step6() {
 
   const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || SIZE_TABS[2]).rooms;
 
-
   const catalog = useMemo(
     () =>
       [
         ...ITEM_CATALOG,
         ...(draft.customItems || []).map((c) => ({ ...c, emoji: "📦", sub: "직접 추가" })),
       ].filter((i) => !(draft.hiddenItems || []).includes(i.id)),
-    [draft.customItems, draft.hiddenItems]
+    [draft.customItems, draft.hiddenItems],
   );
 
   /** 평수를 고르면 없는 방만 새로 만들고, 기존 방 품목은 그대로 유지합니다 */
@@ -965,13 +1017,16 @@ export function Step6() {
         ? {
             rooms: [
               ...draft.rooms,
-              ...missing.map((n) => ({ id: `r_${n}`, name: n, items: {} as Record<string, number> })),
+              ...missing.map((n) => ({
+                id: `r_${n}`,
+                name: n,
+                items: {} as Record<string, number>,
+              })),
             ],
           }
         : {}),
     });
   };
-
 
   const roomOf = (name: string) => draft.rooms.find((r) => r.name === name);
   const room = openRoom ? roomOf(openRoom) : undefined;
@@ -1055,8 +1110,7 @@ export function Step6() {
   };
 
   const startVoice = (targetName: string) => {
-    const SR =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
       toast.error("이 기기에서는 음성 인식을 지원하지 않습니다");
       return;
@@ -1147,9 +1201,6 @@ export function Step6() {
     }
   }, [openRoom]);
 
-
-
-
   const addCustom = () => {
     const name = q.trim() || prompt("추가할 품목 이름") || "";
     if (!name) return;
@@ -1158,7 +1209,7 @@ export function Step6() {
     updateDraft({
       customItems: [...(draft.customItems || []), { id: newId, name, cat: catName, extra: 0 }],
       rooms: draft.rooms.map((r) =>
-        r.id === room?.id ? { ...r, items: { ...r.items, [newId]: 1 } } : r
+        r.id === room?.id ? { ...r, items: { ...r.items, [newId]: 1 } } : r,
       ),
     });
     setQ("");
@@ -1167,16 +1218,35 @@ export function Step6() {
   };
 
   const tabCats = (ITEM_TABS.find((t) => t.key === tab) || ITEM_TABS[0]).cats;
-  const items = catalog.filter((i) =>
-    q ? i.name.includes(q) : tabCats.includes(i.cat)
-  );
+  const items = catalog.filter((i) => (q ? i.name.includes(q) : tabCats.includes(i.cat)));
   const picked = Object.entries(room?.items || {}).map(([id, qty]) => ({
     id,
     qty,
     name: catalog.find((c) => c.id === id)?.name || id,
-    img: ITEM_IMG[id] || guessItemImg(catalog.find((c) => c.id === id)?.name || "") || FALLBACK_IMG,
   }));
   const totalKinds = draft.rooms.reduce((a, r) => a + roomSummary(r.items).kinds, 0);
+
+  /** 담긴 짐이 4단계에서 고른 차량에 들어가는지 */
+  const load = useMemo(() => calcTruckLoad(draft), [draft]);
+
+  /** 게이지에서 「5톤 1대로 바꾸기」를 눌렀을 때 */
+  const applyTrucks = (need: { truck1t: number; truck5t: number }) => {
+    updateDraft({ truck1t: need.truck1t, truck5t: need.truck5t });
+    tap("success");
+    toast.success("차량을 바꿨습니다", {
+      description:
+        `${need.truck5t ? `5톤 ${need.truck5t}대 ` : ""}${need.truck1t ? `1톤 ${need.truck1t}대` : ""}`.trim(),
+    });
+  };
+
+  /** 지금까지 쓴 견적에서 자주 담은 품목 (이력이 없으면 기본 목록) */
+  const frequent = useMemo(
+    () =>
+      frequentItemIds(estimates, 8)
+        .map((id) => catalog.find((c) => c.id === id))
+        .filter((i): i is (typeof catalog)[number] => !!i),
+    [estimates, catalog],
+  );
 
   return (
     <MobileShell>
@@ -1205,9 +1275,13 @@ export function Step6() {
             : `${size} · 평수를 고르고 방을 추가·삭제하세요`}
         </p>
 
+        {/* 트럭 적재 게이지 — 담을수록 차오릅니다 */}
+        {load.status !== "empty" && (
+          <div className="mt-3">
+            <TruckGauge load={load} onFixTrucks={applyTrucks} />
+          </div>
+        )}
       </div>
-
-
 
       {/* 평수 선택 탭 */}
       <div className="bg-white border-b border-[#E7EBF2] px-4 py-3">
@@ -1271,7 +1345,7 @@ export function Step6() {
                               key={id}
                               className="relative rounded-xl bg-gradient-to-b from-white to-[#EAF2FF] border border-[#CFE0FA] p-0.5 shadow-[0_2px_0_#DCE8FA,inset_0_1px_0_#fff]"
                             >
-                              <Art3D src={ITEM_IMG[id] || guessItemImg(nm) || FALLBACK_IMG} alt={nm} size={24} />
+                              <ItemArt id={id} name={nm} size={24} />
                               {qty > 1 && (
                                 <span className="absolute -top-1 -right-1 px-1 rounded-full bg-[#0751D8] text-white text-[9px] font-black">
                                   {qty}
@@ -1296,25 +1370,17 @@ export function Step6() {
                     {s.count}
                   </span>
                 )}
-
               </div>
             );
           })}
         </div>
       </div>
 
-
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("options")}>
-          <span className="inline-flex items-center gap-2">
-            다음: 옵션·보관료
-          </span>
+          <span className="inline-flex items-center gap-2">다음: 옵션·보관료</span>
         </PrimaryButton>
-
-
       </BottomButtonBar>
-
-
 
       {/* 품목 추가 드로어 */}
       {room && (
@@ -1344,7 +1410,6 @@ export function Step6() {
               </button>
             </div>
 
-
             {/* 등록된 품목 뱃지 */}
             <div className="px-4 pt-3">
               {picked.length === 0 ? (
@@ -1356,7 +1421,7 @@ export function Step6() {
                       key={p.id}
                       className="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-2xl bg-gradient-to-b from-white to-[#EAF2FF] border border-[#CFE0FA] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff]"
                     >
-                      <Art3D src={p.img} alt={p.name} size={26} />
+                      <ItemArt id={p.id} name={p.name} size={26} />
                       <span className="text-[13px] font-extrabold text-[#0F172A]">{p.name}</span>
                       <span className="text-[13px] font-black text-[#0751D8] tabular-nums">
                         {p.qty}
@@ -1429,7 +1494,6 @@ export function Step6() {
               </p>
             </div>
 
-
             {/* 직접 품목 선택 (기본 접힘) */}
             <div className="px-4 pt-3">
               <button
@@ -1448,6 +1512,45 @@ export function Step6() {
 
             {pickerOpen && (
               <div className="flex-1 overflow-auto px-4 pt-3 space-y-3">
+                {/* 자주 담는 품목 — 검색 없이 눌러서 바로 담습니다 */}
+                <div className="rounded-2xl border border-[#DCE8FA] bg-white px-4 py-3 space-y-2 shadow-[inset_0_1px_0_#fff]">
+                  <div className="text-[13.5px] font-black text-[#0F172A]">
+                    자주 담는 품목
+                    <span className="ml-1.5 text-[11.5px] font-semibold text-[#9AA4B2]">
+                      눌러서 바로 담기
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {frequent.map((it) => {
+                      const qty = room?.items[it.id] || 0;
+                      return (
+                        <button
+                          key={it.id}
+                          onClick={() => {
+                            setQty(it.id, qty + 1);
+                            tap("success");
+                          }}
+                          className="flex min-h-12 items-center gap-1.5 rounded-2xl border pl-1.5 pr-3.5 text-[13px] font-black transition-transform active:translate-y-[2px]"
+                          style={{
+                            borderColor: qty > 0 ? "#287BFF" : "#DCE8FA",
+                            background: qty > 0 ? "#F2F7FF" : "#FFFFFF",
+                            color: qty > 0 ? "#0751D8" : "#475569",
+                            boxShadow: qty > 0 ? "0 3px 0 #BBD3FF" : "0 2px 0 #EDF2FA",
+                          }}
+                        >
+                          <ItemArt id={it.id} name={it.name} size={32} />
+                          {it.name}
+                          {qty > 0 && (
+                            <span className="ml-0.5 rounded-full bg-[#0751D8] px-1.5 py-0.5 text-[10px] font-black text-white">
+                              {qty}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {ITEM_TABS.map((t) => (
                     <button
@@ -1509,11 +1612,7 @@ export function Step6() {
                                   }}
                                   className="w-full flex flex-col items-center gap-1 active:translate-y-[2px] transition-transform"
                                 >
-                                  <Art3D
-                                    src={ITEM_IMG[it.id] || guessItemImg(it.name) || FALLBACK_IMG}
-                                    alt={it.name}
-                                    size={54}
-                                  />
+                                  <ItemArt id={it.id} name={it.name} size={54} />
                                   <span className="text-[12px] font-extrabold text-[#0F172A] text-center leading-tight line-clamp-2">
                                     {it.name}
                                   </span>
@@ -1551,7 +1650,6 @@ export function Step6() {
                     </p>
                   )}
                 </div>
-
 
                 <button
                   onClick={addCustom}
@@ -1672,8 +1770,13 @@ export function AIRecognition() {
           />
           <div className="flex-1">
             <div className="font-bold text-lg">AI 사진 인식</div>
-            <div className="text-sm text-[#6B7280] mt-1 mb-3">가구·가전을 90% 정확도로 자동 인식합니다.</div>
-            <label className="block w-full py-3 rounded-2xl text-white text-center font-bold cursor-pointer shadow-[0_4px_0_#0645B0]" style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}>
+            <div className="text-sm text-[#6B7280] mt-1 mb-3">
+              가구·가전을 90% 정확도로 자동 인식합니다.
+            </div>
+            <label
+              className="block w-full py-3 rounded-2xl text-white text-center font-bold cursor-pointer shadow-[0_4px_0_#0645B0]"
+              style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
+            >
               사진 촬영
               <input
                 type="file"
@@ -1700,8 +1803,13 @@ export function AIRecognition() {
           />
           <div className="flex-1">
             <div className="font-bold text-lg">AI 동영상 인식</div>
-            <div className="text-sm text-[#6B7280] mt-1 mb-3">방을 천천히 한 바퀴 촬영하면 장면을 나눠 분석합니다.</div>
-            <label className="block w-full py-3 rounded-2xl text-white text-center font-bold cursor-pointer shadow-[0_4px_0_#0645B0]" style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}>
+            <div className="text-sm text-[#6B7280] mt-1 mb-3">
+              방을 천천히 한 바퀴 촬영하면 장면을 나눠 분석합니다.
+            </div>
+            <label
+              className="block w-full py-3 rounded-2xl text-white text-center font-bold cursor-pointer shadow-[0_4px_0_#0645B0]"
+              style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
+            >
               동영상 촬영
               <input
                 type="file"
@@ -1768,7 +1876,7 @@ export function AIRecognition() {
             </div>
             {shown.map((r, i) => (
               <Card key={r.id} className="flex items-center gap-3">
-                <Art3D src={ITEM_IMG[r.id] || guessItemImg(r.name) || FALLBACK_IMG} alt={r.name} size={48} />
+                <ItemArt id={r.id} name={r.name} size={48} />
                 <div className="flex-1">
                   <div className="font-semibold">{r.name}</div>
                   <div className="text-xs text-[#6B7280]">
@@ -1815,12 +1923,9 @@ export function AIRecognition() {
               적용하기
             </PrimaryButton>
           </div>
-          <PrimaryButton onClick={() => setScreen("options")}>
-            다음: 옵션·보관료
-          </PrimaryButton>
+          <PrimaryButton onClick={() => setScreen("options")}>다음: 옵션·보관료</PrimaryButton>
         </div>
       </BottomButtonBar>
-
     </MobileShell>
   );
 }
@@ -1854,13 +1959,13 @@ export function OptionsScreen() {
                     tap("soft");
                     updateDraft({
                       options: draft.options.map((x, j) =>
-                        j === i ? { ...x, enabled: e.target.checked } : x
+                        j === i ? { ...x, enabled: e.target.checked } : x,
                       ),
                     });
                   }}
                   className="w-5 h-5"
                 />
-                <Art3D src={guessItemImg(o.name) || FALLBACK_IMG} alt={o.name} size={44} />
+                <ItemArt name={o.name} size={44} />
                 {o.name}
               </label>
               <button
@@ -1895,7 +2000,7 @@ export function OptionsScreen() {
                       tap("soft");
                       updateDraft({
                         options: draft.options.map((x, j) =>
-                          j === i ? { ...x, separate: e.target.checked } : x
+                          j === i ? { ...x, separate: e.target.checked } : x,
                         ),
                       });
                     }}
@@ -1983,7 +2088,6 @@ export function OptionsScreen() {
             )}
           </Card>
         )}
-
       </div>
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("result")}>견적 계산 보기</PrimaryButton>
@@ -1998,7 +2102,7 @@ export function Result() {
   const [detail, setDetail] = useState(false);
   const [detailEdit, setDetailEdit] = useState(false);
   const [edit, setEdit] = useState(false);
-  
+
   const [adjust, setAdjust] = useState(0);
   const calc = calcEstimate(draft);
   const total = calc.total + adjust;
@@ -2066,9 +2170,7 @@ export function Result() {
               <div className="space-y-3">
                 <Field label="기본 운송료">
                   <MoneyInput
-                    value={
-                      draft.transportOverride ?? transportAuto
-                    }
+                    value={draft.transportOverride ?? transportAuto}
                     onChange={(n) => updateDraft({ transportOverride: n })}
                     step={10000}
                   />
@@ -2180,19 +2282,35 @@ export function Result() {
           {edit ? (
             <div className="space-y-3 pt-1">
               <Field label="고객명">
-                <TextInput value={draft.customerName} onChange={(e) => updateDraft({ customerName: e.target.value })} />
+                <TextInput
+                  value={draft.customerName}
+                  onChange={(e) => updateDraft({ customerName: e.target.value })}
+                />
               </Field>
               <Field label="연락처">
-                <TextInput value={draft.phone} onChange={(e) => updateDraft({ phone: formatPhone(e.target.value) })} />
+                <TextInput
+                  value={draft.phone}
+                  onChange={(e) => updateDraft({ phone: formatPhone(e.target.value) })}
+                />
               </Field>
               <Field label="이사일">
-                <TextInput type="date" value={draft.moveDate} onChange={(e) => updateDraft({ moveDate: e.target.value })} />
+                <TextInput
+                  type="date"
+                  value={draft.moveDate}
+                  onChange={(e) => updateDraft({ moveDate: e.target.value })}
+                />
               </Field>
               <Field label="출발지">
-                <TextInput value={draft.fromAddress} onChange={(e) => updateDraft({ fromAddress: e.target.value })} />
+                <TextInput
+                  value={draft.fromAddress}
+                  onChange={(e) => updateDraft({ fromAddress: e.target.value })}
+                />
               </Field>
               <Field label="도착지">
-                <TextInput value={draft.toAddress} onChange={(e) => updateDraft({ toAddress: e.target.value })} />
+                <TextInput
+                  value={draft.toAddress}
+                  onChange={(e) => updateDraft({ toAddress: e.target.value })}
+                />
               </Field>
               <Field label="거리 (km)">
                 <TextInput
@@ -2203,13 +2321,25 @@ export function Result() {
               </Field>
               <div className="grid grid-cols-3 gap-2">
                 <Field label="1톤">
-                  <TextInput type="number" value={draft.truck1t} onChange={(e) => updateDraft({ truck1t: Number(e.target.value) || 0 })} />
+                  <TextInput
+                    type="number"
+                    value={draft.truck1t}
+                    onChange={(e) => updateDraft({ truck1t: Number(e.target.value) || 0 })}
+                  />
                 </Field>
                 <Field label="5톤">
-                  <TextInput type="number" value={draft.truck5t} onChange={(e) => updateDraft({ truck5t: Number(e.target.value) || 0 })} />
+                  <TextInput
+                    type="number"
+                    value={draft.truck5t}
+                    onChange={(e) => updateDraft({ truck5t: Number(e.target.value) || 0 })}
+                  />
                 </Field>
                 <Field label="사다리">
-                  <TextInput type="number" value={draft.ladder} onChange={(e) => updateDraft({ ladder: Number(e.target.value) || 0 })} />
+                  <TextInput
+                    type="number"
+                    value={draft.ladder}
+                    onChange={(e) => updateDraft({ ladder: Number(e.target.value) || 0 })}
+                  />
                 </Field>
               </div>
               <Field label="할인·조정 금액 (1만원 단위 · 음수 가능)">
@@ -2218,11 +2348,17 @@ export function Result() {
             </div>
           ) : (
             <>
-              <div>👤 {draft.customerName || "이름 미입력"} · {draft.phone || "연락처 미입력"}</div>
+              <div>
+                👤 {draft.customerName || "이름 미입력"} · {draft.phone || "연락처 미입력"}
+              </div>
               <div>📅 {formatMoveDateTime(draft.moveDate, draft.moveTime)}</div>
               <div>🚚 {draft.moveType}</div>
-              <div className="text-[#6B7280]">출발: {draft.fromAddress} {draft.fromDetail}</div>
-              <div className="text-[#6B7280]">도착: {draft.toAddress} {draft.toDetail}</div>
+              <div className="text-[#6B7280]">
+                출발: {draft.fromAddress} {draft.fromDetail}
+              </div>
+              <div className="text-[#6B7280]">
+                도착: {draft.toAddress} {draft.toDetail}
+              </div>
               <div>
                 실거리 {draft.distanceKm}km
                 {draft.durationMin ? ` · 약 ${draft.durationMin}분` : ""} · {draft.workEnv} ·{" "}
@@ -2245,18 +2381,22 @@ export function Result() {
                   {won(draft.storageDaily)})
                 </div>
               )}
-              {draft.options.filter((o) => o.enabled).map((o) => (
-                <div key={o.id}>
-                  ➕ {o.name} · {o.separate ? "별도" : won(o.price)}
-                </div>
-              ))}
+              {draft.options
+                .filter((o) => o.enabled)
+                .map((o) => (
+                  <div key={o.id}>
+                    ➕ {o.name} · {o.separate ? "별도" : won(o.price)}
+                  </div>
+                ))}
               {draft.memo && <div className="text-[#6B7280]">메모: {draft.memo}</div>}
             </>
-
           )}
         </Card>
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={sendSMS} className="py-4 rounded-2xl bg-white border border-[#DFE6F2] font-bold flex items-center justify-center gap-2 shadow-[0_4px_0_#E3E9F5,0_10px_20px_-8px_rgba(15,23,42,0.25)] active:translate-y-[2px] active:shadow-[0_2px_0_#E3E9F5]">
+          <button
+            onClick={sendSMS}
+            className="py-4 rounded-2xl bg-white border border-[#DFE6F2] font-bold flex items-center justify-center gap-2 shadow-[0_4px_0_#E3E9F5,0_10px_20px_-8px_rgba(15,23,42,0.25)] active:translate-y-[2px] active:shadow-[0_2px_0_#E3E9F5]"
+          >
             <MessageSquare className="w-5 h-5" /> 문자 발송
           </button>
           <button
@@ -2326,7 +2466,7 @@ export function History() {
   const { estimates, setScreen, loadEstimate, deleteEstimate } = useApp();
   const [q, setQ] = useState("");
   const list = estimates.filter(
-    (e) => !q || e.customerName.includes(q) || e.phone.includes(q) || e.moveDate.includes(q)
+    (e) => !q || e.customerName.includes(q) || e.phone.includes(q) || e.moveDate.includes(q),
   );
   return (
     <MobileShell>
@@ -2383,7 +2523,10 @@ export function History() {
 export function Customers() {
   const { estimates } = useApp();
   const [q, setQ] = useState("");
-  const map = new Map<string, { name: string; phone: string; last: number; count: number; lastAmount: number }>();
+  const map = new Map<
+    string,
+    { name: string; phone: string; last: number; count: number; lastAmount: number }
+  >();
   for (const e of estimates) {
     if (!e.phone) continue;
     const k = e.phone;
@@ -2400,13 +2543,17 @@ export function Customers() {
       cur.count += 1;
     }
   }
-  const list = Array.from(map.values()).filter((c) => !q || c.name.includes(q) || c.phone.includes(q));
+  const list = Array.from(map.values()).filter(
+    (c) => !q || c.name.includes(q) || c.phone.includes(q),
+  );
   return (
     <MobileShell>
       <TopBar title="고객 관리" />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
         <TextInput placeholder="고객 검색" value={q} onChange={(e) => setQ(e.target.value)} />
-        {list.length === 0 && <div className="text-center text-[#6B7280] py-16">고객 정보가 없습니다.</div>}
+        {list.length === 0 && (
+          <div className="text-center text-[#6B7280] py-16">고객 정보가 없습니다.</div>
+        )}
         {list.map((c) => (
           <Card key={c.phone}>
             <div className="flex justify-between">
@@ -2448,12 +2595,14 @@ export function SettingsScreen() {
     savePricing(next);
   };
   return (
-
     <MobileShell>
       <TopBar title="설정" />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
         <button
-          onClick={() => { tap(); setScreen("subscription"); }}
+          onClick={() => {
+            tap();
+            setScreen("subscription");
+          }}
           className="w-full text-left rounded-2xl p-4 text-white font-bold shadow-[0_6px_0_#0645B0]"
           style={{ background: "linear-gradient(135deg, #287BFF 0%, #0751D8 100%)" }}
         >
@@ -2462,10 +2611,18 @@ export function SettingsScreen() {
         </button>
         <Card className="space-y-3">
           <div className="font-bold">사업자 정보</div>
-          <Field label="상호명"><TextInput defaultValue="JIMPICK" /></Field>
-          <Field label="대표자명"><TextInput defaultValue="짐픽 사장" /></Field>
-          <Field label="연락처"><TextInput defaultValue="010-0000-0000" /></Field>
-          <Field label="사업자등록번호"><TextInput defaultValue="000-00-00000" /></Field>
+          <Field label="상호명">
+            <TextInput defaultValue="JIMPICK" />
+          </Field>
+          <Field label="대표자명">
+            <TextInput defaultValue="짐픽 사장" />
+          </Field>
+          <Field label="연락처">
+            <TextInput defaultValue="010-0000-0000" />
+          </Field>
+          <Field label="사업자등록번호">
+            <TextInput defaultValue="000-00-00000" />
+          </Field>
         </Card>
         <Card className="space-y-3">
           <div className="font-bold">문자 기본 문구</div>
@@ -2510,7 +2667,6 @@ export function SettingsScreen() {
           </button>
         </Card>
         <Card className="space-y-2 text-sm">
-
           <div className="font-bold text-base">구독 안내</div>
           <div>· 무료 체험 3일</div>
           <div>· 이후 월 22,000원 (부가세 포함)</div>
@@ -2540,7 +2696,10 @@ export function StatsScreen() {
   const sum = (list: typeof estimates) => list.reduce((s, e) => s + (e.total || 0), 0);
   const avg = estimates.length ? Math.round(sum(estimates) / estimates.length) : 0;
   const byType = Array.from(
-    estimates.reduce((m, e) => m.set(e.moveType, (m.get(e.moveType) ?? 0) + 1), new Map<string, number>()),
+    estimates.reduce(
+      (m, e) => m.set(e.moveType, (m.get(e.moveType) ?? 0) + 1),
+      new Map<string, number>(),
+    ),
   ).sort((a, b) => b[1] - a[1]);
   const maxType = byType[0]?.[1] ?? 1;
 
@@ -2563,7 +2722,9 @@ export function StatsScreen() {
         </div>
         <Card className="space-y-3">
           <div className="font-bold">이사 유형별 건수</div>
-          {byType.length === 0 && <div className="text-sm text-[#6B7280]">저장된 견적이 없습니다.</div>}
+          {byType.length === 0 && (
+            <div className="text-sm text-[#6B7280]">저장된 견적이 없습니다.</div>
+          )}
           {byType.map(([name, count]) => (
             <div key={name} className="space-y-1">
               <div className="flex justify-between text-sm">
