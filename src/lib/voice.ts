@@ -5,9 +5,35 @@
  * 여기서는 "쓸 수 있는 상황인지" 미리 확인하고, 안 될 때 이유를 쉬운 말로 알려 줍니다.
  */
 
-interface SpeechResultLike {
+export interface SpeechAlternativeLike {
+  transcript: string;
+  /** 브라우저가 알려 주는 확신도 0~1. 안 알려 주는 브라우저는 0 입니다. */
+  confidence?: number;
+}
+export interface SpeechResultLike {
   isFinal: boolean;
-  0: { transcript: string };
+  length?: number;
+  [i: number]: SpeechAlternativeLike;
+}
+
+/**
+ * 후보 문장 중 가장 확신하는 것을 고릅니다.
+ * (maxAlternatives 를 올려 두면 후보가 여러 개 옵니다)
+ */
+export function bestAlternative(r: SpeechResultLike): {
+  transcript: string;
+  confidence: number;
+} {
+  const n = Math.max(1, r.length ?? 1);
+  let best = { transcript: r[0]?.transcript ?? "", confidence: r[0]?.confidence ?? 0 };
+  for (let i = 1; i < n; i++) {
+    const alt = r[i];
+    if (!alt) continue;
+    if ((alt.confidence ?? 0) > best.confidence) {
+      best = { transcript: alt.transcript ?? "", confidence: alt.confidence ?? 0 };
+    }
+  }
+  return best;
 }
 export interface SpeechEventLike {
   resultIndex: number;

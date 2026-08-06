@@ -69,6 +69,7 @@ import {
   recognitionCtor,
   isSecureForMic,
   speechErrorMessage,
+  bestAlternative,
   INSECURE_MIC_MESSAGE,
   type SpeechEventLike,
   type SpeechErrorLike,
@@ -1707,7 +1708,7 @@ export function Step6() {
 
 // ============ AI Recognition ============
 export function AIRecognition() {
-  const { draft, updateDraft, setScreen, currentRoomId } = useApp();
+  const { draft, updateDraft, setScreen, currentRoomId, setCurrentRoom } = useApp();
   const [results, setResults] = useState<DetectedItem[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [photoUrl, setPhotoUrl] = useState<string>("");
@@ -1715,7 +1716,23 @@ export function AIRecognition() {
   const [onlyHigh, setOnlyHigh] = useState(true);
   /** 찰칵 하는 순간 마스코트가 플래시를 터뜨립니다 */
   const [shooting, setShooting] = useState(false);
-  const mascotState: MascotState = busy ? "analyzing" : shooting ? "shooting" : "idle";
+
+  /** 담을 공간 — 스캔이 끝나면 여기서 고른 방으로 들어갑니다 */
+  const [roomId, setRoomId] = useState<string>(() => currentRoomId || draft.rooms[0]?.id || "");
+  const targetRoom = draft.rooms.find((r) => r.id === roomId) || draft.rooms[0];
+
+  /** 음성으로 바로 담기 */
+  const [listening, setListening] = useState(false);
+  const [heard, setHeard] = useState("");
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const recRef = useRef<RecognitionLike | null>(null);
+  const keepRef = useRef(false);
+  const roomIdRef = useRef(roomId);
+  useEffect(() => {
+    roomIdRef.current = roomId;
+  }, [roomId]);
+
+  const mascotState: MascotState = busy || voiceBusy ? "analyzing" : shooting ? "shooting" : "idle";
 
   const flash = () => {
     setShooting(true);
@@ -1774,17 +1791,167 @@ export function AIRecognition() {
     }
   };
 
-  const apply = () => {
-    const room = draft.rooms.find((r) => r.id === currentRoomId) || draft.rooms[0];
-    if (!room) return;
+  /** 고른 공간에 품목을 바로 더합니다 */
+  const addToRoom = (
+    add: { id: string; name: string; qty: number }[],
+    targetId: string,
+  ): string | null => {
+    const room = draft.rooms.find((r) => r.id === targetId) || draft.rooms[0];
+    if (!room || add.length === 0) return null;
     const items = { ...room.items };
-    for (const r of shown) items[r.id] = (items[r.id] || 0) + r.qty;
+    for (const a of add) items[a.id] = (items[a.id] || 0) + a.qty;
     updateDraft({
       rooms: draft.rooms.map((x) => (x.id === room.id ? { ...x, items } : x)),
     });
-    toast.success(`「${room.name}」에 ${shown.length}개 품목이 적용되었습니다`);
+    return room.name;
+  };
+
+  const apply = () => {
+    if (!targetRoom) return;
+    const name = addToRoom(shown, targetRoom.id);
+    if (!name) return;
+    setCurrentRoom(targetRoom.id);
+    toast.success(`「${name}」에 ${shown.length}개 품목을 담았습니다`);
     setScreen("step6");
   };
+
+  // ---- 음성으로 바로 담기 (대화 없이, 말하는 즉시 들어갑니다) ----
+  /** 브라우저가 알려준 정확도. 0 이나 미보고면 판단하지 않고 통과시킵니다. */
+  const VOICE_MIN_CONFIDENCE = 0.9;
+
+  const applySpeech = async (text: string) => {
+    const targetId = roomIdRef.current;
+    setVoiceBusy(true);
+    try {
+      const res = await parseVoiceOrder({
+        data: { text, rooms: draft.rooms.map((r) => r.name) },
+      });
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      if (!res.items.length) {
+        toast.error("품목을 못 알아들었어요. 다시 말씀해 주세요.");
+        return;
+      }
+      // 말할 때 방 이름을 같이 말했으면 그 방으로 담습니다
+      const spoken = res.room
+        ? draft.rooms.find((r) => r.name.replace(/\s/g, "") === res.room?.replace(/\s/g, ""))
+        : undefined;
+      const finalId = spoken?.id || targetId;
+      if (spoken && spoken.id !== targetId) setRoomId(spoken.id);
+
+      const name = addToRoom(res.items, finalId);
+      if (!name) return;
+      tap("success");
+      const summary = res.items.map((i) => `${i.name} ${i.qty}`).join(", ");
+      toast.success(`「${name}」 · ${summary}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "음성 해석에 실패했습니다");
+    } finally {
+      setVoiceBusy(false);
+    }
+  };
+
+  const stopVoice = () => {
+    keepRef.current = false;
+    try {
+      recRef.current?.stop();
+    } catch {
+      /* 이미 멈춘 경우 */
+    }
+    setListening(false);
+    setHeard("");
+  };
+
+  const startVoice = () => {
+    const SR = recognitionCtor();
+    if (!SR) {
+      toast.error("이 기기에서는 음성 인식을 지원하지 않습니다");
+      return;
+    }
+    if (!isSecureForMic()) {
+      toast.error(INSECURE_MIC_MESSAGE);
+      return;
+    }
+    if (!targetRoom) {
+      toast.error("담을 공간을 먼저 골라 주세요");
+      return;
+    }
+    const rec = new SR();
+    rec.lang = "ko-KR";
+    rec.continuous = true;
+    rec.interimResults = true;
+    // 후보를 여러 개 받아 그중 가장 확신하는 문장을 씁니다
+    rec.maxAlternatives = 3;
+    recRef.current = rec;
+
+    rec.onresult = (ev: SpeechEventLike) => {
+      let interim = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const r = ev.results[i];
+        if (!r.isFinal) {
+          interim += r[0].transcript;
+          continue;
+        }
+        const best = bestAlternative(r);
+        if (!best.transcript.trim()) continue;
+        setHeard("");
+        // 브라우저가 정확도를 알려 준 경우에만 90% 미만을 걸러 냅니다
+        if (best.confidence > 0 && best.confidence < VOICE_MIN_CONFIDENCE) {
+          toast.error(
+            `또렷하게 들리지 않았어요 (${Math.round(best.confidence * 100)}%). 다시 말씀해 주세요.`,
+          );
+          continue;
+        }
+        void applySpeech(best.transcript.trim());
+      }
+      if (interim) setHeard(interim);
+    };
+
+    rec.onerror = (ev: SpeechErrorLike) => {
+      const code = ev?.error ?? "";
+      if (code === "no-speech") return;
+      keepRef.current = false;
+      setListening(false);
+      toast.error(speechErrorMessage(code));
+    };
+
+    // 브라우저가 스스로 멈춰도 계속 듣습니다
+    rec.onend = () => {
+      if (keepRef.current) {
+        try {
+          rec.start();
+          return;
+        } catch {
+          /* 재시작 실패 시 아래에서 끕니다 */
+        }
+      }
+      setListening(false);
+    };
+
+    try {
+      rec.start();
+      keepRef.current = true;
+      setListening(true);
+      tap("soft");
+    } catch {
+      setListening(false);
+      toast.error("마이크를 시작하지 못했습니다");
+    }
+  };
+
+  // 화면을 벗어나면 마이크를 끕니다
+  useEffect(() => {
+    return () => {
+      keepRef.current = false;
+      try {
+        recRef.current?.stop();
+      } catch {
+        /* 이미 멈춘 경우 */
+      }
+    };
+  }, []);
 
   return (
     <MobileShell>
@@ -1811,6 +1978,62 @@ export function AIRecognition() {
               <img src={photoUrl} alt="업로드한 사진" className="w-full rounded-xl" />
             )}
           </Card>
+        )}
+
+        {/* 담을 공간 고르기 — 스캔·음성 결과가 여기로 들어갑니다 */}
+        <div className="rounded-3xl border border-[#DCE8FA] bg-white px-4 py-3.5">
+          <div className="text-[14px] font-black text-[#0F172A]">
+            어느 공간에 담을까요?
+            <span className="ml-1.5 text-[11.5px] font-semibold text-[#9AA4B2]">
+              눌러서 바꿀 수 있어요
+            </span>
+          </div>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            {draft.rooms.map((r) => {
+              const on = r.id === targetRoom?.id;
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => {
+                    tap("soft");
+                    setRoomId(r.id);
+                  }}
+                  className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black transition-transform active:translate-y-[2px] ${
+                    on
+                      ? `text-white bg-gradient-to-b ${
+                          ROOM_TINT[r.name] || "from-[#4C9BFF] to-[#0751D8]"
+                        } shadow-[0_3px_0_rgba(0,0,0,0.18)]`
+                      : "text-[#334155] bg-white border border-[#DCE8FA] shadow-[0_3px_0_#EDF2FA]"
+                  }`}
+                >
+                  {r.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 음성으로 바로 담기 — 말하면 그대로 들어갑니다 */}
+        <button
+          onClick={() => (listening ? stopVoice() : startVoice())}
+          disabled={busy}
+          className={`flex w-full items-center justify-center gap-2 rounded-3xl py-4 font-black text-[15px] text-white transition-transform active:translate-y-[3px] active:shadow-none disabled:opacity-60 ${
+            listening
+              ? "bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] shadow-[0_5px_0_#A81E20]"
+              : "bg-gradient-to-b from-[#34D399] to-[#059669] shadow-[0_5px_0_#047857,inset_0_1px_0_rgba(255,255,255,0.4)]"
+          }`}
+        >
+          <Mic className="h-5 w-5" />
+          {listening ? "듣는 중 — 누르면 끝내기" : "말해서 바로 담기"}
+        </button>
+        {(listening || heard || voiceBusy) && (
+          <div className="rounded-2xl border border-[#DCE8FA] bg-white px-3.5 py-2.5 text-[13px] font-bold text-[#0751D8]">
+            {voiceBusy
+              ? "담는 중..."
+              : heard
+                ? `“${heard}”`
+                : "말씀하세요 — 예) 냉장고 하나, 침대 두 개"}
+          </div>
         )}
 
         {/* 촬영 — 사진 / 동영상 */}
@@ -1909,33 +2132,45 @@ export function AIRecognition() {
                 {onlyHigh ? `90% 이상만 보기 (숨김 ${lowCount})` : "전체 보기"}
               </button>
             </div>
-            {shown.map((r, i) => (
-              <Card key={r.id} className="flex items-center gap-3">
-                <ItemArt id={r.id} name={r.name} size={48} />
-                <div className="flex-1">
-                  <div className="font-semibold">{r.name}</div>
-                  <div className="text-xs text-[#6B7280]">
-                    정확도 {Math.round(r.confidence * 100)}%{r.note ? ` · ${r.note}` : ""}
+            {shown.map((r) => (
+              <Card key={r.id} className="space-y-2.5">
+                {/* 이름·정확도 — 좁은 화면에서 글자가 세로로 쪼개지지 않도록
+                    min-w-0 을 주고 수량 조절은 아랫줄로 내렸습니다 */}
+                <div className="flex items-start gap-3">
+                  <ItemArt id={r.id} name={r.name} size={48} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[15px] font-black text-[#0F172A]">{r.name}</div>
+                    <div className="mt-0.5 text-[12px] font-semibold leading-snug text-[#6B7280]">
+                      정확도 {Math.round(r.confidence * 100)}%
+                      {r.note ? <span className="block">{r.note}</span> : null}
+                    </div>
                   </div>
+                  <span className="shrink-0">
+                    {r.confidence >= THRESHOLD ? (
+                      <Check className="h-5 w-5 text-[#16A34A]" />
+                    ) : (
+                      <span className="rounded-full bg-[#FEF3C7] px-2 py-0.5 text-[10.5px] font-black text-[#B45309]">
+                        확인
+                      </span>
+                    )}
+                  </span>
                 </div>
-                <Counter
-                  value={r.qty}
-                  onChange={(n) =>
-                    setResults(results.map((x) => (x.id === r.id ? { ...x, qty: n } : x)))
-                  }
-                />
-                <button
-                  onClick={() => setResults(results.filter((x) => x.id !== r.id))}
-                  className="p-2 text-[#EF4444]"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-                {r.confidence >= THRESHOLD ? (
-                  <Check className="w-5 h-5 text-[#16A34A]" />
-                ) : (
-                  <span className="text-[10px] font-bold text-[#F59E0B]">확인</span>
-                )}
-                <span className="sr-only">{i}</span>
+
+                <div className="flex items-center justify-between gap-3">
+                  <Counter
+                    value={r.qty}
+                    onChange={(n) =>
+                      setResults(results.map((x) => (x.id === r.id ? { ...x, qty: n } : x)))
+                    }
+                  />
+                  <button
+                    onClick={() => setResults(results.filter((x) => x.id !== r.id))}
+                    className="flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-[13px] font-bold text-[#EF4444]"
+                    aria-label={`${r.name} 삭제`}
+                  >
+                    <Trash2 className="h-4 w-4" /> 삭제
+                  </button>
+                </div>
               </Card>
             ))}
           </div>
@@ -1956,7 +2191,7 @@ export function AIRecognition() {
                 다시 촬영
               </button>
               <PrimaryButton onClick={apply} className="flex-1" disabled={shown.length === 0}>
-                담고 다음으로
+                {targetRoom ? `「${targetRoom.name}」에 담기` : "담고 다음으로"}
               </PrimaryButton>
             </div>
           )}
