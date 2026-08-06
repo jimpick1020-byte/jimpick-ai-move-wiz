@@ -216,4 +216,19 @@
   body {
     padding-top: env(safe-area-inset-top);
   }
+
+  /* 시안용 폰 테두리를 걷어내고 화면을 꽉 채웁니다.
+     (브라우저로 열면 네온 테두리가 그대로 보입니다)
+     max-w-md 는 그대로 둡니다 — 폰에서는 어차피 꽉 차고,
+     태블릿에서는 모바일 화면이 늘어지지 않게 잡아 줍니다. */
+  .jp-shell-neon {
+    display: none;
+  }
+  .jp-shell-frame {
+    padding: 0;
+  }
+  .jp-shell-inner {
+    border-radius: 0;
+    box-shadow: none;
+  }
 }

@@ -39,17 +39,19 @@ export function MobileShell({
   children: ReactNode;
   bg?: string;
 }) {
+  // jp-shell-* 클래스는 홈 화면에서 앱처럼 실행할 때(standalone)
+  // 시안용 폰 테두리를 걷어내기 위한 것입니다. (styles.css 참고)
   return (
-    <div className="min-h-[100dvh] w-full flex justify-center bg-slate-200">
-      <div className="relative w-full max-w-md p-[3px]">
+    <div className="jp-shell-outer min-h-[100dvh] w-full flex justify-center bg-slate-200">
+      <div className="jp-shell-frame relative w-full max-w-md p-[3px]">
         {/* 정적 네온 테두리 */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-[26px]"
+          className="jp-shell-neon pointer-events-none absolute inset-0 rounded-[26px]"
           style={{ background: NEON_GRADIENT }}
         />
         <div
-          className={`relative w-full min-h-[100dvh] ${bg} rounded-[24px] overflow-hidden flex flex-col shadow-[0_20px_40px_-24px_rgba(7,81,216,0.3)]`}
+          className={`jp-shell-inner relative w-full min-h-[100dvh] ${bg} rounded-[24px] overflow-hidden flex flex-col shadow-[0_20px_40px_-24px_rgba(7,81,216,0.3)]`}
         >
           <StatusBar />
           {children}
