@@ -10,8 +10,7 @@ import {
   Step3,
   Step4,
   Step6,
-
-
+  AIRecognition,
   OptionsScreen,
   Result,
   History,
@@ -46,8 +45,7 @@ function Router() {
     case "step4": return <Step4 />;
     case "step6": return <Step6 />;
     case "plan": return <OptionsScreen />;
-    case "ai": return <OptionsScreen />;
-
+    case "ai": return <AIRecognition />;
     case "options": return <OptionsScreen />;
     case "result": return <Result />;
     case "history": return <History />;

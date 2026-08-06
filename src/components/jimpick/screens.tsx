@@ -60,8 +60,6 @@ import {
   Field,
   TextInput,
 } from "./ui";
-import aiRobotPhoto from "@/assets/ai-robot-photo.png";
-import aiRobotVideo from "@/assets/ai-robot-video.png";
 import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
@@ -84,6 +82,7 @@ import truckImg from "@/assets/jimpick-truck.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { TruckGauge } from "./TruckGauge";
+import { ScanMascot, type MascotState } from "./ScanMascot";
 
 import {
   FileText,
@@ -805,7 +804,8 @@ export function Step4() {
   const goNext = () => {
     const first = draft.rooms[0];
     if (first) setCurrentRoom(first.id);
-    setScreen("step6");
+    // 차량을 고른 뒤 AI 스캔으로 넘어갑니다 (건너뛰면 바로 5단계)
+    setScreen("ai");
   };
   const vehicles = [
     {
@@ -1274,9 +1274,9 @@ export function Step6() {
           <button
             onClick={() => {
               tap("soft");
-              setScreen("step4");
+              setScreen("ai");
             }}
-            aria-label="4단계로 돌아가기"
+            aria-label="AI 집 안 스캔으로 돌아가기"
             className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] flex items-center justify-center text-[#0751D8] shadow-[0_4px_0_#DCE8FA,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#DCE8FA]"
           >
             <ChevronLeft className="w-6 h-6" />
@@ -1407,7 +1407,12 @@ export function Step6() {
             className="absolute inset-0 bg-[#0F172A]/45 backdrop-blur-[2px]"
             onClick={() => setOpenRoom(null)}
           />
-          <div className="relative w-full max-w-md max-h-[86dvh] flex flex-col rounded-t-3xl bg-gradient-to-b from-white to-[#F5F9FF] shadow-[0_-14px_40px_rgba(7,81,216,0.28)] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div
+            className={`relative w-full max-w-md flex flex-col rounded-t-3xl bg-gradient-to-b from-white to-[#F5F9FF] shadow-[0_-14px_40px_rgba(7,81,216,0.28)] pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
+              // 품목을 고를 때는 시트를 위로 더 끌어올려 넓게 보여 줍니다
+              pickerOpen ? "h-[95dvh] max-h-[95dvh]" : "max-h-[86dvh]"
+            }`}
+          >
             <div className="px-4 pt-3 pb-2 flex items-center gap-2">
               <span
                 className={`px-3 py-1 rounded-xl text-white text-[15px] font-black bg-gradient-to-b ${
@@ -1460,7 +1465,11 @@ export function Step6() {
             {/* AI 음성 대화 (챗 형태) */}
             <div className="px-4 pt-3 space-y-2">
               {chat.length > 0 && (
-                <div className="max-h-[168px] overflow-auto space-y-1.5 p-2.5 rounded-2xl bg-[#F3F7FF] border border-[#E1EAF8]">
+                <div
+                  className={`overflow-auto space-y-1.5 p-2.5 rounded-2xl bg-[#F3F7FF] border border-[#E1EAF8] ${
+                    pickerOpen ? "max-h-[92px]" : "max-h-[168px]"
+                  }`}
+                >
                   {chat.map((m, i) => (
                     <div
                       key={i}
@@ -1507,9 +1516,12 @@ export function Step6() {
                   </button>
                 )}
               </div>
-              <p className="text-[11px] text-[#6B7280] font-semibold text-center">
-                예) “냉장고 하나, 세탁기 두 개” … 그리고 “추가해줘” — 말하는 동안 끊지 않아요
-              </p>
+              {/* 품목을 고르는 중에는 안내문을 접어 자리를 내어 줍니다 */}
+              {!pickerOpen && (
+                <p className="text-[11px] text-[#6B7280] font-semibold text-center">
+                  예) “냉장고 하나, 세탁기 두 개” … 그리고 “추가해줘” — 말하는 동안 끊지 않아요
+                </p>
+              )}
             </div>
 
             {/* 직접 품목 선택 (기본 접힘) */}
@@ -1529,7 +1541,7 @@ export function Step6() {
             </div>
 
             {pickerOpen && (
-              <div className="flex-1 overflow-auto px-4 pt-3 space-y-3">
+              <div className="flex-1 min-h-[44dvh] overflow-auto px-4 pt-3 space-y-3">
                 {/* 자주 담는 품목 — 검색 없이 눌러서 바로 담습니다 */}
                 <div className="rounded-2xl border border-[#DCE8FA] bg-white px-4 py-3 space-y-2 shadow-[inset_0_1px_0_#fff]">
                   <div className="text-[13.5px] font-black text-[#0F172A]">
@@ -1700,6 +1712,14 @@ export function AIRecognition() {
   const [photoUrl, setPhotoUrl] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [onlyHigh, setOnlyHigh] = useState(true);
+  /** 찰칵 하는 순간 마스코트가 플래시를 터뜨립니다 */
+  const [shooting, setShooting] = useState(false);
+  const mascotState: MascotState = busy ? "analyzing" : shooting ? "shooting" : "idle";
+
+  const flash = () => {
+    setShooting(true);
+    window.setTimeout(() => setShooting(false), 650);
+  };
 
   const THRESHOLD = 0.9;
   const shown = onlyHigh ? results.filter((r) => r.confidence >= THRESHOLD) : results;
@@ -1732,6 +1752,7 @@ export function AIRecognition() {
   };
 
   const onPhoto = async (f: File) => {
+    flash();
     setVideoUrl("");
     setPhotoUrl(URL.createObjectURL(f));
     const dataUrl = await fileToDataUrl(f);
@@ -1739,6 +1760,7 @@ export function AIRecognition() {
   };
 
   const onVideo = async (f: File) => {
+    flash();
     setPhotoUrl("");
     setVideoUrl(URL.createObjectURL(f));
     setBusy(true);
@@ -1765,8 +1787,21 @@ export function AIRecognition() {
 
   return (
     <MobileShell>
-      <TopBar title="6단계. AI 공간 스캔" onBack={() => setScreen("step6")} />
+      <TopBar title="AI 집 안 스캔" onBack={() => setScreen("step4")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
+        {/* 마스코트가 직접 촬영해 주는 히어로 영역 */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#EDF5FF] to-[#DCEBFF] px-5 pt-4 pb-5 text-center">
+          <ScanMascot state={mascotState} size={164} className="mx-auto" />
+          <div className="mt-1 text-[17px] font-black text-[#0F172A]">
+            {busy ? "집 안을 살펴보는 중이에요" : "제가 대신 찍어 드릴게요"}
+          </div>
+          <p className="mt-1 text-[12.5px] font-semibold leading-relaxed text-[#5A6478]">
+            {busy
+              ? "가구·가전을 찾아 수량을 세고 있습니다"
+              : "방을 한 바퀴 비추면 AI가 품목을 알아서 담아요"}
+          </p>
+        </div>
+
         {(videoUrl || photoUrl) && (
           <Card className="py-4">
             {videoUrl ? (
@@ -1777,71 +1812,52 @@ export function AIRecognition() {
           </Card>
         )}
 
-        <Card className="flex items-center gap-3">
-          <img
-            src={aiRobotPhoto}
-            alt="AI 사진 인식 로봇"
-            width={768}
-            height={768}
-            loading="lazy"
-            className="w-24 h-24 object-contain drop-shadow-[0_12px_16px_rgba(7,81,216,0.25)]"
-          />
-          <div className="flex-1">
-            <div className="font-bold text-lg">AI 사진 인식</div>
-            <div className="text-sm text-[#6B7280] mt-1 mb-3">
-              가구·가전을 90% 정확도로 자동 인식합니다.
-            </div>
-            <label
-              className="block w-full py-3 rounded-2xl text-white text-center font-bold cursor-pointer shadow-[0_4px_0_#0645B0]"
-              style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
-            >
-              사진 촬영
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) onPhoto(f);
-                }}
-              />
-            </label>
-          </div>
-        </Card>
+        {/* 촬영 — 사진 / 동영상 */}
+        <div className="grid grid-cols-2 gap-3">
+          <label
+            className={`flex flex-col items-center gap-1.5 rounded-3xl py-4 text-white shadow-[0_5px_0_#0645B0,inset_0_1px_0_rgba(255,255,255,0.4)] transition-transform active:translate-y-[3px] active:shadow-none ${
+              busy ? "pointer-events-none opacity-60" : "cursor-pointer"
+            }`}
+            style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
+          >
+            <Camera className="h-6 w-6" />
+            <span className="text-[15px] font-black">사진 촬영</span>
+            <span className="text-[11px] font-semibold opacity-85">한 장이면 충분해요</span>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              disabled={busy}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onPhoto(f);
+              }}
+            />
+          </label>
 
-        <Card className="flex items-center gap-3">
-          <img
-            src={aiRobotVideo}
-            alt="AI 동영상 인식 로봇"
-            width={768}
-            height={768}
-            loading="lazy"
-            className="w-24 h-24 object-contain drop-shadow-[0_12px_16px_rgba(7,81,216,0.25)]"
-          />
-          <div className="flex-1">
-            <div className="font-bold text-lg">AI 동영상 인식</div>
-            <div className="text-sm text-[#6B7280] mt-1 mb-3">
-              방을 천천히 한 바퀴 촬영하면 장면을 나눠 분석합니다.
-            </div>
-            <label
-              className="block w-full py-3 rounded-2xl text-white text-center font-bold cursor-pointer shadow-[0_4px_0_#0645B0]"
-              style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
-            >
-              동영상 촬영
-              <input
-                type="file"
-                accept="video/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) onVideo(f);
-                }}
-              />
-            </label>
-          </div>
-        </Card>
+          <label
+            className={`flex flex-col items-center gap-1.5 rounded-3xl py-4 text-white shadow-[0_5px_0_#7A1FB0,inset_0_1px_0_rgba(255,255,255,0.4)] transition-transform active:translate-y-[3px] active:shadow-none ${
+              busy ? "pointer-events-none opacity-60" : "cursor-pointer"
+            }`}
+            style={{ background: "linear-gradient(180deg, #C084FC 0%, #9333EA 100%)" }}
+          >
+            <Video className="h-6 w-6" />
+            <span className="text-[15px] font-black">동영상 촬영</span>
+            <span className="text-[11px] font-semibold opacity-85">방을 한 바퀴 쭉</span>
+            <input
+              type="file"
+              accept="video/*"
+              capture="environment"
+              className="hidden"
+              disabled={busy}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onVideo(f);
+              }}
+            />
+          </label>
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-semibold flex items-center justify-center gap-2 cursor-pointer">
@@ -1926,22 +1942,33 @@ export function AIRecognition() {
       </div>
       <BottomButtonBar>
         <div className="space-y-2">
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                setResults([]);
-                setVideoUrl("");
-                setPhotoUrl("");
-              }}
-              className="flex-1 py-4 rounded-2xl border border-[#E7EBF2] font-bold"
-            >
-              다시 촬영
-            </button>
-            <PrimaryButton onClick={apply} className="flex-1" disabled={shown.length === 0}>
-              적용하기
-            </PrimaryButton>
-          </div>
-          <PrimaryButton onClick={() => setScreen("options")}>다음: 옵션·보관료</PrimaryButton>
+          {results.length > 0 && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setResults([]);
+                  setVideoUrl("");
+                  setPhotoUrl("");
+                }}
+                className="flex-1 py-4 rounded-2xl border border-[#E7EBF2] font-bold"
+              >
+                다시 촬영
+              </button>
+              <PrimaryButton onClick={apply} className="flex-1" disabled={shown.length === 0}>
+                담고 다음으로
+              </PrimaryButton>
+            </div>
+          )}
+          {/* 스캔은 선택입니다 — 건너뛰어도 5단계에서 직접 담을 수 있습니다 */}
+          <button
+            onClick={() => {
+              tap("soft");
+              setScreen("step6");
+            }}
+            className="w-full py-4 rounded-2xl border border-[#DCE8FA] bg-white font-black text-[15px] text-[#0751D8] shadow-[0_4px_0_#EDF2FA] active:translate-y-[2px] active:shadow-none"
+          >
+            {results.length > 0 ? "담지 않고 넘어가기" : "건너뛰고 직접 담기"}
+          </button>
         </div>
       </BottomButtonBar>
     </MobileShell>
