@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { getKakaoJsKey } from "@/lib/kakao.functions";
 
+// 카카오 지도 SDK는 공식 타입 정의가 없어 느슨하게 다룹니다.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
   interface Window {
     kakao: any;

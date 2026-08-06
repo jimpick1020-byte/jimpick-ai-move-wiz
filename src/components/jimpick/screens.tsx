@@ -67,6 +67,15 @@ import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
 import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
+import {
+  recognitionCtor,
+  isSecureForMic,
+  speechErrorMessage,
+  INSECURE_MIC_MESSAGE,
+  type SpeechEventLike,
+  type SpeechErrorLike,
+  type RecognitionLike,
+} from "@/lib/voice";
 
 import { fileToDataUrl, videoToFrames } from "@/lib/media";
 
@@ -1045,7 +1054,7 @@ export function Step6() {
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [heard, setHeard] = useState("");
   const [chat, setChat] = useState<ChatMsg[]>([]);
-  const recRef = useRef<any>(null);
+  const recRef = useRef<RecognitionLike | null>(null);
   const keepRef = useRef(false);
   const bufRef = useRef("");
   const roomRef = useRef<string | null>(null);
@@ -1110,9 +1119,15 @@ export function Step6() {
   };
 
   const startVoice = (targetName: string) => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SR = recognitionCtor();
     if (!SR) {
       toast.error("이 기기에서는 음성 인식을 지원하지 않습니다");
+      return;
+    }
+    // http 로 접속하면 브라우저가 마이크를 막습니다 (휴대폰에서 IP 로 열었을 때)
+    if (!isSecureForMic()) {
+      push({ role: "ai", text: INSECURE_MIC_MESSAGE });
+      toast.error(INSECURE_MIC_MESSAGE);
       return;
     }
     const rec = new SR();
@@ -1123,7 +1138,7 @@ export function Step6() {
     recRef.current = rec;
     roomRef.current = targetName;
 
-    rec.onresult = (ev: any) => {
+    rec.onresult = (ev: SpeechEventLike) => {
       let interim = "";
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
         const r = ev.results[i];
@@ -1150,12 +1165,15 @@ export function Step6() {
       }
       if (interim) setHeard(interim);
     };
-    rec.onerror = (ev: any) => {
-      if (ev?.error === "not-allowed") {
-        keepRef.current = false;
-        setListening(false);
-        toast.error("마이크 권한을 허용해 주세요");
-      }
+    rec.onerror = (ev: SpeechErrorLike) => {
+      const code = ev?.error ?? "";
+      // 잠깐 조용했을 뿐이면 계속 듣습니다
+      if (code === "no-speech") return;
+      keepRef.current = false;
+      setListening(false);
+      const msg = speechErrorMessage(code);
+      push({ role: "ai", text: msg });
+      toast.error(msg);
     };
     // 브라우저가 자동 종료해도 대화를 계속 이어갑니다
     rec.onend = () => {

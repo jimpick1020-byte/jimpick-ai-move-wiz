@@ -1,6 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { kakaoErrorMessage, searchOsm, haversineKm, type KakaoPlace } from "./kakao.server";
+import { kakaoErrorMessage, searchOsm, type KakaoPlace } from "./kakao.server";
+
+/** 카카오 로컬 API 응답 한 건 (필요한 항목만) */
+interface KakaoDocument {
+  address_name?: string;
+  place_name?: string;
+  road_address_name?: string;
+  road_address?: { address_name?: string } | null;
+  x?: string;
+  y?: string;
+}
 
 export type { KakaoPlace };
 
@@ -30,24 +40,26 @@ export const searchAddress = createServerFn({ method: "POST" })
 
     const places: KakaoPlace[] = [];
     if (addrRes.ok) {
-      const j = (await addrRes.json()) as { documents?: any[] };
+      const j = (await addrRes.json()) as { documents?: KakaoDocument[] };
       for (const d of j.documents ?? []) {
+        const address = d.address_name ?? "";
         places.push({
-          address: d.address_name,
-          roadAddress: d.road_address?.address_name ?? d.address_name,
-          name: d.address_name,
+          address,
+          roadAddress: d.road_address?.address_name ?? address,
+          name: address,
           x: Number(d.x),
           y: Number(d.y),
         });
       }
     }
     if (kwRes.ok) {
-      const j = (await kwRes.json()) as { documents?: any[] };
+      const j = (await kwRes.json()) as { documents?: KakaoDocument[] };
       for (const d of j.documents ?? []) {
+        const address = d.address_name ?? "";
         places.push({
-          address: d.address_name,
-          roadAddress: d.road_address_name || d.address_name,
-          name: d.place_name,
+          address,
+          roadAddress: d.road_address_name || address,
+          name: d.place_name ?? address,
           x: Number(d.x),
           y: Number(d.y),
         });
@@ -98,7 +110,13 @@ export const getRoute = createServerFn({ method: "POST" })
       path: { x: number; y: number }[];
       error?: string;
     }> => {
-      const fail = (error: string) => ({ ok: false, distanceKm: 0, durationMin: 0, path: [], error });
+      const fail = (error: string) => ({
+        ok: false,
+        distanceKm: 0,
+        durationMin: 0,
+        path: [],
+        error,
+      });
 
       const key = process.env.KAKAO_REST_API_KEY;
       if (!key) return fail("도로 경로 API 키가 설정되지 않았습니다. 관리자에게 문의해 주세요.");
@@ -149,5 +167,3 @@ export const getRoute = createServerFn({ method: "POST" })
       }
     },
   );
-
-
