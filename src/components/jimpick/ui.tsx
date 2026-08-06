@@ -1,11 +1,24 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { ChevronLeft, Home, ClipboardList, Users, Settings as SettingsIcon, Minus, Plus } from "lucide-react";
+import {
+  ChevronLeft,
+  Home,
+  ClipboardList,
+  Users,
+  Settings as SettingsIcon,
+  Minus,
+  Plus,
+} from "lucide-react";
 import { useApp, type Screen } from "@/lib/jimpick";
 import { tap } from "@/lib/feedback";
 
+/**
+ * 시안용 가짜 상태바.
+ * 홈 화면에서 앱처럼 실행할 때는 진짜 상태바가 이미 있으므로 숨깁니다.
+ * (styles.css 의 `@media (display-mode: standalone)` 참고)
+ */
 export function StatusBar() {
   return (
-    <div className="flex items-center justify-between px-6 pt-2 pb-1 text-[13px] font-semibold text-foreground">
+    <div className="jp-mock-statusbar flex items-center justify-between px-6 pt-2 pb-1 text-[13px] font-semibold text-foreground">
       <span>9:41</span>
       <span className="flex items-center gap-1">
         <span>●●●●</span>
@@ -19,7 +32,13 @@ export function StatusBar() {
 const NEON_GRADIENT =
   "conic-gradient(from var(--jp-angle), #ff007f, #7928ca, #00dfd8, #7928ca, #ff007f)";
 
-export function MobileShell({ children, bg = "bg-[#F5F7FB]" }: { children: ReactNode; bg?: string }) {
+export function MobileShell({
+  children,
+  bg = "bg-[#F5F7FB]",
+}: {
+  children: ReactNode;
+  bg?: string;
+}) {
   return (
     <div className="min-h-[100dvh] w-full flex justify-center bg-slate-200">
       <div className="relative w-full max-w-md p-[3px]">
@@ -39,7 +58,6 @@ export function MobileShell({ children, bg = "bg-[#F5F7FB]" }: { children: React
     </div>
   );
 }
-
 
 export function TopBar({ title, onBack }: { title: string; onBack?: () => void }) {
   return (
@@ -106,7 +124,9 @@ export function Counter({
   min?: number;
   max?: number;
 }) {
-  const timers = useRef<{ t?: ReturnType<typeof setTimeout>; i?: ReturnType<typeof setInterval> }>({});
+  const timers = useRef<{ t?: ReturnType<typeof setTimeout>; i?: ReturnType<typeof setInterval> }>(
+    {},
+  );
   const valueRef = useRef(value);
   valueRef.current = value;
 
@@ -118,7 +138,8 @@ export function Counter({
   useEffect(() => clear, []);
 
   const step = (dir: 1 | -1) => {
-    const next = dir === 1 ? Math.min(max, valueRef.current + 1) : Math.max(min, valueRef.current - 1);
+    const next =
+      dir === 1 ? Math.min(max, valueRef.current + 1) : Math.max(min, valueRef.current - 1);
     if (next === valueRef.current) return;
     valueRef.current = next;
     onChange(next);
@@ -184,7 +205,9 @@ export function MoneyInput({
   /** 음수 입력 허용 (할인 금액 등) */
   allowNegative?: boolean;
 }) {
-  const timers = useRef<{ t?: ReturnType<typeof setTimeout>; i?: ReturnType<typeof setInterval> }>({});
+  const timers = useRef<{ t?: ReturnType<typeof setTimeout>; i?: ReturnType<typeof setInterval> }>(
+    {},
+  );
   const valueRef = useRef(value);
   valueRef.current = value;
 
@@ -260,8 +283,6 @@ export function MoneyInput({
   );
 }
 
-
-
 export function BottomNav() {
   const { screen, setScreen } = useApp();
   const items: { key: Screen; icon: typeof Home; label: string }[] = [
@@ -284,7 +305,9 @@ export function BottomNav() {
             className="flex-1 py-3 flex flex-col items-center gap-1"
           >
             <Icon className={`w-6 h-6 ${active ? "text-[#0751D8]" : "text-[#6B7280]"}`} />
-            <span className={`text-xs font-semibold ${active ? "text-[#0751D8]" : "text-[#6B7280]"}`}>
+            <span
+              className={`text-xs font-semibold ${active ? "text-[#0751D8]" : "text-[#6B7280]"}`}
+            >
               {label}
             </span>
           </button>
@@ -323,7 +346,6 @@ export function Card({
     >
       {children}
     </div>
-
   );
 }
 

@@ -151,17 +151,29 @@
 }
 
 @keyframes jp-spin {
-  to { --jp-angle: 360deg; }
+  to {
+    --jp-angle: 360deg;
+  }
 }
 
 @keyframes jp-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-12px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
 }
 
 @keyframes jp-glow-pulse {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 0.9; }
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
 }
 
 @utility jp-neon-frame {
@@ -174,11 +186,34 @@
 }
 
 @keyframes jp-scan {
-  0% { top: 6%; opacity: 0.2; }
-  50% { opacity: 1; }
-  100% { top: 92%; opacity: 0.2; }
+  0% {
+    top: 6%;
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: 92%;
+    opacity: 0.2;
+  }
 }
 
 @utility jp-scanline {
   animation: jp-scan 2.2s ease-in-out infinite;
+}
+
+/* ──────────────────────────────────────────────────────────
+   홈 화면에 추가해 앱처럼 실행할 때 (standalone)
+   - 진짜 상태바가 이미 있으므로 시안용 가짜 상태바는 숨깁니다
+   - 노치 높이만큼 위를 띄워 내용이 가리지 않게 합니다
+     (아래쪽은 BottomButtonBar·BottomNav 가 이미 처리합니다)
+   ────────────────────────────────────────────────────────── */
+@media (display-mode: standalone) {
+  .jp-mock-statusbar {
+    display: none;
+  }
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
 }

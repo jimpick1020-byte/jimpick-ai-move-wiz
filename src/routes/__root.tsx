@@ -76,19 +76,50 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      // viewport-fit=cover: 노치·홈바 영역까지 화면을 씁니다 (홈 화면에서 실행할 때)
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+      },
       { title: "JIMPICK 7.0 — AI 이사 견적 앱" },
-      { name: "description", content: "AI로 더 쉽고 정확한 이사 견적. 방별 품목, 차량, 옵션, 보관료까지 한 번에 계산합니다." },
+      // ── 홈 화면에 추가했을 때 앱처럼 뜨게 하는 설정 ──
+      { name: "theme-color", content: "#0751D8" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "짐픽" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "application-name", content: "짐픽" },
+      {
+        name: "description",
+        content:
+          "AI로 더 쉽고 정확한 이사 견적. 방별 품목, 차량, 옵션, 보관료까지 한 번에 계산합니다.",
+      },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "JIMPICK 7.0 — AI 이사 견적 앱" },
-      { property: "og:description", content: "AI로 더 쉽고 정확한 이사 견적. 방별 품목, 차량, 옵션, 보관료까지 한 번에 계산합니다." },
+      {
+        property: "og:description",
+        content:
+          "AI로 더 쉽고 정확한 이사 견적. 방별 품목, 차량, 옵션, 보관료까지 한 번에 계산합니다.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "JIMPICK 7.0 — AI 이사 견적 앱" },
-      { name: "twitter:description", content: "AI로 더 쉽고 정확한 이사 견적. 방별 품목, 차량, 옵션, 보관료까지 한 번에 계산합니다." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1c18e9fe-a0c0-456f-8b12-fe73d72bfaa0/id-preview-ae72831b--9ef0e6b7-7d23-4428-8895-6a82ebf234c8.lovable.app-1785279774503.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1c18e9fe-a0c0-456f-8b12-fe73d72bfaa0/id-preview-ae72831b--9ef0e6b7-7d23-4428-8895-6a82ebf234c8.lovable.app-1785279774503.png" },
+      {
+        name: "twitter:description",
+        content:
+          "AI로 더 쉽고 정확한 이사 견적. 방별 품목, 차량, 옵션, 보관료까지 한 번에 계산합니다.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1c18e9fe-a0c0-456f-8b12-fe73d72bfaa0/id-preview-ae72831b--9ef0e6b7-7d23-4428-8895-6a82ebf234c8.lovable.app-1785279774503.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1c18e9fe-a0c0-456f-8b12-fe73d72bfaa0/id-preview-ae72831b--9ef0e6b7-7d23-4428-8895-6a82ebf234c8.lovable.app-1785279774503.png",
+      },
     ],
     links: [
       {
@@ -96,6 +127,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      // 홈 화면 아이콘 — iOS 는 apple-touch-icon, 안드로이드는 manifest 를 봅니다
+      { rel: "apple-touch-icon", href: "/app-icon-512.png" },
+      { rel: "icon", href: "/app-icon-512.png", type: "image/png", sizes: "512x512" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   shellComponent: RootShell,
