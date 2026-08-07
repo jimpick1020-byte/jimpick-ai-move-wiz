@@ -1,7 +1,10 @@
 import json
 import os
+import uuid
 
 import streamlit as st
+
+import naver
 
 # 페이지 설정 (스마트폰 화면에 최적화)
 st.set_page_config(page_title="부동산 1분 비서", page_icon="🏠", layout="centered")
@@ -55,6 +58,16 @@ def get_api_key():
         pass
     # 2) 환경변수
     return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+
+
+def get_config_value(name):
+    """secrets → 환경변수 순으로 설정값을 찾습니다."""
+    try:
+        if name in st.secrets:
+            return st.secrets[name]
+    except Exception:
+        pass
+    return os.environ.get(name)
 
 
 SYSTEM_PROMPT = """당신은 대한민국 부동산 매물 소개 블로그를 전문적으로 써 주는 카피라이터입니다.
@@ -158,6 +171,45 @@ with st.sidebar:
         )
         st.caption("키가 없으면 예시(샘플) 글로 미리보기만 제공됩니다.")
 
+    st.markdown("---")
+    st.markdown("### 📤 네이버 발행 설정")
+    naver_client_id = get_config_value("NAVER_CLIENT_ID") or st.text_input(
+        "네이버 Client ID", key="naver_cid",
+        help="네이버 개발자센터에 등록한 앱의 Client ID",
+    )
+    naver_client_secret = get_config_value("NAVER_CLIENT_SECRET") or st.text_input(
+        "네이버 Client Secret", type="password", key="naver_csecret",
+    )
+    naver_redirect_uri = get_config_value("NAVER_REDIRECT_URI") or st.text_input(
+        "Redirect URI", value="http://localhost:8501", key="naver_redirect",
+        help="네이버 앱에 등록한 콜백 URL과 정확히 같아야 합니다.",
+    )
+    naver_configured = bool(naver_client_id and naver_client_secret and naver_redirect_uri)
+    if naver_configured:
+        st.success("네이버 앱 설정이 준비되었습니다.")
+    else:
+        st.caption("설정이 없으면 발행은 시뮬레이션(연습)으로 동작합니다.")
+
+
+# ---------------------------------------------------------------------------
+# 네이버 로그인 콜백 처리: ?code=...&state=... 로 돌아오면 토큰으로 교환
+# ---------------------------------------------------------------------------
+_qp = st.query_params
+if "code" in _qp and "naver_access_token" not in st.session_state:
+    if naver_configured:
+        try:
+            token = naver.exchange_code_for_token(
+                naver_client_id,
+                naver_client_secret,
+                _qp.get("code"),
+                _qp.get("state", ""),
+            )
+            st.session_state["naver_access_token"] = token
+            st.query_params.clear()  # 주소창의 code 를 정리
+            st.toast("네이버 로그인 완료! 이제 발행할 수 있습니다.", icon="✅")
+        except Exception as e:
+            st.error(f"네이버 로그인 처리 중 오류가 발생했습니다: {e}")
+
 
 # ---------------------------------------------------------------------------
 # 메인 화면
@@ -225,7 +277,42 @@ if st.session_state.get('ready', False):
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 초대형 승인 버튼
-    if st.button("🚀 내 네이버 블로그에 지금 바로 발행하기", key="publish"):
-        st.success("🎉 성공적으로 사장님 블로그에 글이 발행되었습니다!")
-        st.balloons()
+    # 4단계: 실제 네이버 블로그 발행
+    if naver_configured:
+        if "naver_access_token" in st.session_state:
+            # 이미 로그인됨 → 실제 발행 버튼
+            st.info("네이버 계정이 연결되었습니다. 아래 버튼을 누르면 실제로 발행됩니다.")
+            if st.button("🚀 내 네이버 블로그에 지금 바로 발행하기", key="publish"):
+                with st.spinner("네이버 블로그에 글을 발행하는 중입니다..."):
+                    try:
+                        result = naver.publish_post(
+                            st.session_state["naver_access_token"],
+                            final_title,
+                            final_content,
+                        )
+                        st.success("🎉 성공적으로 사장님 블로그에 글이 발행되었습니다!")
+                        if result.get("url"):
+                            st.markdown(f"👉 [발행된 글 바로 보기]({result['url']})")
+                        st.balloons()
+                    except Exception as e:
+                        st.error(
+                            "발행 중 문제가 발생했습니다. 네이버 앱 권한(블로그 글쓰기)과 "
+                            f"로그인 상태를 확인해 주세요.\n\n상세: {e}"
+                        )
+        else:
+            # 로그인 필요 → 네이버 로그인 링크 제공
+            if "naver_oauth_state" not in st.session_state:
+                st.session_state["naver_oauth_state"] = uuid.uuid4().hex
+            auth_url = naver.get_authorize_url(
+                naver_client_id,
+                naver_redirect_uri,
+                st.session_state["naver_oauth_state"],
+            )
+            st.warning("발행하려면 먼저 네이버 계정으로 로그인해야 합니다.")
+            st.link_button("🔐 네이버 로그인하고 발행 준비하기", auth_url)
+    else:
+        # 네이버 앱 설정이 없으면 연습(시뮬레이션) 발행
+        st.caption("※ 네이버 앱 설정이 없어 아래 버튼은 연습(시뮬레이션)으로 동작합니다.")
+        if st.button("🚀 내 네이버 블로그에 지금 바로 발행하기 (연습)", key="publish_sim"):
+            st.success("🎉 (연습) 성공적으로 사장님 블로그에 글이 발행되었습니다!")
+            st.balloons()
