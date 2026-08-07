@@ -34,3 +34,6 @@ dist-ssr
 # Python
 __pycache__/
 *.pyc
+
+# Streamlit secrets
+streamlit-blog-generator/.streamlit/secrets.toml
