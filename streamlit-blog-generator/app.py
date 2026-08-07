@@ -311,8 +311,12 @@ if st.session_state.get('ready', False):
                         else:
                             st.warning("사진 업로드에 실패해 이번 글은 사진 없이 발행합니다.")
 
-                    # 2) 본문 + 사진을 HTML로 합쳐 발행
-                    contents_html = naver.build_contents_html(final_content, image_urls)
+                    # 2) 본문 + 사진을 HTML로 합쳐 발행 (대표 사진 캡션은 아파트 이름)
+                    contents_html = naver.build_contents_html(
+                        final_content,
+                        image_urls,
+                        lead_caption=apartment_name or "대표 매물 사진",
+                    )
                     with st.spinner("네이버 블로그에 글을 발행하는 중입니다..."):
                         result = naver.publish_post(
                             st.session_state["naver_access_token"],

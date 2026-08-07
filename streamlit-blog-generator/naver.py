@@ -81,22 +81,28 @@ def _image_html(url, alt="매물 사진"):
     return f'<p><img src="{url}" alt="{alt}" style="max-width:100%;" /></p>'
 
 
-def _lead_image_html(url, alt="대표 매물 사진"):
-    """맨 위 대표 사진: 전체폭 + 둥근 모서리 + 그림자로 크게 강조합니다."""
+def _lead_image_html(url, caption=None):
+    """맨 위 대표 사진: 전체폭 + 둥근 모서리 + 그림자로 크게 강조하고 캡션을 답니다."""
+    caption = (caption or "대표 매물 사진").strip()
+    caption_esc = _text_to_html(caption)
     return (
-        '<p style="text-align:center;margin:0 0 8px;">'
-        f'<img src="{url}" alt="{alt}" '
+        '<p style="text-align:center;margin:0 0 4px;">'
+        f'<img src="{url}" alt="{caption_esc}" '
         'style="width:100%;max-width:100%;border-radius:14px;'
         'box-shadow:0 8px 24px rgba(0,0,0,0.18);" />'
+        '</p>'
+        '<p style="text-align:center;color:#888888;font-size:14px;margin:0 0 14px;">'
+        f'📷 {caption_esc}'
         '</p>'
     )
 
 
-def build_contents_html(text, image_urls=None):
+def build_contents_html(text, image_urls=None, lead_caption=None):
     """본문 텍스트와 사진 URL 목록을 네이버 블로그용 HTML로 합칩니다.
 
-    첫 사진은 글 맨 위 대표 이미지로 고정하고, 나머지 사진은 본문 문단
-    사이사이에 고르게 분산해 <img> 태그로 삽입합니다.
+    첫 사진은 글 맨 위 대표 이미지(캡션 포함)로 고정하고, 나머지 사진은
+    본문 문단 사이사이에 고르게 분산해 <img> 태그로 삽입합니다.
+    lead_caption 으로 대표 사진 아래 캡션 문구를 지정할 수 있습니다.
     """
     image_urls = list(image_urls or [])
     paras = _split_paragraphs(text)
@@ -111,7 +117,7 @@ def build_contents_html(text, image_urls=None):
 
     # 첫 사진은 맨 위 대표 이미지로 고정, 나머지는 문단 사이에 분산
     lead, rest = image_urls[0], image_urls[1:]
-    parts = [_lead_image_html(lead)]
+    parts = [_lead_image_html(lead, caption=lead_caption)]
 
     after = {}
     n_img = len(rest)
