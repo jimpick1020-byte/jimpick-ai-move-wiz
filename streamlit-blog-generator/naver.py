@@ -81,6 +81,17 @@ def _image_html(url, alt="매물 사진"):
     return f'<p><img src="{url}" alt="{alt}" style="max-width:100%;" /></p>'
 
 
+def _lead_image_html(url, alt="대표 매물 사진"):
+    """맨 위 대표 사진: 전체폭 + 둥근 모서리 + 그림자로 크게 강조합니다."""
+    return (
+        '<p style="text-align:center;margin:0 0 8px;">'
+        f'<img src="{url}" alt="{alt}" '
+        'style="width:100%;max-width:100%;border-radius:14px;'
+        'box-shadow:0 8px 24px rgba(0,0,0,0.18);" />'
+        '</p>'
+    )
+
+
 def build_contents_html(text, image_urls=None):
     """본문 텍스트와 사진 URL 목록을 네이버 블로그용 HTML로 합칩니다.
 
@@ -100,7 +111,7 @@ def build_contents_html(text, image_urls=None):
 
     # 첫 사진은 맨 위 대표 이미지로 고정, 나머지는 문단 사이에 분산
     lead, rest = image_urls[0], image_urls[1:]
-    parts = [_image_html(lead, alt="대표 매물 사진")]
+    parts = [_lead_image_html(lead)]
 
     after = {}
     n_img = len(rest)
