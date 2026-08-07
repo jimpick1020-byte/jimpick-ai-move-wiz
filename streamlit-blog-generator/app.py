@@ -4,6 +4,7 @@ import uuid
 
 import streamlit as st
 
+import images
 import naver
 
 # 페이지 설정 (스마트폰 화면에 최적화)
@@ -190,6 +191,17 @@ with st.sidebar:
     else:
         st.caption("설정이 없으면 발행은 시뮬레이션(연습)으로 동작합니다.")
 
+    st.markdown("---")
+    st.markdown("### 🖼️ 사진 자동 삽입 (imgbb)")
+    imgbb_api_key = get_config_value("IMGBB_API_KEY") or st.text_input(
+        "imgbb API 키", type="password", key="imgbb_key",
+        help="https://api.imgbb.com 에서 무료 발급. 사진을 게시글에 자동 삽입하려면 필요합니다.",
+    )
+    if imgbb_api_key:
+        st.caption("발행 시 업로드한 사진을 자동으로 글에 삽입합니다.")
+    else:
+        st.caption("키가 없으면 사진 없이 글만 발행됩니다.")
+
 
 # ---------------------------------------------------------------------------
 # 네이버 로그인 콜백 처리: ?code=...&state=... 로 돌아오면 토큰으로 교환
@@ -282,23 +294,40 @@ if st.session_state.get('ready', False):
         if "naver_access_token" in st.session_state:
             # 이미 로그인됨 → 실제 발행 버튼
             st.info("네이버 계정이 연결되었습니다. 아래 버튼을 누르면 실제로 발행됩니다.")
+            if imgbb_api_key and uploaded_files:
+                st.caption(f"발행 시 사진 {len(uploaded_files)}장을 글에 자동으로 삽입합니다.")
+            elif uploaded_files and not imgbb_api_key:
+                st.caption("※ imgbb 키가 없어 사진은 삽입되지 않고 글만 발행됩니다.")
+
             if st.button("🚀 내 네이버 블로그에 지금 바로 발행하기", key="publish"):
-                with st.spinner("네이버 블로그에 글을 발행하는 중입니다..."):
-                    try:
+                try:
+                    # 1) 사진을 이미지 호스팅에 올려 URL 확보 (키가 있고 사진이 있을 때만)
+                    image_urls = []
+                    if imgbb_api_key and uploaded_files:
+                        with st.spinner("매물 사진을 업로드하는 중입니다..."):
+                            image_urls = images.upload_many(imgbb_api_key, uploaded_files)
+                        if image_urls:
+                            st.caption(f"사진 {len(image_urls)}장 업로드 완료 — 글에 삽입합니다.")
+                        else:
+                            st.warning("사진 업로드에 실패해 이번 글은 사진 없이 발행합니다.")
+
+                    # 2) 본문 + 사진을 HTML로 합쳐 발행
+                    contents_html = naver.build_contents_html(final_content, image_urls)
+                    with st.spinner("네이버 블로그에 글을 발행하는 중입니다..."):
                         result = naver.publish_post(
                             st.session_state["naver_access_token"],
                             final_title,
-                            final_content,
+                            contents_html,
                         )
-                        st.success("🎉 성공적으로 사장님 블로그에 글이 발행되었습니다!")
-                        if result.get("url"):
-                            st.markdown(f"👉 [발행된 글 바로 보기]({result['url']})")
-                        st.balloons()
-                    except Exception as e:
-                        st.error(
-                            "발행 중 문제가 발생했습니다. 네이버 앱 권한(블로그 글쓰기)과 "
-                            f"로그인 상태를 확인해 주세요.\n\n상세: {e}"
-                        )
+                    st.success("🎉 성공적으로 사장님 블로그에 글이 발행되었습니다!")
+                    if result.get("url"):
+                        st.markdown(f"👉 [발행된 글 바로 보기]({result['url']})")
+                    st.balloons()
+                except Exception as e:
+                    st.error(
+                        "발행 중 문제가 발생했습니다. 네이버 앱 권한(블로그 글쓰기)과 "
+                        f"로그인 상태를 확인해 주세요.\n\n상세: {e}"
+                    )
         else:
             # 로그인 필요 → 네이버 로그인 링크 제공
             if "naver_oauth_state" not in st.session_state:

@@ -57,15 +57,31 @@ def _text_to_html(text):
     return escaped.replace("\n", "<br>\n")
 
 
-def publish_post(access_token, title, contents):
+def build_contents_html(text, image_urls=None):
+    """본문 텍스트와 사진 URL 목록을 네이버 블로그용 HTML로 합칩니다.
+
+    텍스트는 이스케이프 후 <br>로 줄바꿈 처리하고, 사진은 본문 아래에
+    <img> 태그로 순서대로 삽입합니다.
+    """
+    body = _text_to_html(text)
+    img_html = ""
+    for url in image_urls or []:
+        img_html += f'<p><img src="{url}" alt="매물 사진" style="max-width:100%;" /></p>\n'
+    if img_html:
+        return body + "\n<br>\n" + img_html
+    return body
+
+
+def publish_post(access_token, title, contents_html):
     """네이버 블로그 글쓰기 API로 실제 글을 발행합니다.
 
+    contents_html 은 build_contents_html()로 만든 완성된 HTML을 그대로 전달합니다.
     성공 시 가능한 경우 글 URL을 추출해 반환하고, 없으면 원본 응답을 반환합니다.
     """
     headers = {"Authorization": f"Bearer {access_token}"}
     data = {
         "title": title,
-        "contents": _text_to_html(contents),
+        "contents": contents_html,
     }
     resp = requests.post(NAVER_BLOG_WRITE_URL, headers=headers, data=data, timeout=20)
 
