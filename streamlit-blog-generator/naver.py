@@ -7,6 +7,7 @@
 앱 등록과 권한 설정은 네이버 개발자센터(https://developers.naver.com)에서 진행합니다.
 """
 
+import re
 import urllib.parse
 
 import requests
@@ -57,19 +58,59 @@ def _text_to_html(text):
     return escaped.replace("\n", "<br>\n")
 
 
+def _split_paragraphs(text):
+    """본문을 문단 목록으로 나눕니다.
+
+    빈 줄(블록) 기준으로 먼저 나누고, 문단이 하나뿐이면 줄 단위로 나눠
+    사진을 끼워 넣을 위치를 더 확보합니다.
+    """
+    blocks = re.split(r"\n\s*\n", text.strip())
+    paras = [b.strip() for b in blocks if b.strip()]
+    if len(paras) <= 1:
+        lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
+        if len(lines) > 1:
+            return lines
+    return paras or [text.strip()]
+
+
+def _paragraph_html(paragraph):
+    return "<p>" + _text_to_html(paragraph) + "</p>"
+
+
+def _image_html(url):
+    return f'<p><img src="{url}" alt="매물 사진" style="max-width:100%;" /></p>'
+
+
 def build_contents_html(text, image_urls=None):
     """본문 텍스트와 사진 URL 목록을 네이버 블로그용 HTML로 합칩니다.
 
-    텍스트는 이스케이프 후 <br>로 줄바꿈 처리하고, 사진은 본문 아래에
-    <img> 태그로 순서대로 삽입합니다.
+    사진은 본문 맨 아래에 몰아 넣지 않고, 문단 사이사이에 고르게 분산해
+    <img> 태그로 삽입합니다.
     """
-    body = _text_to_html(text)
-    img_html = ""
-    for url in image_urls or []:
-        img_html += f'<p><img src="{url}" alt="매물 사진" style="max-width:100%;" /></p>\n'
-    if img_html:
-        return body + "\n<br>\n" + img_html
-    return body
+    image_urls = list(image_urls or [])
+    paras = _split_paragraphs(text)
+    n_para = len(paras)
+
+    # 사진이 없거나 문단이 없으면 단순 처리
+    if not image_urls:
+        return "\n".join(_paragraph_html(p) for p in paras)
+    if n_para == 0:
+        return "\n".join(_image_html(u) for u in image_urls)
+
+    # 각 사진을 어떤 문단 "뒤"에 넣을지 고르게 분배
+    n_img = len(image_urls)
+    after = {}
+    for i in range(n_img):
+        idx = int(round((i + 1) * n_para / (n_img + 1))) - 1
+        idx = max(0, min(n_para - 1, idx))
+        after.setdefault(idx, []).append(image_urls[i])
+
+    parts = []
+    for p_idx, para in enumerate(paras):
+        parts.append(_paragraph_html(para))
+        for url in after.get(p_idx, []):
+            parts.append(_image_html(url))
+    return "\n".join(parts)
 
 
 def publish_post(access_token, title, contents_html):
