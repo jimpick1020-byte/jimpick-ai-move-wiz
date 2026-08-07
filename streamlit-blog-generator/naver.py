@@ -91,7 +91,7 @@ def _lead_image_html(url, caption=None):
         'style="width:100%;max-width:100%;border-radius:14px;'
         'box-shadow:0 8px 24px rgba(0,0,0,0.18);" />'
         '</p>'
-        '<p style="text-align:center;color:#888888;font-size:14px;margin:0 0 14px;">'
+        '<p style="text-align:center;color:#555555;font-size:14px;margin:0 0 14px;">'
         f'{caption_esc}'
         '</p>'
     )
