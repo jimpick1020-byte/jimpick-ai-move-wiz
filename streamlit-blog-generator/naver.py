@@ -83,7 +83,7 @@ def _image_html(url, alt="매물 사진"):
 
 def _lead_image_html(url, caption=None):
     """맨 위 대표 사진: 전체폭 + 둥근 모서리 + 그림자로 크게 강조하고 캡션을 답니다."""
-    caption = (caption or "대표 매물 사진").strip()
+    caption = (caption or "▲ 대표 사진").strip()
     caption_esc = _text_to_html(caption)
     return (
         '<p style="text-align:center;margin:0 0 4px;">'
@@ -92,7 +92,7 @@ def _lead_image_html(url, caption=None):
         'box-shadow:0 8px 24px rgba(0,0,0,0.18);" />'
         '</p>'
         '<p style="text-align:center;color:#888888;font-size:14px;margin:0 0 14px;">'
-        f'📷 {caption_esc}'
+        f'{caption_esc}'
         '</p>'
     )
 
