@@ -121,6 +121,7 @@ import houseImg from "@/assets/step6-house.png";
 
 export function Splash() {
   const { setScreen, loggedIn } = useApp();
+  const [mascotIdx, setMascotIdx] = useState(0);
   useEffect(() => {
     const t = setTimeout(() => setScreen(loggedIn ? "home" : "login"), 2500);
     return () => clearTimeout(t);
