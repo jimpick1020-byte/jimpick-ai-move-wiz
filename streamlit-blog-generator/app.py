@@ -47,7 +47,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# API 키 가져오기 (비밀 보관함 마스터 키 연동)
+# API 키 가져오기 (시크릿 마스터 키 연동)
 api_key = ""
 try:
     if "GEMINI_API_KEY" in st.secrets:
@@ -55,9 +55,9 @@ try:
 except Exception:
     pass
 
-# --- 사이드바 설정 ---
+# --- 사이드바 설정 (불필요한 기능 제거) ---
 with st.sidebar:
-    st.markdown("### 🌸 실전 설정 및 API")
+    st.markdown("### 🌸 시스템 상태")
     if not api_key:
         api_key = st.text_input("Gemini API 키 입력", type="password")
     else:
@@ -136,7 +136,6 @@ if generate_btn:
                 이모지(🌸, 🏡, ✨, 💖 등)를 조화롭게 사용하여 너무 딱딱하지 않고 세련되고 화사한 분위기로 작성해 주세요.
                 """
                 
-                # AI에 전달할 콘텐츠 구성 (텍스트 + 업로드된 이미지들)
                 content_inputs = [prompt]
                 if uploaded_files:
                     for file in uploaded_files:
