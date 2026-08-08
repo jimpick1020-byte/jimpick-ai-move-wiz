@@ -164,13 +164,29 @@ export function Splash() {
             </div>
           ))}
         </div>
-        <div className="mt-auto pt-4 pb-1">
+        <div className="mt-auto pt-4 pb-1 flex flex-col items-center gap-2">
           <img
-            src={truckImg}
-            alt="JIMPICK 트럭"
-            className="w-full max-w-[320px] jp-float [image-rendering:auto]"
+            src={[mascot1, mascot2, mascot3][mascotIdx]}
+            alt="JIMPICK 캐릭터"
+            className="w-full max-w-[220px] jp-float [image-rendering:auto]"
           />
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            {[mascot1, mascot2, mascot3].map((m, i) => (
+              <button
+                key={i}
+                onClick={() => setMascotIdx(i)}
+                className={`w-11 h-11 rounded-xl bg-[#F3F7FF] p-1 transition-all ${
+                  mascotIdx === i
+                    ? "ring-2 ring-[#0751D8] shadow-[0_6px_14px_-6px_rgba(7,81,216,0.6)] -translate-y-[1px]"
+                    : "opacity-60"
+                }`}
+              >
+                <img src={m} alt={`캐릭터 시안 ${i + 1}`} className="w-full h-full object-contain" />
+              </button>
+            ))}
+          </div>
         </div>
+
         <button
           onClick={(e) => {
             e.stopPropagation();
