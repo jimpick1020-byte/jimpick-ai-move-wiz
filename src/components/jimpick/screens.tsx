@@ -1216,6 +1216,12 @@ export function Step6() {
       rec.start();
       keepRef.current = true;
       setListening(true);
+      // 같은 소리를 따로 녹음해 두고, 담을 때 AI 음성인식으로 다시 확인합니다
+      const recorder = new WavRecorder();
+      recorderRef.current = recorder;
+      void recorder.start().catch(() => {
+        recorderRef.current = null;
+      });
       if (chat.length === 0)
         push({
           role: "ai",
@@ -1239,6 +1245,8 @@ export function Step6() {
       try {
         recRef.current?.stop();
       } catch {}
+      void recorderRef.current?.stop();
+      recorderRef.current = null;
       setListening(false);
       setHeard("");
       bufRef.current = "";
