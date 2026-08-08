@@ -21,10 +21,10 @@ export const transcribeAudio = createServerFn({ method: "POST" })
     if (!key) return { text: "", error: "AI 키가 설정되지 않았습니다." };
 
     const base64 = data.audio.includes(",") ? data.audio.split(",")[1] : data.audio;
-    let bytes: Uint8Array;
+    let bytes: Uint8Array<ArrayBuffer>;
     try {
       const bin = atob(base64);
-      bytes = new Uint8Array(bin.length);
+      bytes = new Uint8Array(new ArrayBuffer(bin.length));
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     } catch {
       return { text: "", error: "녹음 파일을 읽을 수 없습니다." };
