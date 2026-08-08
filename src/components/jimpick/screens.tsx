@@ -1076,6 +1076,7 @@ export function Step6() {
   const [heard, setHeard] = useState("");
   const [chat, setChat] = useState<ChatMsg[]>([]);
   const recRef = useRef<RecognitionLike | null>(null);
+  const recorderRef = useRef<WavRecorder | null>(null);
   const keepRef = useRef(false);
   const bufRef = useRef("");
   const roomRef = useRef<string | null>(null);
@@ -1085,11 +1086,14 @@ export function Step6() {
   const isCommit = (t: string) =>
     /(추가|담아|담기|넣어|등록|완료|됐어|됐다|끝|저장)/.test(t.replace(/\s/g, ""));
 
-  const applyVoice = async (text: string, targetName: string) => {
+  const applyVoice = async (rawText: string, targetName: string) => {
     const target0 = roomOf(targetName);
-    if (!text.trim() || !target0) return;
+    if (!rawText.trim() || !target0) return;
     setVoiceBusy(true);
     try {
+      // 녹음된 실제 음성을 AI 음성인식으로 다시 확인해 인식률을 크게 높입니다
+      const text = await refineWithAiStt(recorderRef.current, rawText);
+      if (text !== rawText) push({ role: "user", text: `(정확히 들은 말) ${text}` });
       const res = await parseVoiceOrder({
         data: { text, rooms: draft.rooms.map((r) => r.name) },
       });
