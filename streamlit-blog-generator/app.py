@@ -47,7 +47,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# API 키 가져오기 (비밀 보관함 또는 수동 입력)
+# API 키 가져오기 (비밀 보관함 마스터 키 연동)
 api_key = ""
 try:
     if "GEMINI_API_KEY" in st.secrets:
@@ -59,19 +59,19 @@ except Exception:
 with st.sidebar:
     st.markdown("### 🌸 실전 설정 및 API")
     if not api_key:
-        api_key = st.text_input("Gemini API 키 입력", type="password", placeholder="AI 스튜디오 키 입력")
+        api_key = st.text_input("Gemini API 키 입력", type="password")
     else:
         st.success("✨ 마스터 API 키가 안전하게 적용되어 있습니다!")
         
     st.markdown("---")
     st.markdown("### 📞 중개사무소 정보")
-    office_name = st.text_input("부동산 상호명", placeholder="예: 🌸 대봉최고공인중개사사무소")
+    office_name = st.text_input("부동산 상호명", placeholder="예: 🌸 대봉공인중개사사무소")
     agent_name = st.text_input("담당 소장님 성함", placeholder="예: 김대봉 소장")
     agent_phone = st.text_input("연락처 (전화번호)", placeholder="예: 010-1234-5678")
     office_addr = st.text_input("사무소 주소", placeholder="예: 대구 중구 명덕로...")
     
     st.markdown("---")
-    st.markdown("<p style='font-size: 12px; color: #888;'>✨ 짐픽 1020바이트 · 공인중개사 전용 AI 솔루션</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size: 12px; color: #888;'>✨ 짐픽 · 공인중개사 전용 AI 솔루션</p>", unsafe_allow_html=True)
 
 # --- 메인 화면 ---
 st.markdown("<h1 style='text-align: center; color: #5C4033;'>🏡 프리미엄 부동산 블로그 자동 생성기</h1>", unsafe_allow_html=True)
@@ -88,7 +88,7 @@ with col1:
 with col2:
     prop_type = st.selectbox("🏠 매물 종류", ["아파트 매매/전세", "상가/사무실", "주택/빌라", "토지/재개발"])
 
-# 사진 업로드 기능 추가
+# 사진 업로드 기능
 uploaded_files = st.file_uploader("📸 매물 실사진 업로드 (여러 장 선택 가능)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
 if uploaded_files:
@@ -99,11 +99,11 @@ prop_features = st.text_area("🌟 매물의 핵심 특징 (자세히 적을수�
 st.markdown("<br>", unsafe_allow_html=True)
 
 # 생성 버튼
-generate_btn = st.button("✨ 사진 분석 및 감성 가득 블로그 글 생성하기 💖", use_container_width=True)
+generate_btn = st.button("✨ 사진 분석 및 감성 블로그 글 생성하기 💖", use_container_width=True)
 
 if generate_btn:
     if not api_key:
-        st.warning("⚠️ 사이드바에 Gemini API 키를 입력해 주세요!")
+        st.warning("⚠️ API 키를 확인해 주세요!")
     elif not prop_title:
         st.warning("⚠️ 매물 타이틀을 입력해 주세요!")
     else:
