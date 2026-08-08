@@ -65,6 +65,25 @@ import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
 import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
+import { transcribeAudio } from "@/lib/stt.functions";
+import { WavRecorder } from "@/lib/recorder";
+
+/** 음성인식 정확도를 올려 주는 힌트 (자주 쓰는 이사 품목·공간 이름) */
+const VOICE_HINT =
+  "이사 견적 품목: 냉장고, 김치냉장고, 세탁기, 건조기, 스타일러, TV, 에어컨, 공기청정기, 정수기, 전자레인지, 에어프라이어, 식기세척기, 침대, 매트리스, 장롱, 붙박이장, 화장대, 서랍장, 소파, TV장, 식탁, 의자, 책상, 책장, 신발장, 빨래건조대, 청소기, 로봇청소기, 안마의자, 러닝머신, 피아노, 금고, 어항, 옷박스, 대박스, 중박스, 바구니, 이불백. 공간: 안방, 작은방, 입구방, 거실, 부엌, 베란다.";
+
+/** 녹음된 소리를 서버 AI 음성인식으로 다시 확인해 더 정확한 문장을 얻습니다 */
+async function refineWithAiStt(recorder: WavRecorder | null, fallback: string) {
+  const audio = recorder?.snapshot();
+  if (!audio) return fallback;
+  try {
+    const r = await transcribeAudio({ data: { audio, hint: VOICE_HINT } });
+    const t = (r.text || "").trim();
+    return t.length >= 2 ? t : fallback;
+  } catch {
+    return fallback;
+  }
+}
 import {
   recognitionCtor,
   isSecureForMic,
@@ -1057,6 +1076,7 @@ export function Step6() {
   const [heard, setHeard] = useState("");
   const [chat, setChat] = useState<ChatMsg[]>([]);
   const recRef = useRef<RecognitionLike | null>(null);
+  const recorderRef = useRef<WavRecorder | null>(null);
   const keepRef = useRef(false);
   const bufRef = useRef("");
   const roomRef = useRef<string | null>(null);
@@ -1066,11 +1086,14 @@ export function Step6() {
   const isCommit = (t: string) =>
     /(추가|담아|담기|넣어|등록|완료|됐어|됐다|끝|저장)/.test(t.replace(/\s/g, ""));
 
-  const applyVoice = async (text: string, targetName: string) => {
+  const applyVoice = async (rawText: string, targetName: string) => {
     const target0 = roomOf(targetName);
-    if (!text.trim() || !target0) return;
+    if (!rawText.trim() || !target0) return;
     setVoiceBusy(true);
     try {
+      // 녹음된 실제 음성을 AI 음성인식으로 다시 확인해 인식률을 크게 높입니다
+      const text = await refineWithAiStt(recorderRef.current, rawText);
+      if (text !== rawText) push({ role: "user", text: `(정확히 들은 말) ${text}` });
       const res = await parseVoiceOrder({
         data: { text, rooms: draft.rooms.map((r) => r.name) },
       });
@@ -1117,6 +1140,8 @@ export function Step6() {
     try {
       recRef.current?.stop();
     } catch {}
+    void recorderRef.current?.stop();
+    recorderRef.current = null;
     setListening(false);
   };
 
@@ -1191,6 +1216,12 @@ export function Step6() {
       rec.start();
       keepRef.current = true;
       setListening(true);
+      // 같은 소리를 따로 녹음해 두고, 담을 때 AI 음성인식으로 다시 확인합니다
+      const recorder = new WavRecorder();
+      recorderRef.current = recorder;
+      void recorder.start().catch(() => {
+        recorderRef.current = null;
+      });
       if (chat.length === 0)
         push({
           role: "ai",
@@ -1214,6 +1245,8 @@ export function Step6() {
       try {
         recRef.current?.stop();
       } catch {}
+      void recorderRef.current?.stop();
+      recorderRef.current = null;
       setListening(false);
       setHeard("");
       bufRef.current = "";
@@ -1726,6 +1759,7 @@ export function AIRecognition() {
   const [heard, setHeard] = useState("");
   const [voiceBusy, setVoiceBusy] = useState(false);
   const recRef = useRef<RecognitionLike | null>(null);
+  const recorderRef = useRef<WavRecorder | null>(null);
   const keepRef = useRef(false);
   const roomIdRef = useRef(roomId);
   useEffect(() => {
@@ -1816,13 +1850,13 @@ export function AIRecognition() {
   };
 
   // ---- 음성으로 바로 담기 (대화 없이, 말하는 즉시 들어갑니다) ----
-  /** 브라우저가 알려준 정확도. 0 이나 미보고면 판단하지 않고 통과시킵니다. */
-  const VOICE_MIN_CONFIDENCE = 0.9;
 
-  const applySpeech = async (text: string) => {
+  const applySpeech = async (rawText: string) => {
     const targetId = roomIdRef.current;
     setVoiceBusy(true);
     try {
+      // 녹음된 실제 음성을 AI 음성인식으로 다시 확인해 인식률을 크게 높입니다
+      const text = await refineWithAiStt(recorderRef.current, rawText);
       const res = await parseVoiceOrder({
         data: { text, rooms: draft.rooms.map((r) => r.name) },
       });
@@ -1860,6 +1894,8 @@ export function AIRecognition() {
     } catch {
       /* 이미 멈춘 경우 */
     }
+    void recorderRef.current?.stop();
+    recorderRef.current = null;
     setListening(false);
     setHeard("");
   };
@@ -1883,7 +1919,7 @@ export function AIRecognition() {
     rec.continuous = true;
     rec.interimResults = true;
     // 후보를 여러 개 받아 그중 가장 확신하는 문장을 씁니다
-    rec.maxAlternatives = 3;
+    rec.maxAlternatives = 5;
     recRef.current = rec;
 
     rec.onresult = (ev: SpeechEventLike) => {
@@ -1897,13 +1933,6 @@ export function AIRecognition() {
         const best = bestAlternative(r);
         if (!best.transcript.trim()) continue;
         setHeard("");
-        // 브라우저가 정확도를 알려 준 경우에만 90% 미만을 걸러 냅니다
-        if (best.confidence > 0 && best.confidence < VOICE_MIN_CONFIDENCE) {
-          toast.error(
-            `또렷하게 들리지 않았어요 (${Math.round(best.confidence * 100)}%). 다시 말씀해 주세요.`,
-          );
-          continue;
-        }
         void applySpeech(best.transcript.trim());
       }
       if (interim) setHeard(interim);
@@ -1934,6 +1963,11 @@ export function AIRecognition() {
       rec.start();
       keepRef.current = true;
       setListening(true);
+      const recorder = new WavRecorder();
+      recorderRef.current = recorder;
+      void recorder.start().catch(() => {
+        recorderRef.current = null;
+      });
       tap("soft");
     } catch {
       setListening(false);
@@ -1950,6 +1984,8 @@ export function AIRecognition() {
       } catch {
         /* 이미 멈춘 경우 */
       }
+      void recorderRef.current?.stop();
+      recorderRef.current = null;
     };
   }, []);
 
