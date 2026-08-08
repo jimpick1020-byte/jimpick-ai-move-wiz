@@ -29,9 +29,17 @@ streamlit run app.py
 
 ## Gemini API 키
 
-[Google AI Studio](https://aistudio.google.com/apikey)에서 무료로 발급받아,
-앱 상단의 **"🔑 Gemini API 키 입력"** 칸에 붙여넣으면 됩니다.
-사용 모델은 `app.py`의 `genai.GenerativeModel('gemini-2.0-flash')` 에서 바꿀 수 있습니다.
+[Google AI Studio](https://aistudio.google.com/apikey)에서 무료로 발급받으세요.
+키를 넣는 방법은 두 가지입니다.
+
+1. **자동 적용(권장)** — `.streamlit/secrets.toml` 에 넣어두면 매번 입력할 필요가 없습니다.
+   ```toml
+   GEMINI_API_KEY = "AIza...실제키"
+   ```
+2. **직접 입력** — secrets 에 키가 없으면 앱 상단에 **"🔑 Gemini API 키 입력"** 칸이 표시됩니다.
+
+최신 `google-genai` SDK를 사용하며, 모델은 `app.py`의
+`client.models.generate_content(model='gemini-2.0-flash', ...)` 에서 바꿀 수 있습니다.
 
 ## 특징
 

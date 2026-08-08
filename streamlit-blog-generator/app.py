@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 from PIL import Image
 
 st.set_page_config(
@@ -38,8 +38,18 @@ st.markdown("<h1 style='text-align: center; color: #5C4033;'>🏡 프리미엄 �
 st.markdown("<p style='text-align: center; color: #7A6252; font-size: 14px;'>모바일에서도 편리하게 AI 블로그를 생성하세요! 💖</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# 🔑 API 키 입력 (상단 배치)
-api_key = st.text_input("🔑 Gemini API 키 입력", type="password", placeholder="여기에 API 키를 입력하세요")
+# 🔑 API 키 자동 불러오기 (st.secrets 지원 + 없으면 입력란 표시)
+api_key = ""
+try:
+    if "GEMINI_API_KEY" in st.secrets:
+        api_key = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    pass
+
+if api_key:
+    st.success("✨ API 키가 안전하게 자동 적용되어 있습니다!")
+else:
+    api_key = st.text_input("🔑 Gemini API 키 입력", type="password", placeholder="여기에 API 키를 입력하세요")
 
 st.markdown("---")
 st.markdown("### 📞 중개사무소 정보 입력")
@@ -69,15 +79,14 @@ generate_btn = st.button("✨ [실전형] 고품격 블로그 글 뚝딱 완성�
 
 if generate_btn:
     if not api_key:
-        st.warning("⚠️ 상단에 Gemini API 키를 먼저 입력해 주세요!")
+        st.warning("⚠️ Gemini API 키를 입력해 주세요!")
     elif not prop_title:
         st.warning("⚠️ 아파트/매물 이름을 입력해 주세요!")
     else:
         with st.spinner("🌸 업로드된 사진과 정보를 바탕으로 블로그 글을 작성 중입니다... 잠시만 기다려주세요! ✨"):
             try:
-                genai.configure(api_key=api_key)
-                # 안정적인 최신 모델 지정
-                model = genai.GenerativeModel('gemini-2.0-flash')
+                # 최신 google-genai SDK 적용
+                client = genai.Client(api_key=api_key)
 
                 prompt = f"""
                 당신은 감각적이고 신뢰감을 주는 베테랑 공인중개사 블로거입니다.
@@ -108,7 +117,10 @@ if generate_btn:
                         img = Image.open(file)
                         content_inputs.append(img)
 
-                response = model.generate_content(content_inputs)
+                response = client.models.generate_content(
+                    model='gemini-2.0-flash',
+                    contents=content_inputs
+                )
 
                 st.markdown("---")
                 st.markdown("### 💌 완성된 프리미엄 블로그 포스팅")
