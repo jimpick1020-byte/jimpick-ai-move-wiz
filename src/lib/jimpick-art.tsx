@@ -1,5 +1,6 @@
 // 3D 아트 에셋 레지스트리
-import { CharArt, ITEM_CHAR, guessCharKey, guessWorkCharKey } from "@/lib/jimpick-chars";
+import { CharArt } from "@/lib/jimpick-chars";
+import { LineArt, ITEM_LINE, guessLineKey, guessWorkLineKey } from "@/lib/jimpick-line";
 
 import bed from "@/assets/item-bed.png";
 import wardrobe from "@/assets/item-wardrobe.png";
@@ -150,13 +151,14 @@ export function guessItemImg(name: string): string | undefined {
 /**
  * 품목·옵션 그림 — 화면에서는 이것만 쓰면 됩니다.
  *
+ * 모든 품목을 라인 아이콘 한 세트로 그립니다.
+ * (예전에는 주요 18종만 3D 이미지, 나머지는 캐릭터라 스타일이 섞여 있었습니다)
+ *
  * 고르는 차례
- *   1) 옵션·작업 이름이면 작업 캐릭터 (에어컨 이전 설치, 입주 청소 …)
- *   2) 3D 이미지가 있는 품목이면 그대로 3D  ← 기존 그림은 절대 바뀌지 않습니다
- *   3) 품목 id 에 연결해 둔 캐릭터 (캠핑용품·자전거·캣타워 …)
- *   4) 이름이 비슷한 3D 이미지 (냉동고 → 냉장고)
- *   5) 이름이 비슷한 캐릭터 (직접 추가한 품목, AI 가 읽어 온 이름)
- *   6) 기본 캐릭터(짐 보따리)
+ *   1) 옵션·작업 이름이면 작업 아이콘 (에어컨 이전 설치, 입주 청소 …)
+ *   2) 품목 id 에 연결해 둔 아이콘
+ *   3) 이름이 비슷한 아이콘 (직접 추가한 품목, AI 가 읽어 온 이름)
+ *   4) 기본 아이콘(짐 보따리)
  */
 export function ItemArt({
   id,
@@ -170,19 +172,10 @@ export function ItemArt({
   size?: number;
   className?: string;
 }) {
-  const work = guessWorkCharKey(name);
-  if (work) return <CharArt name={work} alt={name} size={size} className={className} />;
+  const work = guessWorkLineKey(name);
+  if (work) return <LineArt name={work} alt={name} size={size} className={className} />;
 
-  if (id && ITEM_IMG[id])
-    return <Art3D src={ITEM_IMG[id]} alt={name} size={size} className={className} />;
-
-  if (id && ITEM_CHAR[id])
-    return <CharArt name={ITEM_CHAR[id]} alt={name} size={size} className={className} />;
-
-  const img = guessItemImg(name);
-  if (img) return <Art3D src={img} alt={name} size={size} className={className} />;
-
-  return (
-    <CharArt name={guessCharKey(name) ?? "generic"} alt={name} size={size} className={className} />
-  );
+  const byId = id ? ITEM_LINE[id] : undefined;
+  const key = byId ?? guessLineKey(name) ?? "generic";
+  return <LineArt name={key} alt={name} size={size} className={className} />;
 }
