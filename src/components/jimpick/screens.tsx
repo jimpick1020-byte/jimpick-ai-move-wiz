@@ -99,6 +99,9 @@ import { fileToDataUrl, videoToFrames } from "@/lib/media";
 
 // ============ Splash ============
 import truckImg from "@/assets/jimpick-truck.png";
+import mascot1 from "@/assets/mascot-1.png";
+import mascot2 from "@/assets/mascot-2.png";
+import mascot3 from "@/assets/mascot-3.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { TruckGauge } from "./TruckGauge";
