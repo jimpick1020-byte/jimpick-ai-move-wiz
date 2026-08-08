@@ -574,7 +574,19 @@ export function Step2() {
 
   useEffect(() => {
     // 출발지·도착지를 모두 선택하기 전에는 계산하지 않습니다.
-    if (!from || !to) return;
+    if (!from || !to) {
+      // 주소는 넣었는데 좌표가 없는 경우 — 「입력한 주소 그대로 사용」으로 넣으면 이렇게 됩니다.
+      // 그동안 아무 안내 없이 거리·시간이 비어 있어서 이유를 알 수 없었습니다.
+      if (hasBoth) {
+        const which = !from && !to ? "출발지와 도착지" : !from ? "출발지" : "도착지";
+        setRouteError(
+          `${which} 주소를 검색 결과 목록에서 선택해 주세요. 직접 입력한 주소는 위치를 알 수 없어 거리·시간을 계산하지 못합니다.`,
+        );
+      } else {
+        setRouteError(null);
+      }
+      return;
+    }
     let cancelled = false;
     setRouting(true);
     setRouteError(null);
@@ -605,7 +617,7 @@ export function Step2() {
     return () => {
       cancelled = true;
     };
-  }, [from?.x, from?.y, to?.x, to?.y, tick]);
+  }, [from?.x, from?.y, to?.x, to?.y, hasBoth, tick]);
 
   return (
     <MobileShell>
@@ -2215,13 +2227,41 @@ export function Result() {
   }, [total, draft.total, updateDraft]);
   const summaryText = () =>
     `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${formatMoveDateTime(draft.moveDate, draft.moveTime)}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
-  /** 고객에게 보낼 견적 문자 내용 */
+  /** 고객에게 보낼 견적 문자 — 화면의 「이사 정보」와 같은 내용으로 채웁니다 */
   const estimateMessage = () =>
     buildEstimateMessage({
-      customerName: draft.customerName || "고객",
+      customerName: draft.customerName,
+      phone: draft.phone,
       moveDateText: formatMoveDateTime(draft.moveDate, draft.moveTime),
+      moveType: draft.moveType,
       fromAddress: `${draft.fromAddress} ${draft.fromDetail || ""}`.trim(),
       toAddress: `${draft.toAddress} ${draft.toDetail || ""}`.trim(),
+      distanceKm: draft.distanceKm,
+      durationMin: draft.durationMin,
+      workEnv: String(draft.workEnv),
+      fromFloor: draft.fromFloor,
+      toFloor: draft.toFloor,
+      truck1t: draft.truck1t,
+      truck5t: draft.truck5t,
+      ladder: draft.ladder,
+      ladderWhere:
+        draft.ladderFrom || draft.ladderTo
+          ? `${[draft.ladderFrom && "출발지", draft.ladderTo && "도착지"]
+              .filter(Boolean)
+              .join("·")}${draft.ladderSeparate ? " · 별도" : ""}`
+          : undefined,
+      workers: draft.workers,
+      kitchenStaff: draft.kitchenStaff,
+      storageText: usesStorage(draft)
+        ? `보관: ${draft.storageStart || "-"} ~ ${draft.storageEnd || "-"} (${Math.max(
+            0,
+            storageDays(draft.storageStart, draft.storageEnd),
+          )}일 · 하루 ${won(draft.storageDaily)})`
+        : undefined,
+      options: draft.options
+        .filter((o) => o.enabled)
+        .map((o) => `${o.name} · ${o.separate ? "별도" : won(o.price)}`),
+      memo: draft.memo || undefined,
       totalText: won(total),
     });
 

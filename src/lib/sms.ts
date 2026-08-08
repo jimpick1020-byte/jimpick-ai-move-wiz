@@ -36,30 +36,61 @@ export function hasSmsApp(): boolean {
   return /Android|iPad|iPhone|iPod|Mobile/i.test(navigator.userAgent || "");
 }
 
+/**
+ * 문자에 담을 이사 정보.
+ * 견적 결과 화면의 「이사 정보」 카드와 같은 내용·같은 순서로 채웁니다.
+ */
 export interface EstimateSmsInput {
   customerName: string;
+  phone: string;
   moveDateText: string;
+  moveType: string;
   fromAddress: string;
   toAddress: string;
+  distanceKm: number;
+  durationMin: number;
+  workEnv: string;
+  fromFloor: number;
+  toFloor: number;
+  truck1t: number;
+  truck5t: number;
+  ladder: number;
+  /** 사다리차 위치 표기 — 예) "출발지·도착지" */
+  ladderWhere?: string;
+  workers: number;
+  kitchenStaff: number;
+  /** 보관 정보 한 줄 (없으면 생략) */
+  storageText?: string;
+  /** 켜 둔 옵션 — 화면과 같게 "이름 · 금액" */
+  options?: string[];
+  memo?: string;
   totalText: string;
-  /** 견적서 공유 주소 (있으면 마지막 줄에 붙습니다) */
+  /** 견적서 공유 주소 (있으면 마지막에 붙습니다) */
   shareUrl?: string;
 }
 
-/** 고객에게 보낼 견적 문자 내용 */
+/**
+ * 고객에게 보낼 견적 문자 내용.
+ * 화면의 「이사 정보」와 글자 그대로 같게 맞춰, 문자로 받아도 내용이 달라지지 않습니다.
+ */
 export function buildEstimateMessage(e: EstimateSmsInput): string {
-  const lines = [
+  const lines: string[] = [
     `[JIMPICK 이사 견적]`,
-    `${e.customerName}님, 견적이 나왔습니다.`,
     ``,
-    `· 이사일: ${e.moveDateText}`,
-    `· 출발: ${e.fromAddress}`,
-    `· 도착: ${e.toAddress}`,
-    `· 예상 견적: ${e.totalText}`,
+    `👤 ${e.customerName || "이름 미입력"} · ${e.phone || "연락처 미입력"}`,
+    `📅 ${e.moveDateText}`,
+    `🚚 ${e.moveType}`,
+    `출발: ${e.fromAddress}`,
+    `도착: ${e.toAddress}`,
+    `실거리 ${e.distanceKm}km${e.durationMin ? ` · 약 ${e.durationMin}분` : ""} · ${e.workEnv} · ${e.fromFloor}층→${e.toFloor}층`,
+    `1톤 ${e.truck1t} · 5톤 ${e.truck5t} · 사다리 ${e.ladder}${e.ladderWhere ? ` (${e.ladderWhere})` : ""}`,
+    `작업 인원: 남자 ${e.workers}명 · 주방 ${e.kitchenStaff}명`,
   ];
-  if (e.shareUrl) {
-    lines.push(``, `자세한 내역: ${e.shareUrl}`);
-  }
-  lines.push(``, `문의 주시면 자세히 안내해 드리겠습니다.`);
+  if (e.storageText) lines.push(e.storageText);
+  for (const o of e.options ?? []) lines.push(`➕ ${o}`);
+  if (e.memo) lines.push(`메모: ${e.memo}`);
+
+  lines.push(``, `예상 견적 금액: ${e.totalText}`);
+  if (e.shareUrl) lines.push(``, `자세한 내역: ${e.shareUrl}`);
   return lines.join("\n");
 }
