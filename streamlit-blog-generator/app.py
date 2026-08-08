@@ -92,7 +92,7 @@ if generate_btn:
         with st.spinner("🌸 업로드된 사진과 정보를 바탕으로 아름다운 블로그 글을 작성 중입니다... 잠시만 기다려주세요! ✨"):
             try:
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                model = genai.GenerativeModel('gemini-2.0-flash')
                 
                 prompt = f"""
                 당신은 감각적이고 신뢰감을 주는 베테랑 공인중개사 블로거입니다. 
