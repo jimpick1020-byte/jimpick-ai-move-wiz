@@ -1050,176 +1050,6 @@ export function Step6() {
     updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
   };
 
-  // ---- AI 음성 대화 (ChatGPT처럼 계속 듣고, "추가해줘"라고 말하면 담아줍니다) ----
-  type ChatMsg = { role: "user" | "ai"; text: string };
-  const [listening, setListening] = useState(false);
-  const [voiceBusy, setVoiceBusy] = useState(false);
-  const [heard, setHeard] = useState("");
-  const [chat, setChat] = useState<ChatMsg[]>([]);
-  const recRef = useRef<RecognitionLike | null>(null);
-  const keepRef = useRef(false);
-  const bufRef = useRef("");
-  const roomRef = useRef<string | null>(null);
-  const push = (m: ChatMsg) => setChat((c) => [...c.slice(-14), m]);
-
-  /** "추가해줘 / 담아줘 / 넣어줘 / 완료" 같은 마무리 신호 */
-  const isCommit = (t: string) =>
-    /(추가|담아|담기|넣어|등록|완료|됐어|됐다|끝|저장)/.test(t.replace(/\s/g, ""));
-
-  const applyVoice = async (text: string, targetName: string) => {
-    const target0 = roomOf(targetName);
-    if (!text.trim() || !target0) return;
-    setVoiceBusy(true);
-    try {
-      const res = await parseVoiceOrder({
-        data: { text, rooms: draft.rooms.map((r) => r.name) },
-      });
-      if (res.error) {
-        push({ role: "ai", text: res.error });
-        return;
-      }
-      if (!res.items.length) {
-        push({ role: "ai", text: "품목을 못 알아들었어요. 다시 말씀해 주세요." });
-        return;
-      }
-      const target = (res.room && roomOf(res.room)) || target0;
-      const items = { ...target.items };
-      for (const it of res.items) items[it.id] = (items[it.id] || 0) + it.qty;
-      updateDraft({
-        rooms: draft.rooms.map((r) => (r.id === target.id ? { ...r, items } : r)),
-      });
-      tap("success");
-      const summary = res.items
-        .map((i: { name: string; qty: number }) => `${i.name} ${i.qty}개`)
-        .join(", ");
-      push({ role: "ai", text: `「${target.name}」에 ${summary} 담았습니다. 더 말씀해 주세요!` });
-    } catch (e) {
-      push({ role: "ai", text: e instanceof Error ? e.message : "음성 해석에 실패했습니다" });
-    } finally {
-      setVoiceBusy(false);
-    }
-  };
-
-  /** 지금까지 말한 내용을 담습니다 */
-  const commitNow = async () => {
-    const text = bufRef.current.trim();
-    bufRef.current = "";
-    setHeard("");
-    if (!text) {
-      push({ role: "ai", text: "아직 들은 내용이 없어요. 품목을 말씀해 주세요." });
-      return;
-    }
-    await applyVoice(text, roomRef.current || room?.name || "");
-  };
-
-  const stopVoice = () => {
-    keepRef.current = false;
-    try {
-      recRef.current?.stop();
-    } catch {}
-    setListening(false);
-  };
-
-  const startVoice = (targetName: string) => {
-    const SR = recognitionCtor();
-    if (!SR) {
-      toast.error("이 기기에서는 음성 인식을 지원하지 않습니다");
-      return;
-    }
-    // http 로 접속하면 브라우저가 마이크를 막습니다 (휴대폰에서 IP 로 열었을 때)
-    if (!isSecureForMic()) {
-      push({ role: "ai", text: INSECURE_MIC_MESSAGE });
-      toast.error(INSECURE_MIC_MESSAGE);
-      return;
-    }
-    const rec = new SR();
-    rec.lang = "ko-KR";
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.maxAlternatives = 1;
-    recRef.current = rec;
-    roomRef.current = targetName;
-
-    rec.onresult = (ev: SpeechEventLike) => {
-      let interim = "";
-      for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        const r = ev.results[i];
-        const t = r[0].transcript as string;
-        if (r.isFinal) {
-          const line = t.trim();
-          if (!line) continue;
-          push({ role: "user", text: line });
-          if (isCommit(line)) {
-            const full = (bufRef.current + " " + line).trim();
-            bufRef.current = "";
-            setHeard("");
-            void applyVoice(full, targetName);
-          } else {
-            bufRef.current = (bufRef.current + " " + line).trim();
-            push({
-              role: "ai",
-              text: "네, 듣고 있어요. 더 말씀하시고 마지막에 “추가해줘”라고 해주세요.",
-            });
-          }
-        } else {
-          interim += t;
-        }
-      }
-      if (interim) setHeard(interim);
-    };
-    rec.onerror = (ev: SpeechErrorLike) => {
-      const code = ev?.error ?? "";
-      // 잠깐 조용했을 뿐이면 계속 듣습니다
-      if (code === "no-speech") return;
-      keepRef.current = false;
-      setListening(false);
-      const msg = speechErrorMessage(code);
-      push({ role: "ai", text: msg });
-      toast.error(msg);
-    };
-    // 브라우저가 자동 종료해도 대화를 계속 이어갑니다
-    rec.onend = () => {
-      if (keepRef.current) {
-        try {
-          rec.start();
-          return;
-        } catch {}
-      }
-      setListening(false);
-    };
-    try {
-      rec.start();
-      keepRef.current = true;
-      setListening(true);
-      if (chat.length === 0)
-        push({
-          role: "ai",
-          text: `안녕하세요! 「${targetName}」에 담을 품목을 말씀해 주세요. 다 말한 뒤 “추가해줘”라고 하면 담아드려요.`,
-        });
-    } catch {
-      setListening(false);
-    }
-  };
-
-  const toggleVoice = (targetName: string) => {
-    tap("soft");
-    if (listening) stopVoice();
-    else startVoice(targetName);
-  };
-
-  // 모달을 닫으면 마이크를 정리합니다
-  useEffect(() => {
-    if (!openRoom) {
-      keepRef.current = false;
-      try {
-        recRef.current?.stop();
-      } catch {}
-      setListening(false);
-      setHeard("");
-      bufRef.current = "";
-      setChat([]);
-    }
-  }, [openRoom]);
 
   const addCustom = () => {
     const name = q.trim() || prompt("추가할 품목 이름") || "";
@@ -1461,68 +1291,6 @@ export function Step6() {
                     </span>
                   ))}
                 </div>
-              )}
-            </div>
-
-            {/* AI 음성 대화 (챗 형태) */}
-            <div className="px-4 pt-3 space-y-2">
-              {chat.length > 0 && (
-                <div
-                  className={`overflow-auto space-y-1.5 p-2.5 rounded-2xl bg-[#F3F7FF] border border-[#E1EAF8] ${
-                    pickerOpen ? "max-h-[92px]" : "max-h-[168px]"
-                  }`}
-                >
-                  {chat.map((m, i) => (
-                    <div
-                      key={i}
-                      className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-                    >
-                      <span
-                        className={`max-w-[85%] px-3 py-2 rounded-2xl text-[13px] font-bold leading-snug ${
-                          m.role === "user"
-                            ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_2px_0_#0640A8]"
-                            : "text-[#0F172A] bg-white border border-[#E1EAF8] shadow-[0_2px_0_#EDF2FA]"
-                        }`}
-                      >
-                        {m.text}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {(heard || voiceBusy) && (
-                <div className="px-3 py-2 rounded-2xl bg-white border border-[#DCE8FA] text-[13px] font-bold text-[#0751D8]">
-                  {voiceBusy ? "AI가 정리하는 중..." : `“${heard}”`}
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => toggleVoice(room.name)}
-                  className={`flex-1 py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-2 transition-all active:translate-y-[3px] ${
-                    listening
-                      ? "text-white bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] shadow-[0_5px_0_#A81E20]"
-                      : "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_5px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
-                  }`}
-                >
-                  <Mic className="w-5 h-5" />
-                  {listening ? "듣고 있어요 — 종료" : "🎙️ AI와 음성 대화"}
-                </button>
-                {listening && (
-                  <button
-                    onClick={() => void commitNow()}
-                    className="px-4 py-4 rounded-2xl font-black text-[15px] text-[#0751D8] bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] shadow-[0_5px_0_#DCE8FA,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
-                  >
-                    지금 담기
-                  </button>
-                )}
-              </div>
-              {/* 품목을 고르는 중에는 안내문을 접어 자리를 내어 줍니다 */}
-              {!pickerOpen && (
-                <p className="text-[11px] text-[#6B7280] font-semibold text-center">
-                  예) “냉장고 하나, 세탁기 두 개” … 그리고 “추가해줘” — 말하는 동안 끊지 않아요
-                </p>
               )}
             </div>
 
@@ -2391,8 +2159,15 @@ export function Result() {
   const total = calc.total + adjust;
   const parts = adjust ? [...calc.parts, { label: "할인·조정", amount: adjust }] : calc.parts;
   const extraLabels = new Set((draft.extraCharges ?? []).map((x) => x.label || "추가 항목"));
+  // 사다리차·옵션·보관료는 따로 더해지는 항목이라 「기본 운송료」에서 뺍니다
   const transportAuto = calc.parts
-    .filter((p) => p.label !== "옵션 비용" && p.label !== "보관료" && !extraLabels.has(p.label))
+    .filter(
+      (p) =>
+        p.label !== "옵션 비용" &&
+        p.label !== "보관료" &&
+        p.label !== "사다리차 비용" &&
+        !extraLabels.has(p.label),
+    )
     .reduce((s, p) => s + p.amount, 0);
 
   useEffect(() => {
@@ -2485,7 +2260,7 @@ export function Result() {
                   />
                 </Field>
                 {calc.parts
-                  .filter((p) => ["옵션 비용", "보관료"].includes(p.label))
+                  .filter((p) => ["사다리차 비용", "옵션 비용", "보관료"].includes(p.label))
                   .map((p) => (
                     <div key={p.label} className="flex justify-between text-sm">
                       <span className="text-[#6B7280]">{p.label}</span>

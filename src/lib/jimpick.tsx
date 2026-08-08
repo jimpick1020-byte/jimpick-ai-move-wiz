@@ -700,7 +700,12 @@ export function calcEstimate(
           : "출발지"
         : "";
 
-  const autoTransport = truck5Fee + truck1Fee + distanceFee + stairFee + manualFee + ladderFee;
+  /**
+   * 기본 운송료 — 사다리차는 여기에 넣지 않습니다.
+   * 사다리 금액은 사장님이 직접 넣는 값이라, 운송료를 직접 입력해 두었더라도
+   * 옵션·보관료처럼 항상 따로 더해져야 합니다.
+   */
+  const autoTransport = truck5Fee + truck1Fee + distanceFee + stairFee + manualFee;
   const overridden = e.transportOverride !== null && e.transportOverride !== undefined;
   const transport = overridden ? num(e.transportOverride) : autoTransport;
 
@@ -710,7 +715,7 @@ export function calcEstimate(
   const storageFee = storageFeeOf(e);
   const extras = (e.extraCharges ?? []).reduce((s2, x) => s2 + num(x.amount), 0);
 
-  const sum = transport + optionFee + storageFee + extras;
+  const sum = transport + ladderFee + optionFee + storageFee + extras;
   const raw =
     e.totalOverride === null || e.totalOverride === undefined ? sum : num(e.totalOverride);
   const total = Math.max(0, Math.round(Number.isFinite(raw) ? raw : 0));
@@ -724,13 +729,20 @@ export function calcEstimate(
           label: `거리 추가비 (${pricing.baseKm}km 초과 ${extraKm.toFixed(1)}km)`,
           amount: distanceFee,
         },
-        { label: "사다리차 비용", amount: ladderFee },
+        { label: `계단 추가비 (${stairFloors}개 층)`, amount: stairFee },
+        // 이 두 줄이 없으면 합계와 항목 합이 어긋납니다
+        {
+          label: `수작업 비용${manualSideLabel ? ` (${manualSideLabel})` : ""}`,
+          amount: manualFee,
+        },
       ].filter((p) => p.amount > 0);
 
   return {
     total,
     parts: [
       ...(parts.length > 0 ? parts : [{ label: "기본 운송료", amount: transport }]),
+      // 사다리차는 운송료를 직접 입력해도 항상 따로 보여 줍니다
+      ...(ladderFee > 0 ? [{ label: "사다리차 비용", amount: ladderFee }] : []),
       ...(optionFee > 0 ? [{ label: "옵션 비용", amount: optionFee }] : []),
       ...(storageFee > 0 ? [{ label: "보관료", amount: storageFee }] : []),
       ...(e.extraCharges ?? []).map((x) => ({
