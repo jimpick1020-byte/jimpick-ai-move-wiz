@@ -65,6 +65,25 @@ import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
 import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
+import { transcribeAudio } from "@/lib/stt.functions";
+import { WavRecorder } from "@/lib/recorder";
+
+/** 음성인식 정확도를 올려 주는 힌트 (자주 쓰는 이사 품목·공간 이름) */
+const VOICE_HINT =
+  "이사 견적 품목: 냉장고, 김치냉장고, 세탁기, 건조기, 스타일러, TV, 에어컨, 공기청정기, 정수기, 전자레인지, 에어프라이어, 식기세척기, 침대, 매트리스, 장롱, 붙박이장, 화장대, 서랍장, 소파, TV장, 식탁, 의자, 책상, 책장, 신발장, 빨래건조대, 청소기, 로봇청소기, 안마의자, 러닝머신, 피아노, 금고, 어항, 옷박스, 대박스, 중박스, 바구니, 이불백. 공간: 안방, 작은방, 입구방, 거실, 부엌, 베란다.";
+
+/** 녹음된 소리를 서버 AI 음성인식으로 다시 확인해 더 정확한 문장을 얻습니다 */
+async function refineWithAiStt(recorder: WavRecorder | null, fallback: string) {
+  const audio = recorder?.snapshot();
+  if (!audio) return fallback;
+  try {
+    const r = await transcribeAudio({ data: { audio, hint: VOICE_HINT } });
+    const t = (r.text || "").trim();
+    return t.length >= 2 ? t : fallback;
+  } catch {
+    return fallback;
+  }
+}
 import {
   recognitionCtor,
   isSecureForMic,
