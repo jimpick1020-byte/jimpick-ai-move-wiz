@@ -1759,6 +1759,7 @@ export function AIRecognition() {
   const [heard, setHeard] = useState("");
   const [voiceBusy, setVoiceBusy] = useState(false);
   const recRef = useRef<RecognitionLike | null>(null);
+  const recorderRef = useRef<WavRecorder | null>(null);
   const keepRef = useRef(false);
   const roomIdRef = useRef(roomId);
   useEffect(() => {
@@ -1849,13 +1850,13 @@ export function AIRecognition() {
   };
 
   // ---- 음성으로 바로 담기 (대화 없이, 말하는 즉시 들어갑니다) ----
-  /** 브라우저가 알려준 정확도. 0 이나 미보고면 판단하지 않고 통과시킵니다. */
-  const VOICE_MIN_CONFIDENCE = 0.9;
 
-  const applySpeech = async (text: string) => {
+  const applySpeech = async (rawText: string) => {
     const targetId = roomIdRef.current;
     setVoiceBusy(true);
     try {
+      // 녹음된 실제 음성을 AI 음성인식으로 다시 확인해 인식률을 크게 높입니다
+      const text = await refineWithAiStt(recorderRef.current, rawText);
       const res = await parseVoiceOrder({
         data: { text, rooms: draft.rooms.map((r) => r.name) },
       });
@@ -1893,6 +1894,8 @@ export function AIRecognition() {
     } catch {
       /* 이미 멈춘 경우 */
     }
+    void recorderRef.current?.stop();
+    recorderRef.current = null;
     setListening(false);
     setHeard("");
   };
@@ -1916,7 +1919,7 @@ export function AIRecognition() {
     rec.continuous = true;
     rec.interimResults = true;
     // 후보를 여러 개 받아 그중 가장 확신하는 문장을 씁니다
-    rec.maxAlternatives = 3;
+    rec.maxAlternatives = 5;
     recRef.current = rec;
 
     rec.onresult = (ev: SpeechEventLike) => {
@@ -1930,13 +1933,6 @@ export function AIRecognition() {
         const best = bestAlternative(r);
         if (!best.transcript.trim()) continue;
         setHeard("");
-        // 브라우저가 정확도를 알려 준 경우에만 90% 미만을 걸러 냅니다
-        if (best.confidence > 0 && best.confidence < VOICE_MIN_CONFIDENCE) {
-          toast.error(
-            `또렷하게 들리지 않았어요 (${Math.round(best.confidence * 100)}%). 다시 말씀해 주세요.`,
-          );
-          continue;
-        }
         void applySpeech(best.transcript.trim());
       }
       if (interim) setHeard(interim);
@@ -1967,6 +1963,11 @@ export function AIRecognition() {
       rec.start();
       keepRef.current = true;
       setListening(true);
+      const recorder = new WavRecorder();
+      recorderRef.current = recorder;
+      void recorder.start().catch(() => {
+        recorderRef.current = null;
+      });
       tap("soft");
     } catch {
       setListening(false);
@@ -1983,6 +1984,8 @@ export function AIRecognition() {
       } catch {
         /* 이미 멈춘 경우 */
       }
+      void recorderRef.current?.stop();
+      recorderRef.current = null;
     };
   }, []);
 
