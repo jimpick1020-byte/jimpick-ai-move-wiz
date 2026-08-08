@@ -2,22 +2,16 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 
-# 페이지 설정
 st.set_page_config(
     page_title="✨ 짐픽 프리미엄 부동산 블로그 생성기",
     page_icon="🏡",
     layout="wide"
 )
 
-# 🌸 화사하고 따뜻한 파스텔톤 디자인 스타일
 st.markdown("""
 <style>
-    .main {
-        background-color: #FAF8F5;
-    }
-    [data-testid="stSidebar"] {
-        background-color: #FFF5F7;
-    }
+    .main { background-color: #FAF8F5; }
+    [data-testid="stSidebar"] { background-color: #FFF5F7; }
     .stButton>button {
         background: linear-gradient(135deg, #FFB6C1 0%, #FFC0CB 100%);
         color: #4A4A4A;
@@ -27,18 +21,12 @@ st.markdown("""
         font-weight: 700;
         font-size: 16px;
         box-shadow: 0 4px 10px rgba(255, 182, 193, 0.4);
-        transition: all 0.3s ease;
     }
     .stButton>button:hover {
         background: linear-gradient(135deg, #FF91A4 0%, #FFB6C1 100%);
         color: white;
-        box-shadow: 0 6px 14px rgba(255, 145, 164, 0.6);
-        transform: translateY(-2px);
     }
-    h1, h2, h3 {
-        color: #5C4033;
-        font-family: 'Pretendard', sans-serif;
-    }
+    h1, h2, h3 { color: #5C4033; }
     .stTextInput>div>div>input, .stTextArea>div>div>textarea {
         border-radius: 12px;
         border: 1px solid #EED7D8;
@@ -47,7 +35,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# API 키 가져오기 (시크릿 마스터 키 연동)
 api_key = ""
 try:
     if "GEMINI_API_KEY" in st.secrets:
@@ -55,13 +42,12 @@ try:
 except Exception:
     pass
 
-# --- 사이드바 설정 (불필요한 기능 제거) ---
 with st.sidebar:
     st.markdown("### 🌸 시스템 상태")
     if not api_key:
         api_key = st.text_input("Gemini API 키 입력", type="password")
     else:
-        st.success("✨ 마스터 API 키가 안전하게 적용되어 있습니다!")
+        st.success("✨ 마스터 API 키가 적용되어 있습니다!")
         
     st.markdown("---")
     st.markdown("### 📞 중개사무소 정보")
@@ -73,12 +59,10 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("<p style='font-size: 12px; color: #888;'>✨ 짐픽 · 공인중개사 전용 AI 솔루션</p>", unsafe_allow_html=True)
 
-# --- 메인 화면 ---
 st.markdown("<h1 style='text-align: center; color: #5C4033;'>🏡 프리미엄 부동산 블로그 자동 생성기</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #7A6252; font-size: 16px;'>매물 사진과 특징을 넣으면, AI가 사진을 분석해 완벽한 블로그 포스팅을 완성해 드립니다! 💖</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# 입력 폼
 col1, col2 = st.columns(2)
 
 with col1:
@@ -88,17 +72,15 @@ with col1:
 with col2:
     prop_type = st.selectbox("🏠 매물 종류", ["아파트 매매/전세", "상가/사무실", "주택/빌라", "토지/재개발"])
 
-# 사진 업로드 기능
 uploaded_files = st.file_uploader("📸 매물 실사진 업로드 (여러 장 선택 가능)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
 if uploaded_files:
-    st.markdown(f"<p style='color: #E68294; font-weight: bold;'>✨ 총 {len(uploaded_files)}장의 사진이 업로드되었습니다! AI가 사진을 분석에 활용합니다.</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color: #E68294; font-weight: bold;'>✨ 총 {len(uploaded_files)}장의 사진이 업로드되었습니다! AI가 사진 분석에 활용합니다.</p>", unsafe_allow_html=True)
 
-prop_features = st.text_area("🌟 매물의 핵심 특징 (자세히 적을수록 글이 풍성해집니다!)", placeholder="예:\n- 초역세권 도보 3분 거리\n- 올리모델링 완료로 내부 매우 깨끗함\n- 초·중·고 학세권 완벽\n- 즉시 입주 가능, 주인세대 강추 매물!")
+prop_features = st.text_area("🌟 매물의 핵심 특징 (자세히 적을수록 글이 풍성해집니다!)", placeholder="예:\n- 초역세권 도보 3분 거리\n- 올리모델링 완료로 내부 매우 깨끗함\n- 초·중·고 학세권 완벽\n- 즉시 입주 가능!")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# 생성 버튼
 generate_btn = st.button("✨ 사진 분석 및 감성 블로그 글 생성하기 💖", use_container_width=True)
 
 if generate_btn:
