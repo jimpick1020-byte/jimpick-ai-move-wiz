@@ -1,5 +1,5 @@
 /** 파일 → data URL (이미지 리사이즈 포함) */
-export async function fileToDataUrl(file: File, maxSize = 1024): Promise<string> {
+export async function fileToDataUrl(file: File, maxSize = 1600): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
@@ -7,7 +7,7 @@ export async function fileToDataUrl(file: File, maxSize = 1024): Promise<string>
   canvas.height = Math.round(bitmap.height * scale);
   const ctx = canvas.getContext("2d")!;
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.85);
+  return canvas.toDataURL("image/jpeg", 0.94);
 }
 
 /** 간단한 평균 밝기 해시 — 거의 같은 장면을 걸러내는 데 사용합니다 */
@@ -34,7 +34,7 @@ function hamming(a: string, b: string) {
 }
 
 /** 동영상에서 1초 간격으로 프레임을 추출하고 중복 장면을 제거합니다 */
-export async function videoToFrames(file: File, maxFrames = 8, maxSize = 1024): Promise<string[]> {
+export async function videoToFrames(file: File, maxFrames = 8, maxSize = 1440): Promise<string[]> {
   const url = URL.createObjectURL(file);
   const video = document.createElement("video");
   video.src = url;
@@ -79,7 +79,7 @@ export async function videoToFrames(file: File, maxFrames = 8, maxSize = 1024): 
     // 이전 장면과 거의 같으면 건너뜁니다 (중복 제거)
     if (hashes.some((h) => hamming(h, hash) <= 5)) continue;
     hashes.push(hash);
-    frames.push(canvas.toDataURL("image/jpeg", 0.8));
+    frames.push(canvas.toDataURL("image/jpeg", 0.92));
     if (frames.length >= maxFrames) break;
   }
 
