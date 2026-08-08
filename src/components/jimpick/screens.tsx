@@ -1140,6 +1140,8 @@ export function Step6() {
     try {
       recRef.current?.stop();
     } catch {}
+    void recorderRef.current?.stop();
+    recorderRef.current = null;
     setListening(false);
   };
 
