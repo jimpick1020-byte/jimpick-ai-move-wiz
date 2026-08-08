@@ -65,6 +65,25 @@ import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
 import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
+import { transcribeAudio } from "@/lib/stt.functions";
+import { WavRecorder } from "@/lib/recorder";
+
+/** 음성인식 정확도를 올려 주는 힌트 (자주 쓰는 이사 품목·공간 이름) */
+const VOICE_HINT =
+  "이사 견적 품목: 냉장고, 김치냉장고, 세탁기, 건조기, 스타일러, TV, 에어컨, 공기청정기, 정수기, 전자레인지, 에어프라이어, 식기세척기, 침대, 매트리스, 장롱, 붙박이장, 화장대, 서랍장, 소파, TV장, 식탁, 의자, 책상, 책장, 신발장, 빨래건조대, 청소기, 로봇청소기, 안마의자, 러닝머신, 피아노, 금고, 어항, 옷박스, 대박스, 중박스, 바구니, 이불백. 공간: 안방, 작은방, 입구방, 거실, 부엌, 베란다.";
+
+/** 녹음된 소리를 서버 AI 음성인식으로 다시 확인해 더 정확한 문장을 얻습니다 */
+async function refineWithAiStt(recorder: WavRecorder | null, fallback: string) {
+  const audio = recorder?.snapshot();
+  if (!audio) return fallback;
+  try {
+    const r = await transcribeAudio({ data: { audio, hint: VOICE_HINT } });
+    const t = (r.text || "").trim();
+    return t.length >= 2 ? t : fallback;
+  } catch {
+    return fallback;
+  }
+}
 import {
   recognitionCtor,
   isSecureForMic,
@@ -79,7 +98,9 @@ import {
 import { fileToDataUrl, videoToFrames } from "@/lib/media";
 
 // ============ Splash ============
-import truckImg from "@/assets/jimpick-truck.png";
+import mascot1 from "@/assets/mascot-1.png";
+import mascot2 from "@/assets/mascot-2.png";
+import mascot3 from "@/assets/mascot-3.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { TruckGauge } from "./TruckGauge";
@@ -99,6 +120,7 @@ import houseImg from "@/assets/step6-house.png";
 
 export function Splash() {
   const { setScreen, loggedIn } = useApp();
+  const [mascotIdx, setMascotIdx] = useState(0);
   useEffect(() => {
     const t = setTimeout(() => setScreen(loggedIn ? "home" : "login"), 2500);
     return () => clearTimeout(t);
@@ -142,13 +164,29 @@ export function Splash() {
             </div>
           ))}
         </div>
-        <div className="mt-auto pt-4 pb-1">
+        <div className="mt-auto pt-4 pb-1 flex flex-col items-center gap-2">
           <img
-            src={truckImg}
-            alt="JIMPICK 트럭"
-            className="w-full max-w-[320px] jp-float [image-rendering:auto]"
+            src={[mascot1, mascot2, mascot3][mascotIdx]}
+            alt="JIMPICK 캐릭터"
+            className="w-full max-w-[220px] jp-float [image-rendering:auto]"
           />
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            {[mascot1, mascot2, mascot3].map((m, i) => (
+              <button
+                key={i}
+                onClick={() => setMascotIdx(i)}
+                className={`w-11 h-11 rounded-xl bg-[#F3F7FF] p-1 transition-all ${
+                  mascotIdx === i
+                    ? "ring-2 ring-[#0751D8] shadow-[0_6px_14px_-6px_rgba(7,81,216,0.6)] -translate-y-[1px]"
+                    : "opacity-60"
+                }`}
+              >
+                <img src={m} alt={`캐릭터 시안 ${i + 1}`} className="w-full h-full object-contain" />
+              </button>
+            ))}
+          </div>
         </div>
+
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -1050,7 +1088,6 @@ export function Step6() {
     updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
   };
 
-
   const addCustom = () => {
     const name = q.trim() || prompt("추가할 품목 이름") || "";
     if (!name) return;
@@ -1494,6 +1531,7 @@ export function AIRecognition() {
   const [heard, setHeard] = useState("");
   const [voiceBusy, setVoiceBusy] = useState(false);
   const recRef = useRef<RecognitionLike | null>(null);
+  const recorderRef = useRef<WavRecorder | null>(null);
   const keepRef = useRef(false);
   const roomIdRef = useRef(roomId);
   useEffect(() => {
@@ -1584,13 +1622,13 @@ export function AIRecognition() {
   };
 
   // ---- 음성으로 바로 담기 (대화 없이, 말하는 즉시 들어갑니다) ----
-  /** 브라우저가 알려준 정확도. 0 이나 미보고면 판단하지 않고 통과시킵니다. */
-  const VOICE_MIN_CONFIDENCE = 0.9;
 
-  const applySpeech = async (text: string) => {
+  const applySpeech = async (rawText: string) => {
     const targetId = roomIdRef.current;
     setVoiceBusy(true);
     try {
+      // 녹음된 실제 음성을 AI 음성인식으로 다시 확인해 인식률을 크게 높입니다
+      const text = await refineWithAiStt(recorderRef.current, rawText);
       const res = await parseVoiceOrder({
         data: { text, rooms: draft.rooms.map((r) => r.name) },
       });
@@ -1628,6 +1666,8 @@ export function AIRecognition() {
     } catch {
       /* 이미 멈춘 경우 */
     }
+    void recorderRef.current?.stop();
+    recorderRef.current = null;
     setListening(false);
     setHeard("");
   };
@@ -1651,7 +1691,7 @@ export function AIRecognition() {
     rec.continuous = true;
     rec.interimResults = true;
     // 후보를 여러 개 받아 그중 가장 확신하는 문장을 씁니다
-    rec.maxAlternatives = 3;
+    rec.maxAlternatives = 5;
     recRef.current = rec;
 
     rec.onresult = (ev: SpeechEventLike) => {
@@ -1665,13 +1705,6 @@ export function AIRecognition() {
         const best = bestAlternative(r);
         if (!best.transcript.trim()) continue;
         setHeard("");
-        // 브라우저가 정확도를 알려 준 경우에만 90% 미만을 걸러 냅니다
-        if (best.confidence > 0 && best.confidence < VOICE_MIN_CONFIDENCE) {
-          toast.error(
-            `또렷하게 들리지 않았어요 (${Math.round(best.confidence * 100)}%). 다시 말씀해 주세요.`,
-          );
-          continue;
-        }
         void applySpeech(best.transcript.trim());
       }
       if (interim) setHeard(interim);
@@ -1702,6 +1735,11 @@ export function AIRecognition() {
       rec.start();
       keepRef.current = true;
       setListening(true);
+      const recorder = new WavRecorder();
+      recorderRef.current = recorder;
+      void recorder.start().catch(() => {
+        recorderRef.current = null;
+      });
       tap("soft");
     } catch {
       setListening(false);
@@ -1718,6 +1756,8 @@ export function AIRecognition() {
       } catch {
         /* 이미 멈춘 경우 */
       }
+      void recorderRef.current?.stop();
+      recorderRef.current = null;
     };
   }, []);
 
