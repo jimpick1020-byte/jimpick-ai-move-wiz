@@ -17,6 +17,9 @@ NAVER_AUTHORIZE_URL = "https://nid.naver.com/oauth2.0/authorize"
 NAVER_TOKEN_URL = "https://nid.naver.com/oauth2.0/token"
 NAVER_BLOG_WRITE_URL = "https://openapi.naver.com/blog/writePost.json"
 
+# AI가 본문에 넣는 사진 삽입 위치 안내 문구 (예: [📸 여기에 거실 사진 삽입], [사진])
+MARKER_RE = re.compile(r"\[[^\]\n]*(?:📸|사진)[^\]\n]*\]")
+
 
 def get_authorize_url(client_id, redirect_uri, state):
     """사용자를 보낼 네이버 로그인 동의 URL을 만듭니다."""
@@ -97,34 +100,57 @@ def _lead_image_html(url, caption=None):
     )
 
 
+def _paragraph_htmls(text):
+    """빈 문단을 걸러 <p> HTML 목록으로 반환합니다."""
+    return [_paragraph_html(p) for p in _split_paragraphs(text) if p.strip()]
+
+
 def build_contents_html(text, image_urls=None, lead_caption=None):
     """본문 텍스트와 사진 URL 목록을 네이버 블로그용 HTML로 합칩니다.
 
-    첫 사진은 글 맨 위 대표 이미지(캡션 포함)로 고정하고, 나머지 사진은
-    본문 문단 사이사이에 고르게 분산해 <img> 태그로 삽입합니다.
-    lead_caption 으로 대표 사진 아래 캡션 문구를 지정할 수 있습니다.
+    - 첫 사진은 글 맨 위 대표 이미지(캡션 포함)로 고정합니다.
+    - 본문에 사진 삽입 안내 문구([📸 …]/[사진])가 있으면 그 자리에 실제 사진을
+      순서대로 끼워 넣습니다.
+    - 안내 문구가 없으면 나머지 사진을 문단 사이사이에 고르게 분산 삽입합니다.
+    - 사진이 없으면 안내 문구는 깔끔하게 제거하고 텍스트만 렌더링합니다.
     """
     image_urls = list(image_urls or [])
-    paras = _split_paragraphs(text)
-    n_para = len(paras)
 
-    # 사진이 없으면 텍스트만 처리
+    # 사진이 없으면: 안내 문구 제거 후 텍스트만
     if not image_urls:
-        return "\n".join(_paragraph_html(p) for p in paras)
-    # 문단이 없으면 사진만 순서대로 처리
-    if n_para == 0:
-        return "\n".join(_image_html(u) for u in image_urls)
+        cleaned = MARKER_RE.sub("", text)
+        return "\n".join(_paragraph_htmls(cleaned))
 
-    # 첫 사진은 맨 위 대표 이미지로 고정, 나머지는 문단 사이에 분산
+    # 첫 사진은 맨 위 대표 이미지로 고정
     lead, rest = image_urls[0], image_urls[1:]
     parts = [_lead_image_html(lead, caption=lead_caption)]
+    imgs = list(rest)
+
+    markers = MARKER_RE.findall(text)
+    if markers:
+        # 안내 문구 위치에 실제 사진을 순서대로 삽입
+        pieces = MARKER_RE.split(text)  # 조각 개수 = 문구 개수 + 1
+        for i, piece in enumerate(pieces):
+            parts.extend(_paragraph_htmls(piece))
+            if i < len(pieces) - 1 and imgs:  # 이 조각 뒤에 안내 문구가 있던 자리
+                parts.append(_image_html(imgs.pop(0)))
+        # 문구보다 사진이 많이 남으면 끝에 이어 붙임
+        for url in imgs:
+            parts.append(_image_html(url))
+        return "\n".join(parts)
+
+    # 안내 문구가 없으면: 나머지 사진을 문단 사이에 고르게 분산
+    paras = [p for p in _split_paragraphs(text) if p.strip()]
+    n_para = len(paras)
+    if n_para == 0:
+        parts.extend(_image_html(u) for u in imgs)
+        return "\n".join(parts)
 
     after = {}
-    n_img = len(rest)
-    for i in range(n_img):
-        idx = int(round((i + 1) * n_para / (n_img + 1))) - 1
+    for i in range(len(imgs)):
+        idx = int(round((i + 1) * n_para / (len(imgs) + 1))) - 1
         idx = max(0, min(n_para - 1, idx))
-        after.setdefault(idx, []).append(rest[i])
+        after.setdefault(idx, []).append(imgs[i])
 
     for p_idx, para in enumerate(paras):
         parts.append(_paragraph_html(para))
