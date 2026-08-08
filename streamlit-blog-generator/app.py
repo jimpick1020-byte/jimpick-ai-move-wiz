@@ -92,6 +92,7 @@ if generate_btn:
         with st.spinner("🌸 업로드된 사진과 정보를 바탕으로 아름다운 블로그 글을 작성 중입니다... 잠시만 기다려주세요! ✨"):
             try:
                 genai.configure(api_key=api_key)
+                # 안정적인 정식 모델명으로 적용
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 prompt = f"""
