@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useBlog } from "./context";
 import { Card, PrimaryButton, FeatureCheck, GhostButton } from "./ui";
-import { coverOf, PLANS, type PropertyRecord } from "./data";
+import { coverOf, statusLabel, PLANS, type PropertyRecord } from "./data";
 import { selectedTitle } from "./export";
 
 /* ── 홈 ── */
@@ -133,13 +133,16 @@ function RecordRow({
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold text-slate-800">{title}</p>
           <div className="mt-0.5 flex items-center gap-1.5">
-            <span
-              className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
-                rec.status === "done" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
-              }`}
-            >
-              {rec.status === "done" ? "완료" : "작성중"}
-            </span>
+            {(() => {
+              const s = statusLabel(rec);
+              const tone =
+                s === "승인완료"
+                  ? "bg-green-100 text-green-700"
+                  : s === "AI 작성완료"
+                    ? "bg-violet-100 text-violet-700"
+                    : "bg-amber-100 text-amber-700";
+              return <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${tone}`}>{s}</span>;
+            })()}
             <span className="rounded-md bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold text-violet-600">
               {rec.transactionType}
             </span>

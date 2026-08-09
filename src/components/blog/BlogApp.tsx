@@ -3,7 +3,7 @@
  * 화이트 + 퍼플, 모바일 우선. 기존 짐픽 앱과 완전히 분리된 독립 앱입니다.
  */
 import { Toaster } from "@/components/ui/sonner";
-import { Home, Plus, Clock, CheckCircle2, FileText, Settings } from "lucide-react";
+import { Home, Plus, Clock, CheckCircle2, Settings } from "lucide-react";
 import { BlogProvider, useBlog, type Screen } from "./context";
 import { EditorScreen } from "./EditorScreen";
 import { PreviewScreen } from "./PreviewScreen";
@@ -37,12 +37,14 @@ function Header() {
   );
 }
 
+// 하단 메뉴는 심플하게: 홈 / 작성중 / 새 매물 / 완료 / 설정
+// (짐픽의 견적/고객/통계 메뉴는 가져오지 않습니다)
 const NAV: { screen: Screen; label: string; icon: typeof Home; action?: "new" }[] = [
   { screen: "home", label: "홈", icon: Home },
   { screen: "drafts", label: "작성중", icon: Clock },
   { screen: "editor", label: "새 매물", icon: Plus, action: "new" },
   { screen: "done", label: "완료", icon: CheckCircle2 },
-  { screen: "blogs", label: "내 글", icon: FileText },
+  { screen: "settings", label: "설정", icon: Settings },
 ];
 
 function BottomNav() {
@@ -109,32 +111,15 @@ function ScreenRouter() {
 }
 
 function Shell() {
-  const { screen } = useBlog();
-  // 설정 진입점 — 홈 헤더에서는 하단 내비에 없으므로 요금제 옆 링크 대신 홈 카드에서 이동
   return (
     <div className="min-h-screen bg-gradient-to-b from-violet-50/60 to-white text-slate-900">
       <Header />
       <main className="mx-auto max-w-md px-4 pb-24 pt-4">
         <ScreenRouter />
       </main>
-      {screen !== "editor" && <SettingsFab />}
       <BottomNav />
       <Toaster position="top-center" />
     </div>
-  );
-}
-
-function SettingsFab() {
-  const { go, screen } = useBlog();
-  if (screen === "settings") return null;
-  return (
-    <button
-      onClick={() => go("settings")}
-      className="fixed bottom-24 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-violet-200 bg-white text-violet-600 shadow-md"
-      title="설정"
-    >
-      <Settings size={20} />
-    </button>
   );
 }
 

@@ -16,7 +16,9 @@ export function coreInfoLines(rec: PropertyRecord): { label: string; value: stri
   lines.push({ label: "거래 유형", value: rec.transactionType });
   push("아파트", "아파트명");
   push("주소", "주소");
-  push("동/층", "동/층");
+
+  const dongFloor = [info.동?.trim(), info.층?.trim()].filter(Boolean).join(" ");
+  if (dongFloor) lines.push({ label: "동/층", value: dongFloor });
 
   const area = [info.전용면적 && `${info.전용면적}㎡`, info.평수 && `${info.평수}평`].filter(Boolean).join(" / ");
   if (area) lines.push({ label: "면적", value: area });

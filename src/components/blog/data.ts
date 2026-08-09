@@ -16,9 +16,10 @@ export interface Photo {
 export interface PropertyInfo {
   아파트명: string;
   주소: string;
-  "동/층": string;
-  전용면적: string;
+  동: string;
+  층: string;
   공급면적: string;
+  전용면적: string;
   평수: string;
   방개수: string;
   욕실개수: string;
@@ -39,9 +40,10 @@ export interface PropertyInfo {
 export const EMPTY_INFO: PropertyInfo = {
   아파트명: "",
   주소: "",
-  "동/층": "",
-  전용면적: "",
+  동: "",
+  층: "",
   공급면적: "",
+  전용면적: "",
   평수: "",
   방개수: "",
   욕실개수: "",
@@ -72,9 +74,10 @@ export const PRICE_FIELDS: Record<TransactionType, (keyof PropertyInfo)[]> = {
 export const COMMON_FIELDS: { key: keyof PropertyInfo; placeholder?: string; wide?: boolean }[] = [
   { key: "아파트명", placeholder: "예: 힐스테이트" },
   { key: "주소", placeholder: "예: 대구 수성구 ○○동", wide: true },
-  { key: "동/층", placeholder: "예: 101동 15층" },
-  { key: "전용면적", placeholder: "㎡" },
+  { key: "동", placeholder: "예: 101동" },
+  { key: "층", placeholder: "예: 15층" },
   { key: "공급면적", placeholder: "㎡" },
+  { key: "전용면적", placeholder: "㎡" },
   { key: "평수", placeholder: "예: 25.7" },
   { key: "방개수", placeholder: "예: 3" },
   { key: "욕실개수", placeholder: "예: 2" },
@@ -94,11 +97,14 @@ export const MOVE_IN_QUICK = ["즉시입주", "협의가능", "1개월 이내", 
 
 /** 추가 특징 선택 칩 */
 export const FEATURE_GROUPS: { title: string; items: string[] }[] = [
-  { title: "방향 · 층", items: ["남향", "남동향", "남서향", "동향", "고층", "중층", "저층", "로열동", "로열층"] },
-  { title: "상태 · 구조", items: ["올수리", "부분수리", "신축급", "확장형", "시스템에어컨", "붙박이장", "팬트리", "드레스룸"] },
-  { title: "뷰 · 환경", items: ["뷰 좋음", "일조량 좋음", "조용함", "숲세권", "공원 인접"] },
-  { title: "입지 · 생활", items: ["역세권", "학세권", "생활권 좋음", "대형마트 인접", "병원 인접"] },
-  { title: "기타", items: ["즉시입주", "애완동물 협의"] },
+  { title: "방향 · 층", items: ["남향", "남동향", "고층", "중층", "저층", "로열동", "로열층"] },
+  {
+    title: "상태 · 구조",
+    items: ["올수리", "부분수리", "신축급", "확장형", "시스템에어컨", "붙박이장", "팬트리", "드레스룸"],
+  },
+  { title: "공간 · 뷰", items: ["넓은 거실", "채광 좋음", "전망 좋음", "조용함"] },
+  { title: "입지 · 생활", items: ["역세권", "학세권", "숲세권", "대형마트 인접", "병원 인접", "공원 인접"] },
+  { title: "기타", items: ["즉시입주 가능"] },
 ];
 
 export const ALL_FEATURES = FEATURE_GROUPS.flatMap((g) => g.items);
@@ -112,6 +118,8 @@ export const PHOTO_LABELS = [
   "욕실",
   "베란다",
   "현관",
+  "드레스룸",
+  "팬트리",
   "외부전경",
   "단지",
   "전망",
@@ -229,6 +237,14 @@ export function deleteRecord(id: string): PropertyRecord[] {
 
 export function newId(): string {
   return `p_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
+}
+
+/** 3단계 상태 라벨: 작성중 / AI 작성완료 / 승인완료 */
+export type StatusLabel = "작성중" | "AI 작성완료" | "승인완료";
+export function statusLabel(rec: Pick<PropertyRecord, "status" | "blog">): StatusLabel {
+  if (rec.status === "done") return "승인완료";
+  if (rec.blog) return "AI 작성완료";
+  return "작성중";
 }
 
 /** 매물의 대표 사진 dataUrl */
