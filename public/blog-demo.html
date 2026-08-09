@@ -254,11 +254,11 @@ const COMMON = [
 const CONTACT = [["중개사무소명","예: 범어공인중개사", true],["담당자명","예: 홍길동 실장"],["연락처","예: 010-0000-0000"]];
 const MOVEIN = ["즉시입주","협의가능","1개월 이내","날짜 지정"];
 const FEATURE_GROUPS = [
-  ["방향·층", ["남향","남동향","남서향","동향","고층","중층","저층","로열동","로열층"]],
+  ["방향·층", ["남향","남동향","고층","중층","저층","로열동","로열층"]],
   ["상태·구조", ["올수리","부분수리","신축급","확장형","시스템에어컨","붙박이장","팬트리","드레스룸"]],
-  ["뷰·환경", ["뷰 좋음","일조량 좋음","조용함","숲세권","공원 인접"]],
-  ["입지·생활", ["역세권","학세권","생활권 좋음","대형마트 인접","병원 인접"]],
-  ["기타", ["즉시입주","애완동물 협의"]],
+  ["공간·뷰", ["넓은 거실","채광 좋음","전망 좋음","조용함"]],
+  ["입지·생활", ["역세권","학세권","숲세권","대형마트 인접","병원 인접","공원 인접"]],
+  ["기타", ["즉시입주 가능"]],
 ];
 const STYLES = [
   ["전문적인소장님","전문적인 소장님","신뢰감 있는 전문 어조"],
@@ -273,7 +273,7 @@ const PLANS = [
   ["스탠다드",49000,"월 100건 작성",["베이직 전체 기능","글 스타일 5종","이전 글 복사 작성"],true],
   ["프리미엄",79000,"작성량 확대 · 무제한 정책",["스탠다드 전체 기능","우선 처리","관리자 사용량 설정"],false],
 ];
-const PHOTO_LABELS = ["거실","주방","안방","작은방","욕실","베란다","현관","외부전경","단지","전망"];
+const PHOTO_LABELS = ["거실","주방","안방","작은방","욕실","베란다","현관","드레스룸","팬트리","외부전경","단지","전망"];
 
 /* ============ 상태 / 저장 ============ */
 const KEY="blogdemo_records_v1";
@@ -483,7 +483,7 @@ function editSection(idx,val){ S.current.blog.sections[idx].text=val; saveCurren
 function render(){
   const v=document.getElementById("view");
   const fab=document.getElementById("fab");
-  fab.style.display = (S.screen==="editor"||S.screen==="settings") ? "none":"grid";
+  fab.style.display = "none"; /* 설정은 하단 메뉴로 이동 */
   let html="";
   if(S.screen==="home") html=Home();
   else if(S.screen==="editor") html = S.step==="preview"?Preview() : S.step==="complete"?Complete() : Editor();
@@ -500,7 +500,7 @@ function render(){
 }
 
 function Nav(){
-  const items=[["home","🏠","홈"],["drafts","🕓","작성중"],["__new","＋","새 매물"],["done","✅","완료"],["blogs","📄","내 글"]];
+  const items=[["home","🏠","홈"],["drafts","🕓","작성중"],["__new","＋","새 매물"],["done","✅","완료"],["settings","⚙️","설정"]];
   return items.map(([s,ic,l])=>{
     if(s==="__new") return `<button class="newbtn" onclick="startNew()"><span class="plus">${ic}</span><span class="nl">${l}</span></button>`;
     const on = S.screen===s ? "on":"";

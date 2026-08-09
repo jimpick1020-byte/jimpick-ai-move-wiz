@@ -300,19 +300,6 @@ export function HomeScreen() {
             <div className="text-5xl">📋</div>
           </div>
         </div>
-        <a
-          href="/blog"
-          className="block rounded-2xl p-5 text-white cursor-pointer active:scale-[0.98] shadow-[0_6px_20px_rgba(15,23,42,0.10)]"
-          style={{ background: "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)" }}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xl font-bold">AI 부동산 블로그 작성</div>
-              <div className="text-sm opacity-90 mt-1">사진 한 장으로 홍보글까지 자동 작성</div>
-            </div>
-            <div className="text-5xl">🏠</div>
-          </div>
-        </a>
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: "견적 내역", icon: ClipboardList, s: "history" as const },
