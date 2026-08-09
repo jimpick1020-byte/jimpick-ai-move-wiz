@@ -1232,36 +1232,43 @@ export function Step6() {
                   <div className="mt-1 relative flex items-center justify-center h-[86px]">
                     <Art3D src={ROOM_IMG[name] || ROOM_IMG["작은방"]} alt={name} size={82} />
                   </div>
-                  {/* 도면 위에 담은 품목을 3D로 배치합니다 */}
-                  {r && Object.keys(r.items).length > 0 && (
-                    <div className="mt-1 flex flex-wrap justify-center gap-1">
-                      {Object.entries(r.items)
-                        .slice(0, 6)
-                        .map(([id, qty]) => {
-                          const nm = catalog.find((c) => c.id === id)?.name || id;
-                          return (
+                  {/* 담은 품목 미리보기 — 3D 아이콘 3개까지, 나머지는 +N */}
+                  {(() => {
+                    const entries = Object.entries(r?.items ?? {});
+                    if (entries.length === 0) return null;
+                    const shownItems = entries.slice(0, 3);
+                    const rest = entries.length - shownItems.length;
+                    const nameOf = (id: string) => catalog.find((c) => c.id === id)?.name || id;
+                    return (
+                      <>
+                        <div className="mt-1 flex items-center justify-center gap-1.5">
+                          {shownItems.map(([id, qty]) => (
                             <span
                               key={id}
                               className="relative rounded-xl bg-gradient-to-b from-white to-[#EAF2FF] border border-[#CFE0FA] p-0.5 shadow-[0_2px_0_#DCE8FA,inset_0_1px_0_#fff]"
                             >
-                              <ItemArt id={id} name={nm} size={24} />
+                              <ItemArt id={id} name={nameOf(id)} size={34} />
                               {qty > 1 && (
-                                <span className="absolute -top-1 -right-1 px-1 rounded-full bg-[#0751D8] text-white text-[9px] font-black">
+                                <span className="absolute -top-1 -right-1 min-w-4 px-1 rounded-full bg-[#0751D8] text-white text-[9px] font-black text-center">
                                   {qty}
                                 </span>
                               )}
                             </span>
-                          );
-                        })}
-                      {Object.keys(r.items).length > 6 && (
-                        <span className="self-center text-[11px] font-black text-[#0751D8]">
-                          +{Object.keys(r.items).length - 6}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                          ))}
+                          {rest > 0 && (
+                            <span className="self-center rounded-xl bg-[#EAF2FF] border border-[#CFE0FA] px-1.5 py-2 text-[12px] font-black text-[#0751D8]">
+                              +{rest}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 truncate text-center text-[11px] font-bold text-[#5A6478]">
+                          {shownItems.map(([id]) => nameOf(id)).join(", ")}
+                        </div>
+                      </>
+                    );
+                  })()}
                   <div className="mt-1 text-center text-[12px] font-extrabold text-[#0F172A]">
-                    {s.kinds > 0 ? `품목 ${s.kinds}종 · 총 ${s.count}개` : "품목 없음"}
+                    {s.kinds > 0 ? `${s.kinds}종 · ${s.count}개` : "품목 없음"}
                   </div>
                 </button>
                 {s.count > 0 && (
@@ -1454,6 +1461,12 @@ export function Step6() {
                                     : "border-[#E3EBF7] bg-gradient-to-b from-white to-[#F7FAFF] shadow-[0_4px_0_#EDF2FA,inset_0_1px_0_#fff]"
                                 }`}
                               >
+                                {/* 고른 품목은 파란 테두리 + 체크 */}
+                                {qty > 0 && (
+                                  <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_2px_0_#0640A8]">
+                                    <Check className="h-3.5 w-3.5 text-white" />
+                                  </span>
+                                )}
                                 <button
                                   onClick={() => {
                                     tap("soft");
@@ -1461,7 +1474,7 @@ export function Step6() {
                                   }}
                                   className="w-full flex flex-col items-center gap-1 active:translate-y-[2px] transition-transform"
                                 >
-                                  <ItemArt id={it.id} name={it.name} size={54} />
+                                  <ItemArt id={it.id} name={it.name} size={62} />
                                   <span className="text-[12px] font-extrabold text-[#0F172A] text-center leading-tight line-clamp-2">
                                     {it.name}
                                   </span>
@@ -1502,14 +1515,16 @@ export function Step6() {
 
                 <button
                   onClick={addCustom}
-                  className="w-full py-3.5 mb-2 rounded-2xl border-2 border-dashed border-[#287BFF] text-[#0751D8] font-black flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl border-2 border-dashed border-[#287BFF] text-[#0751D8] font-black flex items-center justify-center gap-2"
                 >
                   <Plus className="w-5 h-5" /> {q ? `「${q}」 품목 추가` : "품목 직접 추가"}
                 </button>
+                {/* 아래 「이 공간 완료」 버튼에 목록이 가리지 않도록 여백을 둡니다 */}
+                <div aria-hidden className="h-6" />
               </div>
             )}
 
-            <div className="px-4 pt-3">
+            <div className="border-t border-[#E7EBF2] bg-white/95 px-4 pt-3 pb-1 backdrop-blur-sm">
               <PrimaryButton onClick={() => setOpenRoom(null)}>
                 <span className="inline-flex items-center gap-2">
                   <Check className="w-5 h-5" /> 이 공간 완료
