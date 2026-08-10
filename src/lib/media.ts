@@ -1,5 +1,11 @@
-/** 파일 → data URL (이미지 리사이즈 포함) */
-export async function fileToDataUrl(file: File, maxSize = 1600): Promise<string> {
+/**
+ * 파일 → data URL (이미지 리사이즈 포함)
+ *
+ * 1024px·품질 0.82 로 줄입니다. 휴대폰 사진을 그대로 보내면
+ * base64 로 1MB 가까이 되어 업로드만 몇 초씩 걸렸습니다.
+ * 가구·가전을 알아보는 데는 1024px 이면 충분하고 크기는 1/5 로 줄어듭니다.
+ */
+export async function fileToDataUrl(file: File, maxSize = 1024): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
@@ -7,7 +13,8 @@ export async function fileToDataUrl(file: File, maxSize = 1600): Promise<string>
   canvas.height = Math.round(bitmap.height * scale);
   const ctx = canvas.getContext("2d")!;
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.94);
+  bitmap.close?.();
+  return canvas.toDataURL("image/jpeg", 0.82);
 }
 
 /** 간단한 평균 밝기 해시 — 거의 같은 장면을 걸러내는 데 사용합니다 */
@@ -33,8 +40,11 @@ function hamming(a: string, b: string) {
   return d;
 }
 
-/** 동영상에서 1초 간격으로 프레임을 추출하고 중복 장면을 제거합니다 */
-export async function videoToFrames(file: File, maxFrames = 8, maxSize = 1440): Promise<string[]> {
+/**
+ * 동영상에서 1초 간격으로 프레임을 추출하고 중복 장면을 제거합니다.
+ * 장면 수와 크기를 줄여 업로드 시간을 크게 낮췄습니다 (8장·1440px → 5장·960px).
+ */
+export async function videoToFrames(file: File, maxFrames = 5, maxSize = 960): Promise<string[]> {
   const url = URL.createObjectURL(file);
   const video = document.createElement("video");
   video.src = url;
@@ -79,7 +89,7 @@ export async function videoToFrames(file: File, maxFrames = 8, maxSize = 1440): 
     // 이전 장면과 거의 같으면 건너뜁니다 (중복 제거)
     if (hashes.some((h) => hamming(h, hash) <= 5)) continue;
     hashes.push(hash);
-    frames.push(canvas.toDataURL("image/jpeg", 0.92));
+    frames.push(canvas.toDataURL("image/jpeg", 0.8));
     if (frames.length >= maxFrames) break;
   }
 

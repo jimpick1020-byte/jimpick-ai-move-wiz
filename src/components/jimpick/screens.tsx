@@ -1054,6 +1054,8 @@ export function Step6() {
   const [tab, setTab] = useState<string>("가전");
   const [q, setQ] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  /** 수량을 0으로 줄일 때 뜨는 삭제 확인창 */
+  const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string } | null>(null);
 
   const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || SIZE_TABS[2]).rooms;
 
@@ -1098,6 +1100,19 @@ export function Step6() {
     if (qty <= 0) delete items[itemId];
     else items[itemId] = qty;
     updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
+  };
+
+  /**
+   * 수량을 줄일 때 0이 되려 하면 바로 지우지 않고 확인창을 띄웁니다.
+   * (실수로 한 번 더 눌러 사라지는 일을 막습니다)
+   */
+  const decQty = (itemId: string, itemName: string, qty: number) => {
+    tap("soft");
+    if (qty <= 1) {
+      setConfirmRemove({ id: itemId, name: itemName });
+      return;
+    }
+    setQty(itemId, qty - 1);
   };
 
   const addCustom = () => {
@@ -1338,7 +1353,7 @@ export function Step6() {
                         {p.qty}
                       </span>
                       <button
-                        onClick={() => setQty(p.id, 0)}
+                        onClick={() => setConfirmRemove({ id: p.id, name: p.name })}
                         className="ml-0.5 text-[#94A3B8]"
                         aria-label={`${p.name} 삭제`}
                       >
@@ -1482,7 +1497,7 @@ export function Step6() {
                                 {qty > 0 && (
                                   <div className="w-full flex items-center justify-between gap-1">
                                     <button
-                                      onClick={() => setQty(it.id, qty - 1)}
+                                      onClick={() => decQty(it.id, it.name, qty)}
                                       className="w-7 h-7 rounded-xl bg-white border border-[#CFE0FA] text-[#0751D8] font-black shadow-[0_2px_0_#DCE8FA]"
                                       aria-label={`${it.name} 감소`}
                                     >
@@ -1531,6 +1546,42 @@ export function Step6() {
                 </span>
               </PrimaryButton>
             </div>
+
+            {/* 수량을 0으로 줄이거나 뱃지의 X 를 눌렀을 때 */}
+            {confirmRemove && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center px-6">
+                <div
+                  className="absolute inset-0 bg-[#0F172A]/40"
+                  onClick={() => setConfirmRemove(null)}
+                />
+                <div className="relative w-full max-w-[300px] rounded-3xl bg-white p-5 text-center shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+                  <div className="text-[16px] font-black text-[#0F172A]">
+                    이 품목을 공간에서 삭제할까요?
+                  </div>
+                  <p className="mt-1.5 text-[13px] font-bold text-[#6B7280]">
+                    「{room.name}」의 {confirmRemove.name}
+                  </p>
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => setConfirmRemove(null)}
+                      className="flex-1 rounded-2xl border border-[#DCE8FA] bg-white py-3 font-black text-[14px] text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={() => {
+                        tap("soft");
+                        setQty(confirmRemove.id, 0);
+                        setConfirmRemove(null);
+                      }}
+                      className="flex-1 rounded-2xl bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#A81E20]"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1572,7 +1623,9 @@ export function AIRecognition() {
     window.setTimeout(() => setShooting(false), 650);
   };
 
-  const THRESHOLD = 0.9;
+  /** 이 값 이상만 「확실한 품목」으로 봅니다 */
+  const THRESHOLD = 0.95;
+  const PCT = Math.round(THRESHOLD * 100);
   const shown = onlyHigh ? results.filter((r) => r.confidence >= THRESHOLD) : results;
   const lowCount = results.filter((r) => r.confidence < THRESHOLD).length;
 
@@ -1588,10 +1641,10 @@ export function AIRecognition() {
       setResults(res.items);
       const high = res.items.filter((i) => i.confidence >= THRESHOLD).length;
       if (high === 0) {
-        toast.info("90% 이상 확신하는 품목이 없습니다. 더 밝고 가까이 촬영해 주세요.");
+        toast.info(`${PCT}% 이상 확실한 품목이 없습니다. 더 밝고 가까이 촬영해 주세요.`);
         setOnlyHigh(false);
       } else {
-        toast.success(`AI 인식 완료 — 정확도 90% 이상 ${high}개 품목`);
+        toast.success(`AI 인식 완료 — 정확도 ${PCT}% 이상 ${high}개 품목`);
         tap("success");
       }
       if (res.roomGuess) toast.info(`추정 공간: ${res.roomGuess}`);
@@ -1616,7 +1669,7 @@ export function AIRecognition() {
     setVideoUrl(URL.createObjectURL(f));
     setBusy(true);
     try {
-      const frames = await videoToFrames(f, 6);
+      const frames = await videoToFrames(f, 5);
       await analyze(frames, "video");
     } catch {
       toast.error("동영상을 분석하지 못했습니다");
@@ -1964,7 +2017,7 @@ export function AIRecognition() {
                 onClick={() => setOnlyHigh((v) => !v)}
                 className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#EDF2FB] text-[#0751D8]"
               >
-                {onlyHigh ? `90% 이상만 보기 (숨김 ${lowCount})` : "전체 보기"}
+                {onlyHigh ? `${PCT}% 이상만 보기 (숨김 ${lowCount})` : "전체 보기"}
               </button>
             </div>
             {shown.map((r) => (
