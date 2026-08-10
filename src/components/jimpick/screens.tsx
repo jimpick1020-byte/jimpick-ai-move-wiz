@@ -1610,6 +1610,10 @@ export function AIRecognition() {
   /** 음성으로 바로 담기 */
   const [listening, setListening] = useState(false);
   const [heard, setHeard] = useState("");
+  /** 왜 안 되는지 화면에 보여 주는 한 줄 */
+  const [voiceHint, setVoiceHint] = useState("");
+  /** 음성이 안 될 때 글로 담기 */
+  const [typed, setTyped] = useState("");
   const [voiceBusy, setVoiceBusy] = useState(false);
   const recRef = useRef<RecognitionLike | null>(null);
   const recorderRef = useRef<WavRecorder | null>(null);
@@ -1788,16 +1792,26 @@ export function AIRecognition() {
         const best = bestAlternative(r);
         if (!best.transcript.trim()) continue;
         setHeard("");
+        setVoiceHint(`들은 말: “${best.transcript.trim()}”`);
         void applySpeech(best.transcript.trim());
       }
-      if (interim) setHeard(interim);
+      if (interim) {
+        setHeard(interim);
+        setVoiceHint("");
+      }
     };
 
     rec.onerror = (ev: SpeechErrorLike) => {
       const code = ev?.error ?? "";
-      if (code === "no-speech") return;
+      // 잠깐 조용한 것뿐이면 계속 듣되, 화면에는 상태를 알려 줍니다
+      if (code === "no-speech") {
+        setHeard("");
+        setVoiceHint("소리가 들리지 않았어요. 마이크에 가까이서 말씀해 주세요.");
+        return;
+      }
       keepRef.current = false;
       setListening(false);
+      setVoiceHint(speechErrorMessage(code));
       toast.error(speechErrorMessage(code));
     };
 
@@ -1818,11 +1832,8 @@ export function AIRecognition() {
       rec.start();
       keepRef.current = true;
       setListening(true);
-      const recorder = new WavRecorder();
-      recorderRef.current = recorder;
-      void recorder.start().catch(() => {
-        recorderRef.current = null;
-      });
+      // 녹음기(getUserMedia)를 같이 켜면 음성인식이 마이크를 뺏겨
+      // 아무 결과도 나오지 않습니다. 인식은 브라우저 음성인식만 씁니다.
       tap("soft");
     } catch {
       setListening(false);
@@ -1917,15 +1928,36 @@ export function AIRecognition() {
           <Mic className="h-5 w-5" />
           {listening ? "듣는 중 — 누르면 끝내기" : "말해서 바로 담기"}
         </button>
-        {(listening || heard || voiceBusy) && (
+        {(listening || heard || voiceBusy || voiceHint) && (
           <div className="rounded-2xl border border-[#DCE8FA] bg-white px-3.5 py-2.5 text-[13px] font-bold text-[#0751D8]">
             {voiceBusy
               ? "담는 중..."
               : heard
                 ? `“${heard}”`
-                : "말씀하세요 — 예) 냉장고 하나, 침대 두 개"}
+                : voiceHint || "말씀하세요 — 예) 냉장고 하나, 침대 두 개"}
           </div>
         )}
+
+        {/* 음성이 안 될 때를 위한 글 입력 — 같은 방식으로 담깁니다 */}
+        <div className="flex gap-2">
+          <TextInput
+            value={typed}
+            placeholder="글로 담기 — 예) 냉장고 하나, 침대 두 개"
+            onChange={(e) => setTyped(e.target.value)}
+          />
+          <button
+            onClick={() => {
+              const t = typed.trim();
+              if (!t) return;
+              setTyped("");
+              void applySpeech(t);
+            }}
+            disabled={voiceBusy || !typed.trim()}
+            className="shrink-0 rounded-2xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] px-4 font-black text-[14px] text-white shadow-[0_4px_0_#0640A8] disabled:opacity-50"
+          >
+            담기
+          </button>
+        </div>
 
         {/* 촬영 — 사진 / 동영상 */}
         <div className="grid grid-cols-2 gap-3">
