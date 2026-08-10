@@ -106,7 +106,9 @@ import mascot3 from "@/assets/mascot-3.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { TruckGauge } from "./TruckGauge";
+import { icon3dFor, DEFAULT_ICON3D, ICON3D, Icon3D } from "@/lib/jimpick-icon3d";
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
+import { printSheet } from "@/lib/sheet-export";
 import { ScanMascot, type MascotState } from "./ScanMascot";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
 
@@ -1045,6 +1047,16 @@ const ITEM_TABS = [
   { key: "특수", cats: ["특수"] },
 ];
 
+/**
+ * 아이콘 고르기 후보.
+ * 이름으로 추천한 아이콘을 맨 앞에 두고, 그 뒤로 자주 쓰는 아이콘을 붙입니다.
+ */
+function iconChoices(name: string): string[] {
+  const first = name.trim() ? icon3dFor(undefined, name) : DEFAULT_ICON3D;
+  const rest = Object.values(ICON3D);
+  return [...new Set([first, DEFAULT_ICON3D, ...rest])].slice(0, 60);
+}
+
 export function Step6() {
   const { draft, updateDraft, setScreen, setCurrentRoom, estimates } = useApp();
   const [size, setSize] = useState<string>(() => {
@@ -1118,20 +1130,102 @@ export function Step6() {
     setQty(itemId, qty - 1);
   };
 
-  const addCustom = () => {
-    const name = q.trim() || prompt("추가할 품목 이름") || "";
-    if (!name) return;
-    const catName = guessCategory(name);
-    const newId = `ci_${Date.now()}`;
-    updateDraft({
-      customItems: [...(draft.customItems || []), { id: newId, name, cat: catName, extra: 0 }],
-      rooms: draft.rooms.map((r) =>
-        r.id === room?.id ? { ...r, items: { ...r.items, [newId]: 1 } } : r,
-      ),
+  /** 품목 만들기·고치기 창 — null 이면 닫힘, id 가 있으면 고치는 중 */
+  const [itemForm, setItemForm] = useState<{
+    id?: string;
+    name: string;
+    cat: string;
+    qty: number;
+    icon: string;
+  } | null>(null);
+  /** 직접 추가한 품목의 작은 메뉴 */
+  const [itemMenu, setItemMenu] = useState<string | null>(null);
+  /** 전체 목록에서 삭제 확인 */
+  const [confirmCatalogDel, setConfirmCatalogDel] = useState<string | null>(null);
+
+  const openAddItem = () => {
+    tap("soft");
+    const name = q.trim();
+    setItemForm({
+      name,
+      cat: name ? guessCategory(name) : "가구",
+      qty: 1,
+      icon: name ? icon3dFor(undefined, name) : DEFAULT_ICON3D,
     });
+  };
+
+  const openEditItem = (id: string) => {
+    const c = (draft.customItems || []).find((x) => x.id === id);
+    if (!c) return;
+    tap("soft");
+    setItemMenu(null);
+    setItemForm({
+      id,
+      name: c.name,
+      cat: c.cat,
+      qty: room?.items[id] ?? 1,
+      icon: c.icon || icon3dFor(undefined, c.name),
+    });
+  };
+
+  /** 창에서 저장 — 새로 만들거나, 이름·분류·아이콘을 고칩니다 */
+  const saveItemForm = () => {
+    if (!itemForm) return;
+    const name = itemForm.name.trim();
+    if (!name) {
+      toast.error("품목 이름을 적어 주세요");
+      return;
+    }
+    const list = draft.customItems || [];
+    if (itemForm.id) {
+      updateDraft({
+        customItems: list.map((c) =>
+          c.id === itemForm.id ? { ...c, name, cat: itemForm.cat, icon: itemForm.icon } : c,
+        ),
+      });
+      toast.success(`「${name}」을(를) 고쳤습니다`);
+    } else {
+      const newId = `ci_${Date.now()}`;
+      updateDraft({
+        customItems: [
+          ...list,
+          { id: newId, name, cat: itemForm.cat, extra: 0, icon: itemForm.icon, active: true },
+        ],
+        rooms: draft.rooms.map((r) =>
+          r.id === room?.id
+            ? { ...r, items: { ...r.items, [newId]: Math.max(1, itemForm.qty) } }
+            : r,
+        ),
+      });
+      toast.success(`「${name}」을(를) ${room?.name || "선택한 방"}에 담았습니다`);
+    }
     setQ("");
+    setItemForm(null);
     tap("success");
-    toast.success(`「${name}」을(를) ${room?.name || "선택한 방"}에 추가했습니다`);
+  };
+
+  /**
+   * 전체 목록에서 지우기 — 실제로 지우지 않고 숨김 처리만 합니다.
+   * 지난 견적서에 남아 있는 이름·수량은 그대로 보입니다.
+   */
+  const removeFromCatalog = (id: string) => {
+    const c = (draft.customItems || []).find((x) => x.id === id);
+    updateDraft({
+      hiddenItems: [...(draft.hiddenItems || []), id],
+      customItems: (draft.customItems || []).map((x) =>
+        x.id === id ? { ...x, active: false } : x,
+      ),
+      // 지금 방에 담겨 있으면 함께 빼 줍니다
+      rooms: draft.rooms.map((r) => {
+        if (!(id in r.items)) return r;
+        const items = { ...r.items };
+        delete items[id];
+        return { ...r, items };
+      }),
+    });
+    setItemMenu(null);
+    tap("soft");
+    toast.success(`「${c?.name ?? "품목"}」을(를) 목록에서 지웠습니다`);
   };
 
   const tabCats = (ITEM_TABS.find((t) => t.key === tab) || ITEM_TABS[0]).cats;
@@ -1485,6 +1579,20 @@ export function Step6() {
                                     <Check className="h-3.5 w-3.5 text-white" />
                                   </span>
                                 )}
+                                {/* 직접 추가한 품목에만 관리 메뉴를 답니다 (기본 품목은 없음) */}
+                                {it.id.startsWith("ci_") && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      tap("soft");
+                                      setItemMenu(it.id);
+                                    }}
+                                    className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full border border-[#DCE8FA] bg-white text-[11px] font-black leading-none text-[#64748B]"
+                                    aria-label={`${it.name} 관리`}
+                                  >
+                                    ⋯
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => {
                                     tap("soft");
@@ -1532,7 +1640,7 @@ export function Step6() {
                 </div>
 
                 <button
-                  onClick={addCustom}
+                  onClick={openAddItem}
                   className="w-full py-3.5 rounded-2xl border-2 border-dashed border-[#287BFF] text-[#0751D8] font-black flex items-center justify-center gap-2"
                 >
                   <Plus className="w-5 h-5" /> {q ? `「${q}」 품목 추가` : "품목 직접 추가"}
@@ -1549,6 +1657,184 @@ export function Step6() {
                 </span>
               </PrimaryButton>
             </div>
+
+            {/* 품목 만들기 · 고치기 */}
+            {itemForm && (
+              <div className="absolute inset-0 z-20 flex items-end justify-center">
+                <div
+                  className="absolute inset-0 bg-[#0F172A]/45"
+                  onClick={() => setItemForm(null)}
+                />
+                <div className="relative max-h-[88%] w-full overflow-auto rounded-t-3xl bg-white p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                  <div className="text-[18px] font-black text-[#0F172A]">
+                    {itemForm.id ? "품목 고치기" : "품목 직접 추가"}
+                  </div>
+                  <p className="mt-1 text-[12.5px] font-bold text-[#6B7280]">
+                    담을 공간: <span className="text-[#0751D8]">{room.name}</span>
+                  </p>
+
+                  <div className="mt-3 space-y-3">
+                    <Field label="품목명">
+                      <TextInput
+                        value={itemForm.name}
+                        placeholder="예: 모션침대"
+                        onChange={(e) => {
+                          const name = e.target.value;
+                          setItemForm((f) =>
+                            f
+                              ? {
+                                  ...f,
+                                  name,
+                                  // 이름을 적으면 분류와 아이콘을 자동으로 추천합니다
+                                  cat: f.id ? f.cat : name ? guessCategory(name) : f.cat,
+                                  icon: name ? icon3dFor(undefined, name) : f.icon,
+                                }
+                              : f,
+                          );
+                        }}
+                      />
+                    </Field>
+
+                    {!itemForm.id && (
+                      <Field label="수량">
+                        <Counter
+                          value={itemForm.qty}
+                          onChange={(n) => setItemForm((f) => (f ? { ...f, qty: n } : f))}
+                        />
+                      </Field>
+                    )}
+
+                    <div>
+                      <div className="mb-1.5 text-[13px] font-black text-[#334155]">
+                        대분류{" "}
+                        <span className="font-bold text-[#9AA4B2]">— 자동 추천, 눌러서 변경</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {["가전", "가구", "주방", "생활용품", "잔짐", "특수"].map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => setItemForm((f) => (f ? { ...f, cat: c } : f))}
+                            className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black ${
+                              itemForm.cat === c
+                                ? "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white shadow-[0_3px_0_#0640A8]"
+                                : "border border-[#DCE8FA] bg-white text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                            }`}
+                          >
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-1.5 text-[13px] font-black text-[#334155]">
+                        아이콘 <span className="font-bold text-[#9AA4B2]">— 눌러서 고르기</span>
+                      </div>
+                      <div className="grid max-h-[190px] grid-cols-5 gap-2 overflow-auto rounded-2xl border border-[#E3EBF7] bg-[#F8FBFF] p-2">
+                        {iconChoices(itemForm.name).map((src) => (
+                          <button
+                            key={src}
+                            onClick={() => setItemForm((f) => (f ? { ...f, icon: src } : f))}
+                            className={`flex items-center justify-center rounded-xl border p-1 ${
+                              itemForm.icon === src
+                                ? "border-[#287BFF] bg-[#DCE9FF] shadow-[0_3px_0_#BBD3FF]"
+                                : "border-[#E3EBF7] bg-white"
+                            }`}
+                          >
+                            <Icon3D src={src} alt="아이콘" size={40} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => setItemForm(null)}
+                      className="flex-1 rounded-2xl border border-[#DCE8FA] bg-white py-3.5 font-black text-[14px] text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                    >
+                      취소
+                    </button>
+                    <PrimaryButton onClick={saveItemForm} className="flex-1">
+                      저장
+                    </PrimaryButton>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 직접 추가한 품목의 작은 메뉴 */}
+            {itemMenu && (
+              <div className="absolute inset-0 z-20 flex items-end justify-center">
+                <div
+                  className="absolute inset-0 bg-[#0F172A]/45"
+                  onClick={() => setItemMenu(null)}
+                />
+                <div className="relative w-full rounded-t-3xl bg-white p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                  <div className="text-[16px] font-black text-[#0F172A]">
+                    {(draft.customItems || []).find((c) => c.id === itemMenu)?.name}
+                  </div>
+                  <p className="mt-1 text-[12.5px] font-bold text-[#9AA4B2]">직접 추가한 품목</p>
+                  <div className="mt-3 space-y-2">
+                    <button
+                      onClick={() => openEditItem(itemMenu)}
+                      className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 font-black text-[14px] text-[#0751D8] shadow-[0_3px_0_#EDF2FA]"
+                    >
+                      이름 · 분류 · 아이콘 수정
+                    </button>
+                    <button
+                      onClick={() => setConfirmCatalogDel(itemMenu)}
+                      className="w-full rounded-2xl border border-[#F3C7C7] bg-white py-3.5 font-black text-[14px] text-[#EF4444] shadow-[0_3px_0_#FBEAEA]"
+                    >
+                      전체 목록에서 삭제
+                    </button>
+                    <button
+                      onClick={() => setItemMenu(null)}
+                      className="w-full py-3 text-[14px] font-bold text-[#94A3B8]"
+                    >
+                      닫기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 전체 목록에서 삭제 확인 */}
+            {confirmCatalogDel && (
+              <div className="absolute inset-0 z-30 flex items-center justify-center px-6">
+                <div
+                  className="absolute inset-0 bg-[#0F172A]/45"
+                  onClick={() => setConfirmCatalogDel(null)}
+                />
+                <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 text-center shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+                  <div className="text-[16px] font-black leading-snug text-[#0F172A]">
+                    직접 추가한 품목을
+                    <br />
+                    전체 목록에서 삭제하시겠습니까?
+                  </div>
+                  <p className="mt-2 text-[12.5px] font-bold leading-relaxed text-[#6B7280]">
+                    지난 견적서에 적힌 이름과 수량은 그대로 남습니다.
+                  </p>
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => setConfirmCatalogDel(null)}
+                      className="flex-1 rounded-2xl border border-[#DCE8FA] bg-white py-3 font-black text-[14px] text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={() => {
+                        removeFromCatalog(confirmCatalogDel);
+                        setConfirmCatalogDel(null);
+                      }}
+                      className="flex-1 rounded-2xl bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#A81E20]"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 수량을 0으로 줄이거나 뱃지의 X 를 눌렀을 때 */}
             {confirmRemove && (
@@ -2314,6 +2600,28 @@ export function Result() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetEdit, setSheetEdit] = useState(false);
   const [confirmSheet, setConfirmSheet] = useState(false);
+  /** 캡처할 견적서 영역 */
+  const sheetRef = useRef<HTMLDivElement>(null);
+  /** 저장 중에는 버튼을 잠급니다 */
+  const [exporting, setExporting] = useState<"pdf" | "png" | null>(null);
+
+  /** A4 인쇄 — 대화상자에서 「PDF로 저장」을 고르면 파일이 됩니다 */
+  const exportSheet = async () => {
+    const el = sheetRef.current;
+    if (!el) {
+      toast.error("견적서를 먼저 열어 주세요");
+      return;
+    }
+    if (exporting) return;
+    setExporting("pdf");
+    try {
+      await printSheet(el);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "인쇄를 열지 못했습니다");
+    } finally {
+      setExporting(null);
+    }
+  };
 
   /** 견적서를 처음 열 때 견적번호를 붙입니다 (한 번 붙으면 바뀌지 않습니다) */
   const openSheet = () => {
@@ -2852,11 +3160,11 @@ export function Result() {
               </div>
             ) : (
               <EstimateSheet
+                ref={sheetRef}
                 draft={draft}
                 rooms={sheetRooms}
                 parts={parts}
                 total={total}
-                companyPhone={draft.phone ? undefined : undefined}
               />
             )}
           </div>
@@ -2891,24 +3199,25 @@ export function Result() {
                 {sheetEdit ? "수정 완료" : "견적서 수정"}
               </button>
               <button
-                onClick={() => {
-                  tap("soft");
-                  window.print();
-                }}
-                className="rounded-2xl border border-[#DCE8FA] bg-white py-3 text-[13.5px] font-black text-[#0751D8] shadow-[0_3px_0_#EDF2FA]"
+                onClick={() => void exportSheet()}
+                disabled={!!exporting || sheetEdit}
+                className="col-span-2 rounded-2xl border border-[#DCE8FA] bg-white py-3 text-[13.5px] font-black text-[#0751D8] shadow-[0_3px_0_#EDF2FA] disabled:opacity-50"
               >
-                인쇄 · PDF
-              </button>
-              <button
-                onClick={() => {
-                  tap("soft");
-                  setConfirmSheet(true);
-                }}
-                className="rounded-2xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] py-3 text-[13.5px] font-black text-white shadow-[0_3px_0_#0640A8]"
-              >
-                문자발송
+                {exporting ? "여는 중…" : "A4 인쇄 · PDF 저장"}
               </button>
             </div>
+            <button
+              onClick={() => {
+                tap("soft");
+                setConfirmSheet(true);
+              }}
+              disabled={!!exporting}
+              className="mt-2 w-full rounded-2xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] py-4 text-[15px] font-black text-white shadow-[0_4px_0_#0640A8] disabled:opacity-50"
+            >
+              <span className="inline-flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" /> 견적서 문자발송
+              </span>
+            </button>
           </div>
 
           {/* 발송 전 확인 */}

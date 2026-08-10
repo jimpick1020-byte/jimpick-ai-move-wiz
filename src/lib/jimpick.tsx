@@ -26,6 +26,13 @@ export interface CustomItem {
   name: string;
   cat: string;
   extra: number;
+  /** 직접 고른 3D 아이콘 경로 (없으면 이름으로 추천한 아이콘) */
+  icon?: string;
+  /**
+   * 목록에서 지웠는지 (지운 뒤에도 지난 견적서에는 이름·수량이 그대로 남도록
+   * 실제로 지우지 않고 이 값만 false 로 바꿉니다)
+   */
+  active?: boolean;
 }
 export interface Estimate {
   id: string;
