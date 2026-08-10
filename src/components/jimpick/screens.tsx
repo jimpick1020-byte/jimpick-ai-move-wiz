@@ -41,6 +41,7 @@ import {
   formatMoveDateTime,
   storageDays,
   usesStorage,
+  makeSheetNo,
   getPricing,
   savePricing,
   DEFAULT_PRICING,
@@ -105,6 +106,7 @@ import mascot3 from "@/assets/mascot-3.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { TruckGauge } from "./TruckGauge";
+import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { ScanMascot, type MascotState } from "./ScanMascot";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
 
@@ -2268,7 +2270,7 @@ export function OptionsScreen() {
 
 // ============ Result ============
 export function Result() {
-  const { draft, setScreen, saveDraft, updateDraft } = useApp();
+  const { draft, setScreen, saveDraft, updateDraft, estimates } = useApp();
   const [detail, setDetail] = useState(false);
   const [detailEdit, setDetailEdit] = useState(false);
   const [edit, setEdit] = useState(false);
@@ -2276,6 +2278,38 @@ export function Result() {
   const [confirmDone, setConfirmDone] = useState(false);
   /** 고객에게 나갈 내용을 보여 주는 미리보기 */
   const [preview, setPreview] = useState(false);
+  /** 종이 견적서 화면 */
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetEdit, setSheetEdit] = useState(false);
+  const [confirmSheet, setConfirmSheet] = useState(false);
+
+  /** 견적서를 처음 열 때 견적번호를 붙입니다 (한 번 붙으면 바뀌지 않습니다) */
+  const openSheet = () => {
+    tap("soft");
+    if (!draft.sheetNo) {
+      updateDraft({
+        sheetNo: makeSheetNo(estimates),
+        sheetVersion: draft.sheetVersion ?? 1,
+      });
+    }
+    saveDraft();
+    setSheetOpen(true);
+  };
+
+  /** 공간별 품목 — 담긴 방만, 담긴 순서대로 */
+  const sheetRooms: SheetRoom[] = draft.rooms
+    .map((r) => ({
+      name: r.name,
+      items: Object.entries(r.items).map(([id, qty]) => ({
+        id,
+        name:
+          ITEM_CATALOG.find((c) => c.id === id)?.name ||
+          (draft.customItems || []).find((c) => c.id === id)?.name ||
+          id,
+        qty,
+      })),
+    }))
+    .filter((r) => r.items.length > 0);
 
   const [adjust, setAdjust] = useState(0);
   const calc = calcEstimate(draft);
@@ -2648,6 +2682,14 @@ export function Result() {
           </button>
         </div>
         <button
+          onClick={openSheet}
+          className="w-full py-4 rounded-2xl font-black text-[16px] text-white flex items-center justify-center gap-2 shadow-[0_5px_0_#0640A8,0_12px_24px_-10px_rgba(7,81,216,0.5)] active:translate-y-[3px] active:shadow-[0_2px_0_#0640A8]"
+          style={{ background: "linear-gradient(180deg,#4C9BFF 0%,#0751D8 100%)" }}
+        >
+          <FileText className="w-5 h-5" /> 견적서 확인
+        </button>
+
+        <button
           onClick={() => {
             tap("success");
             saveDraft();
@@ -2689,6 +2731,201 @@ export function Result() {
       <BottomButtonBar>
         <PrimaryButton onClick={() => setConfirmDone(true)}>견적 완료</PrimaryButton>
       </BottomButtonBar>
+
+      {/* 종이 견적서 */}
+      {sheetOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-[#E9EFF8]">
+          <div className="flex items-center gap-2 border-b border-[#DCE8FA] bg-white px-4 py-3">
+            <button
+              onClick={() => {
+                setSheetOpen(false);
+                setSheetEdit(false);
+              }}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-[#DCE8FA] bg-white shadow-[0_3px_0_#EDF2FA]"
+              aria-label="닫기"
+            >
+              <ChevronLeft className="h-5 w-5 text-[#334155]" />
+            </button>
+            <div className="text-[16px] font-black text-[#0F172A]">
+              {sheetEdit ? "견적서 수정" : "이사 견적서"}
+            </div>
+            {draft.sheetConfirmedAt && (
+              <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-[11px] font-black text-[#15803D]">
+                확정
+              </span>
+            )}
+            <span className="ml-auto text-[12px] font-bold text-[#6B7280]">{draft.sheetNo}</span>
+          </div>
+
+          <div className="flex-1 overflow-auto pb-4">
+            {sheetEdit ? (
+              <div className="space-y-3 p-4">
+                <Field label="고객명">
+                  <TextInput
+                    value={draft.customerName}
+                    onChange={(e) => updateDraft({ customerName: e.target.value })}
+                  />
+                </Field>
+                <Field label="이사 날짜">
+                  <TextInput
+                    type="date"
+                    value={draft.moveDate}
+                    onChange={(e) => updateDraft({ moveDate: e.target.value })}
+                  />
+                </Field>
+                <Field label="출발지">
+                  <TextInput
+                    value={draft.fromAddress}
+                    onChange={(e) => updateDraft({ fromAddress: e.target.value })}
+                  />
+                </Field>
+                <Field label="도착지">
+                  <TextInput
+                    value={draft.toAddress}
+                    onChange={(e) => updateDraft({ toAddress: e.target.value })}
+                  />
+                </Field>
+                <Field label="할인 금액">
+                  <MoneyInput
+                    value={draft.discount ?? 0}
+                    step={10000}
+                    onChange={(n) => updateDraft({ discount: n })}
+                  />
+                </Field>
+                <Field label="예약금">
+                  <MoneyInput
+                    value={draft.deposit ?? 0}
+                    step={10000}
+                    onChange={(n) => updateDraft({ deposit: n })}
+                  />
+                </Field>
+                <Field label="담당자 이름">
+                  <TextInput
+                    value={draft.staffName ?? ""}
+                    placeholder="예: 김용달"
+                    onChange={(e) => updateDraft({ staffName: e.target.value })}
+                  />
+                </Field>
+                <Field label="안내 문구">
+                  <TextInput
+                    value={draft.sheetNote ?? ""}
+                    placeholder="위 내용으로 정성껏 이사해 드리겠습니다."
+                    onChange={(e) => updateDraft({ sheetNote: e.target.value })}
+                  />
+                </Field>
+                <p className="text-[12.5px] font-semibold leading-relaxed text-[#6B7280]">
+                  품목과 수량은 5단계 「공간별 품목」에서, 차량·옵션은 앞 단계에서 고치면
+                  견적서에 바로 반영됩니다. 고객이 처음 넣은 신청 정보는 그대로 남습니다.
+                </p>
+              </div>
+            ) : (
+              <EstimateSheet
+                draft={draft}
+                rooms={sheetRooms}
+                parts={parts}
+                total={total}
+                companyPhone={draft.phone ? undefined : undefined}
+              />
+            )}
+          </div>
+
+          <div className="border-t border-[#DCE8FA] bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => {
+                  tap("soft");
+                  if (sheetEdit) {
+                    // 수정을 끝내면 이력을 남기고 차수를 올립니다
+                    const before = draft.sheetSnapshot?.total ?? total;
+                    updateDraft({
+                      sheetVersion: (draft.sheetVersion ?? 1) + (draft.sheetConfirmedAt ? 1 : 0),
+                      sheetHistory: [
+                        ...(draft.sheetHistory ?? []),
+                        {
+                          version: draft.sheetVersion ?? 1,
+                          at: Date.now(),
+                          staff: draft.staffName || "담당자",
+                          beforeTotal: before,
+                          afterTotal: total,
+                        },
+                      ],
+                    });
+                    saveDraft();
+                  }
+                  setSheetEdit((v) => !v);
+                }}
+                className="rounded-2xl border border-[#DCE8FA] bg-white py-3 text-[13.5px] font-black text-[#0751D8] shadow-[0_3px_0_#EDF2FA]"
+              >
+                {sheetEdit ? "수정 완료" : "견적서 수정"}
+              </button>
+              <button
+                onClick={() => {
+                  tap("soft");
+                  window.print();
+                }}
+                className="rounded-2xl border border-[#DCE8FA] bg-white py-3 text-[13.5px] font-black text-[#0751D8] shadow-[0_3px_0_#EDF2FA]"
+              >
+                인쇄 · PDF
+              </button>
+              <button
+                onClick={() => {
+                  tap("soft");
+                  setConfirmSheet(true);
+                }}
+                className="rounded-2xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] py-3 text-[13.5px] font-black text-white shadow-[0_3px_0_#0640A8]"
+              >
+                문자발송
+              </button>
+            </div>
+          </div>
+
+          {/* 발송 전 확인 */}
+          {confirmSheet && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center px-6">
+              <div
+                className="absolute inset-0 bg-[#0F172A]/45"
+                onClick={() => setConfirmSheet(false)}
+              />
+              <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 text-center shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+                <div className="text-[17px] font-black text-[#0F172A]">
+                  견적서 내용을 확인하셨습니까?
+                </div>
+                <p className="mt-1.5 text-[13px] font-bold text-[#6B7280]">
+                  확정하면 지금 금액({won(total)})이 그대로 보관됩니다.
+                </p>
+                <div className="mt-4 space-y-2">
+                  <PrimaryButton
+                    onClick={() => {
+                      const snap = {
+                        sheetNo: draft.sheetNo ?? "",
+                        version: draft.sheetVersion ?? 1,
+                        confirmedAt: Date.now(),
+                        total,
+                        parts,
+                        rooms: sheetRooms,
+                      };
+                      updateDraft({ sheetConfirmedAt: snap.confirmedAt, sheetSnapshot: snap });
+                      saveDraft();
+                      setConfirmSheet(false);
+                      setSheetOpen(false);
+                      toast.success("견적서가 확정되었습니다");
+                      setPreview(true);
+                    }}
+                  >
+                    견적 확정
+                  </PrimaryButton>
+                  <button
+                    onClick={() => setConfirmSheet(false)}
+                    className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 font-black text-[14px] text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                  >
+                    다시 확인
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 고객이 받을 내용 미리보기 — 문자 + 견적서가 함께 갑니다 */}
       {preview && (

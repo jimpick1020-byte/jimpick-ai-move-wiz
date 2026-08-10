@@ -89,6 +89,64 @@ export interface Estimate {
   /** 예상 견적 금액 직접 입력 (null이면 자동 합계) */
   totalOverride?: number | null;
   total: number;
+
+  // ── 종이 견적서 ─────────────────────────────────────────
+  /** 견적번호 — 예) JP-2026-0810-001. 견적서를 처음 열 때 붙습니다 */
+  sheetNo?: string;
+  /** 견적서 차수 — 1차, 2차 수정 견적서 … */
+  sheetVersion?: number;
+  /** 담당자 이름 (견적서 서명란) */
+  staffName?: string;
+  /** 할인 금액 */
+  discount?: number;
+  /** 예약금 (잔금은 총액 − 예약금으로 계산합니다) */
+  deposit?: number;
+  /** 견적서 안내 문구 */
+  sheetNote?: string;
+  /** 확정한 시각 — 확정 뒤에는 금액이 바뀌어도 이 스냅샷을 씁니다 */
+  sheetConfirmedAt?: number;
+  /** 확정 당시 그대로 얼려 둔 내용 */
+  sheetSnapshot?: EstimateSheetSnapshot | null;
+  /** 수정·발송 이력 */
+  sheetHistory?: SheetHistoryEntry[];
+}
+
+/** 확정 당시의 견적서 내용 (단가가 바뀌어도 이 값이 유지됩니다) */
+export interface EstimateSheetSnapshot {
+  sheetNo: string;
+  version: number;
+  confirmedAt: number;
+  total: number;
+  parts: { label: string; amount: number }[];
+  rooms: { name: string; items: { id: string; name: string; qty: number }[] }[];
+}
+
+/** 견적서 수정·발송 이력 한 줄 */
+export interface SheetHistoryEntry {
+  version: number;
+  at: number;
+  staff: string;
+  beforeTotal: number;
+  afterTotal: number;
+  /** 발송한 경우에만 */
+  sentAt?: number;
+  sentResult?: string;
+}
+
+/**
+ * 견적번호를 만듭니다 — JP-연도-월일-순번
+ * 같은 날 이미 만든 번호를 보고 순번을 올려 중복되지 않게 합니다.
+ */
+export function makeSheetNo(existing: Estimate[], now = new Date()): string {
+  const y = now.getFullYear();
+  const md = `${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+  const prefix = `JP-${y}-${md}-`;
+  const used = existing
+    .map((e) => e.sheetNo)
+    .filter((n): n is string => !!n && n.startsWith(prefix))
+    .map((n) => Number(n.slice(prefix.length)) || 0);
+  const next = (used.length ? Math.max(...used) : 0) + 1;
+  return `${prefix}${String(next).padStart(3, "0")}`;
 }
 
 // ============ Constants ============
