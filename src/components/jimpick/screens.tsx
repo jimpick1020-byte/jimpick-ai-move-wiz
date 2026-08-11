@@ -127,10 +127,25 @@ import houseImg from "@/assets/step6-house.png";
 export function Splash() {
   const { setScreen, loggedIn } = useApp();
   const [mascotIdx, setMascotIdx] = useState(0);
+  const [typedText, setTypedText] = useState("");
+  const fullText = "AI로 견적을 받아보세요!";
+
+  useEffect(() => {
+    let idx = 0;
+    setTypedText("");
+    const interval = setInterval(() => {
+      idx += 1;
+      setTypedText(fullText.slice(0, idx));
+      if (idx >= fullText.length) clearInterval(interval);
+    }, 120);
+    return () => clearInterval(interval);
+  }, [mascotIdx]);
+
   useEffect(() => {
     const t = setTimeout(() => setScreen(loggedIn ? "home" : "login"), 2500);
     return () => clearTimeout(t);
   }, [setScreen, loggedIn]);
+
   const features = [
     { icon: FileText, label: "간편한 견적 작성" },
     { icon: CamIcon, label: "AI 사진 인식" },
