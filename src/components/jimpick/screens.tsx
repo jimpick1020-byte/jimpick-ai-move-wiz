@@ -109,6 +109,7 @@ import { TruckGauge } from "./TruckGauge";
 import { icon3dFor, DEFAULT_ICON3D, ICON3D, Icon3D } from "@/lib/jimpick-icon3d";
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
+import { sendEstimateSms } from "@/lib/sms.functions";
 import { ScanMascot, type MascotState } from "./ScanMascot";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
 
@@ -1046,6 +1047,12 @@ const ITEM_TABS = [
   { key: "잔짐", cats: ["잔짐"] },
   { key: "특수", cats: ["특수"] },
 ];
+
+/** 번호 마지막 4자리 (발송 결과에 가려서 보여 줍니다) */
+function digitsTail(phone: string): string {
+  const n = (phone || "").replace(/[^0-9]/g, "");
+  return n.slice(-4) || "----";
+}
 
 /**
  * 아이콘 고르기 후보.
@@ -2602,6 +2609,73 @@ export function Result() {
   const [confirmSheet, setConfirmSheet] = useState(false);
   /** 캡처할 견적서 영역 */
   const sheetRef = useRef<HTMLDivElement>(null);
+  /** 문자 발송 상태 */
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<{
+    ok: boolean;
+    msgId?: string;
+    msgType?: string;
+    sentAt?: number;
+    error?: string;
+  } | null>(null);
+
+  /** 고객에게 보낼 문자 내용 (견적서 링크 포함) */
+  const sheetSmsText = () =>
+    [
+      "[JIMPICK 짐픽]",
+      `${draft.customerName || "고객"} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
+      "아래 견적서를 확인해 주세요.",
+      "문의사항은 언제든지 연락해 주세요.",
+      "",
+      `예상 견적 금액: ${won(total)}`,
+      "",
+      "견적서 확인:",
+      shareUrl(),
+    ].join("\n");
+
+  /** 실제 발송 — 같은 버튼을 여러 번 눌러도 한 번만 나갑니다 */
+  const doSendSms = async () => {
+    if (sending) return;
+    if (!isSendablePhone(draft.phone)) {
+      setSendResult({ ok: false, error: "휴대전화 번호 형식이 올바르지 않습니다." });
+      return;
+    }
+    setSending(true);
+    setSendResult(null);
+    try {
+      const r = await sendEstimateSms({
+        data: {
+          to: draft.phone,
+          text: sheetSmsText(),
+          title: `이사 견적서 ${draft.sheetNo ?? ""}`.trim(),
+        },
+      });
+      setSendResult(r);
+      if (r.ok) {
+        tap("success");
+        // 발송 이력을 남깁니다
+        updateDraft({
+          sheetHistory: [
+            ...(draft.sheetHistory ?? []),
+            {
+              version: draft.sheetVersion ?? 1,
+              at: Date.now(),
+              staff: draft.staffName || "담당자",
+              beforeTotal: total,
+              afterTotal: total,
+              sentAt: r.sentAt,
+              sentResult: `성공 · ${r.msgType ?? ""} · ${r.msgId ?? ""}`,
+            },
+          ],
+        });
+        saveDraft();
+      }
+    } catch (e) {
+      setSendResult({ ok: false, error: e instanceof Error ? e.message : "발송에 실패했습니다." });
+    } finally {
+      setSending(false);
+    }
+  };
   /** 저장 중에는 버튼을 잠급니다 */
   const [exporting, setExporting] = useState<"pdf" | "png" | null>(null);
 
@@ -3234,32 +3308,69 @@ export function Result() {
                 <p className="mt-1.5 text-[13px] font-bold text-[#6B7280]">
                   확정하면 지금 금액({won(total)})이 그대로 보관됩니다.
                 </p>
+                <p className="mt-2 text-[12.5px] font-bold text-[#334155]">
+                  받는 사람: {draft.customerName || "고객"} · {draft.phone || "번호 없음"}
+                </p>
+
+                {/* 발송 결과 */}
+                {sendResult && (
+                  <div
+                    className={`mt-3 rounded-2xl px-3 py-2.5 text-left text-[12.5px] font-bold leading-relaxed ${
+                      sendResult.ok
+                        ? "bg-[#DCFCE7] text-[#15803D]"
+                        : "bg-[#FEE2E2] text-[#B91C1C]"
+                    }`}
+                  >
+                    {sendResult.ok ? (
+                      <>
+                        견적서가 {draft.customerName || "고객"} 고객님께 발송되었습니다.
+                        <br />
+                        발송번호 {sendResult.msgId || "-"} · {sendResult.msgType || "SMS"}
+                        <br />
+                        {new Date(sendResult.sentAt ?? Date.now()).toLocaleString("ko-KR")} ·{" "}
+                        {`****${digitsTail(draft.phone)}`}
+                      </>
+                    ) : (
+                      <>발송 실패 — {sendResult.error}</>
+                    )}
+                  </div>
+                )}
+
                 <div className="mt-4 space-y-2">
                   <PrimaryButton
                     onClick={() => {
-                      const snap = {
-                        sheetNo: draft.sheetNo ?? "",
-                        version: draft.sheetVersion ?? 1,
-                        confirmedAt: Date.now(),
-                        total,
-                        parts,
-                        rooms: sheetRooms,
-                      };
-                      updateDraft({ sheetConfirmedAt: snap.confirmedAt, sheetSnapshot: snap });
-                      saveDraft();
-                      setConfirmSheet(false);
-                      setSheetOpen(false);
-                      toast.success("견적서가 확정되었습니다");
-                      setPreview(true);
+                      // 확정: 지금 금액·품목을 그대로 얼려 둡니다
+                      if (!draft.sheetConfirmedAt) {
+                        const snap = {
+                          sheetNo: draft.sheetNo ?? "",
+                          version: draft.sheetVersion ?? 1,
+                          confirmedAt: Date.now(),
+                          total,
+                          parts,
+                          rooms: sheetRooms,
+                        };
+                        updateDraft({ sheetConfirmedAt: snap.confirmedAt, sheetSnapshot: snap });
+                        saveDraft();
+                      }
+                      void doSendSms();
                     }}
+                    disabled={sending}
                   >
-                    견적 확정
+                    {sending
+                      ? "보내는 중…"
+                      : sendResult && !sendResult.ok
+                        ? "다시 발송"
+                        : "견적 확정하고 발송"}
                   </PrimaryButton>
                   <button
-                    onClick={() => setConfirmSheet(false)}
-                    className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 font-black text-[14px] text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                    onClick={() => {
+                      setConfirmSheet(false);
+                      setSendResult(null);
+                    }}
+                    disabled={sending}
+                    className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 font-black text-[14px] text-[#334155] shadow-[0_3px_0_#EDF2FA] disabled:opacity-50"
                   >
-                    다시 확인
+                    {sendResult?.ok ? "닫기" : "다시 확인"}
                   </button>
                 </div>
               </div>
