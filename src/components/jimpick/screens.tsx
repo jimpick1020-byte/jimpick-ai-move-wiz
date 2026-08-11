@@ -171,11 +171,23 @@ export function Splash() {
           ))}
         </div>
         <div className="mt-auto pt-4 pb-1 flex flex-col items-center gap-2">
-          <img
-            src={[mascot1, mascot2, mascot3][mascotIdx]}
-            alt="JIMPICK 캐릭터"
-            className="w-full max-w-[220px] jp-float [image-rendering:auto]"
-          />
+          <div className="relative flex flex-col items-center">
+            {/* 말풍선 idle 애니메이션 */}
+            <div className="jp-bubble-float absolute -top-10 z-10 pointer-events-none">
+              <div className="relative px-4 py-2 rounded-2xl bg-white/95 shadow-[0_8px_24px_-6px_rgba(7,81,216,0.35)] border border-[#0751D8]/10">
+                <span className="text-sm font-bold text-[#0751D8] whitespace-nowrap">
+                  AI로 견적을 받아보세요!
+                </span>
+                {/* 말풍선 꼬리 */}
+                <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-white/95 rotate-45 border-b border-r border-[#0751D8]/10" />
+              </div>
+            </div>
+            <img
+              src={[mascot1, mascot2, mascot3][mascotIdx]}
+              alt="JIMPICK 캐릭터"
+              className="w-full max-w-[220px] jp-float jp-soft-blink [image-rendering:auto]"
+            />
+          </div>
           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             {[mascot1, mascot2, mascot3].map((m, i) => (
               <button

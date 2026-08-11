@@ -203,6 +203,35 @@
   animation: jp-scan 2.2s ease-in-out infinite;
 }
 
+/* ===== 말풍선 idle 애니메이션 ===== */
+@keyframes jp-bubble-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-6px) scale(1.02);
+  }
+}
+
+@keyframes jp-soft-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@utility jp-bubble-float {
+  animation: jp-bubble-float 2.8s ease-in-out infinite;
+}
+
+@utility jp-soft-blink {
+  animation: jp-soft-blink 2.2s ease-in-out infinite;
+}
+
 /* ──────────────────────────────────────────────────────────
    홈 화면에 추가해 앱처럼 실행할 때 (standalone)
    - 진짜 상태바가 이미 있으므로 시안용 가짜 상태바는 숨깁니다
