@@ -1,0 +1,18 @@
+{
+  "name": "aligo-sms-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JIMPICK 문자발송 중계 서버 — 고정 IP에서 알리고 API를 호출합니다",
+  "type": "module",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
