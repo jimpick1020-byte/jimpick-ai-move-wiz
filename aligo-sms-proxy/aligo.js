@@ -41,7 +41,12 @@ export function pickMsgType(text, hasImage) {
   return Buffer.byteLength(text, "utf8") > 90 ? "LMS" : "SMS";
 }
 
-/** 알리고 오류 번호를 쉬운 한국어로 */
+/**
+ * 알리고 오류를 쉬운 한국어로 바꿉니다.
+ *
+ * 알리고가 보낸 원래 문구도 함께 남깁니다.
+ * 우리 번역이 틀릴 수 있어서, 진짜 이유를 가리지 않기 위해서입니다.
+ */
 export function aligoError(code, message) {
   const m = String(message || "").trim();
   const table = {
@@ -49,11 +54,15 @@ export function aligoError(code, message) {
     "-102": "등록되지 않은 발신번호입니다. 알리고에서 발신번호 사전등록을 마쳐 주세요.",
     "-103": "발신번호가 사용 정지된 상태입니다.",
     "-111": "문자 잔액이 부족합니다. 알리고에서 충전해 주세요.",
-    "-201": "받는 번호 형식이 올바르지 않습니다.",
+    "-201": "받는 번호 또는 보내는 내용을 알리고가 받지 못했습니다.",
     "-202": "보낼 내용이 비어 있습니다.",
     "-301": "허용되지 않은 IP 에서 요청했습니다. 알리고에 이 서버 IP 를 등록해 주세요.",
   };
-  return table[String(code)] || m || `문자 발송에 실패했습니다. (코드 ${code})`;
+  const mine = table[String(code)];
+  const parts = [mine || "문자 발송에 실패했습니다."];
+  if (m) parts.push(`알리고 안내: ${m}`);
+  parts.push(`코드 ${code}`);
+  return parts.join(" / ");
 }
 
 /**
@@ -126,8 +135,17 @@ export async function sendAligo({ to, text, title, image, testMode }) {
 
   const code = Number(j.result_code ?? -1);
   if (code !== 1) {
-    // 키는 절대 남기지 않고 코드·메시지만 기록합니다
-    console.error("[aligo] fail", code, j.message);
+    // 키는 절대 남기지 않고, 무엇을 보냈는지·무엇을 받았는지만 기록합니다
+    console.error("[aligo] fail", {
+      code,
+      message: j.message,
+      sentReceiverLength: receiver.length,
+      sentReceiverHead: receiver.slice(0, 3),
+      senderLength: digits(sender).length,
+      msgType,
+      testYn,
+      msgBytes: Buffer.byteLength(text, "utf8"),
+    });
     return { ok: false, code, error: aligoError(code, j.message) };
   }
 
