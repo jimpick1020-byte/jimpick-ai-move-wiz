@@ -5,9 +5,8 @@
  * 키는 process.env 에서만 읽고, 응답에도 담지 않습니다.
  */
 
+/** 알리고 발송 주소 — SMS·LMS·MMS 모두 이 주소를 씁니다 */
 const SEND_URL = "https://apis.aligo.in/send/";
-/** 그림을 붙여 보내는 MMS 는 파일을 함께 올려야 합니다 */
-const SEND_MASS_URL = "https://apis.aligo.in/send_mass/";
 
 /** 숫자만 남깁니다 */
 export function digits(s) {
@@ -89,12 +88,9 @@ export async function sendAligo({ to, text, title, image, testMode }) {
     form.set("image", new Blob([image.data], { type: image.contentType }), image.filename);
   }
 
-  const url = image ? SEND_URL : SEND_URL;
-  void SEND_MASS_URL;
-
   let res;
   try {
-    res = await fetch(url, { method: "POST", body: form });
+    res = await fetch(SEND_URL, { method: "POST", body: form });
   } catch (e) {
     console.error("[aligo] network error", e?.message);
     return { ok: false, error: "네트워크 오류로 문자를 보내지 못했습니다." };
