@@ -10,7 +10,7 @@
  * 아무나 문자를 보내지 못하도록 JIMPICK_PROXY_SECRET 로 확인합니다.
  */
 import express from "express";
-import { sendAligo, isPhone, digits } from "./aligo.js";
+import { sendAligo, isPhone, normalizePhone } from "./aligo.js";
 import { saveDelivery, findDelivery } from "./supabase.js";
 
 const app = express();
@@ -41,7 +41,7 @@ function checkSecret(req, res) {
 
 /** 번호 뒤 4자리만 남깁니다 (기록·응답에 전체 번호를 남기지 않습니다) */
 function maskPhone(p) {
-  const n = digits(p);
+  const n = normalizePhone(p);
   return n.length >= 4 ? `010-****-${n.slice(-4)}` : "***";
 }
 
@@ -100,7 +100,12 @@ app.post("/send", async (req, res) => {
   } = req.body ?? {};
 
   if (!isPhone(to)) {
-    return res.status(400).json({ ok: false, error: "받는 번호 형식이 올바르지 않습니다." });
+    // 번호 자체는 남기지 않고, 어디가 잘못됐는지 알 수 있게 자릿수만 알려 줍니다
+    const n = normalizePhone(to);
+    return res.status(400).json({
+      ok: false,
+      error: `받는 번호 형식이 올바르지 않습니다. (숫자만 남기면 ${n.length}자리, 010으로 시작하는 10~11자리여야 합니다)`,
+    });
   }
   if (!String(text || "").trim()) {
     return res.status(400).json({ ok: false, error: "보낼 내용이 비어 있습니다." });

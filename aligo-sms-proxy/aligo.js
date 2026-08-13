@@ -13,9 +13,26 @@ export function digits(s) {
   return String(s || "").replace(/[^0-9]/g, "");
 }
 
+/**
+ * 어떤 모양으로 적어도 01012345678 꼴로 바꿔 줍니다.
+ *
+ *   010-1234-5678   →  01012345678
+ *   010 1234 5678   →  01012345678
+ *   +82 10-1234-5678 → 01012345678   (국가번호를 0 으로 바꿉니다)
+ *   0082101234 5678 →  01012345678
+ */
+export function normalizePhone(s) {
+  let n = digits(s);
+  if (n.startsWith("0082")) n = n.slice(4);
+  else if (n.startsWith("82")) n = n.slice(2);
+  else return n;
+  // 국가번호를 뗐으면 앞에 0 을 다시 붙입니다 (82 10… → 010…)
+  return n.startsWith("0") ? n : `0${n}`;
+}
+
 /** 국내 휴대폰 번호인지 */
 export function isPhone(s) {
-  return /^01[016789][0-9]{7,8}$/.test(digits(s));
+  return /^01[016789][0-9]{7,8}$/.test(normalizePhone(s));
 }
 
 /** 글자 수로 SMS / LMS 를 정합니다 (90바이트 초과면 장문) */
@@ -64,7 +81,7 @@ export async function sendAligo({ to, text, title, image, testMode }) {
     return { ok: false, error: `문자 발송 설정이 필요합니다. (${missing.join(", ")} 미설정)` };
   }
 
-  const receiver = digits(to);
+  const receiver = normalizePhone(to);
   if (!isPhone(receiver)) {
     return { ok: false, error: "받는 번호 형식이 올바르지 않습니다." };
   }
