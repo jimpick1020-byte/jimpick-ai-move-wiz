@@ -50,9 +50,10 @@ export function aligoError(code, message) {
  * @param {boolean} [p.testMode] 참이면 실제로 보내지 않고 시험만 합니다
  */
 export async function sendAligo({ to, text, title, image, testMode }) {
-  const key = process.env.ALIGO_API_KEY;
-  const userId = process.env.ALIGO_USER_ID;
-  const sender = process.env.ALIGO_SENDER;
+  // 보관함에 넣을 때 끝에 줄바꿈이 딸려 들어가는 일이 있어 앞뒤를 떼고 씁니다
+  const key = String(process.env.ALIGO_API_KEY ?? "").trim();
+  const userId = String(process.env.ALIGO_USER_ID ?? "").trim();
+  const sender = String(process.env.ALIGO_SENDER ?? "").trim();
 
   const missing = [
     !key && "ALIGO_API_KEY",

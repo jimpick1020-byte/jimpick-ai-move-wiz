@@ -18,15 +18,20 @@ app.use(express.json({ limit: "12mb" }));
 
 const PORT = process.env.PORT || 8080;
 
-/** 요청이 우리 쪽에서 온 것인지 확인합니다 */
+/**
+ * 요청이 우리 쪽에서 온 것인지 확인합니다.
+ *
+ * 비밀키를 보관함에 넣을 때 끝에 줄바꿈이 딸려 들어가는 일이 흔합니다.
+ * (예: `openssl rand -hex 32 | gcloud secrets create ...`)
+ * 그래서 양쪽 모두 앞뒤 공백·줄바꿈을 떼고 견줍니다.
+ */
 function checkSecret(req, res) {
-  const want = process.env.JIMPICK_PROXY_SECRET;
+  const want = String(process.env.JIMPICK_PROXY_SECRET ?? "").trim();
   if (!want) {
     res.status(500).json({ ok: false, error: "서버에 JIMPICK_PROXY_SECRET 이 설정되지 않았습니다." });
     return false;
   }
-  const got = req.get("x-jimpick-secret") || "";
-  // 길이가 달라도 같은 시간이 걸리도록 단순 비교 대신 길이 확인 후 비교
+  const got = String(req.get("x-jimpick-secret") ?? "").trim();
   if (got.length !== want.length || got !== want) {
     res.status(401).json({ ok: false, error: "인증되지 않은 요청입니다." });
     return false;
