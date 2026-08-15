@@ -170,23 +170,37 @@ export function SharePage() {
 
   const enabledOptions = estimate.options.filter((o) => o.enabled);
 
-  const confirmReservation = () => {
-    if (!checked) return;
+  const confirmReservation = async () => {
+    if (!checked || saving) return;
+    setSaving(true);
+    setSaveError(null);
+    const snapshot = termsSnapshot();
     const rec: LocalAcceptance = {
       estimateId: estimate.id,
       termsName: TERMS_NAME,
       termsVersion: TERMS_VERSION,
       termsEffectiveAt: TERMS_EFFECTIVE_AT,
-      termsSnapshot: termsSnapshot(),
+      termsSnapshot: snapshot,
       sheetVersion: estimate.sheetVersion ?? 1,
       accepted: true,
       acceptedAt: Date.now(),
       method: "웹 링크 · 확인란 선택",
       token,
     };
+    try {
+      const r = await acceptTerms({
+        data: { token, termsSnapshot: snapshot, acceptMethod: "웹 링크 · 확인란 선택" },
+      });
+      if (r.ok && r.acceptedAt) rec.acceptedAt = new Date(r.acceptedAt).getTime();
+      if (!r.ok) setSaveError(r.error ?? "동의 기록을 저장하지 못했습니다.");
+    } catch {
+      setSaveError("네트워크 문제로 동의 기록을 서버에 남기지 못했습니다. 업체에 연락해 주세요.");
+    }
     writeAcceptance(rec);
     setAccepted(rec);
+    setSaving(false);
   };
+
 
   return (
     <MobileShell bg="bg-[#F5F7FB]">
