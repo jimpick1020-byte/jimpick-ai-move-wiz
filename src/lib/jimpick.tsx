@@ -104,6 +104,19 @@ export interface Estimate {
   sheetVersion?: number;
   /** 담당자 이름 (견적서 서명란) */
   staffName?: string;
+  /** 담당자 연락처 — 고객이 바로 전화할 수 있게 견적서·공유 화면에 표시됩니다 */
+  staffPhone?: string;
+  /** 입금 계좌 — 은행 / 계좌번호 / 예금주 */
+  bankName?: string;
+  bankAccount?: string;
+  bankHolder?: string;
+  /** 약관 동의 기록 (고객이 공유 화면에서 예약을 확정하면 채워집니다) */
+  termsSentAt?: number;
+  termsVersion?: string;
+  termsViewedAt?: number;
+  termsAcceptedAt?: number;
+  termsSnapshot?: string;
+  reservationConfirmedAt?: number;
   /** 할인 금액 */
   discount?: number;
   /** 예약금 (잔금은 총액 − 예약금으로 계산합니다) */
