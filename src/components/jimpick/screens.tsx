@@ -69,6 +69,8 @@ import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions"
 import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
 import { transcribeAudio } from "@/lib/stt.functions";
 import { WavRecorder } from "@/lib/recorder";
+import { TERMS_VERSION, TERMS_NAME, TERMS_EFFECTIVE_AT } from "@/lib/terms";
+import { publishEstimateTerms } from "@/lib/terms.functions";
 
 /** 음성인식 정확도를 올려 주는 힌트 (자주 쓰는 이사 품목·공간 이름) */
 const VOICE_HINT =
@@ -2648,19 +2650,23 @@ export function Result() {
     error?: string;
   } | null>(null);
 
-  /** 고객에게 보낼 문자 내용 (견적서 링크 포함) */
+  /** 고객에게 보낼 문자 내용 (견적서·약관 보안 링크 포함) */
   const sheetSmsText = () =>
     [
       "[JIMPICK 짐픽]",
-      `${draft.customerName || "고객"} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
-      "아래 견적서를 확인해 주세요.",
-      "문의사항은 언제든지 연락해 주세요.",
+      "",
+      `${draft.customerName || "고객"} 고객님, 요청하신 이사 견적서와 이사화물 표준약관이 도착했습니다.`,
+      "",
+      "견적금액과 약관을 확인한 후 예약을 확정해 주세요.",
       "",
       `예상 견적 금액: ${won(total)}`,
       "",
-      "견적서 확인:",
+      "견적서·약관 확인:",
       shareUrl(),
+      "",
+      `문의: ${draft.staffPhone?.trim() || "업체 연락처 미입력"}`,
     ].join("\n");
+
 
   /** 실제 발송 — 같은 버튼을 여러 번 눌러도 한 번만 나갑니다 */
   const doSendSms = async () => {
@@ -2682,8 +2688,33 @@ export function Result() {
       setSendResult(r);
       if (r.ok) {
         tap("success");
+        // 어떤 약관을 어떤 견적에 보냈는지 서버에도 남깁니다 (고객 동의 기록의 근거)
+        try {
+          await publishEstimateTerms({
+            data: {
+              estimateId: draft.id,
+              sheetNo: draft.sheetNo ?? undefined,
+              sheetVersion: draft.sheetVersion ?? 1,
+              customerName: draft.customerName ?? "",
+              moveDate: draft.moveDate ?? undefined,
+              total,
+              contactPhone: draft.staffPhone ?? undefined,
+              termsName: TERMS_NAME,
+              termsVersion: TERMS_VERSION,
+              termsEffectiveAt: TERMS_EFFECTIVE_AT,
+              accessToken: shareToken(),
+              sentAt: r.sentAt,
+              sentMsgId: r.msgId,
+            },
+          });
+        } catch (e) {
+          console.error("[publishEstimateTerms]", e);
+        }
         // 발송 이력을 남깁니다
         updateDraft({
+          // 문자(약관 링크) 발송 기록 — 고객 동의와는 별개 상태입니다
+          termsSentAt: r.sentAt ?? Date.now(),
+          termsVersion: TERMS_VERSION,
           sheetHistory: [
             ...(draft.sheetHistory ?? []),
             {
@@ -2775,9 +2806,13 @@ export function Result() {
   }, [total, draft.total, updateDraft]);
   const summaryText = () =>
     `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${formatMoveDateTime(draft.moveDate, draft.moveTime)}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
-  /** 고객이 열어 볼 견적서 주소 */
+  /** 고객용 보안 토큰 — 견적번호와 차수로 만듭니다 */
+  const shareToken = () => `${draft.id}-v${draft.sheetVersion ?? 1}`;
+  /** 고객이 열어 볼 견적서·약관 주소 */
   const shareUrl = () =>
-    typeof window === "undefined" ? "" : `${window.location.origin}/share/${draft.id}`;
+    typeof window === "undefined"
+      ? ""
+      : `${window.location.origin}/share/${draft.id}?t=${encodeURIComponent(shareToken())}`;
 
   /** 고객에게 보낼 견적 문자 — 화면의 「이사 정보」와 같은 내용으로 채웁니다 */
   const estimateMessage = () =>
@@ -3247,6 +3282,34 @@ export function Result() {
                     value={draft.staffName ?? ""}
                     placeholder="예: 김용달"
                     onChange={(e) => updateDraft({ staffName: e.target.value })}
+                  />
+                </Field>
+                <Field label="담당자 연락처">
+                  <TextInput
+                    value={draft.staffPhone ?? ""}
+                    placeholder="예: 010-7566-2542"
+                    onChange={(e) => updateDraft({ staffPhone: e.target.value })}
+                  />
+                </Field>
+                <Field label="입금 은행">
+                  <TextInput
+                    value={draft.bankName ?? ""}
+                    placeholder="예: 국민은행"
+                    onChange={(e) => updateDraft({ bankName: e.target.value })}
+                  />
+                </Field>
+                <Field label="계좌번호">
+                  <TextInput
+                    value={draft.bankAccount ?? ""}
+                    placeholder="예: 123456-01-234567"
+                    onChange={(e) => updateDraft({ bankAccount: e.target.value })}
+                  />
+                </Field>
+                <Field label="예금주">
+                  <TextInput
+                    value={draft.bankHolder ?? ""}
+                    placeholder="예: 짐픽이사"
+                    onChange={(e) => updateDraft({ bankHolder: e.target.value })}
                   />
                 </Field>
                 <Field label="안내 문구">

@@ -205,6 +205,24 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             </span>
           </div>
 
+          {/* 담당자 연락처 · 입금 계좌 — 고객이 계약을 진행할 때 필요한 정보입니다 */}
+          <table className="mt-4 w-full border-collapse">
+            <tbody>
+              <Row label="담당자" value={draft.staffName?.trim() || null} />
+              <Row label="연락처" value={draft.staffPhone?.trim() || companyPhone || null} />
+              <Row
+                label="입금 계좌"
+                value={
+                  draft.bankAccount?.trim()
+                    ? `${draft.bankName?.trim() ?? ""} ${draft.bankAccount.trim()}${
+                        draft.bankHolder?.trim() ? ` (예금주 ${draft.bankHolder.trim()})` : ""
+                      }`.trim()
+                    : null
+                }
+              />
+            </tbody>
+          </table>
+
           {(companyName || companyPhone) && (
             <p className="mt-3 text-center text-[13px] font-bold text-[#6B7280]">
               {companyName}

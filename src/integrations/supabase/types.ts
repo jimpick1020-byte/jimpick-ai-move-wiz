@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      estimate_terms: {
+        Row: {
+          access_token: string
+          contact_phone: string | null
+          created_at: string
+          customer_name: string
+          estimate_id: string
+          id: string
+          move_date: string | null
+          sent_at: string | null
+          sent_msg_id: string | null
+          sheet_no: string | null
+          sheet_version: number
+          terms_document_id: string | null
+          terms_effective_at: string | null
+          terms_name: string
+          terms_version: string
+          total: number
+          updated_at: string
+          user_id: string
+          viewed_at: string | null
+        }
+        Insert: {
+          access_token: string
+          contact_phone?: string | null
+          created_at?: string
+          customer_name?: string
+          estimate_id: string
+          id?: string
+          move_date?: string | null
+          sent_at?: string | null
+          sent_msg_id?: string | null
+          sheet_no?: string | null
+          sheet_version?: number
+          terms_document_id?: string | null
+          terms_effective_at?: string | null
+          terms_name: string
+          terms_version: string
+          total?: number
+          updated_at?: string
+          user_id: string
+          viewed_at?: string | null
+        }
+        Update: {
+          access_token?: string
+          contact_phone?: string | null
+          created_at?: string
+          customer_name?: string
+          estimate_id?: string
+          id?: string
+          move_date?: string | null
+          sent_at?: string | null
+          sent_msg_id?: string | null
+          sheet_no?: string | null
+          sheet_version?: number
+          terms_document_id?: string | null
+          terms_effective_at?: string | null
+          terms_name?: string
+          terms_version?: string
+          total?: number
+          updated_at?: string
+          user_id?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_terms_terms_document_id_fkey"
+            columns: ["terms_document_id"]
+            isOneToOne: false
+            referencedRelation: "terms_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -119,6 +193,107 @@ export type Database = {
           status?: Database["public"]["Enums"]["sub_status"]
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      terms_acceptances: {
+        Row: {
+          accept_method: string
+          accepted: boolean
+          accepted_at: string
+          created_at: string
+          estimate_id: string
+          estimate_terms_id: string
+          id: string
+          sent_at: string | null
+          sent_msg_id: string | null
+          sheet_version: number
+          terms_effective_at: string | null
+          terms_name: string
+          terms_snapshot: string
+          terms_version: string
+          token_hint: string | null
+          user_id: string
+        }
+        Insert: {
+          accept_method?: string
+          accepted?: boolean
+          accepted_at?: string
+          created_at?: string
+          estimate_id: string
+          estimate_terms_id: string
+          id?: string
+          sent_at?: string | null
+          sent_msg_id?: string | null
+          sheet_version?: number
+          terms_effective_at?: string | null
+          terms_name: string
+          terms_snapshot: string
+          terms_version: string
+          token_hint?: string | null
+          user_id: string
+        }
+        Update: {
+          accept_method?: string
+          accepted?: boolean
+          accepted_at?: string
+          created_at?: string
+          estimate_id?: string
+          estimate_terms_id?: string
+          id?: string
+          sent_at?: string | null
+          sent_msg_id?: string | null
+          sheet_version?: number
+          terms_effective_at?: string | null
+          terms_name?: string
+          terms_snapshot?: string
+          terms_version?: string
+          token_hint?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terms_acceptances_estimate_terms_id_fkey"
+            columns: ["estimate_terms_id"]
+            isOneToOne: true
+            referencedRelation: "estimate_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terms_documents: {
+        Row: {
+          body: string
+          created_at: string
+          effective_at: string
+          id: string
+          name: string
+          source: string
+          summary: Json
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          effective_at: string
+          id?: string
+          name: string
+          source: string
+          summary?: Json
+          updated_at?: string
+          version: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          effective_at?: string
+          id?: string
+          name?: string
+          source?: string
+          summary?: Json
+          updated_at?: string
+          version?: string
         }
         Relationships: []
       }

@@ -303,6 +303,70 @@ export interface VoiceItem {
   qty: number;
 }
 
+/** 자주 잘못 들리는 발음 → 올바른 품목 이름 */
+const VOICE_SYNONYM: [RegExp, string][] = [
+  [/냉정고|냉장꼬|냉장구/g, "냉장고"],
+  [/쇼파|소파아/g, "소파"],
+  [/세탁키|세탁끼/g, "세탁기"],
+  [/에어콘|에어컨디/g, "에어컨"],
+  [/장농|장룡/g, "장롱"],
+  [/티비|티브이|텔레비전|tv브이/gi, "TV"],
+  [/침대색상|색상 화장대/g, "침대 화장대"],
+  [/한방/g, "안방"],
+];
+
+/** 한국어 수량 → 숫자 */
+const KO_NUM: Record<string, number> = {
+  한: 1, 하나: 1, 일: 1, 두: 2, 둘: 2, 이: 2, 세: 3, 셋: 3, 삼: 3,
+  네: 4, 넷: 4, 사: 4, 다섯: 5, 오: 5, 여섯: 6, 일곱: 7, 여덟: 8, 아홉: 9, 열: 10,
+};
+
+/** AI 없이도 문장에서 품목을 찾아냅니다 (AI 실패 시 대비) */
+function localMatch(text: string): VoiceItem[] {
+  let t = text;
+  for (const [re, to] of VOICE_SYNONYM) t = t.replace(re, to);
+  const found = new Map<string, VoiceItem>();
+  // 긴 이름이 먼저 잡히도록 정렬합니다 (김치냉장고 > 냉장고)
+  const sorted = [...CATALOG].sort((a, b) => b[1].length - a[1].length);
+  for (const [id, name] of sorted) {
+    const base = name.replace(/\(.*?\)/g, "").replace(/[·\s]/g, "");
+    if (base.length < 2) continue;
+    const idx = t.indexOf(base);
+    if (idx < 0) continue;
+    // 뒤에 붙은 수량을 읽습니다 ("냉장고 두 개", "침대 2개")
+    const after = t.slice(idx + base.length, idx + base.length + 8);
+    let qty = 1;
+    const num = after.match(/\s*([0-9]{1,2})\s*(개|대|채|세트|점)?/);
+    const ko = after.match(/\s*(하나|한|둘|두|셋|세|넷|네|다섯|여섯|일곱|여덟|아홉|열)\s*(개|대|채)?/);
+    if (num?.[1]) qty = Number(num[1]);
+    else if (ko?.[1]) qty = KO_NUM[ko[1]] ?? 1;
+    found.set(id, { id, name, qty: Math.max(1, Math.min(20, qty)) });
+    t = t.slice(0, idx) + " ".repeat(base.length) + t.slice(idx + base.length);
+  }
+  return [...found.values()];
+}
+
+/** 문장에서 방 이름을 찾습니다 */
+function localRoom(text: string, rooms: string[]): string | null {
+  let t = text;
+  for (const [re, to] of VOICE_SYNONYM) t = t.replace(re, to);
+  const flat = t.replace(/\s/g, "");
+  for (const r of rooms) if (flat.includes(r.replace(/\s/g, ""))) return r;
+  return null;
+}
+
+/** 모델이 코드블록·설명을 붙여도 JSON만 뽑아냅니다 */
+function extractJson(text: string): unknown {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
 /** 음성 문장을 AI가 해석해 방과 품목을 뽑아냅니다 ("추가" 같은 명령어가 없어도 동작) */
 export const parseVoiceOrder = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
@@ -317,14 +381,20 @@ export const parseVoiceOrder = createServerFn({ method: "POST" })
     async ({
       data,
     }): Promise<{ room: string | null; items: VoiceItem[]; error?: string }> => {
-      const key = process.env.LOVABLE_API_KEY;
-      if (!key) return { room: null, items: [], error: "AI 키가 설정되지 않았습니다." };
-
-      const schema = z.object({
-        room: z.string().nullable(),
-        items: z.array(z.object({ id: z.string(), qty: z.number() })),
-      });
       const valid = new Map(CATALOG.map(([id, name]) => [id, name] as const));
+      // ① 먼저 기기 안에서 바로 찾아 둡니다 — AI가 실패해도 이 결과로 담습니다
+      const fallback = {
+        room: localRoom(data.text, data.rooms),
+        items: localMatch(data.text),
+      };
+
+      const key = process.env.LOVABLE_API_KEY;
+      if (!key) {
+        return fallback.items.length
+          ? fallback
+          : { room: null, items: [], error: "품목을 못 알아들었어요. 다시 말씀해 주세요." };
+      }
+
       const gateway = createLovableAiGatewayProvider(key);
 
       const prompt = `당신은 한국 이사 견적 앱의 음성 비서입니다.
@@ -338,29 +408,49 @@ ${CATALOG.map(([id, name]) => `- ${id}: ${name}`).join("\n")}
 4. room에는 다음 방 이름 중 하나를 넣고, 언급이 없으면 null 입니다: ${data.rooms.join(", ") || "없음"}.
 5. 목록에 없는 물건은 무시합니다.
 6. 음성인식이 잘못 적힌 발음도 가장 비슷한 품목으로 알아서 고쳐 해석합니다
-   (예: "냉정고"→냉장고, "세탁키"→세탁기, "쇼파"→소파, "티비/TV 브이"→TV, "에어콘"→에어컨, "장농"→장롱).
-7. 한 문장에 여러 품목이 있으면 모두 뽑아냅니다. 확실히 아닌 것만 버리고, 비슷하면 가장 가까운 품목으로 담습니다.
+   (예: "냉정고"→냉장고, "세탁키"→세탁기, "쇼파"→소파, "티비"→TV, "에어콘"→에어컨, "장농"→장롱, "한방"→안방).
+7. 한 문장에 여러 품목이 있으면 모두 뽑아냅니다.
+8. 설명·코드블록 없이 아래 형태의 JSON 객체 하나만 답합니다.
+   {"room": "안방" 또는 null, "items": [{"id": "fridge", "qty": 1}]}
 
 문장: "${data.text}"`;
 
       try {
-        const { output } = await generateText({
+        const { text } = await generateText({
           model: gateway("google/gemini-3.6-flash"),
-          output: Output.object({ schema }),
           messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
         });
+        const parsed = extractJson(text) as
+          | { room?: unknown; items?: { id?: unknown; qty?: unknown }[] }
+          | null;
         const items: VoiceItem[] = [];
-        for (const it of output.items ?? []) {
-          const name = valid.get(it.id as never);
+        for (const it of parsed?.items ?? []) {
+          const id = String(it?.id ?? "");
+          const name = valid.get(id as never);
           if (!name) continue;
-          items.push({ id: it.id, name, qty: Math.max(1, Math.min(20, Math.round(it.qty || 1))) });
+          const qty = Math.max(1, Math.min(20, Math.round(Number(it?.qty) || 1)));
+          items.push({ id, name, qty });
         }
+        const roomRaw = typeof parsed?.room === "string" ? parsed.room : null;
         const room =
-          output.room && data.rooms.includes(output.room) ? output.room : null;
-        return { room, items };
+          roomRaw && data.rooms.includes(roomRaw) ? roomRaw : fallback.room;
+        if (!items.length) {
+          return fallback.items.length
+            ? { room, items: fallback.items }
+            : { room, items: [], error: "품목을 못 알아들었어요. 다시 말씀해 주세요." };
+        }
+        // AI가 놓친 품목은 기기 인식 결과로 채웁니다
+        const merged = new Map(items.map((i) => [i.id, i] as const));
+        for (const f of fallback.items) if (!merged.has(f.id)) merged.set(f.id, f);
+        return { room, items: [...merged.values()] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : "AI 해석에 실패했습니다.";
-        return { room: null, items: [], error: msg };
+        console.error("[parseVoiceOrder]", error);
+        if (fallback.items.length) return fallback;
+        const msg = error instanceof Error ? error.message : "";
+        if (msg.includes("429")) return { room: null, items: [], error: "요청이 많습니다. 잠시 후 다시 시도해 주세요." };
+        if (msg.includes("402")) return { room: null, items: [], error: "AI 사용 크레딧이 부족합니다." };
+        return { room: null, items: [], error: "음성을 알아듣지 못했습니다. 다시 말씀해 주세요." };
       }
     },
   );
+
