@@ -500,12 +500,17 @@ export function SharePage() {
                   />
                   견적서와 이사화물 표준약관을 모두 확인했습니다.
                 </label>
+                {saveError && (
+                  <div className="rounded-xl bg-[#FFF1F2] p-3 text-[15px] font-semibold text-[#B42318]">
+                    {saveError}
+                  </div>
+                )}
                 <button
-                  onClick={confirmReservation}
-                  disabled={!checked}
+                  onClick={() => void confirmReservation()}
+                  disabled={!checked || saving}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0751D8] py-4 text-[18px] font-black text-white disabled:bg-[#C7D6EE] disabled:text-white"
                 >
-                  <CheckCircle2 className="h-6 w-6" /> 동의하고 예약 확정
+                  <CheckCircle2 className="h-6 w-6" /> {saving ? "확정 중..." : "동의하고 예약 확정"}
                 </button>
               </>
             )}
