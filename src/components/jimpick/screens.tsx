@@ -2688,6 +2688,9 @@ export function Result() {
         tap("success");
         // 발송 이력을 남깁니다
         updateDraft({
+          // 문자(약관 링크) 발송 기록 — 고객 동의와는 별개 상태입니다
+          termsSentAt: r.sentAt ?? Date.now(),
+          termsVersion: TERMS_VERSION,
           sheetHistory: [
             ...(draft.sheetHistory ?? []),
             {
