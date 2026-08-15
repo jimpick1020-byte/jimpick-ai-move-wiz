@@ -2806,9 +2806,13 @@ export function Result() {
   }, [total, draft.total, updateDraft]);
   const summaryText = () =>
     `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${formatMoveDateTime(draft.moveDate, draft.moveTime)}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
-  /** 고객이 열어 볼 견적서 주소 */
+  /** 고객용 보안 토큰 — 견적번호와 차수로 만듭니다 */
+  const shareToken = () => `${draft.id}-v${draft.sheetVersion ?? 1}`;
+  /** 고객이 열어 볼 견적서·약관 주소 */
   const shareUrl = () =>
-    typeof window === "undefined" ? "" : `${window.location.origin}/share/${draft.id}`;
+    typeof window === "undefined"
+      ? ""
+      : `${window.location.origin}/share/${draft.id}?t=${encodeURIComponent(shareToken())}`;
 
   /** 고객에게 보낼 견적 문자 — 화면의 「이사 정보」와 같은 내용으로 채웁니다 */
   const estimateMessage = () =>
