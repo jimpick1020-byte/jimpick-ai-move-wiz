@@ -2687,6 +2687,28 @@ export function Result() {
       setSendResult(r);
       if (r.ok) {
         tap("success");
+        // 어떤 약관을 어떤 견적에 보냈는지 서버에도 남깁니다 (고객 동의 기록의 근거)
+        try {
+          await publishEstimateTerms({
+            data: {
+              estimateId: draft.id,
+              sheetNo: draft.sheetNo ?? undefined,
+              sheetVersion: draft.sheetVersion ?? 1,
+              customerName: draft.customerName ?? "",
+              moveDate: draft.moveDate ?? undefined,
+              total,
+              contactPhone: draft.staffPhone ?? undefined,
+              termsName: TERMS_NAME,
+              termsVersion: TERMS_VERSION,
+              termsEffectiveAt: TERMS_EFFECTIVE_AT,
+              accessToken: shareToken(),
+              sentAt: r.sentAt,
+              sentMsgId: r.msgId,
+            },
+          });
+        } catch (e) {
+          console.error("[publishEstimateTerms]", e);
+        }
         // 발송 이력을 남깁니다
         updateDraft({
           // 문자(약관 링크) 발송 기록 — 고객 동의와는 별개 상태입니다
