@@ -3249,6 +3249,34 @@ export function Result() {
                     onChange={(e) => updateDraft({ staffName: e.target.value })}
                   />
                 </Field>
+                <Field label="담당자 연락처">
+                  <TextInput
+                    value={draft.staffPhone ?? ""}
+                    placeholder="예: 010-7566-2542"
+                    onChange={(e) => updateDraft({ staffPhone: e.target.value })}
+                  />
+                </Field>
+                <Field label="입금 은행">
+                  <TextInput
+                    value={draft.bankName ?? ""}
+                    placeholder="예: 국민은행"
+                    onChange={(e) => updateDraft({ bankName: e.target.value })}
+                  />
+                </Field>
+                <Field label="계좌번호">
+                  <TextInput
+                    value={draft.bankAccount ?? ""}
+                    placeholder="예: 123456-01-234567"
+                    onChange={(e) => updateDraft({ bankAccount: e.target.value })}
+                  />
+                </Field>
+                <Field label="예금주">
+                  <TextInput
+                    value={draft.bankHolder ?? ""}
+                    placeholder="예: 짐픽이사"
+                    onChange={(e) => updateDraft({ bankHolder: e.target.value })}
+                  />
+                </Field>
                 <Field label="안내 문구">
                   <TextInput
                     value={draft.sheetNote ?? ""}
