@@ -94,13 +94,37 @@ export function SharePage() {
   const [openFull, setOpenFull] = useState(false);
   const [checked, setChecked] = useState(false);
   const [accepted, setAccepted] = useState<LocalAcceptance | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     const e = loadEstimateFromStorage(id);
     setEstimate(e);
     setAccepted(readAcceptance(id));
     setLoading(false);
-  }, [id]);
+    // 서버에 이미 남은 동의 기록이 있으면 그것을 우선합니다 (기기가 달라도 유지)
+    void getTermsLink({ data: { token } })
+      .then((info) => {
+        if (info.ok && info.acceptedAt) {
+          setAccepted({
+            estimateId: id,
+            termsName: info.termsName ?? TERMS_NAME,
+            termsVersion: info.termsVersion ?? TERMS_VERSION,
+            termsEffectiveAt: info.termsEffectiveAt ?? TERMS_EFFECTIVE_AT,
+            termsSnapshot: "",
+            sheetVersion: info.sheetVersion ?? 1,
+            accepted: true,
+            acceptedAt: new Date(info.acceptedAt).getTime(),
+            method: info.acceptMethod ?? "웹 링크 · 확인란 선택",
+            token,
+          });
+        }
+      })
+      .catch(() => {
+        /* 서버 기록을 못 읽어도 화면은 그대로 보여 줍니다 */
+      });
+  }, [id, token]);
+
 
   if (loading) {
     return (
