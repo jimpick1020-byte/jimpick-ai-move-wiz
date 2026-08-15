@@ -34,6 +34,8 @@ import {
   termsSnapshot,
 } from "@/lib/terms";
 import { MobileShell, TopBar, Card } from "./ui";
+import { acceptTerms, getTermsLink } from "@/lib/terms.functions";
+
 
 /** 이 기기에 남기는 동의 기록 (새로고침해도 상태가 유지됩니다) */
 interface LocalAcceptance {
