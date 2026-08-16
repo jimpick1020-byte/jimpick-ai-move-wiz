@@ -4,7 +4,9 @@ import { SharePage } from "@/components/jimpick/SharePage";
 export const Route = createFileRoute("/share/$id")({
   validateSearch: (search: Record<string, unknown>) => ({
     staff: typeof search.staff === "string" ? search.staff : undefined,
+    t: typeof search.t === "string" ? search.t : undefined,
   }),
+
   head: () => ({
     meta: [
       { title: "JIMPICK 고객용 견적서" },
