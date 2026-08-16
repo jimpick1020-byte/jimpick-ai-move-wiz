@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useParams, useSearch } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useSearch } from "@tanstack/react-router";
 import {
   Phone,
   Calendar,
@@ -11,10 +11,14 @@ import {
   ChevronRight,
   ChevronDown,
   CheckCircle2,
-  Printer,
   Headphones,
   Landmark,
   User,
+  Handshake,
+  FileSignature,
+  PackageOpen,
+  CircleDollarSign,
+  Lock,
 } from "lucide-react";
 import {
   ITEM_CATALOG,
@@ -33,9 +37,8 @@ import {
   TERMS_VERSION,
   termsSnapshot,
 } from "@/lib/terms";
-import { MobileShell, TopBar, Card } from "./ui";
-import { acceptTerms, getTermsLink } from "@/lib/terms.functions";
-
+import { Card } from "./ui";
+import { acceptTerms, getTermsLink, type TermsLinkInfo } from "@/lib/terms.functions";
 
 /** 이 기기에 남기는 동의 기록 (새로고침해도 상태가 유지됩니다) */
 interface LocalAcceptance {
@@ -79,10 +82,19 @@ function writeAcceptance(rec: LocalAcceptance) {
   }
 }
 
-function ymd(date: string): string {
-  const [y, m, d] = (date || "").split("-");
-  if (!y || !m || !d) return date || "";
+function ymd(date?: string | null): string {
+  const [y, m, d] = String(date || "").split("-");
+  if (!y || !m || !d) return "";
   return `${y}. ${m}. ${d}`;
+}
+
+/** 약관 요약 5개 항목에 맞는 파란색 선 아이콘 */
+const SUMMARY_ICONS = [Handshake, FileSignature, PackageOpen, CircleDollarSign, Lock];
+
+const BLUE = "#0864DC";
+
+function Row({ children }: { children: React.ReactNode }) {
+  return <div className="flex items-center gap-2.5 py-3.5">{children}</div>;
 }
 
 export function SharePage() {
@@ -90,23 +102,25 @@ export function SharePage() {
   const search = useSearch({ from: "/share/$id" }) as { staff?: string; t?: string };
   const staffMode = String(search?.staff ?? "") === "1";
   const token = String(search?.t ?? id).slice(0, 40);
+
   const [estimate, setEstimate] = useState<Estimate | null>(null);
+  const [link, setLink] = useState<TermsLinkInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [openSheet, setOpenSheet] = useState(false);
   const [openFull, setOpenFull] = useState(false);
+  const [openSummary, setOpenSummary] = useState<number | null>(null);
   const [checked, setChecked] = useState(false);
   const [accepted, setAccepted] = useState<LocalAcceptance | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    const e = loadEstimateFromStorage(id);
-    setEstimate(e);
+    setEstimate(loadEstimateFromStorage(id));
     setAccepted(readAcceptance(id));
-    setLoading(false);
-    // 서버에 이미 남은 동의 기록이 있으면 그것을 우선합니다 (기기가 달라도 유지)
+    // 보안 토큰으로 이 견적 한 건만 조회합니다 (다른 견적번호로는 열리지 않습니다)
     void getTermsLink({ data: { token } })
       .then((info) => {
+        setLink(info);
         if (info.ok && info.acceptedAt) {
           setAccepted({
             estimateId: id,
@@ -122,44 +136,22 @@ export function SharePage() {
           });
         }
       })
-      .catch(() => {
-        /* 서버 기록을 못 읽어도 화면은 그대로 보여 줍니다 */
-      });
+      .catch(() => setLink(null))
+      .finally(() => setLoading(false));
   }, [id, token]);
 
+  const localCalc = useMemo(() => (estimate ? calcEstimate(estimate) : null), [estimate]);
 
-  if (loading) {
-    return (
-      <MobileShell bg="bg-white">
-        <TopBar title="견적 공유" />
-        <div className="flex-1 flex items-center justify-center text-[#6B7280]">불러오는 중...</div>
-      </MobileShell>
-    );
-  }
+  // 실제 데이터: 서버(토큰 조회) 우선, 없으면 이 기기에 저장된 견적
+  const customerName = (link?.ok ? link.customerName : "") || estimate?.customerName || "";
+  const moveDate = ymd(link?.ok ? link.moveDate : estimate?.moveDate);
+  const total = link?.ok && typeof link.total === "number" && link.total > 0
+    ? link.total
+    : (localCalc?.total ?? 0);
+  const contactPhone = ((link?.ok ? link.contactPhone : "") || estimate?.staffPhone || "").trim();
+  const hasData = Boolean(customerName && moveDate && total > 0);
 
-  if (!estimate) {
-    return (
-      <MobileShell bg="bg-white">
-        <TopBar title="견적 공유" />
-        <div className="flex-1 flex flex-col items-center justify-center px-8 text-center gap-4">
-          <div className="text-6xl">📭</div>
-          <div className="text-xl font-bold text-[#111827]">견적을 찾을 수 없습니다</div>
-          <div className="text-[16px] text-[#6B7280]">
-            링크가 만료되었거나, 이 기기에 저장된 견적이 아닙니다.
-          </div>
-          <Link to="/" className="text-[#0751D8] font-semibold underline">
-            JIMPICK 홈으로 가기
-          </Link>
-        </div>
-      </MobileShell>
-    );
-  }
-
-  const calc = calcEstimate(estimate);
-  const total = calc.total;
-  const contactPhone = (estimate.staffPhone || "").trim();
-
-  const selectedItems = estimate.rooms.flatMap((room) =>
+  const selectedItems = (estimate?.rooms ?? []).flatMap((room) =>
     Object.entries(room.items)
       .filter(([, qty]) => qty > 0)
       .map(([itemId, qty]) => {
@@ -167,21 +159,20 @@ export function SharePage() {
         return { room: room.name, name: catalog?.name || itemId, qty };
       }),
   );
-
-  const enabledOptions = estimate.options.filter((o) => o.enabled);
+  const enabledOptions = (estimate?.options ?? []).filter((o) => o.enabled);
 
   const confirmReservation = async () => {
-    if (!checked || saving) return;
+    if (!checked || saving || !hasData) return;
     setSaving(true);
     setSaveError(null);
     const snapshot = termsSnapshot();
     const rec: LocalAcceptance = {
-      estimateId: estimate.id,
+      estimateId: estimate?.id ?? id,
       termsName: TERMS_NAME,
       termsVersion: TERMS_VERSION,
       termsEffectiveAt: TERMS_EFFECTIVE_AT,
       termsSnapshot: snapshot,
-      sheetVersion: estimate.sheetVersion ?? 1,
+      sheetVersion: link?.sheetVersion ?? estimate?.sheetVersion ?? 1,
       accepted: true,
       acceptedAt: Date.now(),
       method: "웹 링크 · 확인란 선택",
@@ -191,92 +182,73 @@ export function SharePage() {
       const r = await acceptTerms({
         data: { token, termsSnapshot: snapshot, acceptMethod: "웹 링크 · 확인란 선택" },
       });
-      if (r.ok && r.acceptedAt) rec.acceptedAt = new Date(r.acceptedAt).getTime();
-      if (!r.ok) setSaveError(r.error ?? "동의 기록을 저장하지 못했습니다.");
+      if (!r.ok) {
+        setSaveError(r.error ?? "동의 기록을 저장하지 못했습니다. 다시 시도해 주세요.");
+        setSaving(false);
+        return;
+      }
+      if (r.acceptedAt) rec.acceptedAt = new Date(r.acceptedAt).getTime();
     } catch {
-      setSaveError("네트워크 문제로 동의 기록을 서버에 남기지 못했습니다. 업체에 연락해 주세요.");
+      setSaveError("네트워크 문제로 동의 기록을 저장하지 못했습니다. 다시 시도해 주세요.");
+      setSaving(false);
+      return;
     }
     writeAcceptance(rec);
     setAccepted(rec);
     setSaving(false);
   };
 
+  const shell = (children: React.ReactNode) => (
+    <div className="min-h-[100dvh] w-full overflow-x-hidden bg-white">
+      {/* 상단 파란색 헤더 */}
+      <header className="flex h-[88px] w-full items-center justify-center bg-[#0864DC]">
+        <span className="text-[30px] font-black tracking-tight text-white">JIMPICK</span>
+        <span className="ml-2 text-[16px] font-bold text-white/95">짐픽</span>
+      </header>
+      <div className="mx-auto w-full max-w-[430px] px-4 pb-12">{children}</div>
+    </div>
+  );
 
-  return (
-    <MobileShell bg="bg-[#F5F7FB]">
-      <TopBar title={staffMode ? "직원용 작업 지시서" : "이사 견적서 · 표준약관"} />
-      <div className="p-4 space-y-4 flex-1 overflow-auto pb-10">
-        {/* 로고 */}
-        <div className="-mx-4 -mt-4 bg-[#0751D8] py-4 text-center">
-          <span className="text-[26px] font-black tracking-tight text-white">JIMPICK</span>
-          <span className="ml-2 text-[16px] font-bold text-white/90">짐픽</span>
-        </div>
+  if (loading) {
+    return shell(
+      <div className="py-24 text-center text-[16px] font-semibold text-[#6B7280]">
+        불러오는 중...
+      </div>,
+    );
+  }
 
-        {!staffMode && (
-          <div className="flex justify-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[14px] font-bold text-[#111827] shadow-[0_2px_0_#E7EBF2]">
-              <ShieldCheck className="h-4 w-4 text-[#12A150]" /> 보안이 적용된 안전한 링크입니다
-            </span>
-          </div>
-        )}
-
-        <h1 className="text-center text-[24px] font-black text-[#111827]">
-          {staffMode ? "작업 지시서" : "이사 견적서 · 표준약관"}
-        </h1>
-
-        {/* 고객 · 이사일 · 총액 */}
-        <Card className="space-y-0 p-0">
-          <div className="flex items-center gap-2 border-b border-[#EDF2FA] px-4 py-3.5">
-            <User className="h-5 w-5 text-[#0751D8]" />
-            <span className="text-[18px] font-black text-[#111827]">
-              {estimate.customerName || "고객"} 고객님
-            </span>
-          </div>
-          <div className="flex items-center justify-between border-b border-[#EDF2FA] px-4 py-3.5">
-            <span className="inline-flex items-center gap-2 text-[17px] font-bold text-[#111827]">
-              <Calendar className="h-5 w-5 text-[#0751D8]" /> 이사일
-            </span>
-            <span className="text-[17px] font-black text-[#0751D8]">
-              {ymd(estimate.moveDate)} {estimate.moveTime}
-            </span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3.5">
-            <span className="text-[17px] font-bold text-[#111827]">총 견적금액</span>
-            <span className="text-[22px] font-black text-[#0751D8]">
-              {staffMode ? "금액 미공개" : won(total)}
-            </span>
-          </div>
-          <div className="px-3 pb-3">
-            <button
-              onClick={() => setOpenSheet((v) => !v)}
-              className="flex w-full items-center justify-between rounded-xl bg-[#0751D8] px-4 py-3.5 text-[17px] font-black text-white"
-            >
-              <span className="inline-flex items-center gap-2">
-                <FileText className="h-5 w-5" /> 견적서 보기
-              </span>
-              {openSheet ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-            </button>
-          </div>
-        </Card>
-
-        {/* 견적서 상세 */}
-        {openSheet && (
+  /* ───────── 직원용(금액 미공개) ───────── */
+  if (staffMode) {
+    return shell(
+      <div className="space-y-4 pt-5">
+        <h1 className="text-center text-[26px] font-black text-[#111827]">작업 지시서</h1>
+        {!estimate ? (
+          <Card>
+            <div className="text-[16px] font-semibold text-[#6B7280]">
+              정보를 불러올 수 없습니다.
+            </div>
+          </Card>
+        ) : (
           <>
             <Card className="space-y-2 text-[16px]">
               <div className="text-[17px] font-black">이사 정보</div>
               <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-[#0751D8]" />
+                <User className="h-4 w-4 text-[#0864DC]" />
+                <span>{estimate.customerName}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-[#0864DC]" />
                 <span>
-                  {estimate.customerName} · {estimate.phone}
+                  {ymd(estimate.moveDate)} {estimate.moveTime}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-[#0751D8]" />
+                <Truck className="h-4 w-4 text-[#0864DC]" />
                 <span>{estimate.moveType}</span>
               </div>
               <div className="flex items-start gap-2">
-                <MapPin className="mt-0.5 h-4 w-4 text-[#0751D8]" />
-                <div className="flex-1">
+                <MapPin className="mt-0.5 h-4 w-4 text-[#0864DC]" />
+                <div className="min-w-0 flex-1">
                   <div>
                     출발: {estimate.fromAddress} {estimate.fromDetail}
                   </div>
@@ -286,100 +258,217 @@ export function SharePage() {
                 </div>
               </div>
               <div className="text-[#6B7280]">
-                거리 {estimate.distanceKm}km · {estimate.workEnv} · {estimate.fromFloor}층 →{" "}
-                {estimate.toFloor}층
-              </div>
-              <div className="text-[#6B7280]">
                 1톤 {estimate.truck1t}대 · 5톤 {estimate.truck5t}대 · 사다리차 {estimate.ladder}대
               </div>
-              {estimate.memo && (
-                <div className="mt-2 rounded-xl bg-[#F5F7FB] p-3 text-[#111827]">
-                  <span className="font-semibold">고객 메모:</span> {estimate.memo}
-                </div>
-              )}
+              <div className="rounded-xl bg-[#F5F7FB] p-3 font-bold text-[#111827]">금액 미공개</div>
             </Card>
-
             <Card className="space-y-2">
               <div className="flex items-center gap-2 text-[17px] font-black">
-                <Package className="h-4 w-4 text-[#0751D8]" />
-                <span>선택한 품목</span>
+                <Package className="h-4 w-4 text-[#0864DC]" /> 선택한 품목
               </div>
               {selectedItems.length === 0 ? (
                 <div className="text-[16px] text-[#6B7280]">선택된 품목이 없습니다.</div>
               ) : (
-                <div className="max-h-60 space-y-1 overflow-auto">
-                  {selectedItems.map((item, idx) => (
-                    <div
-                      key={`${item.room}-${item.name}-${idx}`}
-                      className="flex justify-between text-[16px]"
-                    >
-                      <span className="text-[#6B7280]">{item.room}</span>
-                      <span className="font-medium">
-                        {item.name} × {item.qty}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                selectedItems.map((it, i) => (
+                  <div key={`${it.room}-${it.name}-${i}`} className="flex justify-between text-[16px]">
+                    <span className="text-[#6B7280]">{it.room}</span>
+                    <span className="font-medium">
+                      {it.name} × {it.qty}
+                    </span>
+                  </div>
+                ))
               )}
             </Card>
-
             {enabledOptions.length > 0 && (
               <Card className="space-y-2">
                 <div className="text-[17px] font-black">추가 옵션</div>
                 {enabledOptions.map((o) => (
                   <div key={o.id} className="flex justify-between text-[16px]">
                     <span>{o.name}</span>
-                    <span className="font-medium">
-                      {staffMode ? "포함" : o.separate ? "별도" : won(o.price)}
-                    </span>
+                    <span className="font-medium">포함</span>
                   </div>
                 ))}
-              </Card>
-            )}
-
-            {estimate.specialTerms && (
-              <Card className="space-y-2">
-                <div className="text-[17px] font-black">특약사항</div>
-                <div className="whitespace-pre-line text-[16px] text-[#111827]">
-                  {estimate.specialTerms}
-                </div>
-              </Card>
-            )}
-
-            {!staffMode && (
-              <Card className="space-y-2">
-                <div className="text-[17px] font-black">견적 내역</div>
-                {calc.parts.map((p) => (
-                  <div key={p.label} className="flex justify-between text-[16px]">
-                    <span className="text-[#6B7280]">{p.label}</span>
-                    <span className="font-semibold">{won(p.amount)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between border-t border-[#E7EBF2] pt-2 text-[17px] font-black">
-                  <span>합계</span>
-                  <span className="text-[#0751D8]">{won(total)}</span>
-                </div>
               </Card>
             )}
           </>
         )}
+      </div>,
+    );
+  }
 
-        {/* 계약 진행 정보 — 담당자 연락처와 입금 계좌 */}
-        {!staffMode && (
+  /* ───────── 고객용 ───────── */
+  return shell(
+    <div className="pt-3">
+      {/* 보안 안내 */}
+      <div className="flex justify-center">
+        <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-[14px] font-bold text-[#111827] shadow-[0_2px_10px_rgba(17,24,39,0.10)]">
+          <ShieldCheck className="h-[18px] w-[18px] text-[#12A150]" /> 보안이 적용된 안전한 링크입니다
+        </span>
+      </div>
+
+      {/* 제목 */}
+      <h1 className="mt-4 text-center text-[26px] font-black leading-tight text-[#111827] xs:text-[30px] sm:text-[30px]">
+        이사 견적서 · 표준약관
+      </h1>
+
+      {/* 견적 요약 */}
+      <div className="mt-4 rounded-[14px] bg-white shadow-[0_2px_12px_rgba(17,24,39,0.10)]">
+        <div className="px-[22px] pt-1">
+          {!hasData ? (
+            <div className="py-6 text-center text-[16px] font-bold text-[#6B7280]">
+              정보를 불러올 수 없습니다
+            </div>
+          ) : (
+            <>
+              <div className="border-b border-[#EDF0F5]">
+                <Row>
+                  <User className="h-[26px] w-[26px] shrink-0 text-[#0864DC]" />
+                  <span className="truncate text-[22px] font-black text-[#111827]">
+                    {customerName} 고객님
+                  </span>
+                </Row>
+              </div>
+              <div className="border-b border-[#EDF0F5]">
+                <div className="flex items-center justify-between gap-3 py-3.5">
+                  <span className="inline-flex min-w-0 items-center gap-2.5">
+                    <Calendar className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
+                    <span className="text-[19px] font-bold text-[#111827]">이사일</span>
+                  </span>
+                  <span className="whitespace-nowrap text-[19px] font-black text-[#0864DC]">
+                    {moveDate}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-3 py-3.5">
+                <span className="inline-flex min-w-0 items-center gap-2.5">
+                  <CircleDollarSign className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
+                  <span className="text-[19px] font-bold text-[#111827]">총 견적금액</span>
+                </span>
+                <span className="whitespace-nowrap text-[24px] font-black text-[#0864DC]">
+                  {won(total)}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+        <div className="px-3.5 pb-3.5">
+          <button
+            onClick={() => setOpenSheet((v) => !v)}
+            disabled={!estimate}
+            className="flex w-full items-center justify-between rounded-xl bg-gradient-to-b from-[#1B76EF] to-[#0757C4] px-4 py-4 text-[20px] font-black text-white shadow-[0_4px_12px_rgba(8,100,220,0.35)] disabled:opacity-50"
+          >
+            <span className="inline-flex items-center gap-2.5">
+              <FileText className="h-[22px] w-[22px]" /> 견적서 보기
+            </span>
+            {openSheet ? (
+              <ChevronDown className="h-[22px] w-[22px]" />
+            ) : (
+              <ChevronRight className="h-[22px] w-[22px]" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* 견적서 상세 */}
+      {openSheet && estimate && localCalc && (
+        <div className="mt-4 space-y-4">
+          <Card className="space-y-2 text-[16px]">
+            <div className="text-[17px] font-black">이사 정보</div>
+            <div className="flex items-center gap-2">
+              <Phone className="h-4 w-4 text-[#0864DC]" />
+              <span className="min-w-0 truncate">
+                {estimate.customerName} · {estimate.phone}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Truck className="h-4 w-4 text-[#0864DC]" />
+              <span>{estimate.moveType}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#0864DC]" />
+              <div className="min-w-0 flex-1">
+                <div>
+                  출발: {estimate.fromAddress} {estimate.fromDetail}
+                </div>
+                <div>
+                  도착: {estimate.toAddress} {estimate.toDetail}
+                </div>
+              </div>
+            </div>
+            <div className="text-[#6B7280]">
+              거리 {estimate.distanceKm}km · {estimate.workEnv} · {estimate.fromFloor}층 →{" "}
+              {estimate.toFloor}층
+            </div>
+            {estimate.memo && (
+              <div className="rounded-xl bg-[#F5F7FB] p-3">
+                <span className="font-semibold">고객 메모:</span> {estimate.memo}
+              </div>
+            )}
+          </Card>
+
+          <Card className="space-y-2">
+            <div className="flex items-center gap-2 text-[17px] font-black">
+              <Package className="h-4 w-4 text-[#0864DC]" /> 선택한 품목
+            </div>
+            {selectedItems.length === 0 ? (
+              <div className="text-[16px] text-[#6B7280]">선택된 품목이 없습니다.</div>
+            ) : (
+              <div className="max-h-60 space-y-1 overflow-auto">
+                {selectedItems.map((it, i) => (
+                  <div key={`${it.room}-${it.name}-${i}`} className="flex justify-between text-[16px]">
+                    <span className="text-[#6B7280]">{it.room}</span>
+                    <span className="font-medium">
+                      {it.name} × {it.qty}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {enabledOptions.length > 0 && (
+            <Card className="space-y-2">
+              <div className="text-[17px] font-black">추가 옵션</div>
+              {enabledOptions.map((o) => (
+                <div key={o.id} className="flex justify-between text-[16px]">
+                  <span>{o.name}</span>
+                  <span className="font-medium">{o.separate ? "별도" : won(o.price)}</span>
+                </div>
+              ))}
+            </Card>
+          )}
+
+          <Card className="space-y-2">
+            <div className="text-[17px] font-black">견적 내역</div>
+            {localCalc.parts.map((p) => (
+              <div key={p.label} className="flex justify-between text-[16px]">
+                <span className="text-[#6B7280]">{p.label}</span>
+                <span className="font-semibold">{won(p.amount)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between border-t border-[#E7EBF2] pt-2 text-[17px] font-black">
+              <span>합계</span>
+              <span className="text-[#0864DC]">{won(total)}</span>
+            </div>
+          </Card>
+
           <Card className="space-y-2.5">
             <div className="text-[17px] font-black">계약 진행 안내</div>
             <div className="flex items-center justify-between text-[16px]">
               <span className="inline-flex items-center gap-2 text-[#6B7280]">
-                <User className="h-4 w-4 text-[#0751D8]" /> 담당자
+                <User className="h-4 w-4 text-[#0864DC]" /> 담당자
               </span>
               <span className="font-bold">{estimate.staffName?.trim() || "담당자"}</span>
             </div>
             <div className="flex items-center justify-between text-[16px]">
               <span className="inline-flex items-center gap-2 text-[#6B7280]">
-                <Phone className="h-4 w-4 text-[#0751D8]" /> 연락처
+                <Phone className="h-4 w-4 text-[#0864DC]" /> 연락처
               </span>
               {contactPhone ? (
-                <a href={`tel:${contactPhone.replace(/-/g, "")}`} className="font-black text-[#0751D8] underline">
+                <a
+                  href={`tel:${contactPhone.replace(/-/g, "")}`}
+                  className="font-black text-[#0864DC] underline"
+                >
                   {contactPhone}
                 </a>
               ) : (
@@ -388,7 +477,7 @@ export function SharePage() {
             </div>
             <div className="flex items-start justify-between gap-3 text-[16px]">
               <span className="inline-flex items-center gap-2 whitespace-nowrap text-[#6B7280]">
-                <Landmark className="h-4 w-4 text-[#0751D8]" /> 입금 계좌
+                <Landmark className="h-4 w-4 text-[#0864DC]" /> 입금 계좌
               </span>
               <span className="text-right font-bold">
                 {estimate.bankAccount?.trim() ? (
@@ -405,122 +494,123 @@ export function SharePage() {
                 )}
               </span>
             </div>
-            {(estimate.deposit ?? 0) > 0 && (
-              <div className="rounded-xl bg-[#F5F7FB] p-3 text-[15px] font-semibold text-[#111827]">
-                계약금 {won(estimate.deposit ?? 0)} · 잔금 {won(Math.max(0, total - (estimate.deposit ?? 0)))}
-                <div className="text-[#6B7280]">약관 동의는 예약금 결제와 별개입니다.</div>
-              </div>
-            )}
           </Card>
-        )}
+        </div>
+      )}
 
-        {/* 약관 핵심 요약 */}
-        {!staffMode && (
-          <Card className="space-y-3">
-            <div className="flex items-start gap-2">
-              <ShieldCheck className="mt-0.5 h-6 w-6 text-[#0751D8]" />
-              <div>
-                <div className="text-[18px] font-black text-[#111827]">{TERMS_NAME}</div>
-                <div className="text-[14px] font-semibold text-[#6B7280]">
-                  {TERMS_SOURCE} · 버전 {TERMS_VERSION} · 적용일 {TERMS_EFFECTIVE_AT}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2.5">
-              {TERMS_SUMMARY.map((s) => (
-                <div key={s.title} className="rounded-xl bg-[#F5F7FB] p-3">
-                  <div className="text-[17px] font-black text-[#0751D8]">{s.title}</div>
-                  <div className="mt-1 text-[16px] leading-relaxed text-[#111827]">{s.body}</div>
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={() => setOpenFull((v) => !v)}
-              className="flex w-full items-center justify-between rounded-xl border-2 border-[#0751D8] px-4 py-3 text-[17px] font-black text-[#0751D8]"
-            >
-              약관 전체보기
-              {openFull ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-            </button>
-            {openFull && (
-              <div className="max-h-[420px] space-y-3 overflow-auto rounded-xl border border-[#E7EBF2] p-3">
-                {TERMS_FULL.map((t) => (
-                  <div key={t.article}>
-                    <div className="text-[16px] font-black text-[#111827]">
-                      {t.article} ({t.title})
-                    </div>
-                    <div className="mt-1 text-[16px] leading-relaxed text-[#334155]">{t.body}</div>
-                  </div>
-                ))}
-                <div className="border-t border-[#E7EBF2] pt-2 text-[14px] font-semibold text-[#6B7280]">
-                  {TERMS_NOTICE}
-                </div>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => window.print()}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#DCE8FA] bg-white py-3 text-[16px] font-black text-[#0751D8]"
-              >
-                <Printer className="h-5 w-5" /> PDF 저장
-              </button>
-              <a
-                href={contactPhone ? `tel:${contactPhone.replace(/-/g, "")}` : undefined}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#DCE8FA] bg-white py-3 text-[16px] font-black text-[#0751D8]"
-              >
-                <Headphones className="h-5 w-5" /> 문의하기
-              </a>
-            </div>
-          </Card>
-        )}
+      {/* 표준약관 카드 */}
+      <div className="mt-4 rounded-[14px] bg-white px-[22px] py-4 shadow-[0_2px_12px_rgba(17,24,39,0.10)]">
+        <div className="flex items-start gap-2.5">
+          <ShieldCheck className="mt-0.5 h-[30px] w-[30px] shrink-0 text-[#0864DC]" />
+          <div className="min-w-0">
+            <div className="text-[21px] font-black text-[#111827]">{TERMS_NAME}</div>
+            <div className="text-[14px] font-semibold text-[#8A93A2]">{TERMS_SOURCE}</div>
+          </div>
+        </div>
 
-        {/* 동의 · 예약 확정 */}
-        {!staffMode && (
-          <div className="space-y-3">
-            {accepted ? (
-              <Card className="space-y-1 border-2 border-[#12A150]">
-                <div className="inline-flex items-center gap-2 text-[18px] font-black text-[#12A150]">
-                  <CheckCircle2 className="h-6 w-6" /> 예약이 확정되었습니다
-                </div>
-                <div className="text-[16px] text-[#111827]">
-                  동의 일시: {new Date(accepted.acceptedAt).toLocaleString("ko-KR")}
-                </div>
-                <div className="text-[16px] text-[#6B7280]">
-                  적용 약관: {accepted.termsName} {accepted.termsVersion} · 동의 방식{" "}
-                  {accepted.method}
-                </div>
-              </Card>
-            ) : (
-              <>
-                <label className="flex items-start gap-3 rounded-2xl bg-white p-4 text-[16px] font-bold text-[#111827]">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) => setChecked(e.target.checked)}
-                    className="mt-0.5 h-6 w-6 shrink-0 accent-[#0751D8]"
-                  />
-                  견적서와 이사화물 표준약관을 모두 확인했습니다.
-                </label>
-                {saveError && (
-                  <div className="rounded-xl bg-[#FFF1F2] p-3 text-[15px] font-semibold text-[#B42318]">
-                    {saveError}
-                  </div>
-                )}
+        <div className="mt-2">
+          {TERMS_SUMMARY.slice(0, 5).map((s, i) => {
+            const Icon = SUMMARY_ICONS[i] ?? FileText;
+            const open = openSummary === i;
+            return (
+              <div key={s.title} className="border-b border-[#EDF0F5] last:border-b-0">
                 <button
-                  onClick={() => void confirmReservation()}
-                  disabled={!checked || saving}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0751D8] py-4 text-[18px] font-black text-white disabled:bg-[#C7D6EE] disabled:text-white"
+                  onClick={() => setOpenSummary(open ? null : i)}
+                  className="flex w-full items-center gap-2.5 py-3.5 text-left"
                 >
-                  <CheckCircle2 className="h-6 w-6" /> {saving ? "확정 중..." : "동의하고 예약 확정"}
+                  <Icon className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" strokeWidth={1.8} />
+                  <span className="min-w-0 flex-1 text-[17px] font-bold text-[#111827]">
+                    {s.title}
+                  </span>
+                  {open ? (
+                    <ChevronDown className="h-5 w-5 shrink-0 text-[#9AA3B2]" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5 shrink-0 text-[#9AA3B2]" />
+                  )}
                 </button>
-              </>
-            )}
+                {open && (
+                  <div className="pb-3.5 text-[16px] leading-relaxed text-[#4B5563]">{s.body}</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={() => setOpenFull((v) => !v)}
+          className="mt-3 flex w-full items-center justify-between rounded-xl border-2 border-[#0864DC] bg-white px-4 py-3 text-[18px] font-black text-[#0864DC]"
+        >
+          <span className="flex-1 text-center">약관 전체보기</span>
+          {openFull ? (
+            <ChevronDown className="h-5 w-5" />
+          ) : (
+            <ChevronRight className="h-5 w-5" />
+          )}
+        </button>
+        {openFull && (
+          <div className="mt-3 max-h-[420px] space-y-3 overflow-auto rounded-xl border border-[#E7EBF2] p-3">
+            {TERMS_FULL.map((t) => (
+              <div key={t.article}>
+                <div className="text-[16px] font-black text-[#111827]">
+                  {t.article} ({t.title})
+                </div>
+                <div className="mt-1 text-[16px] leading-relaxed text-[#334155]">{t.body}</div>
+              </div>
+            ))}
+            <div className="border-t border-[#E7EBF2] pt-2 text-[14px] font-semibold text-[#6B7280]">
+              {TERMS_NOTICE} · 버전 {TERMS_VERSION} · 적용일 {TERMS_EFFECTIVE_AT}
+            </div>
           </div>
         )}
-
-        <div className="pt-2 text-center text-[13px] text-[#6B7280]">
-          © JIMPICK · 본 견적은 예상 금액이며 실제 이사 비용과 다를 수 있습니다.
-        </div>
       </div>
-    </MobileShell>
+
+      {/* 동의 · 예약 확정 */}
+      {accepted ? (
+        <div className="mt-4 rounded-[14px] border-2 border-[#12A150] bg-white p-4">
+          <div className="inline-flex items-center gap-2 text-[19px] font-black text-[#12A150]">
+            <CheckCircle2 className="h-6 w-6" /> 예약이 확정되었습니다
+          </div>
+          <div className="mt-1 text-[16px] text-[#111827]">
+            동의 일시: {new Date(accepted.acceptedAt).toLocaleString("ko-KR")}
+          </div>
+          <div className="text-[16px] text-[#6B7280]">
+            적용 약관: {accepted.termsName} {accepted.termsVersion} · {accepted.method}
+          </div>
+        </div>
+      ) : (
+        <>
+          <label className="mt-4 flex items-center gap-3 py-1 text-[17px] font-bold text-[#111827]">
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(e) => setChecked(e.target.checked)}
+              className="h-[28px] w-[28px] shrink-0 rounded-md accent-[#0864DC]"
+            />
+            견적서와 약관을 확인했습니다
+          </label>
+          {saveError && (
+            <div className="mt-3 rounded-xl bg-[#FFF1F2] p-3 text-[15px] font-semibold text-[#B42318]">
+              {saveError}
+            </div>
+          )}
+          <button
+            onClick={() => void confirmReservation()}
+            disabled={!checked || saving || !hasData}
+            className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-b from-[#1B76EF] to-[#0757C4] py-4 text-[22px] font-black text-white shadow-[0_4px_12px_rgba(8,100,220,0.35)] disabled:from-[#C7D6EE] disabled:to-[#C7D6EE] disabled:shadow-none"
+          >
+            <CheckCircle2 className="h-[26px] w-[26px]" strokeWidth={2.2} />
+            {saving ? "확정 중..." : "동의하고 예약 확정"}
+          </button>
+        </>
+      )}
+
+      {/* 문의하기 */}
+      <a
+        href={contactPhone ? `tel:${contactPhone.replace(/-/g, "")}` : undefined}
+        className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-xl border-2 border-[#0864DC] bg-white py-3.5 text-[20px] font-black text-[#0864DC]"
+      >
+        <Headphones className="h-[24px] w-[24px]" strokeWidth={1.9} /> 문의하기
+      </a>
+    </div>,
   );
 }
