@@ -70,7 +70,7 @@ import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.fun
 import { transcribeAudio } from "@/lib/stt.functions";
 import { WavRecorder } from "@/lib/recorder";
 import { TERMS_VERSION, TERMS_NAME, TERMS_EFFECTIVE_AT } from "@/lib/terms";
-import { publishEstimateTerms } from "@/lib/terms.functions";
+import { publishEstimateTerms, getTermsStatuses, type TermsStatusRow } from "@/lib/terms.functions";
 
 /** 음성인식 정확도를 올려 주는 힌트 (자주 쓰는 이사 품목·공간 이름) */
 const VOICE_HINT =
