@@ -3730,7 +3730,9 @@ export function History() {
         {list.length === 0 && (
           <div className="text-center text-[#6B7280] py-16">저장된 견적이 없습니다.</div>
         )}
-        {list.map((e) => (
+        {list.map((e) => {
+          const ts = termsState(e.id);
+          return (
           <Card key={e.id}>
             <div className="flex justify-between items-start">
               <div>
@@ -3745,6 +3747,19 @@ export function History() {
               {e.moveDate || "-"} · {e.fromAddress || "?"} → {e.toAddress || "?"}
             </div>
             <div className="text-lg font-black text-[#0751D8] mt-1">{won(e.total)}</div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className={`text-[13px] px-2 py-1 rounded-full font-semibold ${ts.tone}`}>
+                {ts.text}
+              </span>
+              {ts.row && (
+                <span className="text-xs text-[#6B7280]">
+                  약관 {ts.row.termsVersion}
+                  {ts.row.acceptedAt
+                    ? ` · 동의 ${new Date(ts.row.acceptedAt).toLocaleString("ko-KR")}`
+                    : ""}
+                </span>
+              )}
+            </div>
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => loadEstimate(e.id)}
