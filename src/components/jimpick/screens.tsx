@@ -3777,7 +3777,8 @@ export function History() {
               </button>
             </div>
           </Card>
-        ))}
+          );
+        })}
       </div>
       <BottomNav />
     </MobileShell>
