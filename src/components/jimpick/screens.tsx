@@ -70,7 +70,7 @@ import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.fun
 import { transcribeAudio } from "@/lib/stt.functions";
 import { WavRecorder } from "@/lib/recorder";
 import { TERMS_VERSION, TERMS_NAME, TERMS_EFFECTIVE_AT } from "@/lib/terms";
-import { publishEstimateTerms } from "@/lib/terms.functions";
+import { publishEstimateTerms, getTermsStatuses, type TermsStatusRow } from "@/lib/terms.functions";
 
 /** 음성인식 정확도를 올려 주는 힌트 (자주 쓰는 이사 품목·공간 이름) */
 const VOICE_HINT =
@@ -3693,13 +3693,35 @@ export function Result() {
 export function History() {
   const { estimates, setScreen, loadEstimate, deleteEstimate } = useApp();
   const [q, setQ] = useState("");
+  const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
+  useEffect(() => {
+    let alive = true;
+    getTermsStatuses()
+      .then((r) => {
+        if (alive && r.ok) setTermsRows(r.rows);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const list = estimates.filter(
     (e) => !q || e.customerName.includes(q) || e.phone.includes(q) || e.moveDate.includes(q),
   );
+  /** 약관 진행 상태 — 발송 성공과 고객 동의는 서로 다른 상태로 표시합니다 */
+  const termsState = (id: string) => {
+    const r = termsRows.find((t) => t.estimateId === id);
+    if (!r) return { text: "약관 미발송", tone: "bg-[#F3F4F6] text-[#6B7280]", row: null as TermsStatusRow | null };
+    if (r.acceptedAt)
+      return { text: "고객 동의 완료 · 예약 확정", tone: "bg-[#DCFCE7] text-[#15803D]", row: r };
+    if (r.viewedAt) return { text: "고객 확인", tone: "bg-[#FEF3C7] text-[#B45309]", row: r };
+    return { text: "약관 발송 완료", tone: "bg-[#EEF4FF] text-[#0751D8]", row: r };
+  };
   return (
     <MobileShell>
       <TopBar title="견적 내역" />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
+
         <TextInput
           placeholder="고객명·연락처·날짜 검색"
           value={q}
@@ -3708,7 +3730,9 @@ export function History() {
         {list.length === 0 && (
           <div className="text-center text-[#6B7280] py-16">저장된 견적이 없습니다.</div>
         )}
-        {list.map((e) => (
+        {list.map((e) => {
+          const ts = termsState(e.id);
+          return (
           <Card key={e.id}>
             <div className="flex justify-between items-start">
               <div>
@@ -3723,6 +3747,19 @@ export function History() {
               {e.moveDate || "-"} · {e.fromAddress || "?"} → {e.toAddress || "?"}
             </div>
             <div className="text-lg font-black text-[#0751D8] mt-1">{won(e.total)}</div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className={`text-[13px] px-2 py-1 rounded-full font-semibold ${ts.tone}`}>
+                {ts.text}
+              </span>
+              {ts.row && (
+                <span className="text-xs text-[#6B7280]">
+                  약관 {ts.row.termsVersion}
+                  {ts.row.acceptedAt
+                    ? ` · 동의 ${new Date(ts.row.acceptedAt).toLocaleString("ko-KR")}`
+                    : ""}
+                </span>
+              )}
+            </div>
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => loadEstimate(e.id)}
@@ -3740,7 +3777,8 @@ export function History() {
               </button>
             </div>
           </Card>
-        ))}
+          );
+        })}
       </div>
       <BottomNav />
     </MobileShell>

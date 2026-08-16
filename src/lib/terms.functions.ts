@@ -177,3 +177,49 @@ export const acceptTerms = createServerFn({ method: "POST" })
     await supabaseAdmin.from("estimate_terms").update({ viewed_at: acceptedAt }).eq("id", row.id);
     return { ok: true, acceptedAt };
   });
+
+export interface TermsStatusRow {
+  estimateId: string;
+  sheetVersion: number;
+  termsVersion: string;
+  sentAt: string | null;
+  viewedAt: string | null;
+  acceptedAt: string | null;
+  acceptMethod: string | null;
+}
+
+/** 관리자·업체용 — 내 견적들의 약관 발송·동의 상태 (고객 대신 동의는 불가) */
+export const getTermsStatuses = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ ok: boolean; rows: TermsStatusRow[] }> => {
+    const { data, error } = await context.supabase
+      .from("estimate_terms")
+      .select("id, estimate_id, sheet_version, terms_version, sent_at, viewed_at")
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(300);
+    if (error || !data) {
+      if (error) console.error("[getTermsStatuses]", error.message);
+      return { ok: false, rows: [] };
+    }
+    const { data: accs } = await context.supabase
+      .from("terms_acceptances")
+      .select("estimate_terms_id, accepted_at, accept_method")
+      .eq("user_id", context.userId);
+    const byId = new Map((accs ?? []).map((a) => [a.estimate_terms_id, a]));
+    return {
+      ok: true,
+      rows: data.map((r) => {
+        const a = byId.get(r.id);
+        return {
+          estimateId: r.estimate_id,
+          sheetVersion: r.sheet_version,
+          termsVersion: r.terms_version,
+          sentAt: r.sent_at,
+          viewedAt: r.viewed_at,
+          acceptedAt: a?.accepted_at ?? null,
+          acceptMethod: a?.accept_method ?? null,
+        };
+      }),
+    };
+  });
