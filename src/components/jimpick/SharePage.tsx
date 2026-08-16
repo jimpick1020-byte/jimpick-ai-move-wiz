@@ -91,8 +91,6 @@ function ymd(date?: string | null): string {
 /** 약관 요약 5개 항목에 맞는 파란색 선 아이콘 */
 const SUMMARY_ICONS = [Handshake, FileSignature, PackageOpen, CircleDollarSign, Lock];
 
-const BLUE = "#0864DC";
-
 function Row({ children }: { children: React.ReactNode }) {
   return <div className="flex items-center gap-2.5 py-3.5">{children}</div>;
 }
@@ -307,7 +305,7 @@ export function SharePage() {
       </div>
 
       {/* 제목 */}
-      <h1 className="mt-4 text-center text-[26px] font-black leading-tight text-[#111827] xs:text-[30px] sm:text-[30px]">
+      <h1 className="mt-4 text-center text-[26px] font-black leading-tight text-[#111827] sm:text-[30px]">
         이사 견적서 · 표준약관
       </h1>
 
