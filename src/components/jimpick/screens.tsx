@@ -24,6 +24,14 @@ import {
   ChevronDown,
   ChevronLeft,
   Mic,
+  ShieldCheck,
+  FileText,
+  ChevronRight,
+  CircleDollarSign,
+  User,
+  Calendar,
+  CheckCircle2,
+  Headphones,
 } from "lucide-react";
 
 import {
@@ -69,7 +77,14 @@ import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions"
 import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
 import { transcribeAudio } from "@/lib/stt.functions";
 import { WavRecorder } from "@/lib/recorder";
-import { TERMS_VERSION, TERMS_NAME, TERMS_EFFECTIVE_AT } from "@/lib/terms";
+import {
+  TERMS_VERSION,
+  TERMS_NAME,
+  TERMS_EFFECTIVE_AT,
+  TERMS_SOURCE,
+  TERMS_SUMMARY,
+  TERMS_FULL,
+} from "@/lib/terms";
 import { publishEstimateTerms, getTermsStatuses, type TermsStatusRow } from "@/lib/terms.functions";
 
 /** 음성인식 정확도를 올려 주는 힌트 (자주 쓰는 이사 품목·공간 이름) */
@@ -2636,6 +2651,13 @@ export function Result() {
   const [preview, setPreview] = useState(false);
   /** 종이 견적서 화면 */
   const [sheetOpen, setSheetOpen] = useState(false);
+  /** 견적서를 열면 먼저 보이는 고객용 표지 화면 (표는 「견적서 보기」에서만) */
+  const [sheetCover, setSheetCover] = useState(true);
+  const [coverFull, setCoverFull] = useState(false);
+  const [coverChecked, setCoverChecked] = useState(false);
+  const [coverSaving, setCoverSaving] = useState(false);
+  const [coverDone, setCoverDone] = useState<number | null>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
   const [sheetEdit, setSheetEdit] = useState(false);
   const [confirmSheet, setConfirmSheet] = useState(false);
   /** 캡처할 견적서 영역 */
@@ -2767,6 +2789,7 @@ export function Result() {
       });
     }
     saveDraft();
+    setSheetCover(true);
     setSheetOpen(true);
   };
 
