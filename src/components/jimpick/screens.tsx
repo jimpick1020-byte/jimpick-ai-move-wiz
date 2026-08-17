@@ -3233,9 +3233,188 @@ export function Result() {
         <PrimaryButton onClick={() => setConfirmDone(true)}>견적 완료</PrimaryButton>
       </BottomButtonBar>
 
+      {/* 고객용 첫 화면 (견적서 표지 · 표준약관) */}
+      {sheetOpen && sheetCover && (
+        <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden bg-[#F2F5FA]">
+          <header className="flex h-[88px] w-full items-center justify-center bg-[#0864DC]">
+            <span className="text-[30px] font-black tracking-tight text-white">JIMPICK</span>
+            <span className="ml-2 text-[16px] font-bold text-white/95">짐픽</span>
+          </header>
+          <div className="mx-auto w-full max-w-[430px] px-4 pb-12 pt-3">
+            <div className="flex justify-center">
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-[14px] font-bold text-[#111827] shadow-[0_2px_10px_rgba(17,24,39,0.10)]">
+                <ShieldCheck className="h-[18px] w-[18px] text-[#12A150]" /> 보안이 적용된 안전한
+                링크입니다
+              </span>
+            </div>
+
+            <h1 className="mt-4 text-center text-[28px] font-black leading-tight text-[#111827]">
+              이사 견적서 · 표준약관
+            </h1>
+
+            {/* 고객 요약 카드 */}
+            <div className="mt-4 rounded-[14px] bg-white shadow-[0_2px_12px_rgba(17,24,39,0.10)]">
+              <div className="px-5 pt-1">
+                <div className="flex items-center gap-2.5 border-b border-[#EDF0F5] py-3.5">
+                  <User className="h-[26px] w-[26px] shrink-0 text-[#0864DC]" />
+                  <span className="truncate text-[22px] font-black text-[#111827]">
+                    {draft.customerName || "고객"} 고객님
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3 border-b border-[#EDF0F5] py-3.5">
+                  <span className="inline-flex min-w-0 items-center gap-2.5">
+                    <Calendar className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
+                    <span className="text-[19px] font-bold text-[#111827]">이사일</span>
+                  </span>
+                  <span className="whitespace-nowrap text-[19px] font-black text-[#0864DC]">
+                    {String(draft.moveDate || "").split("-").join(". ")}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3 py-3.5">
+                  <span className="inline-flex min-w-0 items-center gap-2.5">
+                    <CircleDollarSign className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
+                    <span className="text-[19px] font-bold text-[#111827]">총 견적금액</span>
+                  </span>
+                  <span className="whitespace-nowrap text-[24px] font-black text-[#0864DC]">
+                    {won(total)}
+                  </span>
+                </div>
+              </div>
+              <div className="px-3.5 pb-3.5">
+                <button
+                  onClick={() => {
+                    tap("soft");
+                    setSheetCover(false);
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl bg-gradient-to-b from-[#1B76EF] to-[#0757C4] px-4 py-4 text-[20px] font-black text-white shadow-[0_4px_12px_rgba(8,100,220,0.35)]"
+                >
+                  <span className="inline-flex items-center gap-2.5">
+                    <FileText className="h-[22px] w-[22px]" /> 견적서 보기
+                  </span>
+                  <ChevronRight className="h-[22px] w-[22px]" />
+                </button>
+              </div>
+            </div>
+
+            {/* 표준약관 카드 */}
+            <div className="mt-4 rounded-[14px] bg-white p-5 shadow-[0_2px_12px_rgba(17,24,39,0.10)]">
+              <div className="flex items-start gap-2.5">
+                <ShieldCheck className="mt-0.5 h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
+                <div className="min-w-0">
+                  <div className="text-[19px] font-black text-[#111827]">{TERMS_NAME}</div>
+                  <div className="text-[13px] font-semibold text-[#6B7280]">{TERMS_SOURCE}</div>
+                </div>
+              </div>
+              <div className="mt-3">
+                {TERMS_SUMMARY.slice(0, 5).map((s, i) => (
+                  <button
+                    key={s.title}
+                    onClick={() => setCoverFull(true)}
+                    className={`flex w-full items-center justify-between gap-3 py-3.5 text-left ${
+                      i < 4 ? "border-b border-[#EDF0F5]" : ""
+                    }`}
+                  >
+                    <span className="inline-flex min-w-0 items-center gap-2.5">
+                      <FileText className="h-[20px] w-[20px] shrink-0 text-[#0864DC]" />
+                      <span className="truncate text-[17px] font-bold text-[#111827]">
+                        {s.title}
+                      </span>
+                    </span>
+                    <ChevronRight className="h-[20px] w-[20px] shrink-0 text-[#9CA3AF]" />
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCoverFull((v) => !v)}
+                className="mt-2 flex w-full items-center justify-between rounded-xl border border-[#0864DC] bg-white px-4 py-3.5 text-[17px] font-black text-[#0864DC]"
+              >
+                약관 전체보기
+                {coverFull ? (
+                  <ChevronDown className="h-[20px] w-[20px]" />
+                ) : (
+                  <ChevronRight className="h-[20px] w-[20px]" />
+                )}
+              </button>
+              {coverFull && (
+                <div className="mt-3 max-h-[45vh] space-y-3 overflow-y-auto rounded-xl bg-[#F7F9FC] p-3.5">
+                  {TERMS_FULL.map((t) => (
+                    <div key={t.article}>
+                      <div className="text-[15px] font-black text-[#111827]">
+                        {t.article} ({t.title})
+                      </div>
+                      <p className="mt-1 text-[14px] font-medium leading-relaxed text-[#4B5563]">
+                        {t.body}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 동의 및 예약 확정 */}
+            <label className="mt-4 flex items-center gap-3 rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_12px_rgba(17,24,39,0.08)]">
+              <input
+                type="checkbox"
+                checked={coverChecked}
+                onChange={(e) => setCoverChecked(e.target.checked)}
+                className="h-[28px] w-[28px] shrink-0 accent-[#0864DC]"
+              />
+              <span className="text-[17px] font-bold text-[#111827]">
+                견적서와 약관을 확인했습니다
+              </span>
+            </label>
+
+            <button
+              onClick={() => {
+                if (!coverChecked || coverSaving || coverDone) return;
+                setCoverSaving(true);
+                setCoverError(null);
+                try {
+                  saveDraft();
+                  setCoverDone(Date.now());
+                  tap("success");
+                } catch {
+                  setCoverError("예약 확정을 저장하지 못했습니다. 다시 시도해 주세요.");
+                } finally {
+                  setCoverSaving(false);
+                }
+              }}
+              disabled={!coverChecked || coverSaving || !!coverDone}
+              className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-b from-[#1B76EF] to-[#0757C4] px-4 py-4 text-[20px] font-black text-white shadow-[0_4px_12px_rgba(8,100,220,0.35)] disabled:opacity-45"
+            >
+              <CheckCircle2 className="h-[24px] w-[24px]" />
+              {coverDone ? "예약이 확정되었습니다" : coverSaving ? "처리 중…" : "동의하고 예약 확정"}
+            </button>
+            {coverError && (
+              <div className="mt-2 rounded-xl bg-[#FEF2F2] px-4 py-3 text-[14px] font-bold text-[#B91C1C]">
+                {coverError}
+              </div>
+            )}
+
+            <a
+              href={draft.staffPhone?.trim() ? `tel:${draft.staffPhone.trim()}` : undefined}
+              className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-xl border border-[#0864DC] bg-white px-4 py-4 text-[18px] font-black text-[#0864DC]"
+            >
+              <Headphones className="h-[22px] w-[22px]" /> 문의하기
+            </a>
+
+            <button
+              onClick={() => {
+                setSheetOpen(false);
+                setSheetEdit(false);
+              }}
+              className="mt-4 w-full py-3 text-[15px] font-bold text-[#6B7280]"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 종이 견적서 */}
-      {sheetOpen && (
+      {sheetOpen && !sheetCover && (
         <div className="fixed inset-0 z-50 flex flex-col bg-[#E9EFF8]">
+
           <div className="flex items-center gap-2 border-b border-[#DCE8FA] bg-white px-4 py-3">
             <button
               onClick={() => {
