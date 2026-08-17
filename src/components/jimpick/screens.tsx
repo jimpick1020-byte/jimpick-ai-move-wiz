@@ -25,7 +25,6 @@ import {
   ChevronLeft,
   Mic,
   ShieldCheck,
-  FileText,
   ChevronRight,
   CircleDollarSign,
   User,
