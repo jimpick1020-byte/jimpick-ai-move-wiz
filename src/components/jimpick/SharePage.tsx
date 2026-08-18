@@ -147,6 +147,9 @@ export function SharePage() {
     ? link.total
     : (localCalc?.total ?? 0);
   const contactPhone = ((link?.ok ? link.contactPhone : "") || estimate?.staffPhone || "").trim();
+  /** 견적서 번호와 차수 — 서버(토큰) 값을 먼저 씁니다 */
+  const sheetNo = ((link?.ok ? link.sheetNo : "") || estimate?.sheetNo || "").trim();
+  const sheetVersion = (link?.ok ? link.sheetVersion : null) ?? estimate?.sheetVersion ?? 1;
   const hasData = Boolean(customerName && moveDate && total > 0);
 
   const selectedItems = (estimate?.rooms ?? []).flatMap((room) =>
@@ -337,13 +340,26 @@ export function SharePage() {
                   </span>
                 </div>
               </div>
+              <div className="border-b border-[#EDF0F5]">
+                <div className="flex items-center justify-between gap-3 py-3.5">
+                  <span className="inline-flex min-w-0 items-center gap-2.5">
+                    <CircleDollarSign className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
+                    <span className="text-[19px] font-bold text-[#111827]">총 견적금액</span>
+                  </span>
+                  <span className="whitespace-nowrap text-[24px] font-black text-[#0864DC]">
+                    {won(total)}
+                  </span>
+                </div>
+              </div>
+              {/* 견적서 번호와 차수 — 어떤 견적서인지 고객이 확인할 수 있게 적습니다 */}
               <div className="flex items-center justify-between gap-3 py-3.5">
                 <span className="inline-flex min-w-0 items-center gap-2.5">
-                  <CircleDollarSign className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
-                  <span className="text-[19px] font-bold text-[#111827]">총 견적금액</span>
+                  <FileText className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
+                  <span className="text-[19px] font-bold text-[#111827]">견적서</span>
                 </span>
-                <span className="whitespace-nowrap text-[24px] font-black text-[#0864DC]">
-                  {won(total)}
+                <span className="min-w-0 truncate text-right text-[16px] font-bold text-[#4B5563]">
+                  {sheetNo ? `${sheetNo} · ` : ""}
+                  {sheetVersion}차
                 </span>
               </div>
             </>
@@ -352,7 +368,9 @@ export function SharePage() {
         <div className="px-3.5 pb-3.5">
           <button
             onClick={() => setOpenSheet((v) => !v)}
-            disabled={!estimate}
+            // 고객 휴대폰에는 이 기기에 저장된 견적이 없으므로,
+            // 토큰으로 받아 온 요약만 있어도 열 수 있게 합니다
+            disabled={!estimate && !hasData}
             className="flex w-full items-center justify-between rounded-xl bg-gradient-to-b from-[#1B76EF] to-[#0757C4] px-4 py-4 text-[20px] font-black text-white shadow-[0_4px_12px_rgba(8,100,220,0.35)] disabled:opacity-50"
           >
             <span className="inline-flex items-center gap-2.5">
@@ -368,6 +386,40 @@ export function SharePage() {
       </div>
 
       {/* 견적서 상세 */}
+      {/* 이 기기에 견적 원본이 없을 때 — 링크로 받아 온 값만으로 보여 줍니다 */}
+      {openSheet && !(estimate && localCalc) && hasData && (
+        <div className="mt-4">
+          <Card className="space-y-2 text-[16px]">
+            <div className="text-[17px] font-black">견적서 요약</div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[#4B5563]">고객</span>
+              <span className="min-w-0 truncate font-bold">{customerName} 고객님</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[#4B5563]">이사일</span>
+              <span className="font-bold">{moveDate}</span>
+            </div>
+            {sheetNo && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[#4B5563]">견적번호</span>
+                <span className="min-w-0 truncate font-bold">{sheetNo}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[#4B5563]">견적서 차수</span>
+              <span className="font-bold">{sheetVersion}차</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-3 border-t border-[#EDF0F5] pt-2">
+              <span className="text-[17px] font-black">총 견적금액</span>
+              <span className="text-[20px] font-black text-[#0864DC]">{won(total)}</span>
+            </div>
+            <p className="pt-1 text-[14px] leading-relaxed text-[#6B7280]">
+              품목·차량·옵션이 담긴 자세한 내역은 담당자에게 문의해 주세요.
+            </p>
+          </Card>
+        </div>
+      )}
+
       {openSheet && estimate && localCalc && (
         <div className="mt-4 space-y-4">
           <Card className="space-y-2 text-[16px]">
