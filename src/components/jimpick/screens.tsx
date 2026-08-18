@@ -31,6 +31,7 @@ import {
   Calendar,
   CheckCircle2,
   Headphones,
+  History as HistoryIcon,
 } from "lucide-react";
 
 import {
@@ -63,6 +64,7 @@ import {
   PrimaryButton,
   BottomButtonBar,
   BottomNav,
+  AdminTopNav,
   Counter,
   MoneyInput,
   Card,
@@ -73,8 +75,8 @@ import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
-import { recognizeItems, parseVoiceOrder, type DetectedItem } from "@/lib/ai.functions";
-import { transcribeAudio } from "@/lib/stt.functions";
+import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
+import { parseVoice, type ItemMatch } from "@/lib/voice-parse";
 import { WavRecorder } from "@/lib/recorder";
 import {
   TERMS_VERSION,
@@ -90,18 +92,11 @@ import { publishEstimateTerms, getTermsStatuses, type TermsStatusRow } from "@/l
 const VOICE_HINT =
   "이사 견적 품목: 냉장고, 김치냉장고, 세탁기, 건조기, 스타일러, TV, 에어컨, 공기청정기, 정수기, 전자레인지, 에어프라이어, 식기세척기, 침대, 매트리스, 장롱, 붙박이장, 화장대, 서랍장, 소파, TV장, 식탁, 의자, 책상, 책장, 신발장, 빨래건조대, 청소기, 로봇청소기, 안마의자, 러닝머신, 피아노, 금고, 어항, 옷박스, 대박스, 중박스, 바구니, 이불백. 공간: 안방, 작은방, 입구방, 거실, 부엌, 베란다.";
 
-/** 녹음된 소리를 서버 AI 음성인식으로 다시 확인해 더 정확한 문장을 얻습니다 */
-async function refineWithAiStt(recorder: WavRecorder | null, fallback: string) {
-  const audio = recorder?.snapshot();
-  if (!audio) return fallback;
-  try {
-    const r = await transcribeAudio({ data: { audio, hint: VOICE_HINT } });
-    const t = (r.text || "").trim();
-    return t.length >= 2 ? t : fallback;
-  } catch {
-    return fallback;
-  }
-}
+/*
+ * 참고 — 서버 음성인식(src/lib/stt.functions.ts 의 transcribeAudio)은 그대로 있습니다.
+ * 다만 브라우저 음성인식과 녹음기(getUserMedia)를 동시에 켜면 마이크를 서로 뺏겨
+ * 아무 것도 인식되지 않습니다. 그래서 한 번 누를 때는 브라우저 음성인식만 씁니다.
+ */
 import {
   recognitionCtor,
   isSecureForMic,
@@ -122,6 +117,7 @@ import mascot3 from "@/assets/mascot-3.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { TruckGauge } from "./TruckGauge";
+import { JimpickCharacter } from "./JimpickCharacter";
 import { icon3dFor, DEFAULT_ICON3D, ICON3D, Icon3D } from "@/lib/jimpick-icon3d";
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
@@ -320,20 +316,46 @@ export function Login() {
 
 // ============ Home ============
 export function HomeScreen() {
-  const { setScreen, resetDraft, estimates } = useApp();
+  const { setScreen, resetDraft, estimates, loadEstimate } = useApp();
   const total = estimates.length;
   const done = estimates.filter((e) => e.status === "완료").length;
   const inProg = total - done;
   const pct = total ? Math.round((done / total) * 100) : 0;
+
+  // 아래 숫자는 모두 저장된 견적에서 바로 계산합니다 (예시 숫자를 쓰지 않습니다)
+  const phoneKey = (e: (typeof estimates)[number]) =>
+    (e.phone || "").replace(/[^0-9]/g, "") || `이름:${e.customerName || ""}`;
+  const customerCount = new Set(
+    estimates.filter((e) => e.customerName || e.phone).map(phoneKey),
+  ).size;
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const newThisMonth = new Set(
+    estimates
+      .filter((e) => e.createdAt >= monthStart.getTime() && (e.customerName || e.phone))
+      .map(phoneKey),
+  ).size;
+  const doneSum = estimates
+    .filter((e) => e.status === "완료")
+    .reduce((s, e) => s + (e.total || 0), 0);
+  const recent = [...estimates].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3);
+
   return (
     <MobileShell>
-      <div className="px-5 py-4 flex items-center justify-between">
-        <div>
-          <div className="text-sm text-[#6B7280]">안녕하세요!</div>
-          <div className="text-xl font-bold">짐픽 사장님 👋</div>
+      <div className="px-5 py-4 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <JimpickCharacter state="idle" size={54} className="shrink-0" />
+          <div className="min-w-0">
+            <div className="text-[16px] text-[#6B7280]">안녕하세요!</div>
+            <div className="truncate text-xl font-bold">짐픽 사장님 👋</div>
+          </div>
         </div>
-        <Bell className="w-6 h-6 text-[#111827]" />
+        <Bell className="w-6 h-6 shrink-0 text-[#111827]" />
       </div>
+
+      {/* 관리자 상단 메뉴 — 고객용 공유 화면에는 나오지 않습니다 */}
+      <AdminTopNav />
       <div className="px-5 space-y-4 flex-1 pb-4">
         <div
           onClick={() => {
@@ -367,29 +389,110 @@ export function HomeScreen() {
             </Card>
           ))}
         </div>
-        <Card>
-          <div className="font-bold mb-3">오늘의 견적 현황</div>
+        {/* 견적 현황 — 저장된 견적을 그대로 셉니다 */}
+        <Card className="rounded-[14px]">
+          <div className="mb-3 flex items-center gap-2">
+            <ClipboardList className="h-[20px] w-[20px] text-[#0864DC]" strokeWidth={1.8} />
+            <div className="text-[17px] font-bold">견적 현황</div>
+          </div>
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <div className="text-2xl font-black text-[#0751D8]">{total}</div>
-              <div className="text-xs text-[#6B7280]">총 견적</div>
+            <div className="rounded-[14px] bg-[#F7F9FC] py-3">
+              <div className="text-2xl font-black text-[#0864DC]">{total}</div>
+              <div className="mt-0.5 text-[15px] text-[#6B7280]">총 견적</div>
             </div>
-            <div>
-              <div className="text-2xl font-black text-[#F59E0B]">{inProg}</div>
-              <div className="text-xs text-[#6B7280]">진행 중</div>
+            <div className="rounded-[14px] bg-[#F7F9FC] py-3">
+              <div className="text-2xl font-black text-[#0864DC]">{inProg}</div>
+              <div className="mt-0.5 text-[15px] text-[#6B7280]">진행 중</div>
             </div>
-            <div>
+            <div className="rounded-[14px] bg-[#F7F9FC] py-3">
               <div className="text-2xl font-black text-[#16A34A]">{done}</div>
-              <div className="text-xs text-[#6B7280]">완료</div>
+              <div className="mt-0.5 text-[15px] text-[#6B7280]">완료</div>
             </div>
           </div>
-          <div className="mt-3 h-2 rounded-full bg-[#F5F7FB] overflow-hidden">
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#F1F5FA]">
             <div
               className="h-full rounded-full"
-              style={{ width: `${pct}%`, background: "linear-gradient(135deg, #287BFF, #0751D8)" }}
+              style={{ width: `${pct}%`, background: "linear-gradient(135deg, #287BFF, #0864DC)" }}
             />
           </div>
-          <div className="text-xs text-[#6B7280] mt-1 text-right">진행률 {pct}%</div>
+          <div className="mt-1 text-right text-[15px] text-[#6B7280]">완료율 {pct}%</div>
+        </Card>
+
+        {/* 고객 현황 — 전화번호로 같은 고객을 한 사람으로 셉니다 */}
+        <Card className="rounded-[14px]">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Users className="h-[20px] w-[20px] text-[#0864DC]" strokeWidth={1.8} />
+              <div className="text-[17px] font-bold">고객 현황</div>
+            </div>
+            <button
+              onClick={() => setScreen("customers")}
+              className="shrink-0 whitespace-nowrap text-[16px] font-bold text-[#0864DC]"
+            >
+              전체 보기
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-[14px] bg-[#F7F9FC] px-3 py-3">
+              <div className="text-2xl font-black text-[#0864DC]">{customerCount}</div>
+              <div className="mt-0.5 text-[15px] text-[#6B7280]">등록 고객</div>
+            </div>
+            <div className="rounded-[14px] bg-[#F7F9FC] px-3 py-3">
+              <div className="text-2xl font-black text-[#0864DC]">{newThisMonth}</div>
+              <div className="mt-0.5 text-[15px] text-[#6B7280]">이번 달 신규</div>
+            </div>
+          </div>
+          <div className="mt-2 rounded-[14px] bg-[#F7F9FC] px-3 py-3">
+            <div className="text-[15px] text-[#6B7280]">완료 견적 금액 합계</div>
+            <div className="mt-0.5 text-xl font-black text-[#0864DC]">
+              {doneSum.toLocaleString()}원
+            </div>
+          </div>
+        </Card>
+
+        {/* 최근 작업 — 최근 저장된 견적 3건 */}
+        <Card className="rounded-[14px]">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <HistoryIcon className="h-[20px] w-[20px] text-[#0864DC]" strokeWidth={1.8} />
+              <div className="text-[17px] font-bold">최근 작업</div>
+            </div>
+            <button
+              onClick={() => setScreen("history")}
+              className="shrink-0 whitespace-nowrap text-[16px] font-bold text-[#0864DC]"
+            >
+              전체 보기
+            </button>
+          </div>
+          {recent.length === 0 ? (
+            <div className="rounded-[14px] bg-[#F7F9FC] px-3 py-5 text-center text-[16px] text-[#6B7280]">
+              아직 저장된 견적이 없습니다.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recent.map((e) => (
+                <button
+                  key={e.id}
+                  onClick={() => loadEstimate(e.id)}
+                  className="flex w-full items-center justify-between gap-3 rounded-[14px] bg-[#F7F9FC] px-3 py-3 text-left active:translate-y-[1px]"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-[16px] font-bold">
+                      {e.customerName || "이름 없음"}
+                      <span className="ml-1.5 font-normal text-[#6B7280]">{e.status}</span>
+                    </div>
+                    <div className="truncate text-[15px] text-[#6B7280]">
+                      {new Date(e.createdAt).toLocaleDateString("ko-KR")}
+                      {e.toAddress ? ` · ${e.toAddress}` : ""}
+                    </div>
+                  </div>
+                  <div className="shrink-0 whitespace-nowrap text-[16px] font-black text-[#0864DC]">
+                    {(e.total || 0).toLocaleString()}원
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
       <BottomNav />
@@ -1953,6 +2056,12 @@ export function AIRecognition() {
   /** 음성이 안 될 때 글로 담기 */
   const [typed, setTyped] = useState("");
   const [voiceBusy, setVoiceBusy] = useState(false);
+  /** 확신이 낮아 확인이 필요한 품목 (바로 담지 않습니다) */
+  const [pending, setPending] = useState<ItemMatch[]>([]);
+  /** 말한 그대로 — 해석 결과와 나란히 보여 줍니다 */
+  const [lastHeard, setLastHeard] = useState("");
+  /** 마이크가 실패했을 때만 켜집니다 (실패를 성공처럼 보이지 않게) */
+  const [voiceError, setVoiceError] = useState(false);
   const recRef = useRef<RecognitionLike | null>(null);
   const recorderRef = useRef<WavRecorder | null>(null);
   const keepRef = useRef(false);
@@ -2048,40 +2157,73 @@ export function AIRecognition() {
 
   // ---- 음성으로 바로 담기 (대화 없이, 말하는 즉시 들어갑니다) ----
 
-  const applySpeech = async (rawText: string) => {
+  const applySpeech = (rawText: string) => {
     const targetId = roomIdRef.current;
     setVoiceBusy(true);
     try {
-      // 녹음된 실제 음성을 AI 음성인식으로 다시 확인해 인식률을 크게 높입니다
-      const text = await refineWithAiStt(recorderRef.current, rawText);
-      const res = await parseVoiceOrder({
-        data: { text, rooms: draft.rooms.map((r) => r.name) },
-      });
-      if (res.error) {
-        toast.error(res.error);
-        return;
-      }
-      if (!res.items.length) {
-        toast.error("품목을 못 알아들었어요. 다시 말씀해 주세요.");
-        return;
-      }
-      // 말할 때 방 이름을 같이 말했으면 그 방으로 담습니다
-      const spoken = res.room
-        ? draft.rooms.find((r) => r.name.replace(/\s/g, "") === res.room?.replace(/\s/g, ""))
-        : undefined;
+      const res = parseVoice(
+        rawText,
+        draft.rooms.map((r) => r.name),
+        (draft.customItems ?? [])
+          .filter((c) => c.active !== false)
+          .map((c) => ({ id: c.id, name: c.name })),
+      );
+      setLastHeard(res.transcript);
+
+      // 말할 때 공간 이름을 같이 말했으면 그 공간으로 옮겨 담습니다
+      const spoken = res.room ? draft.rooms.find((r) => r.name === res.room) : undefined;
       const finalId = spoken?.id || targetId;
       if (spoken && spoken.id !== targetId) setRoomId(spoken.id);
 
-      const name = addToRoom(res.items, finalId);
-      if (!name) return;
-      tap("success");
-      const summary = res.items.map((i) => `${i.name} ${i.qty}`).join(", ");
-      toast.success(`「${name}」 · ${summary}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "음성 해석에 실패했습니다");
+      // 차량·추가작업도 말한 대로 반영합니다
+      if (res.truck) {
+        const patch: Partial<typeof draft> = {};
+        if (res.truck.truck1t) patch.truck1t = res.truck.truck1t;
+        if (res.truck.truck5t) patch.truck5t = res.truck.truck5t;
+        if (res.truck.ladder && !draft.ladder) patch.ladder = 1;
+        if (Object.keys(patch).length) updateDraft(patch);
+      }
+      if (res.extraWork.length) {
+        const have = new Set(draft.options.map((o) => o.name));
+        const add = res.extraWork
+          .filter((w) => !have.has(w.name))
+          .map((w) => ({
+            id: `o_${w.name}`,
+            name: w.name,
+            enabled: true,
+            price: OPTION_PRESETS.find((p) => p.name === w.name)?.price ?? 0,
+            separate: false,
+          }));
+        if (add.length) updateDraft({ options: [...draft.options, ...add] });
+      }
+
+      // 확신이 낮은 것은 담지 않고 확인부터 받습니다
+      if (res.needConfirm.length) setPending(res.needConfirm);
+
+      if (res.items.length) {
+        const name = addToRoom(res.items, finalId);
+        if (name) {
+          tap("success");
+          setVoiceHint(`「${name}」 · ${res.items.map((i) => `${i.name} ${i.qty}${i.unit}`).join(", ")}`);
+        }
+      } else if (!res.needConfirm.length && !res.extraWork.length && !res.truck) {
+        setVoiceHint(`“${res.transcript}” 에서 품목을 찾지 못했습니다. 다시 말씀해 주세요.`);
+      }
     } finally {
       setVoiceBusy(false);
     }
+  };
+
+  /** 확인 화면에서 고른 품목을 담습니다 */
+  const confirmPending = (m: ItemMatch, pickId?: string) => {
+    const picked = pickId ? m.candidates.find((c) => c.id === pickId) : m.candidates[0];
+    if (!picked) return;
+    const name = addToRoom([{ id: picked.id, name: picked.name, qty: m.qty }], roomIdRef.current);
+    if (name) {
+      tap("success");
+      setVoiceHint(`「${name}」 · ${picked.name} ${m.qty}${m.unit}`);
+    }
+    setPending((p) => p.filter((x) => x !== m));
   };
 
   const stopVoice = () => {
@@ -2098,19 +2240,27 @@ export function AIRecognition() {
   };
 
   const startVoice = () => {
+    const fail = (msg: string) => {
+      setVoiceError(true);
+      setVoiceHint(msg);
+      toast.error(msg);
+    };
     const SR = recognitionCtor();
     if (!SR) {
-      toast.error("이 기기에서는 음성 인식을 지원하지 않습니다");
+      // 안 되는 기기에서 되는 척하지 않습니다
+      fail("이 브라우저는 음성 인식을 지원하지 않습니다. 갤럭시는 크롬, 아이폰은 사파리로 열어 주세요.");
       return;
     }
     if (!isSecureForMic()) {
-      toast.error(INSECURE_MIC_MESSAGE);
+      fail(INSECURE_MIC_MESSAGE);
       return;
     }
     if (!targetRoom) {
-      toast.error("담을 공간을 먼저 골라 주세요");
+      fail("담을 공간을 먼저 골라 주세요");
       return;
     }
+    setVoiceError(false);
+    setVoiceHint("");
     const rec = new SR();
     rec.lang = "ko-KR";
     rec.continuous = true;
@@ -2149,6 +2299,9 @@ export function AIRecognition() {
       }
       keepRef.current = false;
       setListening(false);
+      setVoiceError(true);
+      // 권한 거부 / 마이크 없음 / 네트워크 / 인식 서비스 오류를 나눠서 알려 줍니다.
+      // 지금까지 담은 고객·품목 정보는 그대로 둡니다.
       setVoiceHint(speechErrorMessage(code));
       toast.error(speechErrorMessage(code));
     };
@@ -2170,12 +2323,14 @@ export function AIRecognition() {
       rec.start();
       keepRef.current = true;
       setListening(true);
+      setVoiceError(false);
+      setVoiceHint("듣고 있어요 — 예) 안방에 퀸 침대 하나, 장롱 세 짝");
       // 녹음기(getUserMedia)를 같이 켜면 음성인식이 마이크를 뺏겨
       // 아무 결과도 나오지 않습니다. 인식은 브라우저 음성인식만 씁니다.
       tap("soft");
     } catch {
       setListening(false);
-      toast.error("마이크를 시작하지 못했습니다");
+      fail("마이크를 시작하지 못했습니다. 다른 앱이 마이크를 쓰고 있는지 확인해 주세요.");
     }
   };
 
@@ -2266,14 +2421,76 @@ export function AIRecognition() {
           <Mic className="h-5 w-5" />
           {listening ? "듣는 중 — 누르면 끝내기" : "말해서 바로 담기"}
         </button>
-        {(listening || heard || voiceBusy || voiceHint) && (
-          <div className="rounded-2xl border border-[#DCE8FA] bg-white px-3.5 py-2.5 text-[13px] font-bold text-[#0751D8]">
-            {voiceBusy
-              ? "담는 중..."
-              : heard
-                ? `“${heard}”`
-                : voiceHint || "말씀하세요 — 예) 냉장고 하나, 침대 두 개"}
-          </div>
+
+        {/* 지금 무슨 상태인지 캐릭터가 알려 줍니다 (누르기 전에도 보입니다) */}
+        <Card className="flex items-start gap-3 rounded-[14px]">
+            <JimpickCharacter
+              state={
+                voiceBusy
+                  ? "processing"
+                  : listening
+                    ? "listening"
+                    : voiceError
+                      ? "error"
+                      : lastHeard
+                        ? "done"
+                        : "idle"
+              }
+              size={64}
+              className="shrink-0"
+            />
+            <div className="min-w-0 flex-1">
+              <div
+                className={`text-[16px] font-bold ${voiceError ? "text-[#DC2626]" : "text-[#0864DC]"}`}
+              >
+                {voiceBusy
+                  ? "담는 중이에요"
+                  : heard
+                    ? `“${heard}”`
+                    : voiceHint || "말씀하세요 — 예) 냉장고 하나, 침대 두 개"}
+              </div>
+              {lastHeard && !heard && (
+                <div className="mt-1 break-words text-[15px] text-[#6B7280]">
+                  들은 말: “{lastHeard}”
+                </div>
+              )}
+            </div>
+        </Card>
+
+        {/* 헷갈리는 말은 담지 않고 먼저 확인합니다 */}
+        {pending.length > 0 && (
+          <Card className="rounded-[14px]">
+            <div className="text-[16px] font-bold text-[#0864DC]">
+              이렇게 들었어요. 맞는 것을 골라 주세요.
+            </div>
+            <div className="mt-2 space-y-3">
+              {pending.map((m, i) => (
+                <div key={`${m.id}_${i}`} className="rounded-[14px] bg-[#F7F9FC] p-3">
+                  <div className="text-[15px] text-[#6B7280]">
+                    “{m.raw}” · {m.qty}
+                    {m.unit}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {m.candidates.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => confirmPending(m, c.id)}
+                        className="rounded-[14px] border border-[#DCE8FA] bg-white px-3 py-2 text-[16px] font-bold text-[#0864DC] active:translate-y-[1px]"
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setPending((p) => p.filter((x) => x !== m))}
+                      className="rounded-[14px] border border-[#E5E7EB] bg-white px-3 py-2 text-[16px] font-bold text-[#6B7280] active:translate-y-[1px]"
+                    >
+                      아니에요
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
         )}
 
         {/* 음성이 안 될 때를 위한 글 입력 — 같은 방식으로 담깁니다 */}
@@ -3920,7 +4137,7 @@ export function History() {
   };
   return (
     <MobileShell>
-      <TopBar title="견적 내역" />
+      <TopBar title="견적 내역" onBack={() => setScreen("home")} />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
 
         <TextInput
@@ -3988,7 +4205,7 @@ export function History() {
 
 // ============ Customers ============
 export function Customers() {
-  const { estimates } = useApp();
+  const { estimates, setScreen } = useApp();
   const [q, setQ] = useState("");
   const map = new Map<
     string,
@@ -4015,7 +4232,7 @@ export function Customers() {
   );
   return (
     <MobileShell>
-      <TopBar title="고객 관리" />
+      <TopBar title="고객 관리" onBack={() => setScreen("home")} />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
         <TextInput placeholder="고객 검색" value={q} onChange={(e) => setQ(e.target.value)} />
         {list.length === 0 && (
@@ -4063,7 +4280,7 @@ export function SettingsScreen() {
   };
   return (
     <MobileShell>
-      <TopBar title="설정" />
+      <TopBar title="설정" onBack={() => setScreen("home")} />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
         <button
           onClick={() => {

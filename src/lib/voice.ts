@@ -87,8 +87,11 @@ export const INSECURE_MIC_MESSAGE =
 export function speechErrorMessage(code: string): string {
   switch (code) {
     case "not-allowed":
+      return "마이크 사용이 거부되었습니다. 주소창 왼쪽 자물쇠(또는 ⓘ)를 눌러 [마이크]를 '허용'으로 바꾼 뒤 다시 시도해 주세요.";
     case "service-not-allowed":
-      return "마이크 사용이 허용되지 않았습니다. 주소창 왼쪽 자물쇠(또는 ⓘ)를 눌러 [마이크]를 '허용'으로 바꾼 뒤 다시 시도해 주세요.";
+      return "이 브라우저의 음성인식 서비스를 쓸 수 없습니다. 갤럭시는 크롬, 아이폰은 사파리로 열어 주세요.";
+    case "language-not-supported":
+      return "이 기기에서는 한국어 음성인식을 지원하지 않습니다. 아래 '글로 담기'를 써 주세요.";
     case "no-speech":
       return "소리가 들리지 않았습니다. 마이크에 조금 더 가까이서 또박또박 말씀해 주세요.";
     case "audio-capture":

@@ -1050,9 +1050,35 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, [state, hydrated]);
 
+  // 휴대폰(갤럭시 등) 뒤로가기 버튼 처리.
+  // 쌓아 둔 기록으로 돌아가고, 기록이 없으면 첫 화면으로 갑니다.
+  // 작성 중인 고객·품목 정보는 그대로 두고 화면만 바꿉니다.
+  useEffect(() => {
+    if (!hydrated) return;
+    const onPop = (e: PopStateEvent) => {
+      const s = (e.state as { jpScreen?: Screen } | null)?.jpScreen;
+      setState((prev) => {
+        if (!prev.loggedIn) return prev;
+        return { ...prev, screen: s ?? "home" };
+      });
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [hydrated]);
+
   const ctx: Ctx = {
     ...state,
-    setScreen: (screen) =>
+    setScreen: (screen) => {
+      // 휴대폰 뒤로가기 버튼이 앱을 닫지 않고 이전 화면으로 가도록
+      // 화면을 옮길 때마다 기록을 하나 쌓습니다 (갤럭시 크롬 포함).
+      // 그리는 도중이 아니라 누른 시점에 쌓아야 합니다.
+      if (typeof window !== "undefined" && screen !== state.screen) {
+        try {
+          window.history.pushState({ jpScreen: screen }, "");
+        } catch {
+          /* 기록을 못 쌓아도 화면 이동은 그대로 합니다 */
+        }
+      }
       setState((s) => {
         // 5단계(품목 입력) 진입 직전 상태를 스냅샷으로 보관합니다
         const entering5 =
@@ -1062,7 +1088,8 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
           screen,
           stepSnapshot: entering5 ? JSON.parse(JSON.stringify(s.draft)) : s.stepSnapshot,
         };
-      }),
+      });
+    },
     restoreStepSnapshot: () => {
       let ok = false;
       setState((s) => {
