@@ -61,19 +61,37 @@ export function MobileShell({
   );
 }
 
-export function TopBar({ title, onBack }: { title: string; onBack?: () => void }) {
+export function TopBar({
+  title,
+  onBack,
+  /** 작성 중인 내용이 사라질 수 있으면 이 문구로 먼저 물어봅니다 */
+  confirmBack,
+}: {
+  title: string;
+  onBack?: () => void;
+  confirmBack?: string;
+}) {
   return (
-    <div className="flex items-center px-4 py-3 bg-white border-b border-[#E7EBF2]">
+    <div className="flex items-center gap-1 border-b border-[#E7EBF2] bg-white px-4 py-3">
       {onBack && (
         <button
-          onClick={onBack}
-          className="mr-1 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] flex items-center justify-center text-[#0751D8] shadow-[0_4px_0_#DCE8FA,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#DCE8FA]"
-          aria-label="이전"
+          onClick={() => {
+            if (confirmBack && !window.confirm(confirmBack)) return;
+            tap("soft");
+            onBack();
+          }}
+          className="flex shrink-0 items-center gap-0.5 rounded-[14px] border border-[#DCE8FA] bg-gradient-to-b from-white to-[#F1F6FF] py-2 pl-1.5 pr-2.5 text-[18px] font-black text-[#0864DC] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff] transition-transform active:translate-y-[2px] active:shadow-none"
+          aria-label="뒤로"
         >
-          <ChevronLeft className="w-6 h-6" />
+          <ChevronLeft className="h-[22px] w-[22px]" strokeWidth={2.2} />
+          뒤로
         </button>
       )}
-      <h1 className="text-lg font-bold text-[#111827] flex-1 text-center pr-8">{title}</h1>
+      <h1 className="min-w-0 flex-1 truncate text-center text-lg font-bold text-[#111827]">
+        {title}
+      </h1>
+      {/* 제목이 가운데 오도록 뒤로가기와 같은 너비를 비워 둡니다 */}
+      {onBack && <span aria-hidden className="w-[76px] shrink-0" />}
     </div>
   );
 }
@@ -282,6 +300,91 @@ export function MoneyInput({
         <Plus className="w-4 h-4" />
       </button>
     </div>
+  );
+}
+
+/**
+ * 관리자 첫 화면 위쪽 메뉴 — 견적 · 고객 · 설정.
+ *
+ * 화면 이동은 기존 setScreen 을 그대로 씁니다 (새 화면을 만들지 않습니다).
+ * 고객에게 나가는 공유 견적서 화면에서는 쓰지 않습니다.
+ */
+export function AdminTopNav() {
+  const { screen, setScreen } = useApp();
+  const items: { key: Screen; icon: typeof Home; label: string }[] = [
+    { key: "history", icon: ClipboardList, label: "견적" },
+    { key: "customers", icon: Users, label: "고객" },
+    { key: "settings", icon: SettingsIcon, label: "설정" },
+  ];
+  return (
+    <div className="flex gap-2 px-4 pb-1 pt-2">
+      {items.map(({ key, icon: Icon, label }) => {
+        const active = screen === key;
+        return (
+          <button
+            key={key}
+            onClick={() => {
+              tap("soft");
+              setScreen(key);
+            }}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-[14px] py-3 text-[18px] font-black transition-transform active:translate-y-[2px] ${
+              active
+                ? "bg-gradient-to-b from-[#1B76EF] to-[#0757C4] text-white shadow-[0_4px_0_#0645B0]"
+                : "border border-[#DCE8FA] bg-white text-[#0864DC] shadow-[0_3px_0_#EDF2FA]"
+            }`}
+          >
+            <Icon className="h-[20px] w-[20px] shrink-0" strokeWidth={1.9} />
+            <span className="whitespace-nowrap">{label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * 관리자 화면 뒤로가기.
+ *
+ * 이전 화면이 있으면 그리로 가고, 바로 들어와 기록이 없으면 첫 화면으로 갑니다.
+ * 작성 중인 내용이 사라질 수 있으면 먼저 물어봅니다.
+ */
+export function AdminBackButton({
+  to,
+  confirmMessage,
+  className = "",
+}: {
+  /** 돌아갈 화면 (없으면 홈) */
+  to?: Screen;
+  /** 값이 있으면 이동 전에 이 문구로 확인합니다 */
+  confirmMessage?: string;
+  className?: string;
+}) {
+  const { setScreen } = useApp();
+  const go = () => {
+    if (confirmMessage && !window.confirm(confirmMessage)) return;
+    tap("soft");
+    if (to) {
+      setScreen(to);
+      return;
+    }
+    // 브라우저 뒤로가기 기록이 있으면 그것을 씁니다 (갤럭시 크롬 포함)
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      window.history.back();
+      // 기록이 앱 밖이면 첫 화면으로 되돌립니다
+      window.setTimeout(() => setScreen("home"), 350);
+      return;
+    }
+    setScreen("home");
+  };
+  return (
+    <button
+      onClick={go}
+      aria-label="뒤로"
+      className={`inline-flex items-center gap-1 rounded-[14px] border border-[#DCE8FA] bg-white px-3 py-2 text-[18px] font-black text-[#0864DC] shadow-[0_3px_0_#EDF2FA] transition-transform active:translate-y-[2px] active:shadow-none ${className}`}
+    >
+      <ChevronLeft className="h-[22px] w-[22px]" strokeWidth={2.2} />
+      뒤로
+    </button>
   );
 }
 
