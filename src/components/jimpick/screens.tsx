@@ -64,7 +64,6 @@ import {
   PrimaryButton,
   BottomButtonBar,
   BottomNav,
-  AdminTopNav,
   Counter,
   MoneyInput,
   Card,
@@ -136,7 +135,6 @@ import houseImg from "@/assets/step6-house.png";
 
 export function Splash() {
   const { setScreen, loggedIn } = useApp();
-  const [mascotIdx, setMascotIdx] = useState(0);
   const [typedText, setTypedText] = useState("");
   const fullText = "AI로 견적을 받아보세요!";
 
@@ -149,7 +147,7 @@ export function Splash() {
       if (idx >= fullText.length) clearInterval(interval);
     }, 120);
     return () => clearInterval(interval);
-  }, [mascotIdx]);
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setScreen(loggedIn ? "home" : "login"), 2500);
@@ -2780,7 +2778,6 @@ export function OptionsScreen() {
             className="w-full px-4 py-3 rounded-xl border border-[#DFE6F2] bg-gradient-to-b from-[#F8FAFD] to-white text-base shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] resize-none"
           />
         </Card>
-        {false && null}
 
         {storageOn && (
           <Card className="space-y-3">
