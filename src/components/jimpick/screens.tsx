@@ -78,6 +78,8 @@ import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions"
 import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
 import { parseVoice, type ItemMatch } from "@/lib/voice-parse";
 import { WavRecorder } from "@/lib/recorder";
+import { sendSmsViaEdge, estimateSmsText } from "@/lib/sms.edge";
+import { SmsConnectionCard } from "./SmsConnectionCard";
 import {
   TERMS_VERSION,
   TERMS_NAME,
@@ -120,7 +122,6 @@ import { JimpickCharacter } from "./JimpickCharacter";
 import { icon3dFor, DEFAULT_ICON3D, ICON3D, Icon3D } from "@/lib/jimpick-icon3d";
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
-import { sendEstimateSms } from "@/lib/sms.functions";
 import { ScanMascot, type MascotState } from "./ScanMascot";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
 
@@ -2890,20 +2891,12 @@ export function Result() {
 
   /** 고객에게 보낼 문자 내용 (견적서·약관 보안 링크 포함) */
   const sheetSmsText = () =>
-    [
-      "[JIMPICK 짐픽]",
-      "",
-      `${draft.customerName || "고객"} 고객님, 요청하신 이사 견적서와 이사화물 표준약관이 도착했습니다.`,
-      "",
-      "견적금액과 약관을 확인한 후 예약을 확정해 주세요.",
-      "",
-      `예상 견적 금액: ${won(total)}`,
-      "",
-      "견적서·약관 확인:",
-      shareUrl(),
-      "",
-      `문의: ${draft.staffPhone?.trim() || "업체 연락처 미입력"}`,
-    ].join("\n");
+    estimateSmsText({
+      customerName: draft.customerName,
+      movingDate: formatMoveDateTime(draft.moveDate, draft.moveTime),
+      totalAmount: total,
+      secureUrl: shareUrl(),
+    });
 
 
   /** 실제 발송 — 같은 버튼을 여러 번 눌러도 한 번만 나갑니다 */
@@ -2916,12 +2909,15 @@ export function Result() {
     setSending(true);
     setSendResult(null);
     try {
-      const r = await sendEstimateSms({
-        data: {
-          to: draft.phone,
-          text: sheetSmsText(),
-          title: `이사 견적서 ${draft.sheetNo ?? ""}`.trim(),
-        },
+      // 알리고 키는 Supabase Secrets 에만 있습니다. 이 화면에는 오지 않습니다.
+      const r = await sendSmsViaEdge({
+        to: draft.phone,
+        text: sheetSmsText(),
+        title: `이사 견적서 ${draft.sheetNo ?? ""}`.trim(),
+        estimateId: draft.id,
+        sheetNo: draft.sheetNo ?? undefined,
+        // 같은 견적·같은 차수는 한 번만 나가게 합니다
+        idempotencyKey: `${draft.id}-v${draft.sheetVersion ?? 1}`,
       });
       setSendResult(r);
       if (r.ok) {
@@ -4395,7 +4391,7 @@ export function Customers() {
 
 // ============ Settings ============
 export function SettingsScreen() {
-  const { logout, setScreen } = useApp();
+  const { logout, setScreen, draft } = useApp();
   const [pricing, setPricing] = useState<Pricing>(DEFAULT_PRICING);
   useEffect(() => setPricing(getPricing()), []);
   const setP = (patch: Partial<Pricing>) => {
@@ -4433,6 +4429,9 @@ export function SettingsScreen() {
             <TextInput defaultValue="000-00-00000" />
           </Field>
         </Card>
+        {/* 문자발송 연결 확인·시험 — 받는 번호는 코드에 고정하지 않습니다 */}
+        <SmsConnectionCard ownerPhone={draft.staffPhone ?? ""} />
+
         <Card className="space-y-3">
           <div className="font-bold">문자 기본 문구</div>
           <textarea

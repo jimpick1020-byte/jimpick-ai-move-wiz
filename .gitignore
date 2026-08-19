@@ -37,3 +37,4 @@ __pycache__/
 
 # Streamlit secrets
 streamlit-blog-generator/.streamlit/secrets.toml
+supabase/.temp/
