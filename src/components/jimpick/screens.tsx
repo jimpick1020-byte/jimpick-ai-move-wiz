@@ -64,7 +64,6 @@ import {
   PrimaryButton,
   BottomButtonBar,
   BottomNav,
-  AdminTopNav,
   Counter,
   MoneyInput,
   Card,
@@ -111,9 +110,7 @@ import {
 import { fileToDataUrl, videoToFrames } from "@/lib/media";
 
 // ============ Splash ============
-import mascot1 from "@/assets/mascot-1.png";
-import mascot2 from "@/assets/mascot-2.png";
-import mascot3 from "@/assets/mascot-3.png";
+import charC from "@/assets/jimpick-char-c.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { TruckGauge } from "./TruckGauge";
@@ -138,7 +135,6 @@ import houseImg from "@/assets/step6-house.png";
 
 export function Splash() {
   const { setScreen, loggedIn } = useApp();
-  const [mascotIdx, setMascotIdx] = useState(0);
   const [typedText, setTypedText] = useState("");
   const fullText = "AI로 견적을 받아보세요!";
 
@@ -151,7 +147,7 @@ export function Splash() {
       if (idx >= fullText.length) clearInterval(interval);
     }, 120);
     return () => clearInterval(interval);
-  }, [mascotIdx]);
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setScreen(loggedIn ? "home" : "login"), 2500);
@@ -212,27 +208,13 @@ export function Splash() {
             </div>
 
             <img
-              src={[mascot1, mascot2, mascot3][mascotIdx]}
+              src={charC}
               alt="JIMPICK 캐릭터"
               className="w-full max-w-[220px] jp-float jp-soft-blink [image-rendering:auto]"
             />
           </div>
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            {[mascot1, mascot2, mascot3].map((m, i) => (
-              <button
-                key={i}
-                onClick={() => setMascotIdx(i)}
-                className={`w-11 h-11 rounded-xl bg-[#F3F7FF] p-1 transition-all ${
-                  mascotIdx === i
-                    ? "ring-2 ring-[#0751D8] shadow-[0_6px_14px_-6px_rgba(7,81,216,0.6)] -translate-y-[1px]"
-                    : "opacity-60"
-                }`}
-              >
-                <img src={m} alt={`캐릭터 시안 ${i + 1}`} className="w-full h-full object-contain" />
-              </button>
-            ))}
-          </div>
         </div>
+
 
         <button
           onClick={(e) => {
@@ -354,8 +336,7 @@ export function HomeScreen() {
         <Bell className="w-6 h-6 shrink-0 text-[#111827]" />
       </div>
 
-      {/* 관리자 상단 메뉴 — 고객용 공유 화면에는 나오지 않습니다 */}
-      <AdminTopNav />
+
       <div className="px-5 space-y-4 flex-1 pb-4">
         <div
           onClick={() => {
@@ -2497,7 +2478,7 @@ export function AIRecognition() {
         <div className="flex gap-2">
           <TextInput
             value={typed}
-            placeholder="글로 담기 — 예) 냉장고 하나, 침대 두 개"
+            placeholder=""
             onChange={(e) => setTyped(e.target.value)}
           />
           <button
@@ -2797,20 +2778,7 @@ export function OptionsScreen() {
             className="w-full px-4 py-3 rounded-xl border border-[#DFE6F2] bg-gradient-to-b from-[#F8FAFD] to-white text-base shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] resize-none"
           />
         </Card>
-        {draft.moveType !== "보관이사" && (
-          <label className="flex items-center gap-3 bg-white rounded-2xl border border-[#E7EBF2] px-4 min-h-14 py-3 font-semibold">
-            <input
-              type="checkbox"
-              className="w-5 h-5"
-              checked={Boolean(draft.storageEnabled)}
-              onChange={(e) => {
-                tap("soft");
-                updateDraft({ storageEnabled: e.target.checked });
-              }}
-            />
-            보관 서비스 추가
-          </label>
-        )}
+
         {storageOn && (
           <Card className="space-y-3">
             <div className="font-bold">보관 정보</div>

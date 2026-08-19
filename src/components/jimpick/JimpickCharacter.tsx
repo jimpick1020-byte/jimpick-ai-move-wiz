@@ -1,5 +1,5 @@
 /**
- * 짐픽 AI 캐릭터.
+ * 짐픽 AI 캐릭터 (파란 모자 직원 캐릭터).
  *
  * 상태에 따라 표정 대신 주변 효과가 달라집니다.
  *   idle        기본 — 조용히 떠 있습니다
@@ -7,11 +7,8 @@
  *   processing  처리 중 — 작은 로딩 고리
  *   done        완료 — 체크 표시
  *   error       실패 — 캐릭터는 그대로 두고 문구만 바꿉니다
- *
- * 움직임을 싫어하는 설정(prefers-reduced-motion)을 켠 기기에서는
- * 애니메이션을 멈추고 정지된 모습만 보여 줍니다.
  */
-import charSrc from "@/assets/jimpick-ai-character.webp";
+import charSrc from "@/assets/jimpick-char-c.png";
 
 export type CharacterState = "idle" | "listening" | "processing" | "done" | "error";
 
@@ -57,6 +54,7 @@ export function JimpickCharacter({
       <img
         src={charSrc}
         alt={alt}
+        loading="lazy"
         width={size}
         height={size}
         className={`relative h-full w-full object-contain ${
