@@ -203,10 +203,8 @@ export type Database = {
           accepted_at: string
           created_at: string
           estimate_id: string
-          estimate_snapshot: string | null
           estimate_terms_id: string
           id: string
-          reservation_status: string
           sent_at: string | null
           sent_msg_id: string | null
           sheet_version: number
@@ -215,7 +213,6 @@ export type Database = {
           terms_snapshot: string
           terms_version: string
           token_hint: string | null
-          user_agent: string | null
           user_id: string
         }
         Insert: {
@@ -224,10 +221,8 @@ export type Database = {
           accepted_at?: string
           created_at?: string
           estimate_id: string
-          estimate_snapshot?: string | null
           estimate_terms_id: string
           id?: string
-          reservation_status?: string
           sent_at?: string | null
           sent_msg_id?: string | null
           sheet_version?: number
@@ -236,7 +231,6 @@ export type Database = {
           terms_snapshot: string
           terms_version: string
           token_hint?: string | null
-          user_agent?: string | null
           user_id: string
         }
         Update: {
@@ -245,10 +239,8 @@ export type Database = {
           accepted_at?: string
           created_at?: string
           estimate_id?: string
-          estimate_snapshot?: string | null
           estimate_terms_id?: string
           id?: string
-          reservation_status?: string
           sent_at?: string | null
           sent_msg_id?: string | null
           sheet_version?: number
@@ -257,7 +249,6 @@ export type Database = {
           terms_snapshot?: string
           terms_version?: string
           token_hint?: string | null
-          user_agent?: string | null
           user_id?: string
         }
         Relationships: [
