@@ -32,6 +32,7 @@ import {
   CheckCircle2,
   Headphones,
   History as HistoryIcon,
+  BookOpen,
 } from "lucide-react";
 
 import {
@@ -85,6 +86,7 @@ import {
   TERMS_SOURCE,
   TERMS_SUMMARY,
   TERMS_FULL,
+  TERMS_NOTICE,
 } from "@/lib/terms";
 import { publishEstimateTerms, getTermsStatuses, type TermsStatusRow } from "@/lib/terms.functions";
 
@@ -2870,14 +2872,44 @@ export function Result() {
   /** 견적서를 열면 먼저 보이는 고객용 표지 화면 (표는 「견적서 보기」에서만) */
   const [sheetCover, setSheetCover] = useState(true);
   const [coverFull, setCoverFull] = useState(false);
-  const [coverChecked, setCoverChecked] = useState(false);
-  const [coverSaving, setCoverSaving] = useState(false);
-  const [coverDone, setCoverDone] = useState<number | null>(null);
-  const [coverError, setCoverError] = useState<string | null>(null);
   const [sheetEdit, setSheetEdit] = useState(false);
   const [confirmSheet, setConfirmSheet] = useState(false);
   /** 캡처할 견적서 영역 */
   const sheetRef = useRef<HTMLDivElement>(null);
+  /** 이 견적의 약관 발송·동의 상태 (읽기 전용 — 업체가 대신 동의할 수 없습니다) */
+  const [termsStatus, setTermsStatus] = useState<TermsStatusRow | null>(null);
+  const [termsLoading, setTermsLoading] = useState(true);
+  const loadTermsStatus = () => {
+    setTermsLoading(true);
+    getTermsStatuses({ data: { estimateId: draft.id } })
+      .then((r) => {
+        if (!r.ok) return;
+        // 같은 견적을 여러 차수로 보냈으면 가장 최근 것을 봅니다
+        setTermsStatus(r.rows[0] ?? null);
+      })
+      .catch(() => {})
+      .finally(() => setTermsLoading(false));
+  };
+  useEffect(() => {
+    let alive = true;
+    setTermsLoading(true);
+    getTermsStatuses({ data: { estimateId: draft.id } })
+      .then((r) => {
+        if (alive && r.ok) setTermsStatus(r.rows[0] ?? null);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setTermsLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [draft.id]);
+
+  /** 약관 미리보기(요약)·전체보기 펼침 */
+  const [termsPreviewOpen, setTermsPreviewOpen] = useState(false);
+  const [termsFullOpen, setTermsFullOpen] = useState(false);
+
   /** 문자 발송 상태 */
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<{
@@ -3567,45 +3599,39 @@ export function Result() {
               )}
             </div>
 
-            {/* 동의 및 예약 확정 */}
-            <label className="mt-4 flex items-center gap-3 rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_12px_rgba(17,24,39,0.08)]">
-              <input
-                type="checkbox"
-                checked={coverChecked}
-                onChange={(e) => setCoverChecked(e.target.checked)}
-                className="h-[28px] w-[28px] shrink-0 accent-[#0864DC]"
-              />
-              <span className="text-[17px] font-bold text-[#111827]">
-                견적서와 약관을 확인했습니다
-              </span>
-            </label>
-
-            <button
-              onClick={() => {
-                if (!coverChecked || coverSaving || coverDone) return;
-                setCoverSaving(true);
-                setCoverError(null);
-                try {
-                  saveDraft();
-                  setCoverDone(Date.now());
-                  tap("success");
-                } catch {
-                  setCoverError("예약 확정을 저장하지 못했습니다. 다시 시도해 주세요.");
-                } finally {
-                  setCoverSaving(false);
-                }
-              }}
-              disabled={!coverChecked || coverSaving || !!coverDone}
-              className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-b from-[#1B76EF] to-[#0757C4] px-4 py-4 text-[20px] font-black text-white shadow-[0_4px_12px_rgba(8,100,220,0.35)] disabled:opacity-45"
-            >
-              <CheckCircle2 className="h-[24px] w-[24px]" />
-              {coverDone ? "예약이 확정되었습니다" : coverSaving ? "처리 중…" : "동의하고 예약 확정"}
-            </button>
-            {coverError && (
-              <div className="mt-2 rounded-xl bg-[#FEF2F2] px-4 py-3 text-[14px] font-bold text-[#B91C1C]">
-                {coverError}
+            {/*
+              고객 화면에 어떻게 보이는지만 보여 줍니다.
+              업체가 고객 대신 동의를 누를 수 없도록 눌리지 않게 막아 두었습니다.
+              (데이터베이스에도 업체용 쓰기 권한이 없습니다)
+            */}
+            <div className="mt-4 rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_12px_rgba(17,24,39,0.08)]">
+              <div className="text-[15px] font-bold text-[#6B7280]">
+                아래는 고객 화면 미리보기입니다
               </div>
-            )}
+              <div className="mt-2.5 flex items-center gap-3 opacity-60">
+                <input
+                  type="checkbox"
+                  checked={false}
+                  readOnly
+                  disabled
+                  aria-label="고객이 직접 선택하는 확인란"
+                  className="h-[28px] w-[28px] shrink-0 accent-[#0864DC]"
+                />
+                <span className="text-[17px] font-bold text-[#111827]">
+                  견적서와 약관을 확인했습니다
+                </span>
+              </div>
+              <div
+                aria-disabled
+                className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-xl bg-[#C7D6EE] px-4 py-4 text-[20px] font-black text-white"
+              >
+                <CheckCircle2 className="h-[24px] w-[24px]" />
+                동의하고 예약 확정
+              </div>
+              <div className="mt-2.5 text-[15px] text-[#6B7280]">
+                이 확인란과 버튼은 고객 화면에서만 눌립니다. 업체는 대신 동의할 수 없습니다.
+              </div>
+            </div>
 
             <a
               href={draft.staffPhone?.trim() ? `tel:${draft.staffPhone.trim()}` : undefined}
@@ -3751,6 +3777,137 @@ export function Result() {
                 total={total}
               />
             )}
+          </div>
+
+          {/* 고객에게 발송할 약관 — 보는 것만 됩니다. 동의는 고객이 직접 합니다. */}
+          <div className="border-t border-[#DCE8FA] bg-white px-4 pt-4">
+            <div className="rounded-[14px] border border-[#DCE8FA] bg-white p-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+              <div className="text-[17px] font-black text-[#111827]">고객에게 발송할 약관</div>
+              <div className="mt-2.5 flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-[16px] font-bold text-[#111827]">{TERMS_NAME}</div>
+                  <div className="mt-0.5 text-[15px] text-[#6B7280]">{TERMS_SOURCE}</div>
+                </div>
+                <span className="shrink-0 whitespace-nowrap rounded-full border border-[#DCE8FA] px-2.5 py-1 text-[15px] font-bold text-[#0864DC]">
+                  {TERMS_VERSION}
+                </span>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    tap("soft");
+                    setTermsPreviewOpen((v) => !v);
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-[#0864DC] bg-white py-3 text-[16px] font-black text-[#0864DC] active:translate-y-[1px]"
+                >
+                  <FileText className="h-[19px] w-[19px]" strokeWidth={1.9} /> 약관 미리보기
+                </button>
+                <button
+                  onClick={() => {
+                    tap("soft");
+                    setTermsFullOpen((v) => !v);
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-[#0864DC] bg-white py-3 text-[16px] font-black text-[#0864DC] active:translate-y-[1px]"
+                >
+                  <BookOpen className="h-[19px] w-[19px]" strokeWidth={1.9} /> 약관 전체보기
+                </button>
+              </div>
+
+              {termsPreviewOpen && (
+                <div className="mt-3 rounded-[14px] bg-[#F7F9FC] p-3.5">
+                  {TERMS_SUMMARY.map((t, i) => (
+                    <div key={t.title} className={i > 0 ? "mt-2.5" : ""}>
+                      <div className="text-[16px] font-bold text-[#111827]">{t.title}</div>
+                      <div className="mt-0.5 text-[15px] leading-relaxed text-[#4B5563]">
+                        {t.body}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {termsFullOpen && (
+                <div className="mt-3 max-h-[45vh] space-y-3 overflow-y-auto rounded-[14px] bg-[#F7F9FC] p-3.5">
+                  {TERMS_FULL.map((t) => (
+                    <div key={t.article}>
+                      <div className="text-[16px] font-black text-[#111827]">
+                        {t.article} ({t.title})
+                      </div>
+                      <div className="mt-0.5 whitespace-pre-line text-[15px] leading-relaxed text-[#4B5563]">
+                        {t.body}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="text-[14px] text-[#6B7280]">
+                    {TERMS_NOTICE} · 적용일 {TERMS_EFFECTIVE_AT}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 고객 동의 상태 — 고객이 직접 동의해야만 바뀝니다 */}
+            <div className="mt-3 rounded-[14px] border border-[#DCE8FA] bg-white p-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+              <div className="flex items-center gap-2">
+                <div className="text-[17px] font-black text-[#111827]">고객 동의 상태</div>
+                {termsLoading ? (
+                  <span className="rounded-full bg-[#F1F5FA] px-2.5 py-1 text-[15px] font-bold text-[#6B7280]">
+                    확인 중…
+                  </span>
+                ) : termsStatus?.acceptedAt ? (
+                  <span className="rounded-full bg-[#DCFCE7] px-2.5 py-1 text-[15px] font-bold text-[#15803D]">
+                    고객 동의 완료
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-[#FEF3C7] px-2.5 py-1 text-[15px] font-bold text-[#B45309]">
+                    동의 대기
+                  </span>
+                )}
+                <button
+                  onClick={() => {
+                    tap("soft");
+                    loadTermsStatus();
+                  }}
+                  className="ml-auto shrink-0 whitespace-nowrap text-[15px] font-bold text-[#0864DC]"
+                >
+                  새로고침
+                </button>
+              </div>
+              <div className="mt-2.5 space-y-1.5">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="shrink-0 text-[15px] text-[#6B7280]">동의 일시</span>
+                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
+                    {termsStatus?.acceptedAt
+                      ? new Date(termsStatus.acceptedAt).toLocaleString("ko-KR")
+                      : "아직 동의하지 않음"}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="shrink-0 text-[15px] text-[#6B7280]">동의한 견적서 버전</span>
+                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
+                    {termsStatus?.acceptedSheetVersion
+                      ? `${termsStatus.acceptedSheetVersion}차 견적서`
+                      : `${draft.sheetVersion ?? 1}차 견적서 (발송본)`}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="shrink-0 text-[15px] text-[#6B7280]">동의한 약관 버전</span>
+                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
+                    {termsStatus?.acceptedTermsVersion ?? `${TERMS_VERSION} (발송본)`}
+                  </span>
+                </div>
+                {termsStatus?.sentAt && (
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="shrink-0 text-[15px] text-[#6B7280]">약관 발송 일시</span>
+                    <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
+                      {new Date(termsStatus.sentAt).toLocaleString("ko-KR")}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="mt-2 text-[15px] text-[#6B7280]">
+                고객이 직접 동의한 후 자동으로 표시됩니다. 업체는 대신 동의할 수 없습니다.
+              </div>
+            </div>
           </div>
 
           <div className="border-t border-[#DCE8FA] bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
@@ -4114,7 +4271,7 @@ export function History() {
   const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
   useEffect(() => {
     let alive = true;
-    getTermsStatuses()
+    getTermsStatuses({ data: {} })
       .then((r) => {
         if (alive && r.ok) setTermsRows(r.rows);
       })

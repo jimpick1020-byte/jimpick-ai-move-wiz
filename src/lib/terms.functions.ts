@@ -129,6 +129,8 @@ export const acceptTerms = createServerFn({ method: "POST" })
       .object({
         token: z.string().min(8).max(80),
         termsSnapshot: z.string().min(10).max(200_000),
+        /** 동의한 그 순간의 견적서 (나중에 견적서를 고쳐도 이건 그대로 남습니다) */
+        estimateSnapshot: z.string().max(200_000).optional(),
         acceptMethod: z.string().max(60).default("web_checkbox"),
       })
       .parse(d),
@@ -154,7 +156,16 @@ export const acceptTerms = createServerFn({ method: "POST" })
     if (already) return { ok: true, acceptedAt: already.accepted_at };
 
     const acceptedAt = new Date().toISOString();
-    const { error: insErr } = await supabaseAdmin.from("terms_acceptances").insert({
+    // 고객이 어떤 기기로 눌렀는지 남깁니다 (접속 정보). 없으면 빈 값으로 둡니다.
+    let userAgent = "";
+    try {
+      const { getRequest } = await import("@tanstack/react-start/server");
+      userAgent = (getRequest()?.headers.get("user-agent") ?? "").slice(0, 300);
+    } catch {
+      /* 헤더를 못 읽어도 동의 기록은 남깁니다 */
+    }
+    /** 어떤 상황에서도 꼭 남겨야 하는 값 */
+    const base = {
       estimate_terms_id: row.id,
       user_id: row.user_id,
       estimate_id: row.estimate_id,
@@ -169,7 +180,21 @@ export const acceptTerms = createServerFn({ method: "POST" })
       token_hint: data.token.slice(-6),
       sent_at: row.sent_at,
       sent_msg_id: row.sent_msg_id,
-    });
+    };
+    /** 새로 늘린 칸 (견적서 스냅샷·접속 정보·예약 상태) */
+    const extra = {
+      estimate_snapshot: data.estimateSnapshot ?? null,
+      user_agent: userAgent || null,
+      reservation_status: "confirmed",
+    };
+
+    let insErr = (await supabaseAdmin.from("terms_acceptances").insert({ ...base, ...extra })).error;
+    // 데이터베이스에 새 칸이 아직 안 만들어졌으면(마이그레이션 전) 기본 값만이라도 남깁니다.
+    // 고객이 동의했는데 기록이 통째로 사라지는 일은 없어야 합니다.
+    if (insErr && /column|schema cache/i.test(insErr.message)) {
+      console.error("[acceptTerms] 새 칸 없음 — 기본 값만 저장합니다:", insErr.message);
+      insErr = (await supabaseAdmin.from("terms_acceptances").insert(base)).error;
+    }
     if (insErr) {
       console.error("[acceptTerms]", insErr.message);
       return { ok: false, error: "동의 기록을 저장하지 못했습니다." };
@@ -180,36 +205,54 @@ export const acceptTerms = createServerFn({ method: "POST" })
 
 export interface TermsStatusRow {
   estimateId: string;
+  /** 보낸 견적서 차수 */
   sheetVersion: number;
+  /** 보낸 약관 버전 */
   termsVersion: string;
   sentAt: string | null;
   viewedAt: string | null;
   acceptedAt: string | null;
   acceptMethod: string | null;
+  /** 고객이 실제로 동의한 견적서 차수 (동의 전에는 null) */
+  acceptedSheetVersion: number | null;
+  /** 고객이 실제로 동의한 약관 버전 (동의 전에는 null) */
+  acceptedTermsVersion: string | null;
+  /** 예약 확정 상태 (동의 전에는 null) */
+  reservationStatus: string | null;
 }
 
-/** 관리자·업체용 — 내 견적들의 약관 발송·동의 상태 (고객 대신 동의는 불가) */
+/**
+ * 관리자·업체용 — 내 견적들의 약관 발송·동의 상태.
+ *
+ * 읽기만 합니다. 업체가 고객 대신 동의를 만들 수는 없습니다
+ * (terms_acceptances 에는 업체용 쓰기 정책 자체가 없습니다).
+ */
 export const getTermsStatuses = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ ok: boolean; rows: TermsStatusRow[] }> => {
-    const { data, error } = await context.supabase
+  .inputValidator((d: unknown) =>
+    z.object({ estimateId: z.string().max(80).optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: boolean; rows: TermsStatusRow[] }> => {
+    let q = context.supabase
       .from("estimate_terms")
       .select("id, estimate_id, sheet_version, terms_version, sent_at, viewed_at")
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false })
-      .limit(300);
-    if (error || !data) {
+      .eq("user_id", context.userId);
+    if (data?.estimateId) q = q.eq("estimate_id", data.estimateId);
+    const { data: rows, error } = await q.order("created_at", { ascending: false }).limit(300);
+    if (error || !rows) {
       if (error) console.error("[getTermsStatuses]", error.message);
       return { ok: false, rows: [] };
     }
     const { data: accs } = await context.supabase
       .from("terms_acceptances")
-      .select("estimate_terms_id, accepted_at, accept_method")
+      .select(
+        "estimate_terms_id, accepted_at, accept_method, sheet_version, terms_version, reservation_status",
+      )
       .eq("user_id", context.userId);
     const byId = new Map((accs ?? []).map((a) => [a.estimate_terms_id, a]));
     return {
       ok: true,
-      rows: data.map((r) => {
+      rows: rows.map((r) => {
         const a = byId.get(r.id);
         return {
           estimateId: r.estimate_id,
@@ -219,6 +262,9 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
           viewedAt: r.viewed_at,
           acceptedAt: a?.accepted_at ?? null,
           acceptMethod: a?.accept_method ?? null,
+          acceptedSheetVersion: a?.sheet_version ?? null,
+          acceptedTermsVersion: a?.terms_version ?? null,
+          reservationStatus: a?.reservation_status ?? null,
         };
       }),
     };

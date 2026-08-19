@@ -167,6 +167,25 @@ export function SharePage() {
     setSaving(true);
     setSaveError(null);
     const snapshot = termsSnapshot();
+    // 동의한 그 순간의 견적서를 글로 남깁니다.
+    // 사장님이 나중에 견적서를 고쳐도 이 내용은 바뀌지 않습니다.
+    const estimateSnapshot = JSON.stringify(
+      {
+        견적번호: sheetNo ?? null,
+        차수: link?.sheetVersion ?? estimate?.sheetVersion ?? 1,
+        고객명: link?.customerName ?? estimate?.customerName ?? "",
+        이사일: link?.moveDate ?? estimate?.moveDate ?? "",
+        출발지: estimate?.fromAddress ?? "",
+        도착지: estimate?.toAddress ?? "",
+        차량: estimate ? { "1톤": estimate.truck1t, "5톤": estimate.truck5t } : null,
+        품목: selectedItems,
+        옵션: enabledOptions.map((o) => ({ 이름: o.name, 금액: o.price, 별도: o.separate })),
+        총견적금액: link?.total ?? localCalc?.total ?? estimate?.total ?? 0,
+        확인시각: new Date().toISOString(),
+      },
+      null,
+      1,
+    ).slice(0, 190_000);
     const rec: LocalAcceptance = {
       estimateId: estimate?.id ?? id,
       termsName: TERMS_NAME,
@@ -181,7 +200,12 @@ export function SharePage() {
     };
     try {
       const r = await acceptTerms({
-        data: { token, termsSnapshot: snapshot, acceptMethod: "웹 링크 · 확인란 선택" },
+        data: {
+          token,
+          termsSnapshot: snapshot,
+          estimateSnapshot,
+          acceptMethod: "웹 링크 · 확인란 선택",
+        },
       });
       if (!r.ok) {
         setSaveError(r.error ?? "동의 기록을 저장하지 못했습니다. 다시 시도해 주세요.");
