@@ -127,6 +127,14 @@ export interface Estimate {
   sheetConfirmedAt?: number;
   /** 확정 당시 그대로 얼려 둔 내용 */
   sheetSnapshot?: EstimateSheetSnapshot | null;
+  /**
+   * 고객용 보안 링크 토큰.
+   * 견적번호로 유추할 수 없도록 무작위로 만듭니다.
+   * 견적서를 고쳐 차수가 올라가면 새로 만듭니다.
+   */
+  shareToken?: string;
+  /** 그 토큰이 몇 차 견적서의 것인지 */
+  shareTokenVersion?: number;
   /** 수정·발송 이력 */
   sheetHistory?: SheetHistoryEntry[];
 }

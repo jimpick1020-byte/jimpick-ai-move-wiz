@@ -389,7 +389,6 @@ export function SharePage() {
             companyPhone={contactPhone}
             acceptedAt={accepted ? new Date(accepted.acceptedAt).toISOString() : null}
             forCustomer
-            onOpenTerms={() => setOpenFull(true)}
           />
         </div>
       )}
@@ -554,72 +553,6 @@ export function SharePage() {
           </Card>
         </div>
       )}
-
-      {/* 표준약관 카드 */}
-      <div className="mt-4 rounded-[14px] bg-white px-[22px] py-4 shadow-[0_2px_12px_rgba(17,24,39,0.10)]">
-        <div className="flex items-start gap-2.5">
-          <ShieldCheck className="mt-0.5 h-[30px] w-[30px] shrink-0 text-[#0864DC]" />
-          <div className="min-w-0">
-            <div className="text-[21px] font-black text-[#111827]">{TERMS_NAME}</div>
-            <div className="text-[14px] font-semibold text-[#8A93A2]">{TERMS_SOURCE}</div>
-          </div>
-        </div>
-
-        <div className="mt-2">
-          {TERMS_SUMMARY.slice(0, 5).map((s, i) => {
-            const Icon = SUMMARY_ICONS[i] ?? FileText;
-            const open = openSummary === i;
-            return (
-              <div key={s.title} className="border-b border-[#EDF0F5] last:border-b-0">
-                <button
-                  onClick={() => setOpenSummary(open ? null : i)}
-                  className="flex w-full items-center gap-2.5 py-3.5 text-left"
-                >
-                  <Icon className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" strokeWidth={1.8} />
-                  <span className="min-w-0 flex-1 text-[17px] font-bold text-[#111827]">
-                    {s.title}
-                  </span>
-                  {open ? (
-                    <ChevronDown className="h-5 w-5 shrink-0 text-[#9AA3B2]" />
-                  ) : (
-                    <ChevronRight className="h-5 w-5 shrink-0 text-[#9AA3B2]" />
-                  )}
-                </button>
-                {open && (
-                  <div className="pb-3.5 text-[16px] leading-relaxed text-[#4B5563]">{s.body}</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <button
-          onClick={() => setOpenFull((v) => !v)}
-          className="mt-3 flex w-full items-center justify-between rounded-xl border-2 border-[#0864DC] bg-white px-4 py-3 text-[18px] font-black text-[#0864DC]"
-        >
-          <span className="flex-1 text-center">약관 전체보기</span>
-          {openFull ? (
-            <ChevronDown className="h-5 w-5" />
-          ) : (
-            <ChevronRight className="h-5 w-5" />
-          )}
-        </button>
-        {openFull && (
-          <div className="mt-3 max-h-[420px] space-y-3 overflow-auto rounded-xl border border-[#E7EBF2] p-3">
-            {TERMS_FULL.map((t) => (
-              <div key={t.article}>
-                <div className="text-[16px] font-black text-[#111827]">
-                  {t.article} ({t.title})
-                </div>
-                <div className="mt-1 text-[16px] leading-relaxed text-[#334155]">{t.body}</div>
-              </div>
-            ))}
-            <div className="border-t border-[#E7EBF2] pt-2 text-[14px] font-semibold text-[#6B7280]">
-              {TERMS_NOTICE} · 버전 {TERMS_VERSION} · 적용일 {TERMS_EFFECTIVE_AT}
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* 동의 · 예약 확정 */}
       {accepted ? (

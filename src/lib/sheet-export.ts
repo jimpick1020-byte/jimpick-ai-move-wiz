@@ -23,8 +23,16 @@ const PRINT_CSS = `
     left: 0; top: 0; width: 100% !important;
     max-height: none !important; overflow: visible !important;
   }
-  /* 표가 페이지 사이에서 잘리지 않게 합니다 */
-  #jp-print-area tr, #jp-print-area table { break-inside: avoid; page-break-inside: avoid; }
+  /* 표·공간 행·비용 상자가 페이지 사이에서 잘리지 않게 합니다 */
+  #jp-print-area tr,
+  #jp-print-area table,
+  #jp-print-area .jp-avoid-break,
+  #jp-print-area [class*="rounded-[14px]"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  /* 그림이 반으로 잘리지 않게 */
+  #jp-print-area img { break-inside: avoid; page-break-inside: avoid; }
 }
 `;
 

@@ -8,7 +8,7 @@
  * 확정한 뒤에는 sheetSnapshot 을 우선 써서, 단가가 나중에 바뀌어도
  * 이미 보낸 견적서 금액이 흔들리지 않습니다.
  */
-import { forwardRef, type ReactNode } from "react";
+import { forwardRef, useState, type ReactNode } from "react";
 import {
   CalendarDays,
   ChevronRight,
@@ -27,6 +27,15 @@ import {
 import type { Estimate } from "@/lib/jimpick";
 import { won } from "@/lib/jimpick";
 import { ItemArt } from "@/lib/jimpick-art";
+import {
+  TERMS_EFFECTIVE_AT,
+  TERMS_FULL,
+  TERMS_NAME,
+  TERMS_NOTICE,
+  TERMS_SOURCE,
+  TERMS_SUMMARY,
+  TERMS_VERSION,
+} from "@/lib/terms";
 
 /** 2026-08-20 → 2026. 08. 20 */
 function ymd(v: string | number | Date): string {
@@ -56,14 +65,28 @@ function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: s
   );
 }
 
+/** 층수와 엘리베이터 — 입력한 것만 적습니다 */
+function floorText(floor: number | undefined, env: string | undefined): string {
+  const parts: string[] = [];
+  if (floor) parts.push(`${floor}층`);
+  const e = String(env || "").trim();
+  if (e) parts.push(e);
+  return parts.join(" · ");
+}
+
 /** 주소 한 줄 — 값이 없으면 그리지 않습니다 */
-function AddressRow({ label, value }: { label: string; value: string }) {
+function AddressRow({ label, value, sub }: { label: string; value: string; sub?: string }) {
   if (!value.trim()) return null;
   return (
     <div className="flex items-start gap-2.5 px-3.5 py-3">
       <MapPin className="mt-0.5 h-[19px] w-[19px] shrink-0 text-[#0864DC]" strokeWidth={2} />
       <span className="w-[52px] shrink-0 text-[16px] font-bold text-[#0864DC]">{label}</span>
-      <span className="min-w-0 break-words text-[16px] font-medium text-[#111827]">{value}</span>
+      <span className="min-w-0">
+        <span className="block break-words text-[16px] font-medium text-[#111827]">{value}</span>
+        {sub?.trim() && (
+          <span className="mt-0.5 block text-[15px] text-[#6B7280]">{sub}</span>
+        )}
+      </span>
     </div>
   );
 }
@@ -141,12 +164,15 @@ export interface EstimateSheetProps {
   total: number;
   companyName?: string;
   companyPhone?: string;
-  /** 약관 줄을 누르면 할 일 (없으면 누를 수 없는 안내로만 보입니다) */
-  onOpenTerms?: () => void;
   /** 고객이 동의했으면 그 일시 */
   acceptedAt?: string | null;
+  /** 고객이 실제로 동의한 견적서 차수·약관 버전 (동의 전에는 비워 둡니다) */
+  acceptedSheetVersion?: number | null;
+  acceptedTermsVersion?: string | null;
   /** 고객 화면에서는 사장님용 안내를 감춥니다 */
   forCustomer?: boolean;
+  /** 견적서 아래에 약관·동의 영역을 함께 그릴지 */
+  showTerms?: boolean;
 }
 
 export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(function EstimateSheet(
@@ -157,9 +183,11 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     total,
     companyName = "짐픽 이사",
     companyPhone,
-    onOpenTerms,
     acceptedAt = null,
+    acceptedSheetVersion = null,
+    acceptedTermsVersion = null,
     forCustomer = false,
+    showTerms = true,
   },
   ref,
 ) {
@@ -173,6 +201,17 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
   const deposit = Math.max(0, draft.deposit ?? 0);
   const balance = Math.max(0, total - deposit);
   const version = draft.sheetVersion ?? 1;
+  /** 사장님이 실제로 켠 추가 작업만 */
+  const addedWork = (draft.options ?? []).filter((o) => o.enabled);
+  /** 입금 계좌 — 입력한 것이 하나도 없으면 통째로 감춥니다 */
+  const bank = {
+    name: draft.bankName?.trim() ?? "",
+    account: draft.bankAccount?.trim() ?? "",
+    holder: draft.bankHolder?.trim() ?? "",
+  };
+  const hasBank = !!(bank.name || bank.account || bank.holder);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [fullOpen, setFullOpen] = useState(false);
   const confirmed = !!draft.sheetConfirmedAt;
 
   const truckText =
@@ -230,6 +269,14 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                 <span className="ml-1 font-medium text-[#6B7280]">고객님</span>
               </span>
             </div>
+            {draft.phone?.trim() && (
+              <div className="flex min-w-0 items-center gap-2">
+                <Phone className="h-[19px] w-[19px] shrink-0 text-[#0864DC]" strokeWidth={2} />
+                <span className="min-w-0 truncate text-[16px] text-[#6B7280]">
+                  연락처 <span className="font-bold text-[#111827]">{draft.phone.trim()}</span>
+                </span>
+              </div>
+            )}
             <div className="flex min-w-0 items-center gap-2">
               <CalendarDays className="h-[19px] w-[19px] shrink-0 text-[#0864DC]" strokeWidth={2} />
               <span className="min-w-0 truncate text-[16px] text-[#6B7280]">
@@ -263,8 +310,16 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
 
         {/* 출발지 · 도착지 */}
         <div className="divide-y divide-[#EDF0F5] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
-          <AddressRow label="출발지" value={`${draft.fromAddress} ${draft.fromDetail || ""}`.trim()} />
-          <AddressRow label="도착지" value={`${draft.toAddress} ${draft.toDetail || ""}`.trim()} />
+          <AddressRow
+            label="출발지"
+            value={`${draft.fromAddress} ${draft.fromDetail || ""}`.trim()}
+            sub={floorText(draft.fromFloor, draft.workEnv)}
+          />
+          <AddressRow
+            label="도착지"
+            value={`${draft.toAddress} ${draft.toDetail || ""}`.trim()}
+            sub={floorText(draft.toFloor, draft.workEnv)}
+          />
         </div>
 
         {/* 차량 · 이사 유형 */}
@@ -289,7 +344,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
               {rooms.map((r) => (
                 <div
                   key={r.name}
-                  className="flex items-stretch gap-2 rounded-[14px] bg-white p-2.5 shadow-[0_2px_10px_rgba(17,24,39,0.06)]"
+                  className="jp-avoid-break flex items-stretch gap-2 rounded-[14px] bg-white p-2.5 shadow-[0_2px_10px_rgba(17,24,39,0.06)]"
                 >
                   <div className="flex w-[64px] shrink-0 items-center justify-center">
                     <span className="text-[17px] font-black text-[#111827]">{r.name}</span>
@@ -314,6 +369,21 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* 추가 작업 — 고른 것만 적습니다 */}
+        {addedWork.length > 0 && (
+          <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+            <div className="mb-1.5 text-[17px] font-black text-[#0864DC]">추가 작업</div>
+            {addedWork.map((o) => (
+              <div key={o.id} className="flex items-start justify-between gap-3 py-1.5">
+                <span className="min-w-0 break-words text-[16px] text-[#111827]">{o.name}</span>
+                <span className="shrink-0 text-right text-[16px] font-bold tabular-nums text-[#111827]">
+                  {o.separate ? "별도" : won(o.price)}
+                </span>
+              </div>
+            ))}
           </div>
         )}
 
@@ -342,6 +412,37 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           </div>
         </div>
 
+        {/* 입금 계좌 — 입력한 것만 적습니다 */}
+        {hasBank && (
+          <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+            <div className="mb-1.5 text-[17px] font-black text-[#0864DC]">입금 계좌</div>
+            {bank.name && (
+              <div className="flex items-start justify-between gap-3 py-1">
+                <span className="shrink-0 text-[16px] text-[#6B7280]">은행</span>
+                <span className="min-w-0 break-words text-right text-[16px] font-bold text-[#111827]">
+                  {bank.name}
+                </span>
+              </div>
+            )}
+            {bank.account && (
+              <div className="flex items-start justify-between gap-3 py-1">
+                <span className="shrink-0 text-[16px] text-[#6B7280]">계좌번호</span>
+                <span className="min-w-0 break-words text-right text-[16px] font-bold tabular-nums text-[#111827]">
+                  {bank.account}
+                </span>
+              </div>
+            )}
+            {bank.holder && (
+              <div className="flex items-start justify-between gap-3 py-1">
+                <span className="shrink-0 text-[16px] text-[#6B7280]">예금주</span>
+                <span className="min-w-0 break-words text-right text-[16px] font-bold text-[#111827]">
+                  {bank.holder}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* 담당자 · 연락처 */}
         <div className="flex divide-x divide-[#EDF0F5] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
           <Stat
@@ -356,36 +457,110 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           />
         </div>
 
-        {/* 약관 · 고객 동의 상태 */}
-        <div className="space-y-2">
-          <LinkRow
-            icon={<FileText className="h-[20px] w-[20px] text-[#0864DC]" strokeWidth={2} />}
-            title="이사화물 표준약관"
-            desc="이사화물 표준약관 전문을 확인하실 수 있습니다."
-            onClick={onOpenTerms}
-          />
-          <LinkRow
-            icon={<ShieldCheck className="h-[20px] w-[20px] text-[#0864DC]" strokeWidth={2} />}
-            title="고객 동의 상태"
-            desc={
-              acceptedAt
-                ? `동의 일시: ${new Date(acceptedAt).toLocaleString("ko-KR")}`
-                : forCustomer
-                  ? "이사화물 표준약관에 동의해 주세요."
-                  : "고객이 직접 동의하면 여기에 표시됩니다."
-            }
-            badge={
-              <span
-                className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[15px] font-bold ${
-                  acceptedAt ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#FEF3C7] text-[#B45309]"
-                }`}
-              >
-                {acceptedAt ? "동의 완료" : "동의 대기"}
-              </span>
-            }
-            onClick={onOpenTerms}
-          />
-        </div>
+        {/* 이사화물 표준약관 · 고객 동의 — 별도 화면 없이 여기서 모두 봅니다 */}
+        {showTerms && (
+          <div className="space-y-2">
+            <div className="rounded-[14px] border border-[#DCE8FA] bg-white px-3.5 py-3.5">
+              <div className="flex items-start gap-2.5">
+                <FileText className="mt-0.5 h-[20px] w-[20px] shrink-0 text-[#0864DC]" strokeWidth={2} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[16px] font-bold text-[#0864DC]">{TERMS_NAME}</div>
+                  <div className="mt-0.5 break-words text-[15px] text-[#6B7280]">{TERMS_SOURCE}</div>
+                </div>
+                <span className="shrink-0 whitespace-nowrap rounded-full border border-[#DCE8FA] px-2 py-0.5 text-[15px] font-bold text-[#0864DC]">
+                  {TERMS_VERSION}
+                </span>
+              </div>
+
+              <div className="mt-2.5 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setTermsOpen((v) => !v)}
+                  className="rounded-[12px] border border-[#0864DC] bg-white py-2.5 text-[16px] font-bold text-[#0864DC] active:translate-y-[1px]"
+                >
+                  {termsOpen ? "약관 접기" : "약관 보기"}
+                </button>
+                <button
+                  onClick={() => setFullOpen((v) => !v)}
+                  className="rounded-[12px] border border-[#0864DC] bg-white py-2.5 text-[16px] font-bold text-[#0864DC] active:translate-y-[1px]"
+                >
+                  {fullOpen ? "전체 접기" : "약관 전체보기"}
+                </button>
+              </div>
+
+              {termsOpen && (
+                <div className="mt-2.5 rounded-[12px] bg-[#F7F9FC] p-3">
+                  {TERMS_SUMMARY.map((t, i) => (
+                    <div key={t.title} className={i > 0 ? "mt-2.5" : ""}>
+                      <div className="text-[16px] font-bold text-[#111827]">{t.title}</div>
+                      <div className="mt-0.5 break-words text-[15px] leading-relaxed text-[#4B5563]">
+                        {t.body}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {fullOpen && (
+                <div className="mt-2.5 space-y-3 rounded-[12px] bg-[#F7F9FC] p-3">
+                  {TERMS_FULL.map((t) => (
+                    <div key={t.article} className="break-inside-avoid">
+                      <div className="text-[16px] font-black text-[#111827]">
+                        {t.article} ({t.title})
+                      </div>
+                      <div className="mt-0.5 whitespace-pre-line break-words text-[15px] leading-relaxed text-[#4B5563]">
+                        {t.body}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="text-[15px] text-[#6B7280]">
+                    {TERMS_NOTICE} · 적용일 {TERMS_EFFECTIVE_AT}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 고객 동의 상태 — 고객이 직접 동의해야만 바뀝니다 */}
+            <div className="rounded-[14px] border border-[#DCE8FA] bg-white px-3.5 py-3.5">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-[20px] w-[20px] shrink-0 text-[#0864DC]" strokeWidth={2} />
+                <span className="text-[16px] font-bold text-[#0864DC]">고객 동의 상태</span>
+                <span
+                  className={`ml-auto shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[15px] font-bold ${
+                    acceptedAt ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#FEF3C7] text-[#B45309]"
+                  }`}
+                >
+                  {acceptedAt ? "동의 완료" : "동의 대기"}
+                </span>
+              </div>
+              <div className="mt-2 space-y-1">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="shrink-0 text-[15px] text-[#6B7280]">동의 일시</span>
+                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
+                    {acceptedAt
+                      ? new Date(acceptedAt).toLocaleString("ko-KR")
+                      : "아직 동의하지 않음"}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="shrink-0 text-[15px] text-[#6B7280]">동의한 견적서 버전</span>
+                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
+                    {acceptedSheetVersion ? `${acceptedSheetVersion}차 견적서` : `${version}차 (발송본)`}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="shrink-0 text-[15px] text-[#6B7280]">동의한 약관 버전</span>
+                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
+                    {acceptedTermsVersion ?? `${TERMS_VERSION} (발송본)`}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-1.5 text-[15px] text-[#6B7280]">
+                {forCustomer
+                  ? "아래에서 직접 확인란을 선택하시면 동의가 기록됩니다."
+                  : "고객이 직접 동의한 후 표시됩니다. 업체는 대신 동의할 수 없습니다."}
+              </div>
+            </div>
+          </div>
+        )}
 
         {draft.sheetNote?.trim() && (
           <p className="px-1 text-[16px] font-medium text-[#374151]">{draft.sheetNote.trim()}</p>

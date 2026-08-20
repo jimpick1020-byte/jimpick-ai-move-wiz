@@ -2838,8 +2838,6 @@ export function Result() {
   /** 종이 견적서 화면 */
   const [sheetOpen, setSheetOpen] = useState(false);
   /** 견적서를 열면 먼저 보이는 고객용 표지 화면 (표는 「견적서 보기」에서만) */
-  const [sheetCover, setSheetCover] = useState(false);
-  const [coverFull, setCoverFull] = useState(false);
   const [sheetEdit, setSheetEdit] = useState(false);
   const [confirmSheet, setConfirmSheet] = useState(false);
   /** 캡처할 견적서 영역 */
@@ -3008,7 +3006,6 @@ export function Result() {
       });
     }
     saveDraft();
-    setSheetCover(true);
     setSheetOpen(true);
   };
 
@@ -3047,7 +3044,21 @@ export function Result() {
     if (draft.total !== total) updateDraft({ total });
   }, [total, draft.total, updateDraft]);
   /** 고객용 보안 토큰 — 견적번호와 차수로 만듭니다 */
-  const shareToken = () => `${draft.id}-v${draft.sheetVersion ?? 1}`;
+  /**
+   * 고객용 보안 토큰.
+   * 견적번호를 그대로 쓰면 다른 사람이 주소를 바꿔 볼 수 있으므로
+   * 무작위 값을 한 번 만들어 두고 계속 씁니다.
+   * 견적서를 고쳐 차수가 올라가면 새 토큰을 만듭니다.
+   */
+  const shareToken = () => {
+    const v = draft.sheetVersion ?? 1;
+    if (draft.shareToken && draft.shareTokenVersion === v) return draft.shareToken;
+    const buf = new Uint8Array(16);
+    if (typeof crypto !== "undefined" && crypto.getRandomValues) crypto.getRandomValues(buf);
+    const token = Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
+    updateDraft({ shareToken: token, shareTokenVersion: v });
+    return token;
+  };
   /** 고객이 열어 볼 견적서·약관 주소 */
   const shareUrl = () =>
     typeof window === "undefined"
@@ -3429,179 +3440,9 @@ export function Result() {
       </BottomButtonBar>
 
       {/* 고객용 첫 화면 (견적서 표지 · 표준약관) */}
-      {sheetOpen && sheetCover && (
-        <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden bg-[#F2F5FA]">
-          <header className="flex h-[88px] w-full items-center justify-center bg-[#0864DC]">
-            <span className="text-[30px] font-black tracking-tight text-white">JIMPICK</span>
-            <span className="ml-2 text-[16px] font-bold text-white/95">짐픽</span>
-          </header>
-          <div className="mx-auto w-full max-w-[430px] px-4 pb-12 pt-3">
-            <div className="flex justify-center">
-              <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-[14px] font-bold text-[#111827] shadow-[0_2px_10px_rgba(17,24,39,0.10)]">
-                <ShieldCheck className="h-[18px] w-[18px] text-[#12A150]" /> 보안이 적용된 안전한
-                링크입니다
-              </span>
-            </div>
-
-            <h1 className="mt-4 text-center text-[28px] font-black leading-tight text-[#111827]">
-              이사 견적서 · 표준약관
-            </h1>
-
-            {/* 고객 요약 카드 */}
-            <div className="mt-4 rounded-[14px] bg-white shadow-[0_2px_12px_rgba(17,24,39,0.10)]">
-              <div className="px-5 pt-1">
-                <div className="flex items-center gap-2.5 border-b border-[#EDF0F5] py-3.5">
-                  <User className="h-[26px] w-[26px] shrink-0 text-[#0864DC]" />
-                  <span className="truncate text-[22px] font-black text-[#111827]">
-                    {draft.customerName || "고객"} 고객님
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-3 border-b border-[#EDF0F5] py-3.5">
-                  <span className="inline-flex min-w-0 items-center gap-2.5">
-                    <Calendar className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
-                    <span className="text-[19px] font-bold text-[#111827]">이사일</span>
-                  </span>
-                  <span className="whitespace-nowrap text-[19px] font-black text-[#0864DC]">
-                    {String(draft.moveDate || "").split("-").join(". ")}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-3 py-3.5">
-                  <span className="inline-flex min-w-0 items-center gap-2.5">
-                    <CircleDollarSign className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
-                    <span className="text-[19px] font-bold text-[#111827]">총 견적금액</span>
-                  </span>
-                  <span className="whitespace-nowrap text-[24px] font-black text-[#0864DC]">
-                    {won(total)}
-                  </span>
-                </div>
-              </div>
-              <div className="px-3.5 pb-3.5">
-                <button
-                  onClick={() => {
-                    tap("soft");
-                    setSheetCover(false);
-                  }}
-                  className="flex w-full items-center justify-between rounded-xl bg-gradient-to-b from-[#1B76EF] to-[#0757C4] px-4 py-4 text-[20px] font-black text-white shadow-[0_4px_12px_rgba(8,100,220,0.35)]"
-                >
-                  <span className="inline-flex items-center gap-2.5">
-                    <FileText className="h-[22px] w-[22px]" /> 견적서 보기
-                  </span>
-                  <ChevronRight className="h-[22px] w-[22px]" />
-                </button>
-              </div>
-            </div>
-
-            {/* 표준약관 카드 */}
-            <div className="mt-4 rounded-[14px] bg-white p-5 shadow-[0_2px_12px_rgba(17,24,39,0.10)]">
-              <div className="flex items-start gap-2.5">
-                <ShieldCheck className="mt-0.5 h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
-                <div className="min-w-0">
-                  <div className="text-[19px] font-black text-[#111827]">{TERMS_NAME}</div>
-                  <div className="text-[13px] font-semibold text-[#6B7280]">{TERMS_SOURCE}</div>
-                </div>
-              </div>
-              <div className="mt-3">
-                {TERMS_SUMMARY.slice(0, 5).map((s, i) => (
-                  <button
-                    key={s.title}
-                    onClick={() => setCoverFull(true)}
-                    className={`flex w-full items-center justify-between gap-3 py-3.5 text-left ${
-                      i < 4 ? "border-b border-[#EDF0F5]" : ""
-                    }`}
-                  >
-                    <span className="inline-flex min-w-0 items-center gap-2.5">
-                      <FileText className="h-[20px] w-[20px] shrink-0 text-[#0864DC]" />
-                      <span className="truncate text-[17px] font-bold text-[#111827]">
-                        {s.title}
-                      </span>
-                    </span>
-                    <ChevronRight className="h-[20px] w-[20px] shrink-0 text-[#9CA3AF]" />
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setCoverFull((v) => !v)}
-                className="mt-2 flex w-full items-center justify-between rounded-xl border border-[#0864DC] bg-white px-4 py-3.5 text-[17px] font-black text-[#0864DC]"
-              >
-                약관 전체보기
-                {coverFull ? (
-                  <ChevronDown className="h-[20px] w-[20px]" />
-                ) : (
-                  <ChevronRight className="h-[20px] w-[20px]" />
-                )}
-              </button>
-              {coverFull && (
-                <div className="mt-3 max-h-[45vh] space-y-3 overflow-y-auto rounded-xl bg-[#F7F9FC] p-3.5">
-                  {TERMS_FULL.map((t) => (
-                    <div key={t.article}>
-                      <div className="text-[15px] font-black text-[#111827]">
-                        {t.article} ({t.title})
-                      </div>
-                      <p className="mt-1 text-[14px] font-medium leading-relaxed text-[#4B5563]">
-                        {t.body}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/*
-              고객 화면에 어떻게 보이는지만 보여 줍니다.
-              업체가 고객 대신 동의를 누를 수 없도록 눌리지 않게 막아 두었습니다.
-              (데이터베이스에도 업체용 쓰기 권한이 없습니다)
-            */}
-            <div className="mt-4 rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_12px_rgba(17,24,39,0.08)]">
-              <div className="text-[15px] font-bold text-[#6B7280]">
-                아래는 고객 화면 미리보기입니다
-              </div>
-              <div className="mt-2.5 flex items-center gap-3 opacity-60">
-                <input
-                  type="checkbox"
-                  checked={false}
-                  readOnly
-                  disabled
-                  aria-label="고객이 직접 선택하는 확인란"
-                  className="h-[28px] w-[28px] shrink-0 accent-[#0864DC]"
-                />
-                <span className="text-[17px] font-bold text-[#111827]">
-                  견적서와 약관을 확인했습니다
-                </span>
-              </div>
-              <div
-                aria-disabled
-                className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-xl bg-[#C7D6EE] px-4 py-4 text-[20px] font-black text-white"
-              >
-                <CheckCircle2 className="h-[24px] w-[24px]" />
-                동의하고 예약 확정
-              </div>
-              <div className="mt-2.5 text-[15px] text-[#6B7280]">
-                이 확인란과 버튼은 고객 화면에서만 눌립니다. 업체는 대신 동의할 수 없습니다.
-              </div>
-            </div>
-
-            <a
-              href={draft.staffPhone?.trim() ? `tel:${draft.staffPhone.trim()}` : undefined}
-              className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-xl border border-[#0864DC] bg-white px-4 py-4 text-[18px] font-black text-[#0864DC]"
-            >
-              <Headphones className="h-[22px] w-[22px]" /> 문의하기
-            </a>
-
-            <button
-              onClick={() => {
-                setSheetOpen(false);
-                setSheetEdit(false);
-              }}
-              className="mt-4 w-full py-3 text-[15px] font-bold text-[#6B7280]"
-            >
-              닫기
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* 종이 견적서 */}
-      {sheetOpen && !sheetCover && (
+      {sheetOpen && (
         <div className="fixed inset-0 z-50 flex flex-col bg-[#E9EFF8]">
 
           <div className="flex items-center gap-2 border-b border-[#DCE8FA] bg-white px-4 py-3">
@@ -3618,15 +3459,6 @@ export function Result() {
             <div className="text-[16px] font-black text-[#0F172A]">
               {sheetEdit ? "견적서 수정" : "이사 견적서"}
             </div>
-            <button
-              onClick={() => {
-                tap("soft");
-                setSheetCover(true);
-              }}
-              className="shrink-0 whitespace-nowrap rounded-full border border-[#DCE8FA] px-2.5 py-1 text-[12px] font-bold text-[#0864DC]"
-            >
-              고객 화면
-            </button>
             {draft.sheetConfirmedAt && (
               <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-[11px] font-black text-[#15803D]">
                 확정
@@ -3733,149 +3565,10 @@ export function Result() {
                 total={total}
                 companyPhone={draft.staffPhone ?? ""}
                 acceptedAt={termsStatus?.acceptedAt ?? null}
-                onOpenTerms={() => {
-                  tap("soft");
-                  setTermsFullOpen(true);
-                  // 약관 영역이 보이도록 아래로 내려 줍니다
-                  window.setTimeout(() => {
-                    document
-                      .getElementById("jp-sheet-terms")
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 60);
-                }}
+                acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
+                acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
               />
             )}
-          </div>
-
-          {/* 고객에게 발송할 약관 — 보는 것만 됩니다. 동의는 고객이 직접 합니다. */}
-          <div id="jp-sheet-terms" className="border-t border-[#DCE8FA] bg-white px-4 pt-4">
-            <div className="rounded-[14px] border border-[#DCE8FA] bg-white p-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
-              <div className="text-[17px] font-black text-[#111827]">고객에게 발송할 약관</div>
-              <div className="mt-2.5 flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-[16px] font-bold text-[#111827]">{TERMS_NAME}</div>
-                  <div className="mt-0.5 text-[15px] text-[#6B7280]">{TERMS_SOURCE}</div>
-                </div>
-                <span className="shrink-0 whitespace-nowrap rounded-full border border-[#DCE8FA] px-2.5 py-1 text-[15px] font-bold text-[#0864DC]">
-                  {TERMS_VERSION}
-                </span>
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => {
-                    tap("soft");
-                    setTermsPreviewOpen((v) => !v);
-                  }}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-[#0864DC] bg-white py-3 text-[16px] font-black text-[#0864DC] active:translate-y-[1px]"
-                >
-                  <FileText className="h-[19px] w-[19px]" strokeWidth={1.9} /> 약관 미리보기
-                </button>
-                <button
-                  onClick={() => {
-                    tap("soft");
-                    setTermsFullOpen((v) => !v);
-                  }}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-[#0864DC] bg-white py-3 text-[16px] font-black text-[#0864DC] active:translate-y-[1px]"
-                >
-                  <BookOpen className="h-[19px] w-[19px]" strokeWidth={1.9} /> 약관 전체보기
-                </button>
-              </div>
-
-              {termsPreviewOpen && (
-                <div className="mt-3 rounded-[14px] bg-[#F7F9FC] p-3.5">
-                  {TERMS_SUMMARY.map((t, i) => (
-                    <div key={t.title} className={i > 0 ? "mt-2.5" : ""}>
-                      <div className="text-[16px] font-bold text-[#111827]">{t.title}</div>
-                      <div className="mt-0.5 text-[15px] leading-relaxed text-[#4B5563]">
-                        {t.body}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {termsFullOpen && (
-                <div className="mt-3 max-h-[45vh] space-y-3 overflow-y-auto rounded-[14px] bg-[#F7F9FC] p-3.5">
-                  {TERMS_FULL.map((t) => (
-                    <div key={t.article}>
-                      <div className="text-[16px] font-black text-[#111827]">
-                        {t.article} ({t.title})
-                      </div>
-                      <div className="mt-0.5 whitespace-pre-line text-[15px] leading-relaxed text-[#4B5563]">
-                        {t.body}
-                      </div>
-                    </div>
-                  ))}
-                  <div className="text-[14px] text-[#6B7280]">
-                    {TERMS_NOTICE} · 적용일 {TERMS_EFFECTIVE_AT}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 고객 동의 상태 — 고객이 직접 동의해야만 바뀝니다 */}
-            <div className="mt-3 rounded-[14px] border border-[#DCE8FA] bg-white p-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
-              <div className="flex items-center gap-2">
-                <div className="text-[17px] font-black text-[#111827]">고객 동의 상태</div>
-                {termsLoading ? (
-                  <span className="rounded-full bg-[#F1F5FA] px-2.5 py-1 text-[15px] font-bold text-[#6B7280]">
-                    확인 중…
-                  </span>
-                ) : termsStatus?.acceptedAt ? (
-                  <span className="rounded-full bg-[#DCFCE7] px-2.5 py-1 text-[15px] font-bold text-[#15803D]">
-                    고객 동의 완료
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-[#FEF3C7] px-2.5 py-1 text-[15px] font-bold text-[#B45309]">
-                    동의 대기
-                  </span>
-                )}
-                <button
-                  onClick={() => {
-                    tap("soft");
-                    loadTermsStatus();
-                  }}
-                  className="ml-auto shrink-0 whitespace-nowrap text-[15px] font-bold text-[#0864DC]"
-                >
-                  새로고침
-                </button>
-              </div>
-              <div className="mt-2.5 space-y-1.5">
-                <div className="flex items-start justify-between gap-3">
-                  <span className="shrink-0 text-[15px] text-[#6B7280]">동의 일시</span>
-                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
-                    {termsStatus?.acceptedAt
-                      ? new Date(termsStatus.acceptedAt).toLocaleString("ko-KR")
-                      : "아직 동의하지 않음"}
-                  </span>
-                </div>
-                <div className="flex items-start justify-between gap-3">
-                  <span className="shrink-0 text-[15px] text-[#6B7280]">동의한 견적서 버전</span>
-                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
-                    {termsStatus?.acceptedSheetVersion
-                      ? `${termsStatus.acceptedSheetVersion}차 견적서`
-                      : `${draft.sheetVersion ?? 1}차 견적서 (발송본)`}
-                  </span>
-                </div>
-                <div className="flex items-start justify-between gap-3">
-                  <span className="shrink-0 text-[15px] text-[#6B7280]">동의한 약관 버전</span>
-                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
-                    {termsStatus?.acceptedTermsVersion ?? `${TERMS_VERSION} (발송본)`}
-                  </span>
-                </div>
-                {termsStatus?.sentAt && (
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="shrink-0 text-[15px] text-[#6B7280]">약관 발송 일시</span>
-                    <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
-                      {new Date(termsStatus.sentAt).toLocaleString("ko-KR")}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="mt-2 text-[15px] text-[#6B7280]">
-                고객이 직접 동의한 후 자동으로 표시됩니다. 업체는 대신 동의할 수 없습니다.
-              </div>
-            </div>
           </div>
 
           <div className="border-t border-[#DCE8FA] bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
