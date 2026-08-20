@@ -61,7 +61,6 @@ export interface EstimateSheetProps {
   parts: { label: string; amount: number }[];
   total: number;
   /** 화면 캡처(PDF·이미지)를 위해 바깥에서 참조를 받습니다 */
-  companyName?: string;
   companyPhone?: string;
 }
 

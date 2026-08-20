@@ -3635,6 +3635,15 @@ export function Result() {
             <div className="text-[16px] font-black text-[#0F172A]">
               {sheetEdit ? "견적서 수정" : "이사 견적서"}
             </div>
+            <button
+              onClick={() => {
+                tap("soft");
+                setSheetCover(true);
+              }}
+              className="shrink-0 whitespace-nowrap rounded-full border border-[#DCE8FA] px-2.5 py-1 text-[12px] font-bold text-[#0864DC]"
+            >
+              고객 화면
+            </button>
             {draft.sheetConfirmedAt && (
               <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-[11px] font-black text-[#15803D]">
                 확정
