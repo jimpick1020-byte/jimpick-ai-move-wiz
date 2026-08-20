@@ -2839,7 +2839,7 @@ export function Result() {
   /** 종이 견적서 화면 */
   const [sheetOpen, setSheetOpen] = useState(false);
   /** 견적서를 열면 먼저 보이는 고객용 표지 화면 (표는 「견적서 보기」에서만) */
-  const [sheetCover, setSheetCover] = useState(true);
+  const [sheetCover, setSheetCover] = useState(false);
   const [coverFull, setCoverFull] = useState(false);
   const [sheetEdit, setSheetEdit] = useState(false);
   const [confirmSheet, setConfirmSheet] = useState(false);

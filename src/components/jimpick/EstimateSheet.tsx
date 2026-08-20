@@ -66,7 +66,7 @@ export interface EstimateSheetProps {
 }
 
 export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(function EstimateSheet(
-  { draft, rooms, parts, total, companyName = "짐픽 이사", companyPhone },
+  { draft, rooms, parts, total, companyPhone },
   ref,
 ) {
   const transport = parts
@@ -236,12 +236,6 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             </tbody>
           </table>
 
-          {(companyName || companyPhone) && (
-            <p className="mt-3 text-center text-[13px] font-bold text-[#6B7280]">
-              {companyName}
-              {companyPhone ? ` · ${companyPhone}` : ""}
-            </p>
-          )}
         </div>
       </div>
     </div>
