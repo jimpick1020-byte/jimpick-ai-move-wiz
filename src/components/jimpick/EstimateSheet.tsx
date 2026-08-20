@@ -61,12 +61,11 @@ export interface EstimateSheetProps {
   parts: { label: string; amount: number }[];
   total: number;
   /** 화면 캡처(PDF·이미지)를 위해 바깥에서 참조를 받습니다 */
-  companyName?: string;
   companyPhone?: string;
 }
 
 export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(function EstimateSheet(
-  { draft, rooms, parts, total, companyName = "짐픽 이사", companyPhone },
+  { draft, rooms, parts, total, companyPhone },
   ref,
 ) {
   const transport = parts
@@ -124,6 +123,12 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
               <Row label="고객명" value={draft.customerName ? `${draft.customerName} 님` : ""} />
               <Row label="연락처" value={draft.phone} />
               <Row label="이사일" value={draft.moveDate ? ymd(draft.moveDate) : ""} />
+              <Row label="시작 시간" value={String(draft.moveTime || "").trim()} />
+              <Row label="이동 거리" value={draft.distanceKm ? `${draft.distanceKm}km` : ""} />
+              <Row
+                label="예상 이동시간"
+                value={draft.durationMin ? `${draft.durationMin}분` : ""}
+              />
               <Row label="출발지" value={`${draft.fromAddress} ${draft.fromDetail || ""}`.trim()} />
               <Row label="도착지" value={`${draft.toAddress} ${draft.toDetail || ""}`.trim()} />
               <Row label="층수" value={floorText} />
@@ -141,27 +146,34 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                 <span className="text-[17px] font-black text-[#0751D8]">선택 품목</span>
                 <span className="h-px w-10 bg-[#8FB3E4]" />
               </div>
-              <table className="w-full border-collapse">
-                <tbody>
-                  {rooms.map((r) => (
-                    <tr key={r.name} className="break-inside-avoid">
-                      <td className="w-[104px] border border-[#C9DBF5] px-1.5 py-2 align-middle">
-                        <div className="flex items-center justify-center gap-0.5">
-                          {r.items.slice(0, 3).map((it) => (
-                            <ItemArt key={it.id} id={it.id} name={it.name} size={30} />
-                          ))}
-                        </div>
-                      </td>
-                      <td className="border border-[#C9DBF5] px-2.5 py-2">
-                        <span className="mr-2 text-[16px] font-black text-[#0751D8]">{r.name}</span>
-                        <span className="text-[15px] font-bold leading-relaxed text-[#111827]">
-                          {r.items.map((it) => `${it.name} ${it.qty}`).join(" · ")}
+              <div className="space-y-2">
+                {rooms.map((r) => (
+                  <div
+                    key={r.name}
+                    className="break-inside-avoid rounded-md border border-[#C9DBF5] px-2.5 py-2"
+                  >
+                    <div className="text-[15px] font-black text-[#0751D8]">
+                      {r.name}
+                      <span className="ml-1.5 text-[13px] font-bold text-[#6B7280]">
+                        품목 {r.items.length}종 · 총 {r.items.reduce((s, it) => s + it.qty, 0)}개
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-2">
+                      {r.items.map((it) => (
+                        <span
+                          key={it.id + it.name}
+                          className="flex min-w-0 items-center gap-1.5"
+                        >
+                          <ItemArt id={it.id} name={it.name} size={48} />
+                          <span className="text-[14px] font-bold leading-tight text-[#111827]">
+                            {it.name} {it.qty}
+                          </span>
                         </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </>
           )}
 
@@ -223,12 +235,6 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             </tbody>
           </table>
 
-          {(companyName || companyPhone) && (
-            <p className="mt-3 text-center text-[13px] font-bold text-[#6B7280]">
-              {companyName}
-              {companyPhone ? ` · ${companyPhone}` : ""}
-            </p>
-          )}
         </div>
       </div>
     </div>
