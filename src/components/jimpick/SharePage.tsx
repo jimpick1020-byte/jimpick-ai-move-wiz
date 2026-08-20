@@ -105,7 +105,8 @@ export function SharePage() {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [link, setLink] = useState<TermsLinkInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [openSheet, setOpenSheet] = useState(false);
+  // 고객은 링크를 열면 바로 견적서를 봅니다 (한 번 더 누르지 않습니다)
+  const [openSheet, setOpenSheet] = useState(true);
   const [openFull, setOpenFull] = useState(false);
   const [openSummary, setOpenSummary] = useState<number | null>(null);
   const [checked, setChecked] = useState(false);
@@ -364,82 +365,16 @@ export function SharePage() {
       </div>
 
       {/* 제목 */}
-      <h1 className="mt-4 text-center text-[26px] font-black leading-tight text-[#111827] sm:text-[30px]">
+      <h1 className="mt-4 mb-1 text-center text-[26px] font-black leading-tight text-[#111827] sm:text-[30px]">
         이사 견적서 · 표준약관
       </h1>
 
-      {/* 견적 요약 */}
-      <div className="mt-4 rounded-[14px] bg-white shadow-[0_2px_12px_rgba(17,24,39,0.10)]">
-        <div className="px-[22px] pt-1">
-          {!hasData ? (
-            <div className="py-6 text-center text-[16px] font-bold text-[#6B7280]">
-              정보를 불러올 수 없습니다
-            </div>
-          ) : (
-            <>
-              <div className="border-b border-[#EDF0F5]">
-                <Row>
-                  <User className="h-[26px] w-[26px] shrink-0 text-[#0864DC]" />
-                  <span className="truncate text-[22px] font-black text-[#111827]">
-                    {customerName} 고객님
-                  </span>
-                </Row>
-              </div>
-              <div className="border-b border-[#EDF0F5]">
-                <div className="flex items-center justify-between gap-3 py-3.5">
-                  <span className="inline-flex min-w-0 items-center gap-2.5">
-                    <Calendar className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
-                    <span className="text-[19px] font-bold text-[#111827]">이사일</span>
-                  </span>
-                  <span className="whitespace-nowrap text-[19px] font-black text-[#0864DC]">
-                    {moveDate}
-                  </span>
-                </div>
-              </div>
-              <div className="border-b border-[#EDF0F5]">
-                <div className="flex items-center justify-between gap-3 py-3.5">
-                  <span className="inline-flex min-w-0 items-center gap-2.5">
-                    <CircleDollarSign className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
-                    <span className="text-[19px] font-bold text-[#111827]">총 견적금액</span>
-                  </span>
-                  <span className="whitespace-nowrap text-[24px] font-black text-[#0864DC]">
-                    {won(total)}
-                  </span>
-                </div>
-              </div>
-              {/* 견적서 번호와 차수 — 어떤 견적서인지 고객이 확인할 수 있게 적습니다 */}
-              <div className="flex items-center justify-between gap-3 py-3.5">
-                <span className="inline-flex min-w-0 items-center gap-2.5">
-                  <FileText className="h-[24px] w-[24px] shrink-0 text-[#0864DC]" />
-                  <span className="text-[19px] font-bold text-[#111827]">견적서</span>
-                </span>
-                <span className="min-w-0 truncate text-right text-[16px] font-bold text-[#4B5563]">
-                  {sheetNo ? `${sheetNo} · ` : ""}
-                  {sheetVersion}차
-                </span>
-              </div>
-            </>
-          )}
+      {/* 정보를 못 불러온 경우에만 안내합니다 */}
+      {!hasData && (
+        <div className="mt-4 rounded-[14px] bg-white px-4 py-6 text-center text-[16px] font-bold text-[#6B7280] shadow-[0_2px_12px_rgba(17,24,39,0.10)]">
+          정보를 불러올 수 없습니다
         </div>
-        <div className="px-3.5 pb-3.5">
-          <button
-            onClick={() => setOpenSheet((v) => !v)}
-            // 고객 휴대폰에는 이 기기에 저장된 견적이 없으므로,
-            // 토큰으로 받아 온 요약만 있어도 열 수 있게 합니다
-            disabled={!estimate && !hasData}
-            className="flex w-full items-center justify-between rounded-xl bg-gradient-to-b from-[#1B76EF] to-[#0757C4] px-4 py-4 text-[20px] font-black text-white shadow-[0_4px_12px_rgba(8,100,220,0.35)] disabled:opacity-50"
-          >
-            <span className="inline-flex items-center gap-2.5">
-              <FileText className="h-[22px] w-[22px]" /> 견적서 보기
-            </span>
-            {openSheet ? (
-              <ChevronDown className="h-[22px] w-[22px]" />
-            ) : (
-              <ChevronRight className="h-[22px] w-[22px]" />
-            )}
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* 견적서 상세 */}
       {/* 이 기기에 견적 원본이 없을 때 — 링크로 받아 온 값만으로 보여 줍니다 */}

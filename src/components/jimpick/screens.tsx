@@ -18,7 +18,6 @@ import {
   Truck,
   ArrowUpDown,
   Video,
-  Send,
   Link as LinkIcon,
   X,
   ChevronDown,
@@ -3047,8 +3046,6 @@ export function Result() {
   useEffect(() => {
     if (draft.total !== total) updateDraft({ total });
   }, [total, draft.total, updateDraft]);
-  const summaryText = () =>
-    `[JIMPICK 견적]\n${draft.customerName}님\n이사일: ${formatMoveDateTime(draft.moveDate, draft.moveTime)}\n${draft.fromAddress} → ${draft.toAddress}\n예상 견적: ${won(total)}`;
   /** 고객용 보안 토큰 — 견적번호와 차수로 만듭니다 */
   const shareToken = () => `${draft.id}-v${draft.sheetVersion ?? 1}`;
   /** 고객이 열어 볼 견적서·약관 주소 */
@@ -3118,13 +3115,6 @@ export function Result() {
       return;
     }
     window.location.href = smsHref(draft.phone, body);
-  };
-  const sendKakao = () => {
-    tap("soft");
-    void navigator.clipboard?.writeText(summaryText()).catch(() => {});
-    toast("카카오톡 발송은 준비 중인 기능입니다", {
-      description: "견적 내용을 복사했습니다. 공유 링크와 함께 전달해 주세요.",
-    });
   };
 
   return (
@@ -3387,21 +3377,6 @@ export function Result() {
             </>
           )}
         </Card>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={sendSMS}
-            className="py-4 rounded-2xl bg-white border border-[#DFE6F2] font-bold flex items-center justify-center gap-2 shadow-[0_4px_0_#E3E9F5,0_10px_20px_-8px_rgba(15,23,42,0.25)] active:translate-y-[2px] active:shadow-[0_2px_0_#E3E9F5]"
-          >
-            <MessageSquare className="w-5 h-5" /> 문자 발송
-          </button>
-          <button
-            onClick={sendKakao}
-            className="py-4 rounded-2xl font-bold flex items-center justify-center gap-2 text-[#3C1E1E] shadow-[0_4px_0_#D8B400,0_10px_20px_-8px_rgba(250,225,0,0.6)] active:translate-y-[2px] active:shadow-[0_2px_0_#D8B400]"
-            style={{ background: "linear-gradient(180deg, #FFEE58 0%, #FAE100 100%)" }}
-          >
-            <Send className="w-5 h-5" /> 카카오톡 발송
-          </button>
-        </div>
         <button
           onClick={openSheet}
           className="w-full py-4 rounded-2xl font-black text-[16px] text-white flex items-center justify-center gap-2 shadow-[0_5px_0_#0640A8,0_12px_24px_-10px_rgba(7,81,216,0.5)] active:translate-y-[3px] active:shadow-[0_2px_0_#0640A8]"

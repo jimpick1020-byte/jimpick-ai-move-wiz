@@ -194,18 +194,19 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
       <div className="space-y-3 px-3 pt-3">
         {/* 제목 · 견적번호 · 확정 */}
         <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
-          <div className="flex items-start justify-between gap-3">
+          {/* 견적번호는 줄여 쓰지 않고 아래에 한 줄로 적습니다 */}
+          {draft.sheetNo && (
+            <div className="mb-1 text-right text-[15px] font-bold text-[#6B7280]">
+              {draft.sheetNo}
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-3">
             <h1 className="shrink-0 whitespace-nowrap text-[24px] font-black leading-tight text-[#111827]">
               짐픽 이사 견적서
             </h1>
-            <div className="min-w-0 flex-1 text-right">
-              {draft.sheetNo && (
-                <div className="truncate text-[15px] font-bold text-[#6B7280]">
-                  {draft.sheetNo}
-                </div>
-              )}
+            <div className="shrink-0 text-right">
               <div
-                className={`mt-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-[15px] font-bold ${
+                className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-[15px] font-bold ${
                   confirmed
                     ? "border-[#BBF7D0] bg-[#F0FDF4] text-[#15803D]"
                     : "border-[#FDE68A] bg-[#FFFBEB] text-[#B45309]"
