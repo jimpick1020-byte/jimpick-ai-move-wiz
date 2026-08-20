@@ -124,6 +124,12 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
               <Row label="고객명" value={draft.customerName ? `${draft.customerName} 님` : ""} />
               <Row label="연락처" value={draft.phone} />
               <Row label="이사일" value={draft.moveDate ? ymd(draft.moveDate) : ""} />
+              <Row label="시작 시간" value={String(draft.moveTime || "").trim()} />
+              <Row label="이동 거리" value={draft.distanceKm ? `${draft.distanceKm}km` : ""} />
+              <Row
+                label="예상 이동시간"
+                value={draft.durationMin ? `${draft.durationMin}분` : ""}
+              />
               <Row label="출발지" value={`${draft.fromAddress} ${draft.fromDetail || ""}`.trim()} />
               <Row label="도착지" value={`${draft.toAddress} ${draft.toDetail || ""}`.trim()} />
               <Row label="층수" value={floorText} />
