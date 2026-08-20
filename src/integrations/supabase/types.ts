@@ -26,6 +26,7 @@ export type Database = {
           sent_at: string | null
           sent_msg_id: string | null
           sheet_no: string | null
+          sheet_snapshot: string | null
           sheet_version: number
           terms_document_id: string | null
           terms_effective_at: string | null
@@ -47,6 +48,7 @@ export type Database = {
           sent_at?: string | null
           sent_msg_id?: string | null
           sheet_no?: string | null
+          sheet_snapshot?: string | null
           sheet_version?: number
           terms_document_id?: string | null
           terms_effective_at?: string | null
@@ -68,6 +70,7 @@ export type Database = {
           sent_at?: string | null
           sent_msg_id?: string | null
           sheet_no?: string | null
+          sheet_snapshot?: string | null
           sheet_version?: number
           terms_document_id?: string | null
           terms_effective_at?: string | null

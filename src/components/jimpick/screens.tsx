@@ -2939,6 +2939,14 @@ export function Result() {
               accessToken: shareToken(),
               sentAt: r.sentAt,
               sentMsgId: r.msgId,
+              // 고객 화면에 사장님 화면과 똑같은 견적서를 그리기 위해
+              // 보내는 순간의 견적서를 통째로 담아 보냅니다
+              sheetSnapshot: JSON.stringify({
+                draft,
+                rooms: sheetRooms,
+                parts,
+                total,
+              }).slice(0, 300_000),
             },
           });
         } catch (e) {
@@ -3739,12 +3747,24 @@ export function Result() {
                 rooms={sheetRooms}
                 parts={parts}
                 total={total}
+                companyPhone={draft.staffPhone ?? ""}
+                acceptedAt={termsStatus?.acceptedAt ?? null}
+                onOpenTerms={() => {
+                  tap("soft");
+                  setTermsFullOpen(true);
+                  // 약관 영역이 보이도록 아래로 내려 줍니다
+                  window.setTimeout(() => {
+                    document
+                      .getElementById("jp-sheet-terms")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 60);
+                }}
               />
             )}
           </div>
 
           {/* 고객에게 발송할 약관 — 보는 것만 됩니다. 동의는 고객이 직접 합니다. */}
-          <div className="border-t border-[#DCE8FA] bg-white px-4 pt-4">
+          <div id="jp-sheet-terms" className="border-t border-[#DCE8FA] bg-white px-4 pt-4">
             <div className="rounded-[14px] border border-[#DCE8FA] bg-white p-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
               <div className="text-[17px] font-black text-[#111827]">고객에게 발송할 약관</div>
               <div className="mt-2.5 flex items-start justify-between gap-2">

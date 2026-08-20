@@ -39,6 +39,7 @@ import {
 } from "@/lib/terms";
 import { Card } from "./ui";
 import { acceptTerms, getTermsLink, type TermsLinkInfo } from "@/lib/terms.functions";
+import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 
 /** 이 기기에 남기는 동의 기록 (새로고침해도 상태가 유지됩니다) */
 interface LocalAcceptance {
@@ -140,12 +141,43 @@ export function SharePage() {
 
   const localCalc = useMemo(() => (estimate ? calcEstimate(estimate) : null), [estimate]);
 
+  /**
+   * 사장님이 문자를 보낼 때 함께 담아 둔 견적서 원본.
+   * 이게 있으면 사장님 화면과 똑같은 견적서를 그대로 보여 줍니다.
+   */
+  const sentSheet = useMemo(() => {
+    const raw = link?.ok ? link.sheetSnapshot : null;
+    if (!raw) return null;
+    try {
+      const v = JSON.parse(raw) as {
+        draft?: Estimate;
+        rooms?: SheetRoom[];
+        parts?: { label: string; amount: number }[];
+        total?: number;
+      };
+      if (!v?.draft || !Array.isArray(v.rooms)) return null;
+      return {
+        draft: v.draft,
+        rooms: v.rooms,
+        parts: Array.isArray(v.parts) ? v.parts : [],
+        total: typeof v.total === "number" ? v.total : 0,
+      };
+    } catch {
+      return null;
+    }
+  }, [link]);
+
   // 실제 데이터: 서버(토큰 조회) 우선, 없으면 이 기기에 저장된 견적
   const customerName = (link?.ok ? link.customerName : "") || estimate?.customerName || "";
   const moveDate = ymd(link?.ok ? link.moveDate : estimate?.moveDate);
-  const total = link?.ok && typeof link.total === "number" && link.total > 0
-    ? link.total
-    : (localCalc?.total ?? 0);
+  // 위쪽 요약 금액과 아래 견적서 금액이 서로 다르면 안 됩니다.
+  // 사장님이 보낸 견적서 원본이 있으면 그 금액을 먼저 씁니다.
+  const total =
+    sentSheet && sentSheet.total > 0
+      ? sentSheet.total
+      : link?.ok && typeof link.total === "number" && link.total > 0
+        ? link.total
+        : (localCalc?.total ?? 0);
   const contactPhone = ((link?.ok ? link.contactPhone : "") || estimate?.staffPhone || "").trim();
   /** 견적서 번호와 차수 — 서버(토큰) 값을 먼저 씁니다 */
   const sheetNo = ((link?.ok ? link.sheetNo : "") || estimate?.sheetNo || "").trim();
@@ -411,7 +443,23 @@ export function SharePage() {
 
       {/* 견적서 상세 */}
       {/* 이 기기에 견적 원본이 없을 때 — 링크로 받아 온 값만으로 보여 줍니다 */}
-      {openSheet && !(estimate && localCalc) && hasData && (
+      {/* 사장님이 보낸 견적서 원본 — 사장님 화면과 똑같이 보입니다 */}
+      {openSheet && sentSheet && (
+        <div className="mt-4 overflow-hidden rounded-[14px]">
+          <EstimateSheet
+            draft={sentSheet.draft}
+            rooms={sentSheet.rooms}
+            parts={sentSheet.parts}
+            total={sentSheet.total}
+            companyPhone={contactPhone}
+            acceptedAt={accepted ? new Date(accepted.acceptedAt).toISOString() : null}
+            forCustomer
+            onOpenTerms={() => setOpenFull(true)}
+          />
+        </div>
+      )}
+
+      {openSheet && !sentSheet && !(estimate && localCalc) && hasData && (
         <div className="mt-4">
           <Card className="space-y-2 text-[16px]">
             <div className="text-[17px] font-black">견적서 요약</div>
@@ -444,7 +492,7 @@ export function SharePage() {
         </div>
       )}
 
-      {openSheet && estimate && localCalc && (
+      {openSheet && !sentSheet && estimate && localCalc && (
         <div className="mt-4 space-y-4">
           <Card className="space-y-2 text-[16px]">
             <div className="text-[17px] font-black">이사 정보</div>

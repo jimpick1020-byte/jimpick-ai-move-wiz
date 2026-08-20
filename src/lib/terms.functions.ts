@@ -28,6 +28,8 @@ export interface TermsLinkInfo {
   /** 이미 동의했으면 그 일시 */
   acceptedAt?: string | null;
   acceptMethod?: string | null;
+  /** 보낼 때의 견적서 원본(JSON 글). 고객 화면에 그대로 그립니다 */
+  sheetSnapshot?: string | null;
 }
 
 /** 업체가 견적서·약관 문자를 보낼 때 기록합니다 */
@@ -49,6 +51,8 @@ export const publishEstimateTerms = createServerFn({ method: "POST" })
         accessToken: z.string().min(8).max(80),
         sentAt: z.number().optional(),
         sentMsgId: z.string().max(80).optional(),
+        /** 보낼 때의 견적서 원본(JSON 글) — 고객 화면에 그대로 보여 줍니다 */
+        sheetSnapshot: z.string().max(300_000).optional(),
       })
       .parse(d),
   )
@@ -69,6 +73,7 @@ export const publishEstimateTerms = createServerFn({ method: "POST" })
         access_token: data.accessToken,
         sent_at: new Date(data.sentAt ?? Date.now()).toISOString(),
         sent_msg_id: data.sentMsgId ?? null,
+        sheet_snapshot: data.sheetSnapshot ?? null,
       },
       { onConflict: "user_id,estimate_id,sheet_version" },
     );
@@ -89,7 +94,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("estimate_terms")
       .select(
-        "id, customer_name, move_date, total, contact_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at",
+        "id, customer_name, move_date, total, contact_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot",
       )
       .eq("access_token", data.token)
       .maybeSingle();
@@ -119,6 +124,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
       sentAt: row.sent_at,
       acceptedAt: acc?.accepted_at ?? null,
       acceptMethod: acc?.accept_method ?? null,
+      sheetSnapshot: (row as { sheet_snapshot?: string | null }).sheet_snapshot ?? null,
     };
   });
 
