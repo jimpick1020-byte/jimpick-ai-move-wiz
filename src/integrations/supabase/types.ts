@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      estimate_staff_shares: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          estimate_id: string
+          expires_at: string
+          id: string
+          last_opened_at: string | null
+          open_count: number
+          opened_at: string | null
+          revoked_at: string | null
+          secure_token_hash: string
+          share_method: string
+          shared_at: string | null
+          staff_name: string | null
+          staff_snapshot: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          estimate_id: string
+          expires_at: string
+          id?: string
+          last_opened_at?: string | null
+          open_count?: number
+          opened_at?: string | null
+          revoked_at?: string | null
+          secure_token_hash: string
+          share_method?: string
+          shared_at?: string | null
+          staff_name?: string | null
+          staff_snapshot?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          estimate_id?: string
+          expires_at?: string
+          id?: string
+          last_opened_at?: string | null
+          open_count?: number
+          opened_at?: string | null
+          revoked_at?: string | null
+          secure_token_hash?: string
+          share_method?: string
+          shared_at?: string | null
+          staff_name?: string | null
+          staff_snapshot?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       estimate_terms: {
         Row: {
           access_token: string
@@ -26,7 +83,6 @@ export type Database = {
           sent_at: string | null
           sent_msg_id: string | null
           sheet_no: string | null
-          sheet_snapshot: string | null
           sheet_version: number
           terms_document_id: string | null
           terms_effective_at: string | null
@@ -48,7 +104,6 @@ export type Database = {
           sent_at?: string | null
           sent_msg_id?: string | null
           sheet_no?: string | null
-          sheet_snapshot?: string | null
           sheet_version?: number
           terms_document_id?: string | null
           terms_effective_at?: string | null
@@ -70,7 +125,6 @@ export type Database = {
           sent_at?: string | null
           sent_msg_id?: string | null
           sheet_no?: string | null
-          sheet_snapshot?: string | null
           sheet_version?: number
           terms_document_id?: string | null
           terms_effective_at?: string | null
