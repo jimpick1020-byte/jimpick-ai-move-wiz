@@ -42,11 +42,23 @@ async function toDataUrl(src: string): Promise<string> {
 }
 
 /** 화면에 쓰인 글꼴·색 규칙을 그대로 옮겨 적습니다 */
-function collectCss(): string {
+function collectCss(el: HTMLElement): string {
   const out: string[] = [];
   for (const sheet of Array.from(document.styleSheets)) {
     try {
-      for (const rule of Array.from(sheet.cssRules)) out.push(rule.cssText);
+      for (const rule of Array.from(sheet.cssRules)) {
+        const sel = (rule as CSSStyleRule).selectorText;
+        if (!sel) {
+          out.push(rule.cssText);
+          continue;
+        }
+        try {
+          // 견적서에 실제로 쓰인 규칙만 담습니다 (주소가 너무 길어지지 않게)
+          if (el.matches(sel) || el.querySelector(sel)) out.push(rule.cssText);
+        } catch {
+          /* 쓸 수 없는 고르기 규칙은 건너뜁니다 */
+        }
+      }
     } catch {
       /* 다른 곳에서 온 규칙은 읽을 수 없습니다 — 건너뜁니다 */
     }
@@ -109,20 +121,21 @@ async function run(el: HTMLElement, fileName: string): Promise<SaveImageResult> 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
 <foreignObject width="100%" height="100%">
 <div xmlns="http://www.w3.org/1999/xhtml">
-<style><![CDATA[${collectCss().replace(/]]>/g, "]]&gt;")}]]></style>
+<style><![CDATA[${collectCss(el).replace(/]]>/g, "]]&gt;")}]]></style>
 ${new XMLSerializer().serializeToString(clone)}
 </div>
 </foreignObject></svg>`;
 
-  // 주소가 너무 길면 data: 로는 열리지 않으므로 파일 조각(blob)으로 만듭니다
-  const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  const url = URL.createObjectURL(svgBlob);
+  // 반드시 data: 주소를 씁니다.
+  // blob: 주소로 만든 그림을 캔버스에 그리면 크롬이 캔버스를 잠가 버려
+  // 파일로 내보낼 수 없습니다 (Tainted canvas).
+  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const im = new Image();
     im.onload = () => resolve(im);
     im.onerror = () => reject(new Error("견적서를 그림으로 옮기지 못했습니다."));
     im.src = url;
-  }).finally(() => URL.revokeObjectURL(url));
+  });
 
   // 3) 캔버스에 그려 PNG 로 만듭니다
   const canvas = document.createElement("canvas");
