@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearch } from "@tanstack/react-router";
 import {
   Phone,
@@ -40,6 +40,8 @@ import {
 import { Card } from "./ui";
 import { acceptTerms, getTermsLink, type TermsLinkInfo } from "@/lib/terms.functions";
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
+import { printSheet } from "@/lib/sheet-export";
+import { saveSheetAsPng } from "@/lib/sheet-image";
 
 /** 이 기기에 남기는 동의 기록 (새로고침해도 상태가 유지됩니다) */
 interface LocalAcceptance {
@@ -113,6 +115,62 @@ export function SharePage() {
   const [accepted, setAccepted] = useState<LocalAcceptance | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** 고객이 직접 저장할 때 쓰는 견적서 영역 */
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState<"" | "pdf" | "png">("");
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  /** PDF 저장 — 브라우저 인쇄에서 「PDF로 저장」을 고르면 파일로 남습니다 */
+  const savePdf = async () => {
+    const el = sheetRef.current;
+    if (!el || exporting) return;
+    setExporting("pdf");
+    setExportError(null);
+    try {
+      await printSheet(el);
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : "PDF 저장에 실패했습니다.");
+    } finally {
+      setExporting("");
+    }
+  };
+
+  /**
+   * 이미지 저장 — 견적서 전체를 세로로 긴 PNG 한 장으로 내려받습니다.
+   *
+   * 기기에 따라 그림으로 옮기지 못하는 경우가 있어,
+   * 오래 걸리면 「만드는 중」에 머물지 않고 PDF 저장을 안내합니다.
+   */
+  const savePng = async () => {
+    const el = sheetRef.current;
+    if (!el || exporting) return;
+    setExporting("png");
+    setExportError(null);
+    // 무슨 일이 있어도 버튼이 멈춘 채로 남지 않게 하는 안전장치
+    const guard = window.setTimeout(() => {
+      setExporting("");
+      setExportError(
+        "이 기기에서는 견적서를 그림으로 저장하지 못했습니다. 「PDF 저장」을 이용해 주세요.",
+      );
+    }, 20000);
+    try {
+      const name = `짐픽_이사견적서_${sheetNo || id}`;
+      const r = await saveSheetAsPng(el, name);
+      window.clearTimeout(guard);
+      if (!r.ok) {
+        setExportError(
+          `${r.error ?? "이미지 저장에 실패했습니다."} 「PDF 저장」을 이용해 주세요.`,
+        );
+      }
+      setExporting("");
+    } catch (e) {
+      window.clearTimeout(guard);
+      setExportError(
+        `${e instanceof Error ? e.message : "이미지 저장에 실패했습니다."} 「PDF 저장」을 이용해 주세요.`,
+      );
+      setExporting("");
+    }
+  };
 
   useEffect(() => {
     setEstimate(loadEstimateFromStorage(id));
@@ -382,12 +440,15 @@ export function SharePage() {
       {openSheet && sentSheet && (
         <div className="mt-4 overflow-hidden rounded-[14px]">
           <EstimateSheet
+            ref={sheetRef}
             draft={sentSheet.draft}
             rooms={sentSheet.rooms}
             parts={sentSheet.parts}
             total={sentSheet.total}
             companyPhone={contactPhone}
             acceptedAt={accepted ? new Date(accepted.acceptedAt).toISOString() : null}
+            acceptedSheetVersion={accepted?.sheetVersion ?? null}
+            acceptedTermsVersion={accepted?.termsVersion ?? null}
             forCustomer
           />
         </div>
@@ -551,6 +612,36 @@ export function SharePage() {
               </span>
             </div>
           </Card>
+        </div>
+      )}
+
+      {/* 고객이 직접 저장하기 */}
+      {sentSheet && (
+        <div className="mt-3">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => void savePdf()}
+              disabled={!!exporting}
+              className="rounded-[14px] border-2 border-[#0864DC] bg-white py-3.5 text-[17px] font-black text-[#0864DC] disabled:opacity-50"
+            >
+              {exporting === "pdf" ? "여는 중…" : "PDF 저장"}
+            </button>
+            <button
+              onClick={() => void savePng()}
+              disabled={!!exporting}
+              className="rounded-[14px] border-2 border-[#0864DC] bg-white py-3.5 text-[17px] font-black text-[#0864DC] disabled:opacity-50"
+            >
+              {exporting === "png" ? "만드는 중…" : "이미지 저장"}
+            </button>
+          </div>
+          <div className="mt-1.5 text-center text-[15px] text-[#6B7280]">
+            PDF 저장은 인쇄 화면에서 「PDF로 저장」을 골라 주세요.
+          </div>
+          {exportError && (
+            <div className="mt-2 rounded-[14px] bg-[#FFF1F2] p-3 text-[15px] font-bold text-[#B42318]">
+              {exportError}
+            </div>
+          )}
         </div>
       )}
 
