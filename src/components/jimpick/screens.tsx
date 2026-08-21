@@ -77,7 +77,7 @@ import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions"
 import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
 import { parseVoice, type ItemMatch } from "@/lib/voice-parse";
 import { WavRecorder } from "@/lib/recorder";
-import { sendSmsViaEdge, estimateSmsText } from "@/lib/sms.edge";
+import { sendSmsViaEdge, type EdgeSmsResult } from "@/lib/sms.edge";
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import {
   TERMS_VERSION,
@@ -2878,25 +2878,17 @@ export function Result() {
 
   /** 문자 발송 상태 */
   const [sending, setSending] = useState(false);
-  const [sendResult, setSendResult] = useState<{
-    ok: boolean;
-    msgId?: string;
-    msgType?: string;
-    sentAt?: number;
-    error?: string;
-  } | null>(null);
-
-  /** 고객에게 보낼 문자 내용 (견적서·약관 보안 링크 포함) */
-  const sheetSmsText = () =>
-    estimateSmsText({
-      customerName: draft.customerName,
-      movingDate: formatMoveDateTime(draft.moveDate, draft.moveTime),
-      totalAmount: total,
-      secureUrl: shareUrl(),
-    });
+  const [sendResult, setSendResult] = useState<EdgeSmsResult | null>(null);
 
 
-  /** 실제 발송 — 같은 버튼을 여러 번 눌러도 한 번만 나갑니다 */
+
+  /**
+   * 실제 발송 — 같은 버튼을 여러 번 눌러도 한 번만 나갑니다.
+   *
+   * 1) 보내는 순간의 견적서를 서버에 먼저 올립니다 (고객이 볼 원본).
+   * 2) 앱은 「어느 견적서인지」만 알려 줍니다.
+   *    받는 번호·금액·문자 내용은 서버가 견적서에서 직접 읽어 만듭니다.
+   */
   const doSendSms = async () => {
     if (sending) return;
     if (!isSendablePhone(draft.phone)) {
@@ -2906,53 +2898,60 @@ export function Result() {
     setSending(true);
     setSendResult(null);
     try {
-      // 알리고 키는 Supabase Secrets 에만 있습니다. 이 화면에는 오지 않습니다.
+      // 1) 견적서를 서버에 올려 둡니다. 이것이 있어야 고객이 링크를 열 수 있습니다.
+      try {
+        const pub = await publishEstimateTerms({
+          data: {
+            estimateId: draft.id,
+            sheetNo: draft.sheetNo ?? undefined,
+            sheetVersion: draft.sheetVersion ?? 1,
+            customerName: draft.customerName ?? "",
+            moveDate: draft.moveDate ?? undefined,
+            total,
+            contactPhone: draft.phone ?? undefined,
+            termsName: TERMS_NAME,
+            termsVersion: TERMS_VERSION,
+            termsEffectiveAt: TERMS_EFFECTIVE_AT,
+            accessToken: shareToken(),
+            sheetSnapshot: JSON.stringify({
+              draft,
+              rooms: sheetRooms,
+              parts,
+              total,
+            }).slice(0, 300_000),
+          },
+        });
+        if (!pub.ok) {
+          setSendResult({
+            ok: false,
+            error: `${pub.error ?? "견적서를 서버에 올리지 못했습니다."} 계정 로그인 상태를 확인해 주세요.`,
+          });
+          setSending(false);
+          return;
+        }
+      } catch (e) {
+        setSendResult({
+          ok: false,
+          error:
+            e instanceof Error && /로그인|auth/i.test(e.message)
+              ? "로그인이 필요합니다. 설정 화면에서 계정 로그인을 한 뒤 다시 시도해 주세요."
+              : "견적서를 서버에 올리지 못해 발송하지 않았습니다.",
+        });
+        setSending(false);
+        return;
+      }
+
+      // 2) 발송 요청 — 알리고 키는 서버에만 있습니다
       const r = await sendSmsViaEdge({
-        to: draft.phone,
-        text: sheetSmsText(),
-        title: `이사 견적서 ${draft.sheetNo ?? ""}`.trim(),
-        estimateId: draft.id,
-        sheetNo: draft.sheetNo ?? undefined,
-        // 같은 견적·같은 차수는 한 번만 나가게 합니다
-        idempotencyKey: `${draft.id}-v${draft.sheetVersion ?? 1}`,
+        estimate_id: draft.id,
+        delivery_method: "link",
+        idempotency_key: `${draft.id}-v${draft.sheetVersion ?? 1}`,
       });
       setSendResult(r);
       if (r.ok) {
         tap("success");
-        // 어떤 약관을 어떤 견적에 보냈는지 서버에도 남깁니다 (고객 동의 기록의 근거)
-        try {
-          await publishEstimateTerms({
-            data: {
-              estimateId: draft.id,
-              sheetNo: draft.sheetNo ?? undefined,
-              sheetVersion: draft.sheetVersion ?? 1,
-              customerName: draft.customerName ?? "",
-              moveDate: draft.moveDate ?? undefined,
-              total,
-              contactPhone: draft.staffPhone ?? undefined,
-              termsName: TERMS_NAME,
-              termsVersion: TERMS_VERSION,
-              termsEffectiveAt: TERMS_EFFECTIVE_AT,
-              accessToken: shareToken(),
-              sentAt: r.sentAt,
-              sentMsgId: r.msgId,
-              // 고객 화면에 사장님 화면과 똑같은 견적서를 그리기 위해
-              // 보내는 순간의 견적서를 통째로 담아 보냅니다
-              sheetSnapshot: JSON.stringify({
-                draft,
-                rooms: sheetRooms,
-                parts,
-                total,
-              }).slice(0, 300_000),
-            },
-          });
-        } catch (e) {
-          console.error("[publishEstimateTerms]", e);
-        }
-        // 발송 이력을 남깁니다
         updateDraft({
-          // 문자(약관 링크) 발송 기록 — 고객 동의와는 별개 상태입니다
-          termsSentAt: r.sentAt ?? Date.now(),
+          termsSentAt: Date.now(),
           termsVersion: TERMS_VERSION,
           sheetHistory: [
             ...(draft.sheetHistory ?? []),
@@ -2962,19 +2961,21 @@ export function Result() {
               staff: draft.staffName || "담당자",
               beforeTotal: total,
               afterTotal: total,
-              sentAt: r.sentAt,
-              sentResult: `성공 · ${r.msgType ?? ""} · ${r.msgId ?? ""}`,
             },
           ],
         });
         saveDraft();
       }
     } catch (e) {
-      setSendResult({ ok: false, error: e instanceof Error ? e.message : "발송에 실패했습니다." });
+      setSendResult({
+        ok: false,
+        error: e instanceof Error ? e.message : "문자 발송에 실패했습니다.",
+      });
     } finally {
       setSending(false);
     }
   };
+
   /** 저장 중에는 버튼을 잠급니다 */
   const [exporting, setExporting] = useState<"pdf" | "png" | null>(null);
 

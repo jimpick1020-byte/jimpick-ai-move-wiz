@@ -1,1 +1,10 @@
 project_id = "wlizkyvkwpbisvxhfvqh"
+
+# Edge Function 목록.
+# 여기에 적어 두어야 배포가 됩니다.
+[functions.send-estimate-sms]
+# 로그인한 사장님만 부를 수 있게 합니다 (고객 화면에서는 부를 수 없습니다)
+verify_jwt = true
+
+[functions.send-sms]
+verify_jwt = true

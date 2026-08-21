@@ -13,8 +13,7 @@ import { tap } from "@/lib/feedback";
 import { isSendablePhone } from "@/lib/sms";
 import {
   checkSmsConfig,
-  sendSmsViaEdge,
-  TEST_SMS_TEXT,
+  sendTestSms,
   type EdgeSmsResult,
   type SmsConfigStatus,
 } from "@/lib/sms.edge";
@@ -66,13 +65,9 @@ export function SmsConnectionCard({ ownerPhone = "" }: { ownerPhone?: string }) 
       /* 기억해 두지 못해도 발송은 됩니다 */
     }
     try {
-      const r = await sendSmsViaEdge({
-        to: phone,
-        text: TEST_SMS_TEXT,
-        title: "짐픽 연결 테스트",
-        // 시험이라도 같은 순간에 두 번 나가지 않게 합니다
-        idempotencyKey: `test-${Date.now()}`,
-      });
+      // 연결 시험 — 정해진 문구 한 줄만, 여기 넣은 번호로 보냅니다.
+      // 알리고 키는 서버에만 있고, 고객 정보는 섞이지 않습니다.
+      const r = await sendTestSms(phone);
       setResult(r);
       if (r.ok) tap("success");
     } finally {

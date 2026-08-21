@@ -13,28 +13,37 @@ const FUNCTION_NAME = "send-estimate-sms";
 export interface EdgeSmsResult {
   ok: boolean;
   /** 알리고가 준 발송번호 */
-  msgId?: string;
-  /** SMS · LMS · MMS */
+  msgId?: string | null;
+  /** SMS · LMS */
   msgType?: string;
   successCount?: number;
-  sentAt?: number;
+  /** 발송 요청 일시 · 실제 발송 일시 */
+  requestedAt?: string;
+  sentAt?: string | number | null;
+  /** 받는 번호 뒤 4자리 (전체 번호는 서버에서도 남기지 않습니다) */
+  recipientLast4?: string;
+  /** sent · failed */
+  status?: string;
+  customerName?: string;
+  /** 이미 보낸 건이면 참 — 다시 보내지 않았습니다 */
+  alreadySent?: boolean;
+  message?: string;
   error?: string;
 }
 
+/**
+ * 견적서 문자발송에 넘기는 값.
+ *
+ * 받는 번호·고객 이름·금액·문자 내용은 넘기지 않습니다.
+ * 서버가 견적서를 직접 읽어 만듭니다 (앱에서 바꿔 보낼 수 없게).
+ */
 export interface EdgeSmsInput {
-  /** 받는 번호 — 화면에서 입력받습니다 */
-  to: string;
-  text: string;
-  title?: string;
-  estimateId?: string;
-  sheetNo?: string;
-  /** 견적서 그림 (붙이면 MMS 로 나갑니다) */
-  imageBase64?: string;
-  imageName?: string;
-  imageType?: string;
-  idempotencyKey?: string;
-  /** 알리고 시험 모드 — 실제로는 나가지 않습니다 */
-  testMode?: boolean;
+  /** 보낼 견적서 */
+  estimate_id: string;
+  /** 지금은 보안 링크 방식만 */
+  delivery_method: "link";
+  /** 같은 발송이 두 번 나가지 않게 하는 열쇠 */
+  idempotency_key: string;
 }
 
 /** 문자 한 통을 보냅니다 */
@@ -57,11 +66,19 @@ export async function sendSmsViaEdge(input: EdgeSmsInput): Promise<EdgeSmsResult
           /* 본문을 못 읽으면 아래 문구를 씁니다 */
         }
       }
+      // 함수가 없을 때와 로그인이 풀렸을 때를 구분해 알려 줍니다
+      const ctxStatus = (error as { context?: { status?: number } }).context?.status;
+      if (ctxStatus === 401) {
+        return {
+          ok: false,
+          error: "로그인이 필요합니다. 설정 화면에서 계정 로그인을 한 뒤 다시 시도해 주세요.",
+        };
+      }
       return {
         ok: false,
         error:
           error.message === "Failed to send a request to the Edge Function"
-            ? "문자발송 기능(send-estimate-sms)이 아직 배포되지 않았습니다."
+            ? "문자발송 기능(send-estimate-sms)이 아직 배포되지 않았습니다. 러버블에서 Publish 를 눌러 배포해 주세요."
             : `문자 발송에 실패했습니다. (${error.message})`,
       };
     }
@@ -71,6 +88,36 @@ export async function sendSmsViaEdge(input: EdgeSmsInput): Promise<EdgeSmsResult
       ok: false,
       error: e instanceof Error ? e.message : "문자 발송 중 오류가 났습니다.",
     };
+  }
+}
+
+/**
+ * 연결 시험 문자 한 통.
+ * 정해진 문구만 나가고, 받는 번호는 사장님이 화면에서 직접 넣습니다.
+ */
+export async function sendTestSms(to: string): Promise<EdgeSmsResult> {
+  try {
+    const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, {
+      body: { mode: "test", test_to: to, idempotency_key: `test-${Date.now()}` },
+    });
+    if (data && typeof data === "object" && "ok" in data) return data as EdgeSmsResult;
+    if (error) {
+      const ctx = (error as { context?: Response }).context;
+      if (ctx && typeof ctx.json === "function") {
+        try {
+          const b = await ctx.json();
+          if (b && typeof b === "object" && "error" in b) {
+            return { ok: false, error: String((b as { error: unknown }).error) };
+          }
+        } catch {
+          /* 본문을 못 읽으면 아래 문구를 씁니다 */
+        }
+      }
+      return { ok: false, error: `시험 발송에 실패했습니다. (${error.message})` };
+    }
+    return { ok: false, error: "시험 발송 결과를 읽지 못했습니다." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "시험 발송에 실패했습니다." };
   }
 }
 
