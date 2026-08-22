@@ -1,0 +1,1 @@
+ALTER TABLE public.estimate_terms ADD COLUMN IF NOT EXISTS sheet_snapshot text;
