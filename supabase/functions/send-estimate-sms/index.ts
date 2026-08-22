@@ -341,7 +341,6 @@ Deno.serve(async (req) => {
           error_code: sent.ok ? null : String(sent.code ?? ""),
           error_message: sent.ok ? null : (sent.error ?? "").slice(0, 500),
           idempotency_key: String(body.idempotency_key ?? "") || null,
-          test_mode: false,
           provider_result: sent.raw ?? null,
         }),
       });
@@ -535,7 +534,6 @@ Deno.serve(async (req) => {
         error_code: result.ok ? null : String(result.code ?? ""),
         error_message: result.ok ? null : (result.error ?? "").slice(0, 500),
         idempotency_key: idem || null,
-        test_mode: false,
         provider_result: result.raw ?? null,
       }),
     });
