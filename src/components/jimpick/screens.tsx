@@ -2840,6 +2840,11 @@ export function Result() {
   /** 견적서를 열면 먼저 보이는 고객용 표지 화면 (표는 「견적서 보기」에서만) */
   const [sheetEdit, setSheetEdit] = useState(false);
   const [confirmSheet, setConfirmSheet] = useState(false);
+  /** 카카오톡 직원 공유 확인창 */
+  const [staffShareOpen, setStaffShareOpen] = useState(false);
+  const [staffSharing, setStaffSharing] = useState(false);
+  const [staffExpires, setStaffExpires] = useState<string | null>(null);
+
   /** 캡처할 견적서 영역 */
   const sheetRef = useRef<HTMLDivElement>(null);
   /** 이 견적의 약관 발송·동의 상태 (읽기 전용 — 업체가 대신 동의할 수 없습니다) */

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShareIdRouteImport } from './routes/share.$id'
+import { Route as StaffEstimateTokenRouteImport } from './routes/staff.estimate.$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const ShareIdRoute = ShareIdRouteImport.update({
   path: '/share/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StaffEstimateTokenRoute = StaffEstimateTokenRouteImport.update({
+  id: '/staff/estimate/$token',
+  path: '/staff/estimate/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/share/$id': typeof ShareIdRoute
+  '/staff/estimate/$token': typeof StaffEstimateTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/share/$id': typeof ShareIdRoute
+  '/staff/estimate/$token': typeof StaffEstimateTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/share/$id': typeof ShareIdRoute
+  '/staff/estimate/$token': typeof StaffEstimateTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/share/$id'
+  fullPaths: '/' | '/share/$id' | '/staff/estimate/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/share/$id'
-  id: '__root__' | '/' | '/share/$id'
+  to: '/' | '/share/$id' | '/staff/estimate/$token'
+  id: '__root__' | '/' | '/share/$id' | '/staff/estimate/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ShareIdRoute: typeof ShareIdRoute
+  StaffEstimateTokenRoute: typeof StaffEstimateTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShareIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/staff/estimate/$token': {
+      id: '/staff/estimate/$token'
+      path: '/staff/estimate/$token'
+      fullPath: '/staff/estimate/$token'
+      preLoaderRoute: typeof StaffEstimateTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ShareIdRoute: ShareIdRoute,
+  StaffEstimateTokenRoute: StaffEstimateTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
