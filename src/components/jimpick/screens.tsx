@@ -3418,16 +3418,58 @@ export function Result() {
           onClick={() => {
             tap("soft");
             saveDraft();
-            const url = `${window.location.origin}/share/${draft.id}?staff=1`;
-            void navigator.clipboard?.writeText(url);
-            toast.success("직원용 작업 지시서 링크를 복사했습니다", {
-              description: "금액은 표시되지 않습니다 (미공개)",
-            });
+            setStaffExpires(null);
+            setStaffShareOpen(true);
           }}
-          className="w-full py-4 rounded-2xl bg-gradient-to-b from-[#F1F6FF] to-[#E4EDFC] border border-[#DCE8FA] text-[#0751D8] font-black flex items-center justify-center gap-2 shadow-[0_4px_0_#D6E2F5] active:translate-y-[2px] active:shadow-[0_2px_0_#D6E2F5]"
+          className="w-full min-h-[56px] py-4 rounded-2xl bg-[#FEE500] text-[#191600] font-black flex items-center justify-center gap-2 shadow-[0_4px_0_#E3CE00] active:translate-y-[2px] active:shadow-[0_2px_0_#E3CE00]"
         >
-          <Users className="w-5 h-5" /> 직원용 공유 (금액 미공개)
+          <MessageSquare className="w-5 h-5" /> 카카오톡으로 직원 공유
         </button>
+
+        {staffShareOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+            <div
+              className="absolute inset-0 bg-[#0F172A]/45"
+              onClick={() => !staffSharing && setStaffShareOpen(false)}
+            />
+            <div className="relative w-full max-w-[330px] rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+              <div className="text-center text-[17px] font-black text-[#0F172A]">
+                직원에게 이사정보를 보낼까요?
+              </div>
+              <p className="mt-1.5 text-center text-[12.5px] font-bold text-[#6B7280]">
+                금액·계좌·약관은 직원 화면에 표시되지 않습니다.
+              </p>
+              <div className="mt-3 space-y-1.5 rounded-2xl bg-[#F5F8FE] px-3.5 py-3 text-[13px] font-bold text-[#334155]">
+                <div>고객 {draft.customerName || "고객"}</div>
+                <div>이사 날짜 {draft.moveDate || "미정"} {draft.moveTime || ""}</div>
+                <div>담당 직원 {draft.staffName || "미지정"}</div>
+                <div className="text-[#6B7280]">
+                  링크 만료{" "}
+                  {staffExpires
+                    ? new Date(staffExpires).toLocaleString("ko-KR")
+                    : "이사 다음 날까지"}
+                </div>
+              </div>
+              <div className="mt-4 space-y-2">
+                <button
+                  onClick={() => void doStaffShare()}
+                  disabled={staffSharing}
+                  className="w-full min-h-[56px] rounded-2xl bg-[#FEE500] text-[15px] font-black text-[#191600] shadow-[0_4px_0_#E3CE00] disabled:opacity-50"
+                >
+                  {staffSharing ? "준비 중…" : "카카오톡 열기"}
+                </button>
+                <button
+                  onClick={() => setStaffShareOpen(false)}
+                  disabled={staffSharing}
+                  className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 text-[14px] font-black text-[#334155] shadow-[0_3px_0_#EDF2FA] disabled:opacity-50"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
 
         <button
           onClick={() => {
