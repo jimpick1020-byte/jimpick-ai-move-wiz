@@ -3110,10 +3110,101 @@ export function Result() {
       totalText: won(total),
     });
 
+  /** 직원용 업무 지시서 내용 (금액·계좌·약관 없음) */
+  const staffSnapshot = (): StaffSheetSnapshot => ({
+    sheetNo: draft.sheetNo ?? "",
+    customerName: draft.customerName ?? "",
+    customerPhone: draft.phone ?? "",
+    moveDate: draft.moveDate ?? "",
+    moveTime: draft.moveTime ?? "",
+    moveType: String(draft.moveType ?? ""),
+    fromAddress: draft.fromAddress ?? "",
+    fromDetail: draft.fromDetail ?? "",
+    toAddress: draft.toAddress ?? "",
+    toDetail: draft.toDetail ?? "",
+    fromFloor: draft.fromFloor ?? 0,
+    toFloor: draft.toFloor ?? 0,
+    workEnv: String(draft.workEnv ?? ""),
+    truckText: [
+      draft.truck5t > 0 ? `5톤 트럭 ${draft.truck5t}대` : "",
+      draft.truck1t > 0 ? `1톤 트럭 ${draft.truck1t}대` : "",
+      draft.ladder > 0 ? `사다리차 ${draft.ladder}대` : "",
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    distanceKm: draft.distanceKm ?? 0,
+    durationMin: draft.durationMin ?? 0,
+    extraWork: [
+      ...draft.options.filter((o) => o.enabled).map((o) => o.name),
+      draft.ladderFrom ? "사다리차 출발지" : "",
+      draft.ladderTo ? "사다리차 도착지" : "",
+    ].filter(Boolean),
+    note: [draft.memo, draft.sheetNote].filter(Boolean).join("\n"),
+    staffName: draft.staffName ?? "",
+    staffPhone: draft.staffPhone ?? "",
+    rooms: sheetRooms.map((r) => ({
+      name: r.name,
+      items: r.items.map((i) => ({ name: i.name, qty: i.qty })),
+    })),
+  });
+
+  /** 직원용 보안 링크를 만들고 카카오톡 공유창을 엽니다 */
+  const doStaffShare = async () => {
+    setStaffSharing(true);
+    try {
+      const made = await createStaffShare({
+        data: {
+          estimateId: draft.id,
+          staffName: draft.staffName || undefined,
+          moveDate: draft.moveDate || undefined,
+          shareMethod: "kakao",
+          snapshot: JSON.stringify(staffSnapshot()),
+        },
+      });
+      if (!made.ok || !made.token) {
+        toast.error(made.error ?? "직원용 링크를 만들지 못했습니다");
+        return;
+      }
+      setStaffExpires(made.expiresAt ?? null);
+      const url = `${window.location.origin}/staff/estimate/${made.token}`;
+      const r = await shareToKakao({
+        sheetNo: draft.sheetNo ?? "",
+        moveDate: draft.moveDate ?? "",
+        maskedCustomer: maskName(draft.customerName ?? ""),
+        fromArea: areaOf(draft.fromAddress ?? ""),
+        toArea: areaOf(draft.toAddress ?? ""),
+        truckText: staffSnapshot().truckText,
+        moveType: String(draft.moveType ?? ""),
+        staffName: draft.staffName ?? "",
+        url,
+      });
+      if (!r.ok) {
+        toast.error(r.error ?? "공유하지 못했습니다");
+        return;
+      }
+      await markStaffShareShared({ data: { estimateId: draft.id, shareMethod: r.method } });
+      setStaffShareOpen(false);
+      toast.success(
+        r.method === "kakao"
+          ? "카카오톡 공유창을 열었습니다"
+          : r.method === "web_share"
+            ? "공유창을 열었습니다"
+            : "직원용 링크를 복사했습니다",
+        { description: "전달 여부는 카카오톡에서 확인해 주세요 (금액 미공개)" },
+      );
+    } catch (err) {
+      console.error("[staffShare]", err);
+      toast.error("직원 공유 중 오류가 발생했습니다");
+    } finally {
+      setStaffSharing(false);
+    }
+  };
+
   /**
    * 문자 앱을 내용이 채워진 채로 엽니다. 보내기는 사장님이 직접 누릅니다.
    * 컴퓨터처럼 문자 앱이 없는 기기에서는 내용을 복사해 드립니다.
    */
+
   const sendSMS = () => {
     tap("soft");
     const body = estimateMessage();
