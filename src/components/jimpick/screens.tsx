@@ -78,6 +78,9 @@ import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
 import { parseVoice, type ItemMatch } from "@/lib/voice-parse";
 import { WavRecorder } from "@/lib/recorder";
 import { sendSmsViaEdge, type EdgeSmsResult } from "@/lib/sms.edge";
+import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functions";
+import { shareToKakao, maskName, areaOf, type StaffSheetSnapshot } from "@/lib/staff-share";
+
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import {
   TERMS_VERSION,
@@ -2840,6 +2843,11 @@ export function Result() {
   /** 견적서를 열면 먼저 보이는 고객용 표지 화면 (표는 「견적서 보기」에서만) */
   const [sheetEdit, setSheetEdit] = useState(false);
   const [confirmSheet, setConfirmSheet] = useState(false);
+  /** 카카오톡 직원 공유 확인창 */
+  const [staffShareOpen, setStaffShareOpen] = useState(false);
+  const [staffSharing, setStaffSharing] = useState(false);
+  const [staffExpires, setStaffExpires] = useState<string | null>(null);
+
   /** 캡처할 견적서 영역 */
   const sheetRef = useRef<HTMLDivElement>(null);
   /** 이 견적의 약관 발송·동의 상태 (읽기 전용 — 업체가 대신 동의할 수 없습니다) */
@@ -3105,10 +3113,101 @@ export function Result() {
       totalText: won(total),
     });
 
+  /** 직원용 업무 지시서 내용 (금액·계좌·약관 없음) */
+  const staffSnapshot = (): StaffSheetSnapshot => ({
+    sheetNo: draft.sheetNo ?? "",
+    customerName: draft.customerName ?? "",
+    customerPhone: draft.phone ?? "",
+    moveDate: draft.moveDate ?? "",
+    moveTime: draft.moveTime ?? "",
+    moveType: String(draft.moveType ?? ""),
+    fromAddress: draft.fromAddress ?? "",
+    fromDetail: draft.fromDetail ?? "",
+    toAddress: draft.toAddress ?? "",
+    toDetail: draft.toDetail ?? "",
+    fromFloor: draft.fromFloor ?? 0,
+    toFloor: draft.toFloor ?? 0,
+    workEnv: String(draft.workEnv ?? ""),
+    truckText: [
+      draft.truck5t > 0 ? `5톤 트럭 ${draft.truck5t}대` : "",
+      draft.truck1t > 0 ? `1톤 트럭 ${draft.truck1t}대` : "",
+      draft.ladder > 0 ? `사다리차 ${draft.ladder}대` : "",
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    distanceKm: draft.distanceKm ?? 0,
+    durationMin: draft.durationMin ?? 0,
+    extraWork: [
+      ...draft.options.filter((o) => o.enabled).map((o) => o.name),
+      draft.ladderFrom ? "사다리차 출발지" : "",
+      draft.ladderTo ? "사다리차 도착지" : "",
+    ].filter(Boolean),
+    note: [draft.memo, draft.sheetNote].filter(Boolean).join("\n"),
+    staffName: draft.staffName ?? "",
+    staffPhone: draft.staffPhone ?? "",
+    rooms: sheetRooms.map((r) => ({
+      name: r.name,
+      items: r.items.map((i) => ({ name: i.name, qty: i.qty })),
+    })),
+  });
+
+  /** 직원용 보안 링크를 만들고 카카오톡 공유창을 엽니다 */
+  const doStaffShare = async () => {
+    setStaffSharing(true);
+    try {
+      const made = await createStaffShare({
+        data: {
+          estimateId: draft.id,
+          staffName: draft.staffName || undefined,
+          moveDate: draft.moveDate || undefined,
+          shareMethod: "kakao",
+          snapshot: JSON.stringify(staffSnapshot()),
+        },
+      });
+      if (!made.ok || !made.token) {
+        toast.error(made.error ?? "직원용 링크를 만들지 못했습니다");
+        return;
+      }
+      setStaffExpires(made.expiresAt ?? null);
+      const url = `${window.location.origin}/staff/estimate/${made.token}`;
+      const r = await shareToKakao({
+        sheetNo: draft.sheetNo ?? "",
+        moveDate: draft.moveDate ?? "",
+        maskedCustomer: maskName(draft.customerName ?? ""),
+        fromArea: areaOf(draft.fromAddress ?? ""),
+        toArea: areaOf(draft.toAddress ?? ""),
+        truckText: staffSnapshot().truckText,
+        moveType: String(draft.moveType ?? ""),
+        staffName: draft.staffName ?? "",
+        url,
+      });
+      if (!r.ok) {
+        toast.error(r.error ?? "공유하지 못했습니다");
+        return;
+      }
+      await markStaffShareShared({ data: { estimateId: draft.id, shareMethod: r.method } });
+      setStaffShareOpen(false);
+      toast.success(
+        r.method === "kakao"
+          ? "카카오톡 공유창을 열었습니다"
+          : r.method === "web_share"
+            ? "공유창을 열었습니다"
+            : "직원용 링크를 복사했습니다",
+        { description: "전달 여부는 카카오톡에서 확인해 주세요 (금액 미공개)" },
+      );
+    } catch (err) {
+      console.error("[staffShare]", err);
+      toast.error("직원 공유 중 오류가 발생했습니다");
+    } finally {
+      setStaffSharing(false);
+    }
+  };
+
   /**
    * 문자 앱을 내용이 채워진 채로 엽니다. 보내기는 사장님이 직접 누릅니다.
    * 컴퓨터처럼 문자 앱이 없는 기기에서는 내용을 복사해 드립니다.
    */
+
   const sendSMS = () => {
     tap("soft");
     const body = estimateMessage();
@@ -3413,16 +3512,58 @@ export function Result() {
           onClick={() => {
             tap("soft");
             saveDraft();
-            const url = `${window.location.origin}/share/${draft.id}?staff=1`;
-            void navigator.clipboard?.writeText(url);
-            toast.success("직원용 작업 지시서 링크를 복사했습니다", {
-              description: "금액은 표시되지 않습니다 (미공개)",
-            });
+            setStaffExpires(null);
+            setStaffShareOpen(true);
           }}
-          className="w-full py-4 rounded-2xl bg-gradient-to-b from-[#F1F6FF] to-[#E4EDFC] border border-[#DCE8FA] text-[#0751D8] font-black flex items-center justify-center gap-2 shadow-[0_4px_0_#D6E2F5] active:translate-y-[2px] active:shadow-[0_2px_0_#D6E2F5]"
+          className="w-full min-h-[56px] py-4 rounded-2xl bg-[#FEE500] text-[#191600] font-black flex items-center justify-center gap-2 shadow-[0_4px_0_#E3CE00] active:translate-y-[2px] active:shadow-[0_2px_0_#E3CE00]"
         >
-          <Users className="w-5 h-5" /> 직원용 공유 (금액 미공개)
+          <MessageSquare className="w-5 h-5" /> 카카오톡으로 직원 공유
         </button>
+
+        {staffShareOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+            <div
+              className="absolute inset-0 bg-[#0F172A]/45"
+              onClick={() => !staffSharing && setStaffShareOpen(false)}
+            />
+            <div className="relative w-full max-w-[330px] rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+              <div className="text-center text-[17px] font-black text-[#0F172A]">
+                직원에게 이사정보를 보낼까요?
+              </div>
+              <p className="mt-1.5 text-center text-[12.5px] font-bold text-[#6B7280]">
+                금액·계좌·약관은 직원 화면에 표시되지 않습니다.
+              </p>
+              <div className="mt-3 space-y-1.5 rounded-2xl bg-[#F5F8FE] px-3.5 py-3 text-[13px] font-bold text-[#334155]">
+                <div>고객 {draft.customerName || "고객"}</div>
+                <div>이사 날짜 {draft.moveDate || "미정"} {draft.moveTime || ""}</div>
+                <div>담당 직원 {draft.staffName || "미지정"}</div>
+                <div className="text-[#6B7280]">
+                  링크 만료{" "}
+                  {staffExpires
+                    ? new Date(staffExpires).toLocaleString("ko-KR")
+                    : "이사 다음 날까지"}
+                </div>
+              </div>
+              <div className="mt-4 space-y-2">
+                <button
+                  onClick={() => void doStaffShare()}
+                  disabled={staffSharing}
+                  className="w-full min-h-[56px] rounded-2xl bg-[#FEE500] text-[15px] font-black text-[#191600] shadow-[0_4px_0_#E3CE00] disabled:opacity-50"
+                >
+                  {staffSharing ? "준비 중…" : "카카오톡 열기"}
+                </button>
+                <button
+                  onClick={() => setStaffShareOpen(false)}
+                  disabled={staffSharing}
+                  className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 text-[14px] font-black text-[#334155] shadow-[0_3px_0_#EDF2FA] disabled:opacity-50"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
 
         <button
           onClick={() => {
