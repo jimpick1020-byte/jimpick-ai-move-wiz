@@ -78,6 +78,9 @@ import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
 import { parseVoice, type ItemMatch } from "@/lib/voice-parse";
 import { WavRecorder } from "@/lib/recorder";
 import { sendSmsViaEdge, type EdgeSmsResult } from "@/lib/sms.edge";
+import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functions";
+import { shareToKakao, maskName, areaOf, type StaffSheetSnapshot } from "@/lib/staff-share";
+
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import {
   TERMS_VERSION,
