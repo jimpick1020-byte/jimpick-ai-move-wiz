@@ -45,6 +45,8 @@ export const publishEstimateTerms = createServerFn({ method: "POST" })
         moveDate: z.string().max(40).optional(),
         total: z.number().int().min(0).max(1_000_000_000).default(0),
         contactPhone: z.string().max(40).optional(),
+        /** 문자에 적는 업체 연락처 (문의처) */
+        companyPhone: z.string().max(40).optional(),
         termsName: z.string().min(1).max(120),
         termsVersion: z.string().min(1).max(40),
         termsEffectiveAt: z.string().max(20).optional(),
@@ -67,6 +69,7 @@ export const publishEstimateTerms = createServerFn({ method: "POST" })
         move_date: data.moveDate ?? null,
         total: data.total,
         contact_phone: data.contactPhone ?? null,
+        company_phone: data.companyPhone ?? null,
         terms_name: data.termsName,
         terms_version: data.termsVersion,
         terms_effective_at: data.termsEffectiveAt ?? null,

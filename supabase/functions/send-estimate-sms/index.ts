@@ -43,6 +43,11 @@ function json(body: unknown, status = 200) {
   });
 }
 
+/** 하이픈·공백 등 숫자가 아닌 글자를 모두 없앱니다 */
+function onlyDigits(s: string): string {
+  return (s || "").replace(/[^0-9]/g, "");
+}
+
 /** 숫자만 남기고, 국가번호가 붙어 있으면 010… 으로 되돌립니다 */
 function normalizePhone(raw: string): string {
   let d = (raw || "").replace(/[^0-9]/g, "");
@@ -59,10 +64,6 @@ function isKoreanMobile(d: string): boolean {
 /** 기록에는 뒤 4자리만 남깁니다 */
 function last4(d: string): string {
   return d.length >= 4 ? d.slice(-4) : "";
-}
-
-function won(n: number): string {
-  return `${Math.max(0, Math.round(n)).toLocaleString("ko-KR")}원`;
 }
 
 /** 알리고 오류 코드를 쉬운 한국어로. 알리고가 준 원문도 함께 붙입니다. */
@@ -180,8 +181,12 @@ Deno.serve(async (req) => {
 
   const aligoUserId = Deno.env.get("ALIGO_USER_ID");
   const apiKey = Deno.env.get("ALIGO_API_KEY");
-  const sender = Deno.env.get("ALIGO_SENDER_NUMBER");
-  const appUrl = (Deno.env.get("APP_PUBLIC_URL") ?? "").replace(/\/$/, "");
+  // 새 이름을 먼저 보고, 예전에 넣어 둔 이름도 그대로 받아 줍니다
+  const senderRaw = Deno.env.get("ALIGO_SENDER") ?? Deno.env.get("ALIGO_SENDER_NUMBER") ?? "";
+  const sender = onlyDigits(senderRaw);
+  const appUrl = (Deno.env.get("PUBLIC_APP_URL") ?? Deno.env.get("APP_PUBLIC_URL") ?? "")
+    .trim()
+    .replace(/\/$/, "");
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const proxyUrl = Deno.env.get("SMS_PROXY_URL");
@@ -207,11 +212,22 @@ Deno.serve(async (req) => {
   const missing = [
     !aligoUserId && "ALIGO_USER_ID",
     !apiKey && "ALIGO_API_KEY",
-    !sender && "ALIGO_SENDER_NUMBER",
-    !appUrl && "APP_PUBLIC_URL",
+    !sender && "ALIGO_SENDER",
+    !appUrl && "PUBLIC_APP_URL",
     !supabaseUrl && "SUPABASE_URL",
     !serviceKey && "SUPABASE_SERVICE_ROLE_KEY",
   ].filter(Boolean) as string[];
+
+  /**
+   * 문자에 넣는 주소는 반드시 배포된 주소여야 합니다.
+   * 편집기·미리보기·내 컴퓨터 주소로는 고객이 열 수 없습니다.
+   */
+  const badAppUrl =
+    !!appUrl &&
+    (/localhost|127\.0\.0\.1|\.local\b/i.test(appUrl) ||
+      /lovable(project)?\.(dev|com)/i.test(appUrl) ||
+      /preview|staging|sandbox/i.test(appUrl) ||
+      !/^https:\/\//i.test(appUrl));
 
   if (body.checkOnly) {
     return json({
@@ -219,8 +235,8 @@ Deno.serve(async (req) => {
       config: {
         ALIGO_USER_ID: !!aligoUserId,
         ALIGO_API_KEY: !!apiKey,
-        ALIGO_SENDER_NUMBER: !!sender,
-        APP_PUBLIC_URL: !!appUrl,
+        ALIGO_SENDER: !!sender,
+        PUBLIC_APP_URL: !!appUrl && !badAppUrl,
         SUPABASE_URL: !!supabaseUrl,
         SUPABASE_SERVICE_ROLE_KEY: !!serviceKey,
         SMS_PROXY_URL: !!proxyUrl,
@@ -228,6 +244,9 @@ Deno.serve(async (req) => {
         발송경로: viaProxy ? "고정 IP 중계 서버 경유" : "알리고 직접 호출",
       },
       missing,
+      appUrlProblem: badAppUrl
+        ? "PUBLIC_APP_URL 이 배포 주소가 아닙니다. https://jimpick-ai-move-wiz.lovable.app 처럼 배포된 주소로 넣어 주세요."
+        : null,
     });
   }
 
@@ -250,8 +269,29 @@ Deno.serve(async (req) => {
   }
 
   if (missing.length) {
+    // 값은 절대 보여 주지 않고, 빠진 이름만 알려 줍니다
     return json(
-      { ok: false, error: `문자 발송 설정이 필요합니다. 설정되지 않은 값: ${missing.join(", ")}` },
+      {
+        ok: false,
+        error: `알리고 API 설정이 필요합니다. 설정되지 않은 값: ${missing.join(", ")}`,
+        missing,
+      },
+      500,
+    );
+  }
+  if (badAppUrl) {
+    return json(
+      {
+        ok: false,
+        error:
+          "PUBLIC_APP_URL 이 배포된 주소가 아닙니다. 편집기·미리보기·내 컴퓨터 주소로는 고객이 열 수 없어 발송하지 않았습니다.",
+      },
+      500,
+    );
+  }
+  if (!isKoreanMobile(sender)) {
+    return json(
+      { ok: false, error: "발신번호 형식이 올바르지 않습니다. 알리고에 등록한 번호를 확인해 주세요." },
       500,
     );
   }
@@ -333,7 +373,7 @@ Deno.serve(async (req) => {
   // ── 2. 견적서를 데이터베이스에서 직접 읽습니다 ──
   const q = new URLSearchParams({
     select:
-      "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,contact_phone,total,access_token,sheet_snapshot",
+      "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,contact_phone,company_phone,total,access_token,sheet_snapshot",
     estimate_id: `eq.${estimateId}`,
     order: "sheet_version.desc",
     limit: "1",
@@ -380,7 +420,6 @@ Deno.serve(async (req) => {
 
   const version = Number(row.sheet_version ?? 1);
   const customer = String(row.customer_name ?? "").trim() || "고객";
-  const total = Number(row.total ?? 0);
   const link = `${appUrl}/share/${encodeURIComponent(estimateId)}?t=${encodeURIComponent(token)}`;
 
   // ── 3. 같은 발송이 이미 나갔는지 봅니다 ──
@@ -410,17 +449,44 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 같은 견적서를 같은 번호로 방금 보냈다면 다시 보내지 않습니다 (2분 안)
+  {
+    const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const rq = new URLSearchParams({
+      select: "id,status,provider_message_id,sent_at,msg_type",
+      estimate_id: `eq.${estimateId}`,
+      to_masked: `eq.****${last4(phone)}`,
+      status: "in.(queued,sent,success)",
+      sent_at: `gte.${since}`,
+      limit: "1",
+    });
+    const rres = await db(`estimate_deliveries?${rq}`, { supabaseUrl, serviceKey });
+    if (rres.ok) {
+      const recent = ((await rres.json()) as Array<Record<string, unknown>>)?.[0];
+      if (recent) {
+        return json({
+          ok: true,
+          alreadySent: true,
+          msgId: recent.provider_message_id ?? null,
+          msgType: recent.msg_type ?? "LMS",
+          sentAt: recent.sent_at ?? null,
+          recipientLast4: last4(phone),
+          status: String(recent.status ?? "sent"),
+          message: "방금 같은 견적서를 같은 번호로 보냈습니다. 다시 보내지 않았습니다.",
+        });
+      }
+    }
+  }
+
   // ── 4. 문자 내용을 실제 자료로 만듭니다 ──
+  const companyPhone = String(row.company_phone ?? "").trim();
   const text = [
     "[JIMPICK 짐픽]",
     `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
+    "아래 링크에서 견적서와 표준약관을 확인해 주세요.",
     "",
-    `총 견적금액: ${won(total)}`,
-    "",
-    "아래 링크에서 견적서와 약관을 확인해 주세요.",
     link,
-    "",
-    "문의사항은 언제든지 연락해 주세요.",
+    ...(companyPhone ? ["", `문의: ${companyPhone}`] : []),
   ].join("\n");
   const byteLen = new TextEncoder().encode(text).length;
   const msgType = byteLen <= 90 ? "SMS" : "LMS";

@@ -68,8 +68,8 @@ const deno = spawn(process.env.DENO_EXE || "deno", ["run", "--allow-net", "--all
     ...process.env,
     ALIGO_USER_ID: "testid",
     ALIGO_API_KEY: "testkey",
-    ALIGO_SENDER_NUMBER: "01000000000",
-    APP_PUBLIC_URL: "https://jimpick.example.com",
+    ALIGO_SENDER: "010-0000-0000",
+    PUBLIC_APP_URL: "https://jimpick-ai-move-wiz.lovable.app",
     SUPABASE_URL: `http://127.0.0.1:${DB_PORT}`,
     SUPABASE_SERVICE_ROLE_KEY: "service-key",
   },
@@ -116,6 +116,7 @@ const goodRow = {
   id: "et1", user_id: OWNER, estimate_id: "est_1", sheet_no: "JP-2026-0819-001",
   sheet_version: 2, customer_name: "김고객", contact_phone: "010-1111-2222",
   total: 1740000, access_token: "a1b2c3d4e5f6a7b8", sheet_snapshot: '{"draft":{}}',
+  company_phone: "010-7566-2542",
 };
 
 console.log("\n[1] 로그인하지 않은 요청은 거부");
@@ -158,10 +159,16 @@ console.log("\n[5] 정상 발송 — 서버가 문자 내용을 직접 만듭니
   check("받는 번호 뒤 4자리만", r.body.recipientLast4 === "2222" && !JSON.stringify(r.body).includes("01011112222"));
   const decoded = decodeURIComponent(escape(aligoForm));
   check("고객 이름이 문자에 들어감", decoded.includes("김고객"));
-  check("금액에 쉼표", decoded.includes("1,740,000원"));
+  // 새 문자 형식에는 금액을 넣지 않습니다 (금액은 링크 안 견적서에 있습니다)
+  check("문자에 금액을 넣지 않음", !decoded.includes("1,740,000"));
   check("보안 토큰 링크", decoded.includes("a1b2c3d4e5f6a7b8"));
   check("견적번호를 링크에 그대로 쓰지 않음(토큰 사용)", decoded.includes("?t=a1b2c3d4e5f6a7b8"));
   check("시험모드 아님", !decoded.includes("testmode_yn"));
+  check("test 관련 값 없음", !/test_mode|is_test|mock|demo|fakeSuccess/i.test(decoded));
+  check("발신번호에서 하이픈 제거", decoded.includes("01000000000"));
+  check("배포 주소 사용", decoded.includes("https://jimpick-ai-move-wiz.lovable.app"));
+  check("문의 번호 들어감", decoded.includes("문의: 010-7566-2542"));
+  check("표준약관 안내 문구", decoded.includes("견적서와 표준약관을 확인해 주세요"));
   check("발송내역 저장됨", inserted.length === 1, JSON.stringify(inserted));
   const row = inserted[0] ?? {};
   check("기록에 전체 번호 없음", !JSON.stringify(row).includes("01011112222"));

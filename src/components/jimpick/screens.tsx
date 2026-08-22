@@ -2909,6 +2909,7 @@ export function Result() {
             moveDate: draft.moveDate ?? undefined,
             total,
             contactPhone: draft.phone ?? undefined,
+            companyPhone: draft.staffPhone ?? undefined,
             termsName: TERMS_NAME,
             termsVersion: TERMS_VERSION,
             termsEffectiveAt: TERMS_EFFECTIVE_AT,
@@ -3044,7 +3045,14 @@ export function Result() {
   useEffect(() => {
     if (draft.total !== total) updateDraft({ total });
   }, [total, draft.total, updateDraft]);
-  /** 고객용 보안 토큰 — 견적번호와 차수로 만듭니다 */
+  /** 확인창에 보여 줄 문자 미리보기 (서버가 만드는 내용과 같은 형식입니다) */
+  const smsPreview = [
+    "[JIMPICK 짐픽]",
+    `${draft.customerName || "고객"} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
+    "아래 링크에서 견적서와 표준약관을 확인해 주세요.",
+    ...(draft.staffPhone?.trim() ? ["", `문의: ${draft.staffPhone.trim()}`] : []),
+  ].join("\n");
+
   /**
    * 고객용 보안 토큰.
    * 견적번호를 그대로 쓰면 다른 사람이 주소를 바꿔 볼 수 있으므로
@@ -3630,15 +3638,52 @@ export function Result() {
                 className="absolute inset-0 bg-[#0F172A]/45"
                 onClick={() => setConfirmSheet(false)}
               />
-              <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 text-center shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
-                <div className="text-[17px] font-black text-[#0F172A]">
-                  견적서 내용을 확인하셨습니까?
+              <div className="relative max-h-[86vh] w-full max-w-[340px] overflow-y-auto rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+                <div className="text-center text-[17px] font-black text-[#0F172A]">
+                  실제 유료 문자가 발송됩니다. 내용을 확인하셨습니까?
                 </div>
-                <p className="mt-1.5 text-[13px] font-bold text-[#6B7280]">
-                  확정하면 지금 금액({won(total)})이 그대로 보관됩니다.
-                </p>
-                <p className="mt-2 text-[12.5px] font-bold text-[#334155]">
-                  받는 사람: {draft.customerName || "고객"} · {draft.phone || "번호 없음"}
+                {/* 무엇이 나가는지 그대로 보여 줍니다 */}
+                <div className="mt-3 space-y-1.5 rounded-2xl bg-[#F7F9FC] p-3 text-left">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="shrink-0 text-[13px] text-[#6B7280]">받는 고객</span>
+                    <span className="min-w-0 break-words text-right text-[13px] font-bold text-[#111827]">
+                      {draft.customerName || "고객"}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="shrink-0 text-[13px] text-[#6B7280]">받는 번호</span>
+                    <span className="min-w-0 break-words text-right text-[13px] font-bold text-[#111827]">
+                      {draft.phone || "번호 없음"}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="shrink-0 text-[13px] text-[#6B7280]">문자 방식</span>
+                    <span className="min-w-0 text-right text-[13px] font-bold text-[#111827]">
+                      링크 문자 (LMS)
+                    </span>
+                  </div>
+                  <div>
+                    <div className="text-[13px] text-[#6B7280]">문자 내용</div>
+                    <div className="mt-1 whitespace-pre-wrap break-words rounded-xl bg-white p-2.5 text-[12.5px] font-medium leading-relaxed text-[#111827]">
+                      {smsPreview}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[13px] text-[#6B7280]">보안 링크</div>
+                    <div className="mt-1 break-all rounded-xl bg-white p-2.5 text-[12px] font-medium text-[#0864DC]">
+                      {shareUrl()}
+                    </div>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="shrink-0 text-[13px] text-[#6B7280]">견적 금액</span>
+                    <span className="min-w-0 text-right text-[13px] font-bold text-[#111827]">
+                      {won(total)}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="mt-2.5 rounded-xl bg-[#FFF7ED] p-2.5 text-center text-[12.5px] font-bold text-[#B45309]">
+                  실제 문자 요금이 발생합니다. 알리고 충전금에서 차감됩니다.
                 </p>
 
                 {/* 발송 결과 */}
@@ -3689,7 +3734,7 @@ export function Result() {
                       ? "보내는 중…"
                       : sendResult && !sendResult.ok
                         ? "다시 발송"
-                        : "견적 확정하고 발송"}
+                        : "실제 문자발송"}
                   </PrimaryButton>
                   <button
                     onClick={() => {
@@ -3699,7 +3744,7 @@ export function Result() {
                     disabled={sending}
                     className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 font-black text-[14px] text-[#334155] shadow-[0_3px_0_#EDF2FA] disabled:opacity-50"
                   >
-                    {sendResult?.ok ? "닫기" : "다시 확인"}
+                    {sendResult?.ok ? "닫기" : "취소"}
                   </button>
                 </div>
               </div>
