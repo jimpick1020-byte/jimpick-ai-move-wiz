@@ -7,8 +7,25 @@
  * 알리고가 "성공" 이라고 답했을 때만 성공으로 돌려줍니다.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/auth";
 
 const FUNCTION_NAME = "send-estimate-sms";
+
+/**
+ * 지금 로그인한 계정의 열쇠를 꺼내 헤더로 만듭니다.
+ *
+ * 이 열쇠가 없으면 서버가 「로그인이 필요합니다」로 막습니다.
+ * 화면에 로그인으로 보여도 계정 세션이 없을 수 있으므로 매번 확인합니다.
+ */
+async function authHeaders(): Promise<{ headers: Record<string, string> } | null> {
+  const token = await getAccessToken();
+  if (!token) return null;
+  return { headers: { Authorization: `Bearer ${token}` } };
+}
+
+/** 로그인이 안 되어 있을 때 보여 줄 안내 */
+export const NEED_LOGIN_MESSAGE =
+  "계정 로그인이 필요합니다. 로그인 화면에서 사장님 계정으로 로그인한 뒤 다시 보내 주세요.";
 
 export interface EdgeSmsResult {
   ok: boolean;
@@ -27,6 +44,8 @@ export interface EdgeSmsResult {
   customerName?: string;
   /** 이미 보낸 건이면 참 — 다시 보내지 않았습니다 */
   alreadySent?: boolean;
+  /** 계정 로그인이 필요할 때 참 — 화면에서 로그인으로 안내합니다 */
+  needLogin?: boolean;
   message?: string;
   error?: string;
 }
@@ -49,7 +68,13 @@ export interface EdgeSmsInput {
 /** 문자 한 통을 보냅니다 */
 export async function sendSmsViaEdge(input: EdgeSmsInput): Promise<EdgeSmsResult> {
   try {
-    const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, { body: input });
+    // 계정 세션이 없으면 아예 보내지 않습니다
+    const auth = await authHeaders();
+    if (!auth) return { ok: false, error: NEED_LOGIN_MESSAGE, needLogin: true };
+    const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, {
+      body: input,
+      ...auth,
+    });
     if (data && typeof data === "object" && "ok" in data) {
       return data as EdgeSmsResult;
     }
@@ -69,10 +94,7 @@ export async function sendSmsViaEdge(input: EdgeSmsInput): Promise<EdgeSmsResult
       // 함수가 없을 때와 로그인이 풀렸을 때를 구분해 알려 줍니다
       const ctxStatus = (error as { context?: { status?: number } }).context?.status;
       if (ctxStatus === 401) {
-        return {
-          ok: false,
-          error: "로그인이 필요합니다. 설정 화면에서 계정 로그인을 한 뒤 다시 시도해 주세요.",
-        };
+        return { ok: false, error: NEED_LOGIN_MESSAGE, needLogin: true };
       }
       return {
         ok: false,
@@ -97,8 +119,11 @@ export async function sendSmsViaEdge(input: EdgeSmsInput): Promise<EdgeSmsResult
  */
 export async function sendTestSms(to: string): Promise<EdgeSmsResult> {
   try {
+    const auth = await authHeaders();
+    if (!auth) return { ok: false, error: NEED_LOGIN_MESSAGE, needLogin: true };
     const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, {
       body: { mode: "test", test_to: to, idempotency_key: `test-${Date.now()}` },
+      ...auth,
     });
     if (data && typeof data === "object" && "ok" in data) return data as EdgeSmsResult;
     if (error) {
@@ -134,8 +159,10 @@ export interface SmsConfigStatus {
  */
 export async function checkSmsConfig(): Promise<SmsConfigStatus> {
   try {
+    const auth = await authHeaders();
     const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, {
       body: { checkOnly: true },
+      ...(auth ?? {}),
     });
     if (data && typeof data === "object") return data as SmsConfigStatus;
     return {

@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { Card, TextInput } from "./ui";
 import { tap } from "@/lib/feedback";
 import { isSendablePhone } from "@/lib/sms";
+import { currentEmail } from "@/lib/auth";
 import {
   checkSmsConfig,
   sendTestSms,
@@ -26,12 +27,21 @@ function maskPhone(p: string): string {
   return d.length >= 4 ? `010-****-${d.slice(-4)}` : "번호 없음";
 }
 
-export function SmsConnectionCard({ ownerPhone = "" }: { ownerPhone?: string }) {
+export function SmsConnectionCard({
+  ownerPhone = "",
+  onNeedLogin,
+}: {
+  ownerPhone?: string;
+  onNeedLogin?: () => void;
+}) {
   const [config, setConfig] = useState<SmsConfigStatus | null>(null);
   const [checking, setChecking] = useState(false);
   const [phone, setPhone] = useState("");
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<EdgeSmsResult | null>(null);
+  /** 계정 로그인 상태 — 이것이 있어야 실제 발송이 됩니다 */
+  const [account, setAccount] = useState<string | null>(null);
+  const [accountChecked, setAccountChecked] = useState(false);
 
   useEffect(() => {
     try {
@@ -39,6 +49,9 @@ export function SmsConnectionCard({ ownerPhone = "" }: { ownerPhone?: string }) 
     } catch {
       /* 저장소를 못 읽어도 입력은 됩니다 */
     }
+    void currentEmail()
+      .then((e) => setAccount(e || null))
+      .finally(() => setAccountChecked(true));
   }, []);
 
   const check = async () => {
@@ -82,6 +95,33 @@ export function SmsConnectionCard({ ownerPhone = "" }: { ownerPhone?: string }) 
   return (
     <Card className="space-y-3 rounded-[14px]">
       <div className="text-[17px] font-bold">문자발송 연결</div>
+
+      {/* 계정 로그인 상태 — 계정 세션이 없으면 실제 발송이 막힙니다 */}
+      {accountChecked && (
+        <div
+          className={`rounded-[14px] p-3 ${account ? "bg-[#ECFDF3]" : "bg-[#FFF7ED]"}`}
+        >
+          {account ? (
+            <div className="text-[15px] font-bold text-[#15803D]">
+              계정 로그인됨 · {account}
+            </div>
+          ) : (
+            <>
+              <div className="text-[15px] font-bold text-[#B45309]">
+                계정 로그인이 되어 있지 않습니다. 이 상태로는 문자가 나가지 않습니다.
+              </div>
+              {onNeedLogin && (
+                <button
+                  onClick={onNeedLogin}
+                  className="mt-2 w-full rounded-[14px] bg-[#0864DC] py-2.5 text-[16px] font-black text-white"
+                >
+                  로그인 화면으로 가기
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       <button
         onClick={() => {

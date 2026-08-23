@@ -78,6 +78,7 @@ import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
 import { parseVoice, type ItemMatch } from "@/lib/voice-parse";
 import { WavRecorder } from "@/lib/recorder";
 import { sendSmsViaEdge, type EdgeSmsResult } from "@/lib/sms.edge";
+import { hasSession, signIn, signOut } from "@/lib/auth";
 import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functions";
 import { shareToKakao, maskName, areaOf, type StaffSheetSnapshot } from "@/lib/staff-share";
 
@@ -244,12 +245,31 @@ export function Login() {
   const [pw, setPw] = useState("");
   const [remember, setRemember] = useState(!!savedId);
   const [err, setErr] = useState("");
-  const submit = () => {
-    if (!id) return setErr("아이디를 입력해 주세요.");
-    if (!pw) return setErr("비밀번호를 입력해 주세요.");
-    if (id !== "jimpick" || pw !== "1234")
-      return setErr("아이디 또는 비밀번호가 올바르지 않습니다.");
-    login(id, remember);
+  const [busy, setBusy] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
+
+  /**
+   * 실제 계정으로 로그인합니다.
+   *
+   * 예전에는 아이디만 맞으면 들어왔지만, 그러면 계정 세션이 없어서
+   * 문자발송 같은 서버 기능이 「로그인이 필요합니다」로 막힙니다.
+   */
+  const submit = async () => {
+    if (busy) return;
+    setErr("");
+    setShowSignup(false);
+    setBusy(true);
+    try {
+      const r = await signIn(id, pw);
+      if (!r.ok) {
+        setErr(r.error ?? "로그인하지 못했습니다.");
+        setShowSignup(!!r.needSignup);
+        return;
+      }
+      login(id, remember);
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <MobileShell bg="bg-white">
@@ -266,15 +286,26 @@ export function Login() {
           <h2 className="text-2xl font-bold">JIMPICK 로그인</h2>
           <p className="text-sm text-[#6B7280] mt-1">사장님 계정으로 로그인하세요.</p>
         </div>
-        <Field label="아이디">
-          <TextInput placeholder="jimpick" value={id} onChange={(e) => setId(e.target.value)} />
+        <Field label="아이디 (이메일)">
+          <TextInput
+            type="email"
+            inputMode="email"
+            autoComplete="username"
+            placeholder="jimpick@example.com"
+            value={id}
+            onChange={(e) => setId(e.target.value)}
+          />
         </Field>
         <Field label="비밀번호">
           <TextInput
             type="password"
-            placeholder="1234"
+            autoComplete="current-password"
+            placeholder="비밀번호"
             value={pw}
             onChange={(e) => setPw(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void submit();
+            }}
           />
         </Field>
         <label className="flex items-center gap-2 text-sm">
@@ -286,8 +317,16 @@ export function Login() {
           />
           아이디 저장
         </label>
-        {err && <div className="text-sm text-[#EF4444]">{err}</div>}
-        <PrimaryButton onClick={submit}>로그인</PrimaryButton>
+        {err && <div className="text-sm font-bold text-[#EF4444]">{err}</div>}
+        {showSignup && (
+          <div className="rounded-2xl bg-[#F7F9FC] p-3 text-[14px] text-[#4B5563]">
+            처음이시면 아래 「업체 회원가입」으로 계정을 먼저 만들어 주세요.
+            계정이 있어야 견적서 문자발송이 됩니다.
+          </div>
+        )}
+        <PrimaryButton onClick={() => void submit()} disabled={busy}>
+          {busy ? "로그인 중…" : "로그인"}
+        </PrimaryButton>
         <button
           onClick={() => setScreen("signup")}
           className="w-full py-3 rounded-2xl border border-[#0751D8] text-[#0751D8] font-bold bg-white"
@@ -2906,6 +2945,19 @@ export function Result() {
     setSending(true);
     setSendResult(null);
     try {
+      // 0) 계정 세션이 있는지 먼저 봅니다.
+      //    화면에 로그인으로 보여도 계정 세션이 없으면 서버가 막습니다.
+      if (!(await hasSession())) {
+        setSendResult({
+          ok: false,
+          needLogin: true,
+          error:
+            "계정 로그인이 필요합니다. 로그인 화면에서 사장님 계정으로 로그인한 뒤 다시 보내 주세요.",
+        });
+        setSending(false);
+        return;
+      }
+
       // 1) 견적서를 서버에 올려 둡니다. 이것이 있어야 고객이 링크를 열 수 있습니다.
       try {
         const pub = await publishEstimateTerms({
@@ -3846,7 +3898,20 @@ export function Result() {
                         {`****${digitsTail(draft.phone)}`}
                       </>
                     ) : (
-                      <>발송 실패 — {sendResult.error}</>
+                      <>
+                        발송 실패 — {sendResult.error}
+                        {sendResult.needLogin && (
+                          <button
+                            onClick={() => {
+                              setConfirmSheet(false);
+                              setScreen("login");
+                            }}
+                            className="mt-2 block w-full rounded-xl bg-[#0864DC] py-2.5 text-[13px] font-black text-white"
+                          >
+                            로그인 화면으로 가기
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -4314,7 +4379,10 @@ export function SettingsScreen() {
           </Field>
         </Card>
         {/* 문자발송 연결 확인·시험 — 받는 번호는 코드에 고정하지 않습니다 */}
-        <SmsConnectionCard ownerPhone={draft.staffPhone ?? ""} />
+        <SmsConnectionCard
+          ownerPhone={draft.staffPhone ?? ""}
+          onNeedLogin={() => setScreen("login")}
+        />
 
         <Card className="space-y-3">
           <div className="font-bold">문자 기본 문구</div>
@@ -4366,7 +4434,11 @@ export function SettingsScreen() {
           <div>· 재구독 시 기존 데이터 복원</div>
         </Card>
         <button
-          onClick={logout}
+          onClick={() => {
+            // 계정 세션도 함께 끊습니다
+            void signOut();
+            logout();
+          }}
           className="w-full py-4 rounded-2xl bg-white border border-[#EF4444] text-[#EF4444] font-bold flex items-center justify-center gap-2"
         >
           <LogOut className="w-5 h-5" /> 로그아웃
