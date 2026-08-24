@@ -34,6 +34,39 @@ export async function currentEmail(): Promise<string> {
   }
 }
 
+/**
+ * 계정 관련 영어 안내를 쉬운 한국어로 바꿉니다.
+ * (Supabase 가 영어로만 알려 주기 때문입니다)
+ */
+export function authErrorMessage(raw: string): string {
+  const m = String(raw || "");
+  if (/known to be weak|easy to guess|pwned|leaked/i.test(m)) {
+    return "이 비밀번호는 이미 널리 알려진 비밀번호라 쓸 수 없습니다. 다른 비밀번호를 정해 주세요. (영문·숫자를 섞어 8자 이상을 권합니다)";
+  }
+  if (/password should be at least|at least 6 characters|too short/i.test(m)) {
+    return "비밀번호가 너무 짧습니다. 8자 이상으로 정해 주세요.";
+  }
+  if (/user already registered|already been registered/i.test(m)) {
+    return "이미 가입된 이메일입니다. 로그인으로 들어가 주세요.";
+  }
+  if (/invalid login credentials/i.test(m)) {
+    return "이메일 또는 비밀번호가 맞지 않습니다.";
+  }
+  if (/unable to validate email|invalid email/i.test(m)) {
+    return "이메일 주소 형식이 올바르지 않습니다.";
+  }
+  if (/email not confirmed/i.test(m)) {
+    return "이메일 확인이 끝나지 않았습니다. 받은 메일의 링크를 눌러 주세요.";
+  }
+  if (/rate limit|too many requests/i.test(m)) {
+    return "잠시 후 다시 시도해 주세요. (요청이 너무 잦습니다)";
+  }
+  if (/network|fetch/i.test(m)) {
+    return "인터넷 연결을 확인한 뒤 다시 시도해 주세요.";
+  }
+  return m || "처리에 실패했습니다.";
+}
+
 export interface SignInResult {
   ok: boolean;
   /** 계정이 없어 보이면 참 — 회원가입을 권합니다 */
@@ -71,7 +104,7 @@ export async function signIn(email: string, password: string): Promise<SignInRes
     if (/email not confirmed/i.test(msg)) {
       return { ok: false, error: "이메일 확인이 끝나지 않았습니다. 받은 메일의 링크를 눌러 주세요." };
     }
-    return { ok: false, error: `로그인하지 못했습니다. (${msg})` };
+    return { ok: false, error: authErrorMessage(msg) };
   } catch (e) {
     return {
       ok: false,

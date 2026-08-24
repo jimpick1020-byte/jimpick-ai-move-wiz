@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { authErrorMessage } from "@/lib/auth";
 import { lovable } from "@/integrations/lovable/index";
 import { useApp, won } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card, Field, TextInput, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
@@ -43,8 +44,12 @@ export function SignupScreen() {
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (!email || password.length < 6) {
-      toast.error("이메일과 6자 이상 비밀번호를 입력하세요");
+    if (!email.includes("@")) {
+      toast.error("이메일 주소를 정확히 입력해 주세요");
+      return;
+    }
+    if (password.length < 8) {
+      toast.error("비밀번호는 8자 이상으로 정해 주세요");
       return;
     }
     setBusy(true);
@@ -68,7 +73,8 @@ export function SignupScreen() {
       login(email, true);
       setScreen("subscription");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "처리에 실패했습니다");
+      // 영어 안내를 쉬운 한국어로 바꿔 보여 줍니다
+      toast.error(authErrorMessage(e instanceof Error ? e.message : ""));
     } finally {
       setBusy(false);
     }
@@ -106,7 +112,18 @@ export function SignupScreen() {
             <TextInput type="email" placeholder="company@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
           <Field label="비밀번호">
-            <TextInput type="password" placeholder="6자 이상" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <TextInput
+              type="password"
+              placeholder="영문·숫자를 섞어 8자 이상"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            {mode === "signup" && (
+              <p className="mt-1.5 text-[13px] leading-relaxed text-[#6B7280]">
+                8자 이상으로 정해 주세요. 1234, password 처럼 널리 알려진 비밀번호는
+                안전을 위해 쓸 수 없습니다.
+              </p>
+            )}
           </Field>
           {mode === "signup" && (
             <>
