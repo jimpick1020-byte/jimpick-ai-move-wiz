@@ -52,6 +52,7 @@ function Router() {
     case "history": return <History />;
     case "customers": return <Customers />;
     case "signup": return <SignupScreen />;
+    case "forgot": return <ForgotPasswordScreen />;
     case "subscription": return <SubscriptionScreen />;
     case "settings": return <SettingsScreen />;
     case "stats": return <StatsScreen />;
