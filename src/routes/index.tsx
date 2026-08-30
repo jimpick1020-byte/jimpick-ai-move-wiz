@@ -20,6 +20,7 @@ import {
 } from "@/components/jimpick/screens";
 
 import { SignupScreen, SubscriptionScreen } from "@/components/jimpick/account";
+import { ForgotPasswordScreen } from "@/components/jimpick/password";
 
 export const Route = createFileRoute("/")({
   head: () => ({

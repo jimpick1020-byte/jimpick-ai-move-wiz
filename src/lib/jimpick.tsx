@@ -994,6 +994,7 @@ export type Screen =
   | "history"
   | "customers"
   | "signup"
+  | "forgot"
   | "subscription"
   | "settings"
   | "stats";
