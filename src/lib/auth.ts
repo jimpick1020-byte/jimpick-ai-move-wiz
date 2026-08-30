@@ -24,6 +24,22 @@ export async function hasSession(): Promise<boolean> {
   return (await getAccessToken()) !== null;
 }
 
+/**
+ * 서버 기능(server function) 호출에 붙일 Authorization 헤더.
+ *
+ * TanStack Start 서버 기능은 클라이언트에서 부를 때 `{ headers }` 로 헤더를
+ * 넘길 수 있고, 이 헤더가 실제 RPC fetch 까지 그대로 전달됩니다. 구독정보 조회·
+ * 구독 시작처럼 「로그인한 사장님」만 부를 수 있는 기능은 이 헤더로 지금 세션의
+ * access token 을 Bearer 로 실어 보냅니다.
+ *
+ * 세션이 없으면 undefined 를 돌려주므로, 부르는 쪽에서 먼저 확인해 로그인
+ * 안내를 띄우면 됩니다. (서버의 인증 검사는 그대로 둡니다)
+ */
+export async function authHeader(): Promise<{ Authorization: string } | undefined> {
+  const token = await getAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : undefined;
+}
+
 /** 로그인한 계정의 이메일 (화면 표시용) */
 export async function currentEmail(): Promise<string> {
   try {

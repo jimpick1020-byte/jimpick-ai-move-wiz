@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { authErrorMessage } from "@/lib/auth";
+import { authErrorMessage, authHeader } from "@/lib/auth";
 import { lovable } from "@/integrations/lovable/index";
 import { useApp, won } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card, Field, TextInput, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
@@ -55,7 +55,7 @@ export function SignupScreen() {
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -64,6 +64,14 @@ export function SignupScreen() {
           },
         });
         if (error) throw error;
+        // 이메일 확인이 켜져 있으면 signUp 은 세션(access token)을 만들지 않습니다.
+        // 이때 구독 화면으로 넘어가면 토큰이 없어 "No authorization header" 가 납니다.
+        // 그래서 세션이 실제로 생겼을 때만 구독 화면으로 보냅니다.
+        if (!data.session) {
+          toast.success("가입 메일을 보냈습니다. 메일의 링크를 눌러 인증한 뒤 로그인해 주세요.");
+          setMode("signin");
+          return;
+        }
         toast.success("가입 완료! 3일 무료 체험이 시작되었습니다");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -171,8 +179,11 @@ export function SubscriptionScreen() {
 
   const refresh = async () => {
     if (!userId) return;
+    // 지금 세션의 access token 을 Authorization: Bearer 로 실어 보냅니다.
+    const headers = await authHeader();
+    if (!headers) return; // 세션이 아직 없으면 조회하지 않습니다 (401 방지)
     try {
-      setAccount(await getMyAccount());
+      setAccount(await getMyAccount({ headers }));
     } catch {
       /* 세션 준비 전 */
     }
@@ -183,10 +194,18 @@ export function SubscriptionScreen() {
   }, [userId]);
 
   const buy = async (plan: PlanId) => {
+    // 구독 시작은 로그인한 사장님만 가능합니다.
+    // 지금 세션의 access token 을 Authorization: Bearer 로 실어 보냅니다.
+    const headers = await authHeader();
+    if (!headers) {
+      toast.error("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+      setScreen("signup");
+      return;
+    }
     setBusy(plan);
     tap("success");
     try {
-      await subscribePlan({ data: { plan, method: "card" } });
+      await subscribePlan({ data: { plan, method: "card" }, headers });
       if (plan === "free") {
         toast.success("무료 체험이 시작되었습니다 (3일)");
       } else {
@@ -204,8 +223,14 @@ export function SubscriptionScreen() {
   };
 
   const cancel = async () => {
+    const headers = await authHeader();
+    if (!headers) {
+      toast.error("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+      setScreen("signup");
+      return;
+    }
     try {
-      await cancelSubscription();
+      await cancelSubscription({ headers });
       toast.success("이번 결제 주기 종료 후 해지됩니다");
       await refresh();
     } catch {
