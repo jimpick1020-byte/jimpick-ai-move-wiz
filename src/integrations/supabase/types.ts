@@ -74,7 +74,6 @@ export type Database = {
       estimate_terms: {
         Row: {
           access_token: string
-          company_phone: string | null
           contact_phone: string | null
           created_at: string
           customer_name: string
@@ -97,7 +96,6 @@ export type Database = {
         }
         Insert: {
           access_token: string
-          company_phone?: string | null
           contact_phone?: string | null
           created_at?: string
           customer_name?: string
@@ -120,7 +118,6 @@ export type Database = {
         }
         Update: {
           access_token?: string
-          company_phone?: string | null
           contact_phone?: string | null
           created_at?: string
           customer_name?: string
