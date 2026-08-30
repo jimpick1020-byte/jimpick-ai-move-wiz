@@ -1,0 +1,1 @@
+ALTER TABLE public.estimate_terms ADD COLUMN IF NOT EXISTS company_phone text;
