@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import {
   Bell,
   ClipboardList,
@@ -140,9 +140,16 @@ import {
 import houseImg from "@/assets/step6-house.png";
 
 export function Splash() {
-  const { setScreen, loggedIn } = useApp();
+  const { setScreen, loggedIn, resetDraft } = useApp();
   const [typedText, setTypedText] = useState("");
   const fullText = "AI로 견적을 받아보세요!";
+
+  /** 음성 입력 화면(AI 인식)으로 바로 이동 — 새 견적을 시작합니다 */
+  const goVoiceInput = (e: ReactMouseEvent) => {
+    e.stopPropagation();
+    resetDraft();
+    setScreen("ai");
+  };
 
   useEffect(() => {
     let idx = 0;
@@ -160,9 +167,23 @@ export function Splash() {
     return () => clearTimeout(t);
   }, [setScreen, loggedIn]);
 
-  const features = [
+  // 기능 목록 순서: 간편한 견적 → AI 사진 인식 → 음성으로 간편 입력 →
+  // 정확한 거리·시간 → 맞춤형 견적 제공 → 고객 관리 & 기록.
+  // '음성으로 간편 입력'은 장식이 아니라 실제 음성 입력 화면으로 연결됩니다.
+  const features: {
+    icon: typeof FileText;
+    label: string;
+    onClick?: (e: ReactMouseEvent) => void;
+    ariaLabel?: string;
+  }[] = [
     { icon: FileText, label: "간편한 견적 작성" },
     { icon: CamIcon, label: "AI 사진 인식" },
+    {
+      icon: Mic,
+      label: "음성으로 간편 입력",
+      onClick: goVoiceInput,
+      ariaLabel: "음성으로 간편 입력 — 눌러서 음성 입력 시작",
+    },
     { icon: MapPin, label: "정확한 거리·시간" },
     { icon: Sparkles, label: "맞춤형 견적 제공" },
     { icon: UserCircle, label: "고객 관리 & 기록" },
@@ -186,10 +207,23 @@ export function Splash() {
           <div className="text-sm text-[#6B7280] mt-1">이사 견적, 더 쉽고 정확하게!</div>
         </div>
         <div className="space-y-2 w-full mt-8">
-          {features.map(({ icon: Icon, label }) => (
+          {features.map(({ icon: Icon, label, onClick, ariaLabel }) => (
             <div
               key={label}
-              className="group flex items-center gap-3 px-3 py-2 rounded-2xl transition-all duration-200 hover:bg-gradient-to-r hover:from-[#F3F7FF] hover:to-[#FDF2FA] hover:shadow-[0_10px_24px_-14px_rgba(121,40,202,0.55)] hover:-translate-y-[1px]"
+              onClick={onClick}
+              role={onClick ? "button" : undefined}
+              tabIndex={onClick ? 0 : undefined}
+              aria-label={ariaLabel ?? label}
+              onKeyDown={
+                onClick
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") onClick?.(e as unknown as ReactMouseEvent);
+                    }
+                  : undefined
+              }
+              className={`group flex items-center gap-3 px-3 py-2 rounded-2xl transition-all duration-200 hover:bg-gradient-to-r hover:from-[#F3F7FF] hover:to-[#FDF2FA] hover:shadow-[0_10px_24px_-14px_rgba(121,40,202,0.55)] hover:-translate-y-[1px]${
+                onClick ? " cursor-pointer" : ""
+              }`}
             >
               <Sparkles className="w-4 h-4 text-[#7928CA] shrink-0 transition-transform duration-200 group-hover:scale-125" />
               <div className="w-9 h-9 rounded-xl bg-[#EEF4FF] flex items-center justify-center">
@@ -201,11 +235,20 @@ export function Splash() {
         </div>
         <div className="mt-auto pt-4 pb-1 flex flex-col items-center gap-2">
           <div className="relative flex flex-col items-center">
-            {/* 말풍선 idle 애니메이션 + 타이핑 효과 */}
-            <div className="jp-bubble-float absolute -top-10 z-10 pointer-events-none">
+            {/* 말풍선 idle 애니메이션 + 타이핑 효과.
+                typedText 가 비어도 문구가 사라지지 않도록 fullText 로 대체하고,
+                흰 배경 위에서 잘 보이도록 진한 남색 글자를 씁니다. */}
+            <div
+              className="jp-bubble-float absolute -top-10 z-10 pointer-events-none"
+              role="img"
+              aria-label={fullText}
+            >
               <div className="relative px-4 py-2 rounded-2xl bg-white/95 shadow-[0_8px_24px_-6px_rgba(7,81,216,0.35)] border border-[#0751D8]/10">
-                <span className="text-sm font-bold text-[#0751D8] whitespace-nowrap">
-                  {typedText}
+                <span
+                  className="text-sm font-extrabold text-[#0B3EA8] whitespace-nowrap"
+                  aria-label={fullText}
+                >
+                  {typedText || fullText}
                   <span className="jp-typing-cursor" />
                 </span>
                 {/* 말풍선 꼬리 */}
