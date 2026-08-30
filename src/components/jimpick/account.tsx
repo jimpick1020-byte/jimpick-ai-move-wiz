@@ -42,8 +42,12 @@ export function SignupScreen() {
   const [owner, setOwner] = useState("");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
+  /** 인증 메일을 보낸 주소 — 있으면 '인증메일 다시 보내기' 안내를 띄웁니다 */
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [resendBusy, setResendBusy] = useState(false);
 
   const submit = async () => {
+    if (busy) return; // 연속 클릭으로 중복 요청되지 않게 잠급니다
     if (!email.includes("@")) {
       toast.error("이메일 주소를 정확히 입력해 주세요");
       return;
@@ -59,23 +63,44 @@ export function SignupScreen() {
           email,
           password,
           options: {
+            // 게시 주소로 돌아오게 합니다 (게시: https://jimpick-ai-move-wiz.lovable.app,
+            // 미리보기: lovable 프리뷰 주소). 어느 쪽이든 지금 접속한 주소로 맞춰집니다.
             emailRedirectTo: window.location.origin,
             data: { company_name: company, owner_name: owner, phone },
           },
         });
         if (error) throw error;
-        // 이메일 확인이 켜져 있으면 signUp 은 세션(access token)을 만들지 않습니다.
-        // 이때 구독 화면으로 넘어가면 토큰이 없어 "No authorization header" 가 납니다.
-        // 그래서 세션이 실제로 생겼을 때만 구독 화면으로 보냅니다.
-        if (!data.session) {
-          toast.success("가입 메일을 보냈습니다. 메일의 링크를 눌러 인증한 뒤 로그인해 주세요.");
+
+        // 이미 가입된(인증 완료된) 이메일이면 Supabase 는 계정 노출을 막기 위해
+        // 오류 없이 identities 가 빈 user 를 돌려주고, 메일도 보내지 않습니다.
+        // 이때 "메일 보냈습니다" 라고 하면 거짓 안내가 되므로 로그인으로 안내합니다.
+        const identities = data.user?.identities;
+        if (data.user && Array.isArray(identities) && identities.length === 0) {
+          toast.error("이미 가입된 이메일입니다. 아래에서 '로그인'으로 들어가 주세요.");
           setMode("signin");
           return;
         }
+
+        // 이메일 확인이 켜져 있으면 세션 없이 user 만 옵니다 → 인증 메일이 실제로 발송된 상태.
+        // 세션이 없으면 구독 화면으로 넘기지 않고 인증 대기 안내를 띄웁니다.
+        if (!data.session) {
+          setPendingEmail(email);
+          toast.success("인증 메일을 보냈습니다. 메일의 링크를 눌러 인증해 주세요.");
+          setMode("signin");
+          return;
+        }
+
+        // 이메일 확인이 꺼져 있어 바로 세션이 생긴 경우만 로그인 처리합니다.
         toast.success("가입 완료! 3일 무료 체험이 시작되었습니다");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+          // 인증이 끝나지 않은 계정이면 '인증메일 다시 보내기' 안내를 띄웁니다.
+          if (/email not confirmed|not confirmed/i.test(error.message)) {
+            setPendingEmail(email);
+          }
+          throw error;
+        }
         toast.success("로그인되었습니다");
       }
       login(email, true);
@@ -88,15 +113,45 @@ export function SignupScreen() {
     }
   };
 
-  const google = async () => {
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (result.error) {
-      toast.error("구글 로그인에 실패했습니다");
-      return;
+  /** 인증 메일 재발송 — 실제 Supabase 응답으로 성공·실패를 표시합니다 */
+  const resendVerification = async () => {
+    if (resendBusy || !pendingEmail) return; // 재발송 중 중복 발송 방지
+    setResendBusy(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: pendingEmail,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) throw error;
+      toast.success("인증 메일을 다시 보냈습니다. 메일함과 스팸함을 확인해 주세요.");
+    } catch (e) {
+      toast.error(authErrorMessage(e instanceof Error ? e.message : "") || "재발송에 실패했습니다.");
+    } finally {
+      setResendBusy(false);
     }
-    if (result.redirected) return;
-    login(email || "google", true);
-    setScreen("subscription");
+  };
+
+  const google = async () => {
+    if (busy) return; // 연속 클릭 잠금
+    setBusy(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast.error("구글 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        return;
+      }
+      // 구글 로그인 페이지로 이동하는 경우(가장 일반적) — 돌아오면 세션이 설정됩니다.
+      if (result.redirected) return;
+      login(email || "google", true);
+      setScreen("subscription");
+    } catch {
+      toast.error("구글 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -150,10 +205,29 @@ export function SignupScreen() {
 
         <button
           onClick={google}
-          className="w-full py-3.5 rounded-2xl bg-white border border-[#E7EBF2] font-bold shadow-sm"
+          disabled={busy}
+          className="w-full py-3.5 rounded-2xl bg-white border border-[#E7EBF2] font-bold shadow-sm disabled:opacity-60"
         >
           구글 계정으로 계속하기
         </button>
+
+        {pendingEmail && (
+          <Card className="space-y-2 border border-[#0751D8]/20 bg-[#F5F8FF]">
+            <div className="text-sm font-bold text-[#0751D8]">인증 메일을 확인해 주세요</div>
+            <div className="text-[13px] leading-relaxed text-[#4B5563]">
+              <b>{pendingEmail}</b> 로 인증 메일을 보냈습니다. 메일의 링크를 누르면 인증이
+              완료되고, 이 앱으로 돌아와 로그인할 수 있습니다. 메일이 안 보이면{" "}
+              <b>스팸함</b>도 확인해 주세요.
+            </div>
+            <button
+              onClick={resendVerification}
+              disabled={resendBusy}
+              className="w-full py-2.5 rounded-xl bg-white border border-[#0751D8] text-[#0751D8] text-sm font-bold disabled:opacity-60"
+            >
+              {resendBusy ? "다시 보내는 중…" : "인증메일 다시 보내기"}
+            </button>
+          </Card>
+        )}
 
         <div className="text-xs text-[#6B7280] leading-relaxed px-1">
           가입 즉시 <b>3일 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능을 쓸 수 있습니다.
