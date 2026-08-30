@@ -376,7 +376,13 @@ export function Login() {
         >
           업체 회원가입 · 구독 신청
         </button>
-        <div className="text-center text-sm text-[#6B7280]">아이디/비밀번호 찾기</div>
+        <button
+          type="button"
+          onClick={() => setScreen("forgot")}
+          className="w-full py-4 text-center text-sm font-bold text-[#0751D8] underline underline-offset-4 active:opacity-70"
+        >
+          아이디/비밀번호 찾기
+        </button>
         <div className="text-center text-xs text-[#6B7280] pt-6">© JIMPICK · Ver 7.0.0</div>
       </div>
     </MobileShell>

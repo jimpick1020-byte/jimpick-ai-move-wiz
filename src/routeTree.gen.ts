@@ -9,10 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShareIdRouteImport } from './routes/share.$id'
 import { Route as StaffEstimateTokenRouteImport } from './routes/staff.estimate.$token'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -31,36 +37,52 @@ const StaffEstimateTokenRoute = StaffEstimateTokenRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/share/$id' | '/staff/estimate/$token'
+  fullPaths: '/' | '/reset-password' | '/share/$id' | '/staff/estimate/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/share/$id' | '/staff/estimate/$token'
-  id: '__root__' | '/' | '/share/$id' | '/staff/estimate/$token'
+  to: '/' | '/reset-password' | '/share/$id' | '/staff/estimate/$token'
+  id:
+    | '__root__'
+    | '/'
+    | '/reset-password'
+    | '/share/$id'
+    | '/staff/estimate/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ShareIdRoute: typeof ShareIdRoute
   StaffEstimateTokenRoute: typeof StaffEstimateTokenRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -87,6 +109,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ShareIdRoute: ShareIdRoute,
   StaffEstimateTokenRoute: StaffEstimateTokenRoute,
 }
