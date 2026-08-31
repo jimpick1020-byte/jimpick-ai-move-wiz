@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 
 /** 견적서 기본 업체 정보 (사장님 계정별로 profiles 에 저장됩니다) */
 export interface CompanyDefaults {
