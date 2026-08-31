@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 // ============ Types ============
 export type MoveType = "포장이사" | "반포장이사" | "일반이사" | "보관이사" | "사무실이사";
@@ -1040,16 +1041,46 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
 
   const [hydrated, setHydrated] = useState(false);
 
-  // 하이드레이션 이후에 저장된 상태를 불러옵니다 (SSR 불일치 방지)
+  // 하이드레이션 이후에 저장된 상태를 불러옵니다 (SSR 불일치 방지).
+  // 로그인 여부는 저장된 값을 믿지 않고 Supabase 세션으로만 판단합니다(아래 세션 효과).
+  // 그래서 항상 loggedIn=false, 첫 화면=splash 로 시작하고, 세션이 확인되면 승격합니다.
+  // (견적·고객·품목 등 나머지 데이터는 그대로 보존합니다.)
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const s = JSON.parse(raw) as AppState;
-        setState({ ...s, screen: s.loggedIn ? "home" : "splash" });
+        setState({ ...s, loggedIn: false, screen: "splash" });
       }
     } catch {}
     setHydrated(true);
+  }, []);
+
+  // 로그인 상태의 유일한 근거 = Supabase Auth 세션.
+  //  - 세션이 있으면 loggedIn=true (자동 로그인 유지, refresh token 자동 갱신).
+  //  - 세션이 없거나 만료되면 loggedIn=false 로 내리고 로그인 화면으로 보냅니다.
+  //  - 비밀번호 원문은 어디에도 저장하지 않습니다.
+  useEffect(() => {
+    let alive = true;
+    const apply = (hasSession: boolean) =>
+      setState((s) => {
+        if (s.loggedIn === hasSession) return s;
+        if (hasSession) return { ...s, loggedIn: true };
+        // 세션이 사라짐(로그아웃·만료) → 보호 화면이면 로그인 화면으로
+        const publicScreens: Screen[] = ["splash", "login", "signup"];
+        return { ...s, loggedIn: false, screen: publicScreens.includes(s.screen) ? s.screen : "login" };
+      });
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (alive) apply(!!data.session);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (alive) apply(!!session);
+    });
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -1111,7 +1142,12 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
 
     login: (id, remember) =>
       setState((s) => ({ ...s, loggedIn: true, savedId: remember ? id : "", screen: "home" })),
-    logout: () => setState((s) => ({ ...s, loggedIn: false, screen: "login" })),
+    logout: () => {
+      // 저장된 인증 세션을 완전히 삭제합니다(localStorage·sessionStorage 양쪽).
+      // 세션 변화는 위 onAuthStateChange 가 감지해 loggedIn 을 내립니다.
+      void supabase.auth.signOut().catch(() => {});
+      setState((s) => ({ ...s, loggedIn: false, screen: "login" }));
+    },
     updateDraft: (patch) => setState((s) => ({ ...s, draft: { ...s.draft, ...patch } })),
     resetDraft: () => setState((s) => ({ ...s, draft: newEstimate(), currentRoomId: "" })),
     saveDraft: () =>

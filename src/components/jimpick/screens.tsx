@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type ChangeEvent as ReactChangeEvent,
+} from "react";
 import {
   Bell,
   ClipboardList,
@@ -79,6 +86,7 @@ import { parseVoice, type ItemMatch } from "@/lib/voice-parse";
 import { WavRecorder } from "@/lib/recorder";
 import { sendSmsViaEdge, type EdgeSmsResult } from "@/lib/sms.edge";
 import { hasSession, signIn, signOut } from "@/lib/auth";
+import { setRememberMe } from "@/integrations/supabase/auth-persistence";
 import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functions";
 import { shareToKakao, maskName, areaOf, type StaffSheetSnapshot } from "@/lib/staff-share";
 
@@ -94,6 +102,14 @@ import {
 } from "@/lib/terms";
 import { publishEstimateTerms, getTermsStatuses, type TermsStatusRow } from "@/lib/terms.functions";
 import { getCompanyDefaults, saveCompanyDefaults } from "@/lib/company-defaults.functions";
+import {
+  uploadCert,
+  certSignedUrl,
+  removeCert,
+  validateCertFile,
+  formatBusinessNumber,
+  isValidBusinessNumber,
+} from "@/lib/business-cert";
 
 /** 음성인식 정확도를 올려 주는 힌트 (자주 쓰는 이사 품목·공간 이름) */
 const VOICE_HINT =
@@ -288,6 +304,8 @@ export function Login() {
   const [id, setId] = useState(savedId || "");
   const [pw, setPw] = useState("");
   const [remember, setRemember] = useState(!!savedId);
+  /** 로그인 상태 유지 — 체크 시 브라우저를 닫아도 세션을 유지합니다(기본 켜짐) */
+  const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -304,6 +322,8 @@ export function Login() {
     setShowSignup(false);
     setBusy(true);
     try {
+      // 로그인 직전에 세션 저장 위치를 정합니다(유지 ON=브라우저 종료 후에도 유지).
+      setRememberMe(keepLoggedIn);
       const r = await signIn(id, pw);
       if (!r.ok) {
         setErr(r.error ?? "로그인하지 못했습니다.");
@@ -352,15 +372,30 @@ export function Login() {
             }}
           />
         </Field>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={remember}
-            onChange={(e) => setRemember(e.target.checked)}
-            className="w-4 h-4"
-          />
-          아이디 저장
-        </label>
+        <div className="flex items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="w-4 h-4"
+            />
+            아이디 저장
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={keepLoggedIn}
+              onChange={(e) => setKeepLoggedIn(e.target.checked)}
+              className="w-4 h-4"
+            />
+            로그인 상태 유지
+          </label>
+        </div>
+        <p className="-mt-3 text-xs text-[#9AA3AF]">
+          공용 컴퓨터에서는 「로그인 상태 유지」를 꺼 주세요. 끄면 브라우저를 닫을 때 자동으로
+          로그아웃됩니다.
+        </p>
         {err && <div className="text-sm font-bold text-[#EF4444]">{err}</div>}
         {showSignup && (
           <div className="rounded-2xl bg-[#F7F9FC] p-3 text-[14px] text-[#4B5563]">
@@ -2938,6 +2973,8 @@ export function Result() {
   const [staffExpires, setStaffExpires] = useState<string | null>(null);
   /** 기본 업체 정보 저장 중 */
   const [savingDefaults, setSavingDefaults] = useState(false);
+  /** 설정에 저장한 상호명 — 견적서 머리글 업체명으로 씁니다(과거 확정 견적은 건드리지 않음) */
+  const [sheetCompanyName, setSheetCompanyName] = useState("");
 
   /**
    * 저장해 둔 기본 업체 정보(담당자·계좌)를 자동으로 채웁니다.
@@ -2956,9 +2993,14 @@ export function Result() {
         if (!alive || !r.ok) return;
         defaultsFilled.current = true;
         const d = r.data;
+        // 상호명은 견적서 머리글에 씁니다(사장님 화면 표시용, 확정 견적은 아래에서 제외됨).
+        if (d.companyName) setSheetCompanyName(d.companyName);
         const patch: Record<string, string> = {};
-        if (!draft.staffName?.trim() && d.staffName) patch.staffName = d.staffName;
-        if (!draft.staffPhone?.trim() && d.staffPhone) patch.staffPhone = d.staffPhone;
+        // 담당자·연락처가 비어 있으면 설정의 담당자→대표자명, 담당자연락처→업체 연락처 순으로 채웁니다.
+        if (!draft.staffName?.trim() && (d.staffName || d.ownerName))
+          patch.staffName = d.staffName || d.ownerName;
+        if (!draft.staffPhone?.trim() && (d.staffPhone || d.phone))
+          patch.staffPhone = d.staffPhone || d.phone;
         if (!draft.bankName?.trim() && d.bankName) patch.bankName = d.bankName;
         if (!draft.bankAccount?.trim() && d.bankAccount) patch.bankAccount = d.bankAccount;
         if (!draft.bankHolder?.trim() && d.bankHolder) patch.bankHolder = d.bankHolder;
@@ -3879,6 +3921,7 @@ export function Result() {
                 rooms={sheetRooms}
                 parts={parts}
                 total={total}
+                companyName={sheetCompanyName || undefined}
                 companyPhone={draft.staffPhone ?? ""}
                 acceptedAt={termsStatus?.acceptedAt ?? null}
                 acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
@@ -4455,6 +4498,238 @@ export function Customers() {
 }
 
 // ============ Settings ============
+/**
+ * 사업자 정보 수정·저장 카드.
+ * 로그인한 사장님의 Supabase 프로필(profiles)에 저장하며,
+ * 사업자등록증은 비공개 Storage 버킷에 올립니다.
+ */
+function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [companyName, setCompanyName] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [bizNo, setBizNo] = useState(""); // 숫자만 보관
+  const [certPath, setCertPath] = useState("");
+
+  // 새로 고른 파일(저장 시 업로드) — 취소 시 버려집니다.
+  const [pickedFile, setPickedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const load = async () => {
+    try {
+      const r = await getCompanyDefaults();
+      if (r.ok) {
+        setCompanyName(r.data.companyName);
+        setOwnerName(r.data.ownerName);
+        setPhone(r.data.phone);
+        setBizNo((r.data.businessNumber || "").replace(/[^0-9]/g, ""));
+        setCertPath(r.data.certPath);
+      }
+    } catch {
+      /* 세션 준비 전 — 편집 시작할 때 다시 시도됩니다 */
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const startEdit = () => {
+    setFileError("");
+    setPickedFile(null);
+    setEditing(true);
+  };
+  const cancelEdit = () => {
+    setEditing(false);
+    setPickedFile(null);
+    setFileError("");
+    if (fileRef.current) fileRef.current.value = "";
+    void load(); // 저장하지 않은 입력은 되돌립니다
+  };
+
+  const pickFile = (e: ReactChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    setFileError("");
+    if (!f) {
+      setPickedFile(null);
+      return;
+    }
+    const invalid = validateCertFile(f);
+    if (invalid) {
+      setFileError(invalid);
+      setPickedFile(null);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    setPickedFile(f);
+  };
+
+  const viewCert = async () => {
+    const url = await certSignedUrl(certPath);
+    if (!url) {
+      toast.error("사업자등록증을 여는 데 실패했습니다. 다시 로그인했는지 확인해 주세요.");
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const save = async () => {
+    if (saving) return; // 중복 저장 방지
+    if (bizNo && !isValidBusinessNumber(bizNo)) {
+      toast.error("사업자등록번호는 숫자 10자리로 입력해 주세요.");
+      return;
+    }
+    setSaving(true);
+    try {
+      // 1) 새 파일이 있으면 먼저 비공개 버킷에 업로드하고 경로를 받습니다.
+      let nextCertPath = certPath;
+      if (pickedFile) {
+        const up = await uploadCert(pickedFile, certPath || null);
+        if (!up.ok || !up.path) {
+          if (/로그인/.test(up.error ?? "")) onNeedLogin();
+          toast.error("사업자등록증 업로드에 실패했습니다", {
+            description: up.error ?? "알 수 없는 오류",
+          });
+          return; // 실패 시 성공으로 표시하지 않습니다
+        }
+        nextCertPath = up.path;
+      }
+
+      // 2) 프로필(profiles)에 저장 — 넘긴 항목만 갱신됩니다.
+      const r = await saveCompanyDefaults({
+        data: {
+          companyName,
+          ownerName,
+          phone,
+          businessNumber: bizNo,
+          certPath: nextCertPath,
+        },
+      });
+      if (!r.ok) {
+        toast.error("사업자 정보를 저장하지 못했습니다", { description: r.error ?? "알 수 없는 오류" });
+        return;
+      }
+
+      setCertPath(nextCertPath);
+      setPickedFile(null);
+      if (fileRef.current) fileRef.current.value = "";
+      setEditing(false);
+      toast.success("사업자 정보를 저장했습니다");
+    } catch (err) {
+      toast.error("저장 중 오류가 발생했습니다", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="font-bold">사업자 정보</div>
+        {!editing && (
+          <button
+            onClick={startEdit}
+            disabled={loading}
+            className="text-sm font-bold text-[#0751D8] disabled:opacity-50"
+          >
+            사업자 정보 수정
+          </button>
+        )}
+      </div>
+
+      <Field label="상호명">
+        <TextInput
+          value={companyName}
+          onChange={(e) => setCompanyName(e.target.value)}
+          disabled={!editing}
+          placeholder="예: 짐픽 이사"
+        />
+      </Field>
+      <Field label="대표자명">
+        <TextInput
+          value={ownerName}
+          onChange={(e) => setOwnerName(e.target.value)}
+          disabled={!editing}
+          placeholder="예: 홍길동"
+        />
+      </Field>
+      <Field label="연락처">
+        <TextInput
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          disabled={!editing}
+          placeholder="010-0000-0000"
+        />
+      </Field>
+      <Field label="사업자등록번호">
+        {editing ? (
+          <TextInput
+            value={bizNo}
+            inputMode="numeric"
+            onChange={(e) => setBizNo(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
+            placeholder="숫자 10자리 (예: 1234567890)"
+          />
+        ) : (
+          <TextInput value={bizNo ? formatBusinessNumber(bizNo) : ""} disabled placeholder="미입력" />
+        )}
+      </Field>
+
+      <div className="space-y-1.5">
+        <div className="text-sm font-semibold text-[#374151]">사업자등록증</div>
+        {certPath ? (
+          <button onClick={viewCert} className="text-sm font-bold text-[#0751D8] underline">
+            등록된 사업자등록증 보기
+          </button>
+        ) : (
+          <div className="text-sm text-[#9AA3AF]">등록된 파일 없음</div>
+        )}
+        {editing && (
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,application/pdf"
+              onChange={pickFile}
+              className="block w-full text-sm text-[#374151] file:mr-3 file:rounded-lg file:border-0 file:bg-[#EEF4FF] file:px-3 file:py-2 file:text-[#0751D8] file:font-bold"
+            />
+            <div className="text-xs text-[#9AA3AF]">JPG · PNG · PDF, 10MB 이하 · 비공개 저장</div>
+            {pickedFile && (
+              <div className="text-xs text-[#16A34A]">선택됨: {pickedFile.name}</div>
+            )}
+            {fileError && <div className="text-xs font-bold text-[#EF4444]">{fileError}</div>}
+          </>
+        )}
+      </div>
+
+      {editing && (
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={cancelEdit}
+            disabled={saving}
+            className="flex-1 py-2.5 rounded-xl bg-white border border-[#E7EBF2] font-bold disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="flex-1 py-2.5 rounded-xl bg-[#0751D8] text-white font-bold disabled:opacity-60"
+          >
+            {saving ? "저장 중…" : "저장"}
+          </button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function SettingsScreen() {
   const { logout, setScreen, draft } = useApp();
   const [pricing, setPricing] = useState<Pricing>(DEFAULT_PRICING);
@@ -4479,21 +4754,7 @@ export function SettingsScreen() {
           <div className="text-base">구독 · 결제 관리</div>
           <div className="text-xs font-medium opacity-90 mt-1">요금제 변경, 결제 내역 확인</div>
         </button>
-        <Card className="space-y-3">
-          <div className="font-bold">사업자 정보</div>
-          <Field label="상호명">
-            <TextInput defaultValue="JIMPICK" />
-          </Field>
-          <Field label="대표자명">
-            <TextInput defaultValue="짐픽 사장" />
-          </Field>
-          <Field label="연락처">
-            <TextInput defaultValue="010-0000-0000" />
-          </Field>
-          <Field label="사업자등록번호">
-            <TextInput defaultValue="000-00-00000" />
-          </Field>
-        </Card>
+        <BusinessInfoCard onNeedLogin={() => setScreen("login")} />
         {/* 문자발송 연결 확인·시험 — 받는 번호는 코드에 고정하지 않습니다 */}
         <SmsConnectionCard
           ownerPhone={draft.staffPhone ?? ""}
