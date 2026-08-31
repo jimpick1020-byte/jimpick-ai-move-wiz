@@ -192,27 +192,42 @@ export type Database = {
       }
       profiles: {
         Row: {
+          bank_account: string | null
+          bank_holder: string | null
+          bank_name: string | null
           company_name: string | null
           created_at: string
           id: string
           owner_name: string | null
           phone: string | null
+          staff_name: string | null
+          staff_phone: string | null
           updated_at: string
         }
         Insert: {
+          bank_account?: string | null
+          bank_holder?: string | null
+          bank_name?: string | null
           company_name?: string | null
           created_at?: string
           id: string
           owner_name?: string | null
           phone?: string | null
+          staff_name?: string | null
+          staff_phone?: string | null
           updated_at?: string
         }
         Update: {
+          bank_account?: string | null
+          bank_holder?: string | null
+          bank_name?: string | null
           company_name?: string | null
           created_at?: string
           id?: string
           owner_name?: string | null
           phone?: string | null
+          staff_name?: string | null
+          staff_phone?: string | null
           updated_at?: string
         }
         Relationships: []
