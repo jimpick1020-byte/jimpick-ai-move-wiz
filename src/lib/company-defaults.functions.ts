@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 
 /** 견적서 기본 업체 정보 (사장님 계정별로 profiles 에 저장됩니다) */
 export interface CompanyDefaults {
@@ -93,10 +94,13 @@ export const saveCompanyDefaults = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => schema.parse(input))
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
-    const row: Record<string, unknown> = { id: context.userId };
+    type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"];
+    const row: ProfileInsert = { id: context.userId };
     // 넘어온(정의된) 항목만 반영합니다. 빈 문자열은 null 로 지웁니다.
-    const put = (col: string, val: string | undefined) => {
-      if (val !== undefined) row[col] = val.trim() === "" ? null : val.trim();
+    const put = (column: keyof Omit<ProfileInsert, "id">, value: string | undefined) => {
+      if (value !== undefined) {
+        row[column] = (value.trim() === "" ? null : value.trim()) as never;
+      }
     };
     put("company_name", data.companyName);
     put("owner_name", data.ownerName);
