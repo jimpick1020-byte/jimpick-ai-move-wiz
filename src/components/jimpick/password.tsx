@@ -5,9 +5,11 @@ import { authErrorMessage } from "@/lib/auth";
 import { useApp } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card, Field, TextInput, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
 
-/** 비밀번호 재설정 메일이 돌아올 화면 주소 (지금 접속한 주소 기준) */
+/** 비밀번호 재설정 메일이 돌아올 화면 주소 (공개 앱 주소로 고정) */
+export const RESET_REDIRECT_URL = "https://jimpick-ai-move-wiz.lovable.app/reset-password";
+
 export function resetRedirectUrl(): string {
-  return `${window.location.origin}/reset-password`;
+  return RESET_REDIRECT_URL;
 }
 
 /** 아이디/비밀번호 찾기 — 이메일을 받아 실제로 재설정 메일을 보냅니다 */
