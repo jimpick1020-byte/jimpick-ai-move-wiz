@@ -93,6 +93,7 @@ import {
   TERMS_NOTICE,
 } from "@/lib/terms";
 import { publishEstimateTerms, getTermsStatuses, type TermsStatusRow } from "@/lib/terms.functions";
+import { getCompanyDefaults, saveCompanyDefaults } from "@/lib/company-defaults.functions";
 
 /** 음성인식 정확도를 올려 주는 힌트 (자주 쓰는 이사 품목·공간 이름) */
 const VOICE_HINT =
