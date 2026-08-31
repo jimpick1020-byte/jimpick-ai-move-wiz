@@ -195,8 +195,6 @@ export type Database = {
           bank_account: string | null
           bank_holder: string | null
           bank_name: string | null
-          business_number: string | null
-          cert_path: string | null
           company_name: string | null
           created_at: string
           id: string
@@ -210,8 +208,6 @@ export type Database = {
           bank_account?: string | null
           bank_holder?: string | null
           bank_name?: string | null
-          business_number?: string | null
-          cert_path?: string | null
           company_name?: string | null
           created_at?: string
           id: string
@@ -225,8 +221,6 @@ export type Database = {
           bank_account?: string | null
           bank_holder?: string | null
           bank_name?: string | null
-          business_number?: string | null
-          cert_path?: string | null
           company_name?: string | null
           created_at?: string
           id?: string
