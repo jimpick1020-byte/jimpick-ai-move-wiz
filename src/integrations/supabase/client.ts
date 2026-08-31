@@ -2,6 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
+// 로그인 상태 유지(remember me) 라우팅. 기존 저장소를 감싸기만 하며 비밀번호는 저장하지 않습니다.
+import { rememberAwareAuthStorage } from './auth-persistence';
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
@@ -49,7 +51,7 @@ function createSupabaseClient() {
       fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
     },
     auth: {
-      storage: brokeredPreviewStorage(),
+      storage: rememberAwareAuthStorage(brokeredPreviewStorage()),
       persistSession: true,
       autoRefreshToken: true,
     }
