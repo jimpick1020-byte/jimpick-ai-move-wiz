@@ -3909,12 +3909,14 @@ export function Result() {
                       ],
                     });
                     saveDraft();
+                    void persistCompanyDefaults();
                   }
                   setSheetEdit((v) => !v);
                 }}
-                className="rounded-2xl border border-[#DCE8FA] bg-white py-3 text-[13.5px] font-black text-[#0751D8] shadow-[0_3px_0_#EDF2FA]"
+                disabled={savingDefaults}
+                className="rounded-2xl border border-[#DCE8FA] bg-white py-3 text-[13.5px] font-black text-[#0751D8] shadow-[0_3px_0_#EDF2FA] disabled:opacity-60"
               >
-                {sheetEdit ? "수정 완료" : "견적서 수정"}
+                {sheetEdit ? (savingDefaults ? "저장 중…" : "수정 완료") : "견적서 수정"}
               </button>
               <button
                 onClick={() => void exportSheet()}
