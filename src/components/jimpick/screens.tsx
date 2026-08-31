@@ -2935,6 +2935,70 @@ export function Result() {
   const [staffShareOpen, setStaffShareOpen] = useState(false);
   const [staffSharing, setStaffSharing] = useState(false);
   const [staffExpires, setStaffExpires] = useState<string | null>(null);
+  /** 기본 업체 정보 저장 중 */
+  const [savingDefaults, setSavingDefaults] = useState(false);
+
+  /**
+   * 저장해 둔 기본 업체 정보(담당자·계좌)를 자동으로 채웁니다.
+   * 이미 확정하거나 발송한 견적서, 그리고 이미 값이 있는 칸은 그대로 둡니다.
+   */
+  const defaultsFilled = useRef(false);
+  useEffect(() => {
+    if (defaultsFilled.current) return;
+    if (draft.sheetConfirmedAt || draft.termsSentAt) {
+      defaultsFilled.current = true;
+      return;
+    }
+    let alive = true;
+    getCompanyDefaults()
+      .then((r) => {
+        if (!alive || !r.ok) return;
+        defaultsFilled.current = true;
+        const d = r.data;
+        const patch: Record<string, string> = {};
+        if (!draft.staffName?.trim() && d.staffName) patch.staffName = d.staffName;
+        if (!draft.staffPhone?.trim() && d.staffPhone) patch.staffPhone = d.staffPhone;
+        if (!draft.bankName?.trim() && d.bankName) patch.bankName = d.bankName;
+        if (!draft.bankAccount?.trim() && d.bankAccount) patch.bankAccount = d.bankAccount;
+        if (!draft.bankHolder?.trim() && d.bankHolder) patch.bankHolder = d.bankHolder;
+        if (Object.keys(patch).length) updateDraft(patch);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.id]);
+
+  /** 수정한 업체 정보를 다음 견적서에도 쓰도록 저장합니다 */
+  const persistCompanyDefaults = async () => {
+    setSavingDefaults(true);
+    try {
+      const r = await saveCompanyDefaults({
+        data: {
+          staffName: draft.staffName ?? "",
+          staffPhone: draft.staffPhone ?? "",
+          bankName: draft.bankName ?? "",
+          bankAccount: draft.bankAccount ?? "",
+          bankHolder: draft.bankHolder ?? "",
+        },
+      });
+      if (!r.ok) {
+        toast.error("업체 정보를 저장하지 못했습니다", { description: r.error ?? "알 수 없는 오류" });
+        return;
+      }
+      toast.success("담당자·계좌 정보를 기본값으로 저장했습니다");
+    } catch (err) {
+      console.error("[companyDefaults]", err);
+      toast.error("업체 정보 저장 중 오류가 발생했습니다", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setSavingDefaults(false);
+    }
+  };
+
+
 
   /** 캡처할 견적서 영역 */
   const sheetRef = useRef<HTMLDivElement>(null);
