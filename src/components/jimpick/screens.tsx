@@ -428,13 +428,12 @@ export function Login() {
 // ============ Home ============
 export function HomeScreen() {
   const { setScreen, resetDraft, estimates, loadEstimate } = useApp();
-  const fetchDefaults = useServerFn(getCompanyDefaults);
   /** null = 아직 불러오는 중, "" = 상호명 없음/실패, 그 외 = 상호명 */
   const [companyName, setCompanyName] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetchDefaults()
+    getCompanyDefaults()
       .then((res) => {
         if (cancelled) return;
         const name = res.ok ? (res.data?.companyName ?? "").trim() : "";
@@ -446,7 +445,7 @@ export function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [fetchDefaults]);
+  }, []);
 
   const greetingName =
     companyName === null ? "…" : companyName ? `${companyName} 사장님 👋` : "사장님 👋";
