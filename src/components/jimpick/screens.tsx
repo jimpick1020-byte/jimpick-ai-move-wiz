@@ -429,6 +429,29 @@ export function Login() {
 // ============ Home ============
 export function HomeScreen() {
   const { setScreen, resetDraft, estimates, loadEstimate } = useApp();
+  const fetchDefaults = useServerFn(getCompanyDefaults);
+  /** null = 아직 불러오는 중, "" = 상호명 없음/실패, 그 외 = 상호명 */
+  const [companyName, setCompanyName] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDefaults()
+      .then((res) => {
+        if (cancelled) return;
+        const name = res.ok ? (res.data?.companyName ?? "").trim() : "";
+        setCompanyName(name);
+      })
+      .catch(() => {
+        if (!cancelled) setCompanyName("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchDefaults]);
+
+  const greetingName =
+    companyName === null ? "…" : companyName ? `${companyName} 사장님 👋` : "사장님 👋";
+
   const total = estimates.length;
   const done = estimates.filter((e) => e.status === "완료").length;
   const inProg = total - done;
@@ -460,7 +483,7 @@ export function HomeScreen() {
           <JimpickCharacter state="idle" size={54} className="shrink-0" />
           <div className="min-w-0">
             <div className="text-[16px] text-[#6B7280]">안녕하세요!</div>
-            <div className="truncate text-xl font-bold">짐픽 사장님 👋</div>
+            <div className="truncate text-xl font-bold">{greetingName}</div>
           </div>
         </div>
         <Bell className="w-6 h-6 shrink-0 text-[#111827]" />
