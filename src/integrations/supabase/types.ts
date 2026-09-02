@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      estimate_deliveries: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          delivery_method: string
+          error_code: string | null
+          error_message: string | null
+          estimate_id: string | null
+          estimate_version: number | null
+          failed_at: string | null
+          id: string
+          idempotency_key: string | null
+          msg_id: string | null
+          msg_type: string | null
+          provider: string
+          provider_message_id: string | null
+          provider_result: Json | null
+          requested_at: string
+          sent_at: string
+          sheet_no: string | null
+          status: string
+          test_mode: boolean
+          to_masked: string
+          user_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          delivery_method?: string
+          error_code?: string | null
+          error_message?: string | null
+          estimate_id?: string | null
+          estimate_version?: number | null
+          failed_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          msg_id?: string | null
+          msg_type?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          provider_result?: Json | null
+          requested_at?: string
+          sent_at?: string
+          sheet_no?: string | null
+          status: string
+          test_mode?: boolean
+          to_masked: string
+          user_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          delivery_method?: string
+          error_code?: string | null
+          error_message?: string | null
+          estimate_id?: string | null
+          estimate_version?: number | null
+          failed_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          msg_id?: string | null
+          msg_type?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          provider_result?: Json | null
+          requested_at?: string
+          sent_at?: string
+          sheet_no?: string | null
+          status?: string
+          test_mode?: boolean
+          to_masked?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       estimate_staff_shares: {
         Row: {
           company_id: string
