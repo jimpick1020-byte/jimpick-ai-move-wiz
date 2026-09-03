@@ -211,9 +211,11 @@ export async function shareToKakao(
   const ready = await loadKakaoShareSdk();
   if (ready) {
     try {
+      // 카카오톡 텍스트 템플릿은 200자까지만 받습니다. 넘치면 뒤를 줄이고 링크로 잇습니다.
+      const full = `짐픽 직원용 이사정보\n\n${lines.join("\n")}`;
       window.Kakao.Share.sendDefault({
         objectType: "text",
-        text: `짐픽 직원용 이사정보\n\n${lines.join("\n")}`,
+        text: full.length > 190 ? `${full.slice(0, 187)}…` : full,
         link: { mobileWebUrl: card.url, webUrl: card.url },
         buttonTitle: "직원용 견적서 확인",
       });
