@@ -942,7 +942,8 @@ export function newEstimate(): Estimate {
     toY: null,
     distanceKm: 0,
     durationMin: 0,
-    workEnv: "엘리베이터",
+    // 고르지 않은 값을 미리 정해 두지 않습니다 (엘리베이터로 잘못 표시되는 문제)
+    workEnv: "없음",
     fromFloor: 1,
     toFloor: 1,
     workers: 2,
