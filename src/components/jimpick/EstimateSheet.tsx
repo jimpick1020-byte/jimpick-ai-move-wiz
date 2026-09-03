@@ -183,7 +183,11 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
   ref,
 ) {
   const transport = parts
-    .filter((p) => !["옵션 비용", "보관료"].includes(p.label))
+    .filter((p) => !["옵션 비용", "보관료", "사다리차 비용"].includes(p.label))
+    .reduce((s, p) => s + p.amount, 0);
+  /** 사다리차 비용은 따로 한 줄로 보여 줍니다 */
+  const ladderCost = parts
+    .filter((p) => p.label === "사다리차 비용")
     .reduce((s, p) => s + p.amount, 0);
   const extraWork = parts
     .filter((p) => ["옵션 비용", "보관료"].includes(p.label))
@@ -422,6 +426,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             <span className="text-[17px] font-black text-[#0864DC]">비용 상세</span>
           </div>
           <MoneyRow label="기본 운송비" amount={transport} />
+          <MoneyRow label="사다리차 비용" amount={ladderCost} />
           <MoneyRow label="추가 작업비" amount={extraWork} />
           <MoneyRow label="할인금액" amount={discount} tone="minus" />
           {(deposit > 0 || discount > 0) && (
