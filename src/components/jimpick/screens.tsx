@@ -3333,6 +3333,8 @@ export function Result() {
       distanceKm: draft.distanceKm,
       durationMin: draft.durationMin,
       workEnv: String(draft.workEnv),
+      fromEnvText: sideConditionText(draft, "from"),
+      toEnvText: sideConditionText(draft, "to"),
       fromFloor: draft.fromFloor,
       toFloor: draft.toFloor,
       truck1t: draft.truck1t,

@@ -50,6 +50,9 @@ export interface EstimateSmsInput {
   distanceKm: number;
   durationMin: number;
   workEnv: string;
+  /** 출발지·도착지 작업 조건 (층수 · 엘리베이터 · 사다리차) */
+  fromEnvText?: string;
+  toEnvText?: string;
   fromFloor: number;
   toFloor: number;
   truck1t: number;
@@ -82,7 +85,10 @@ export function buildEstimateMessage(e: EstimateSmsInput): string {
     `🚚 ${e.moveType}`,
     `출발: ${e.fromAddress}`,
     `도착: ${e.toAddress}`,
-    `실거리 ${e.distanceKm}km${e.durationMin ? ` · 약 ${e.durationMin}분` : ""} · ${e.workEnv} · ${e.fromFloor}층→${e.toFloor}층`,
+    `실거리 ${e.distanceKm}km${e.durationMin ? ` · 약 ${e.durationMin}분` : ""}`,
+    e.fromEnvText || e.toEnvText
+      ? `출발 ${e.fromEnvText || `${e.fromFloor}층`} → 도착 ${e.toEnvText || `${e.toFloor}층`}`
+      : `${e.workEnv} · ${e.fromFloor}층→${e.toFloor}층`,
     `1톤 ${e.truck1t} · 5톤 ${e.truck5t} · 사다리 ${e.ladder}${e.ladderWhere ? ` (${e.ladderWhere})` : ""}`,
     `작업 인원: 남자 ${e.workers}명 · 주방 ${e.kitchenStaff}명`,
   ];
