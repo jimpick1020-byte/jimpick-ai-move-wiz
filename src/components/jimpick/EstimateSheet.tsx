@@ -25,7 +25,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { Estimate } from "@/lib/jimpick";
-import { won } from "@/lib/jimpick";
+import { won, sideConditionText, ladderFeeText } from "@/lib/jimpick";
 import { ItemArt } from "@/lib/jimpick-art";
 import {
   TERMS_EFFECTIVE_AT,
@@ -63,15 +63,6 @@ function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: s
       </span>
     </div>
   );
-}
-
-/** 층수와 엘리베이터 — 입력한 것만 적습니다 */
-function floorText(floor: number | undefined, env: string | undefined): string {
-  const parts: string[] = [];
-  if (floor) parts.push(`${floor}층`);
-  const e = String(env || "").trim();
-  if (e) parts.push(e);
-  return parts.join(" · ");
 }
 
 /** 주소 한 줄 — 값이 없으면 그리지 않습니다 */
@@ -313,14 +304,49 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           <AddressRow
             label="출발지"
             value={`${draft.fromAddress} ${draft.fromDetail || ""}`.trim()}
-            sub={floorText(draft.fromFloor, draft.workEnv)}
+            sub={sideConditionText(draft, "from")}
           />
           <AddressRow
             label="도착지"
             value={`${draft.toAddress} ${draft.toDetail || ""}`.trim()}
-            sub={floorText(draft.toFloor, draft.workEnv)}
+            sub={sideConditionText(draft, "to")}
           />
         </div>
+
+        {/* 작업 조건 — 출발지·도착지를 따로 적습니다 */}
+        <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+          <div className="mb-1.5 text-[17px] font-black text-[#0864DC]">작업 조건</div>
+          {(["from", "to"] as const).map((side) => {
+            const cond = sideConditionText(draft, side);
+            const fee = ladderFeeText(draft, side);
+            if (!cond && !fee) return null;
+            return (
+              <div key={side} className="flex items-start justify-between gap-3 py-1.5">
+                <span className="shrink-0 text-[16px] text-[#6B7280]">
+                  {side === "from" ? "출발지" : "도착지"}
+                </span>
+                <span className="min-w-0 break-words text-right text-[16px] font-bold text-[#111827]">
+                  {cond || "-"}
+                  {fee && (
+                    <span className="mt-0.5 block text-[15px] font-medium text-[#6B7280]">
+                      사다리차 {fee}
+                    </span>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 특약사항 — 입력한 내용이 있을 때만 */}
+        {draft.specialTerms?.trim() && (
+          <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+            <div className="mb-1.5 text-[17px] font-black text-[#0864DC]">특약사항</div>
+            <p className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[#374151]">
+              {draft.specialTerms.trim()}
+            </p>
+          </div>
+        )}
 
         {/* 차량 · 이사 유형 */}
         <div className="flex divide-x divide-[#EDF0F5] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
