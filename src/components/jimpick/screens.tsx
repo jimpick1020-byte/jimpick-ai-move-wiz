@@ -60,6 +60,8 @@ import {
   getPricing,
   savePricing,
   DEFAULT_PRICING,
+  sideConditionText,
+  ladderFeeText,
   type Pricing,
   type MoveType,
   type Room,
