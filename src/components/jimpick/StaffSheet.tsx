@@ -152,8 +152,8 @@ export function StaffSheet() {
               />
               <Row
                 icon={<Building2 className="h-5 w-5" />}
-                label="출발 층"
-                value={state.snap.fromFloor ? `${state.snap.fromFloor}층` : ""}
+                label="출발 조건"
+                value={state.snap.fromEnv ?? (state.snap.fromFloor ? `${state.snap.fromFloor}층` : "")}
               />
               <Row
                 icon={<MapPin className="h-5 w-5" />}
@@ -162,13 +162,8 @@ export function StaffSheet() {
               />
               <Row
                 icon={<Building2 className="h-5 w-5" />}
-                label="도착 층"
-                value={state.snap.toFloor ? `${state.snap.toFloor}층` : ""}
-              />
-              <Row
-                icon={<Building2 className="h-5 w-5" />}
-                label="엘리베이터"
-                value={state.snap.workEnv}
+                label="도착 조건"
+                value={state.snap.toEnv ?? (state.snap.toFloor ? `${state.snap.toFloor}층` : "")}
               />
               <Row
                 icon={<Navigation className="h-5 w-5" />}
@@ -231,6 +226,22 @@ export function StaffSheet() {
               <Card title="추가 작업">
                 <div className="py-3 text-[15px] font-bold text-[#111827]">
                   {state.snap.extraWork.join(" · ")}
+                </div>
+              </Card>
+            )}
+
+            {(state.snap.options ?? []).length > 0 && (
+              <Card title="추가 옵션">
+                <div className="py-3 text-[15px] font-bold text-[#111827]">
+                  {(state.snap.options ?? []).join(" · ")}
+                </div>
+              </Card>
+            )}
+
+            {state.snap.specialTerms?.trim() && (
+              <Card title="특약사항">
+                <div className="whitespace-pre-wrap py-3 text-[15px] text-[#374151]">
+                  {state.snap.specialTerms.trim()}
                 </div>
               </Card>
             )}
