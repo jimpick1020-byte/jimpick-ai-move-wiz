@@ -942,7 +942,8 @@ export function newEstimate(): Estimate {
     toY: null,
     distanceKm: 0,
     durationMin: 0,
-    workEnv: "엘리베이터",
+    // 고르지 않은 값을 미리 정해 두지 않습니다 (엘리베이터로 잘못 표시되는 문제)
+    workEnv: "없음",
     fromFloor: 1,
     toFloor: 1,
     workers: 2,
@@ -1330,4 +1331,31 @@ export function guessCategory(name: string): string {
     if (words.some((w) => n.includes(w))) return cat;
   }
   return "잔짐";
+}
+
+/**
+ * 출발지·도착지 작업 조건 한 줄 — 실제로 고른 값만 적습니다.
+ * 사다리차를 골랐다고 엘리베이터로 바꾸지 않습니다.
+ */
+export function sideConditionText(e: Estimate, side: "from" | "to"): string {
+  const floor = side === "from" ? e.fromFloor : e.toFloor;
+  const ladder = side === "from" ? !!e.ladderFrom : !!e.ladderTo;
+  const env = String(e.workEnv ?? "");
+  const parts: string[] = [];
+  if (floor) parts.push(`${floor}층`);
+  if (env.includes("엘리베이터")) parts.push("엘리베이터");
+  if (env.includes("계단")) parts.push("계단");
+  if (ladder) parts.push("사다리차");
+  return parts.join(" · ");
+}
+
+/** 사다리차 비용 한 줄 (별도 결제 표시 포함) */
+export function ladderFeeText(e: Estimate, side: "from" | "to"): string {
+  const on = side === "from" ? !!e.ladderFrom : !!e.ladderTo;
+  if (!on) return "";
+  const price = side === "from" ? Number(e.ladderFromPrice || 0) : Number(e.ladderToPrice || 0);
+  const separate =
+    (side === "from" ? !!e.ladderFromSeparate : !!e.ladderToSeparate) || !!e.ladderSeparate;
+  if (!price) return separate ? "별도 결제" : "";
+  return `${won(price)}${separate ? " · 별도 결제" : ""}`;
 }

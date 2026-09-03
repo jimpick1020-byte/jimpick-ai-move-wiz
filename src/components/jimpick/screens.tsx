@@ -60,6 +60,8 @@ import {
   getPricing,
   savePricing,
   DEFAULT_PRICING,
+  sideConditionText,
+  ladderFeeText,
   type Pricing,
   type MoveType,
   type Room,
@@ -88,7 +90,13 @@ import { sendSmsViaEdge, type EdgeSmsResult } from "@/lib/sms.edge";
 import { hasSession, signIn, signOut } from "@/lib/auth";
 import { setRememberMe } from "@/integrations/supabase/auth-persistence";
 import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functions";
-import { shareToKakao, maskName, areaOf, type StaffSheetSnapshot } from "@/lib/staff-share";
+import {
+  shareToKakao,
+  maskName,
+  areaOf,
+  buildStaffKakaoLines,
+  type StaffSheetSnapshot,
+} from "@/lib/staff-share";
 
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import {
@@ -3325,6 +3333,8 @@ export function Result() {
       distanceKm: draft.distanceKm,
       durationMin: draft.durationMin,
       workEnv: String(draft.workEnv),
+      fromEnvText: sideConditionText(draft, "from"),
+      toEnvText: sideConditionText(draft, "to"),
       fromFloor: draft.fromFloor,
       toFloor: draft.toFloor,
       truck1t: draft.truck1t,
@@ -3366,6 +3376,10 @@ export function Result() {
     fromFloor: draft.fromFloor ?? 0,
     toFloor: draft.toFloor ?? 0,
     workEnv: String(draft.workEnv ?? ""),
+    fromEnv: sideConditionText(draft, "from"),
+    toEnv: sideConditionText(draft, "to"),
+    options: draft.options.filter((o) => o.enabled).map((o) => o.name),
+    specialTerms: draft.specialTerms ?? "",
     truckText: [
       draft.truck5t > 0 ? `5톤 트럭 ${draft.truck5t}대` : "",
       draft.truck1t > 0 ? `1톤 트럭 ${draft.truck1t}대` : "",
@@ -3388,6 +3402,45 @@ export function Result() {
       items: r.items.map((i) => ({ name: i.name, qty: i.qty })),
     })),
   });
+
+  /** 사다리차 비용 한 줄 — 출발지·도착지 실제 값만 */
+  const ladderFeeLine = (): string =>
+    (["from", "to"] as const)
+      .map((side) => {
+        const t = ladderFeeText(draft, side);
+        return t ? `${side === "from" ? "출발지" : "도착지"} ${t}` : "";
+      })
+      .filter(Boolean)
+      .join(" · ");
+
+  /** 공유 버튼을 누른 시점의 실제 견적정보로 만든 카카오톡 본문 */
+  const staffKakaoLines = (url?: string): string[] =>
+    buildStaffKakaoLines({
+      sheetNo: draft.sheetNo ?? "",
+      moveDate: draft.moveDate ?? "",
+      moveTime: draft.moveTime ?? "",
+      customerName: draft.customerName ?? "",
+      customerPhone: draft.phone ?? "",
+      fromAddress: `${draft.fromAddress ?? ""} ${draft.fromDetail ?? ""}`.trim(),
+      fromEnv: sideConditionText(draft, "from"),
+      toAddress: `${draft.toAddress ?? ""} ${draft.toDetail ?? ""}`.trim(),
+      toEnv: sideConditionText(draft, "to"),
+      truckText: staffSnapshot().truckText,
+      moveType: String(draft.moveType ?? ""),
+      rooms: sheetRooms.map((r) => ({
+        name: r.name,
+        items: r.items.map((i) => ({ name: i.name, qty: i.qty })),
+      })),
+      options: draft.options.filter((o) => o.enabled).map((o) => o.name),
+      extraWork: [draft.ladderFrom ? "사다리차 출발지" : "", draft.ladderTo ? "사다리차 도착지" : ""].filter(
+        Boolean,
+      ),
+      ladderFeeText: ladderFeeLine(),
+      specialTerms: draft.specialTerms ?? "",
+      totalText: won(total),
+      staffName: draft.staffName ?? "",
+      url,
+    });
 
   /** 직원용 보안 링크를 만들고 카카오톡 공유창을 엽니다 */
   const doStaffShare = async () => {
@@ -3418,6 +3471,7 @@ export function Result() {
         moveType: String(draft.moveType ?? ""),
         staffName: draft.staffName ?? "",
         url,
+        lines: staffKakaoLines(url),
       });
       if (!r.ok) {
         toast.error(r.error ?? "공유하지 못했습니다");
@@ -3771,10 +3825,16 @@ export function Result() {
               <p className="mt-1.5 text-center text-[12.5px] font-bold text-[#6B7280]">
                 금액·계좌·약관은 직원 화면에 표시되지 않습니다.
               </p>
-              <div className="mt-3 space-y-1.5 rounded-2xl bg-[#F5F8FE] px-3.5 py-3 text-[13px] font-bold text-[#334155]">
-                <div>고객 {draft.customerName || "고객"}</div>
-                <div>이사 날짜 {draft.moveDate || "미정"} {draft.moveTime || ""}</div>
-                <div>담당 직원 {draft.staffName || "미지정"}</div>
+              <div className="mt-3 max-h-[240px] space-y-1 overflow-auto rounded-2xl bg-[#F5F8FE] px-3.5 py-3 text-[13px] font-bold text-[#334155]">
+                <div className="text-[12px] font-black text-[#0864DC]">보낼 내용 미리보기</div>
+                {staffKakaoLines().map((line, i) => (
+                  <div key={i} className="whitespace-pre-wrap break-words">
+                    {line}
+                  </div>
+                ))}
+                <div className="text-[#6B7280]">
+                  상세보기 링크는 공유할 때 새로 만들어집니다
+                </div>
                 <div className="text-[#6B7280]">
                   링크 만료{" "}
                   {staffExpires

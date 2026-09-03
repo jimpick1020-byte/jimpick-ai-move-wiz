@@ -29,6 +29,13 @@ export interface StaffSheetSnapshot {
   fromFloor: number;
   toFloor: number;
   workEnv: string;
+  /** 출발지·도착지 작업 조건 (층수 · 엘리베이터 · 사다리차) */
+  fromEnv?: string;
+  toEnv?: string;
+  /** 추가 옵션 이름 (금액 없이) */
+  options?: string[];
+  /** 특약사항 */
+  specialTerms?: string;
   truckText: string;
   distanceKm: number;
   durationMin: number;
@@ -52,6 +59,62 @@ export interface StaffShareCard {
   moveType: string;
   staffName: string;
   url: string;
+  /** 카카오톡에 실제로 보낼 본문 줄 (없으면 기본 요약을 씁니다) */
+  lines?: string[];
+}
+
+/** 직원 카카오톡 본문에 넣을 실제 이사정보 — 값이 없는 줄은 넣지 않습니다 */
+export interface StaffKakaoInput {
+  sheetNo?: string;
+  moveDate?: string;
+  moveTime?: string;
+  customerName?: string;
+  customerPhone?: string;
+  fromAddress?: string;
+  fromEnv?: string;
+  toAddress?: string;
+  toEnv?: string;
+  truckText?: string;
+  moveType?: string;
+  rooms?: { name: string; items: { name: string; qty: number }[] }[];
+  options?: string[];
+  extraWork?: string[];
+  ladderFeeText?: string;
+  specialTerms?: string;
+  totalText?: string;
+  staffName?: string;
+  url?: string;
+}
+
+/** 공유 시점의 실제 견적정보로 카카오톡 본문을 만듭니다 (빈 항목은 줄 자체를 생략) */
+export function buildStaffKakaoLines(v: StaffKakaoInput): string[] {
+  const out: string[] = [];
+  const add = (label: string, value?: string) => {
+    const t = (value ?? "").trim();
+    if (t) out.push(`${label} ${t}`);
+  };
+  add("견적번호", v.sheetNo);
+  add("이사일", [v.moveDate, v.moveTime].filter(Boolean).join(" "));
+  add("고객", v.customerName);
+  add("고객 연락처", v.customerPhone);
+  add("출발지", v.fromAddress);
+  add("출발지 조건", v.fromEnv);
+  add("도착지", v.toAddress);
+  add("도착지 조건", v.toEnv);
+  add("차량", v.truckText);
+  add("이사 유형", v.moveType);
+  for (const r of v.rooms ?? []) {
+    if (!r.items.length) continue;
+    out.push(`[${r.name}] ${r.items.map((i) => `${i.name} ${i.qty}`).join(", ")}`);
+  }
+  add("추가 옵션", (v.options ?? []).join(" · "));
+  add("추가 작업", (v.extraWork ?? []).join(" · "));
+  add("사다리차 비용", v.ladderFeeText);
+  add("특약사항", v.specialTerms);
+  add("총 견적금액", v.totalText);
+  add("담당자", v.staffName);
+  add("상세보기", v.url);
+  return out;
 }
 
 /** 김보경 → 김*경 처럼 이름 일부를 가립니다 */
@@ -133,21 +196,26 @@ export type ShareMethod = "kakao" | "web_share" | "copy_link";
 export async function shareToKakao(
   card: StaffShareCard,
 ): Promise<{ ok: boolean; method: ShareMethod; error?: string }> {
-  const lines = [
-    `견적번호 ${card.sheetNo || "-"}`,
-    `이사일 ${card.moveDate || "미정"}`,
-    `고객 ${card.maskedCustomer}`,
-    `${card.fromArea} → ${card.toArea}`,
-    `${card.truckText || "차량 미정"} · ${card.moveType}`,
-    `담당 ${card.staffName || "-"}`,
-  ];
+  const lines =
+    card.lines && card.lines.length > 0
+      ? card.lines
+      : [
+          `견적번호 ${card.sheetNo || "-"}`,
+          `이사일 ${card.moveDate || "미정"}`,
+          `고객 ${card.maskedCustomer}`,
+          `${card.fromArea} → ${card.toArea}`,
+          `${card.truckText || "차량 미정"} · ${card.moveType}`,
+          `담당 ${card.staffName || "-"}`,
+        ];
 
   const ready = await loadKakaoShareSdk();
   if (ready) {
     try {
+      // 카카오톡 텍스트 템플릿은 200자까지만 받습니다. 넘치면 뒤를 줄이고 링크로 잇습니다.
+      const full = `짐픽 직원용 이사정보\n\n${lines.join("\n")}`;
       window.Kakao.Share.sendDefault({
         objectType: "text",
-        text: `짐픽 직원용 이사정보\n\n${lines.join("\n")}`,
+        text: full.length > 190 ? `${full.slice(0, 187)}…` : full,
         link: { mobileWebUrl: card.url, webUrl: card.url },
         buttonTitle: "직원용 견적서 확인",
       });
