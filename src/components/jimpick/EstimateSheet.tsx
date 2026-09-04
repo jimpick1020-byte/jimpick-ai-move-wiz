@@ -25,7 +25,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { Estimate } from "@/lib/jimpick";
-import { won, sideConditionText, ladderFeeText } from "@/lib/jimpick";
+import { won, sideConditionText } from "@/lib/jimpick";
 import { ItemArt } from "@/lib/jimpick-art";
 import {
   TERMS_EFFECTIVE_AT,
