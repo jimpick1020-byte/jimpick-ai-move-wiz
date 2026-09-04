@@ -65,56 +65,60 @@ export interface StaffShareCard {
 
 /** 직원 카카오톡 본문에 넣을 실제 이사정보 — 값이 없는 줄은 넣지 않습니다 */
 export interface StaffKakaoInput {
-  sheetNo?: string;
-  moveDate?: string;
-  moveTime?: string;
   customerName?: string;
   customerPhone?: string;
+  /** "2026년 9월 26일 오전 08:00" 처럼 이미 만들어 둔 문구 */
+  moveDateText?: string;
+  moveType?: string;
   fromAddress?: string;
   fromEnv?: string;
   toAddress?: string;
   toEnv?: string;
+  distanceKm?: number;
+  durationMin?: number;
   truckText?: string;
-  moveType?: string;
-  rooms?: { name: string; items: { name: string; qty: number }[] }[];
-  options?: string[];
-  extraWork?: string[];
-  ladderFeeText?: string;
-  specialTerms?: string;
-  totalText?: string;
-  staffName?: string;
+  /** "1대(도착지)" */
+  ladderText?: string;
+  workers?: number;
+  kitchenStaff?: number;
+  /** "정수기냉장고 · 120,000원" 형태의 추가 품목 줄 */
+  extraItems?: string[];
+  memo?: string;
   url?: string;
 }
 
-/** 공유 시점의 실제 견적정보로 카카오톡 본문을 만듭니다 (빈 항목은 줄 자체를 생략) */
+/** 화면의 「이사 정보」 카드와 같은 순서·같은 데이터로 카카오톡 본문을 만듭니다 */
 export function buildStaffKakaoLines(v: StaffKakaoInput): string[] {
   const out: string[] = [];
   const add = (label: string, value?: string) => {
     const t = (value ?? "").trim();
-    if (t) out.push(`${label} ${t}`);
+    if (t) out.push(`${label}: ${t}`);
   };
-  add("견적번호", v.sheetNo);
-  add("이사일", [v.moveDate, v.moveTime].filter(Boolean).join(" "));
   add("고객", v.customerName);
-  add("고객 연락처", v.customerPhone);
+  add("연락처", v.customerPhone);
+  add("이사일", v.moveDateText);
+  add("이사 유형", v.moveType);
   add("출발지", v.fromAddress);
   add("출발지 조건", v.fromEnv);
   add("도착지", v.toAddress);
   add("도착지 조건", v.toEnv);
+  if (v.distanceKm && v.distanceKm > 0) add("이동 거리", `${v.distanceKm}km`);
+  if (v.durationMin && v.durationMin > 0) add("예상 시간", `약 ${v.durationMin}분`);
   add("차량", v.truckText);
-  add("이사 유형", v.moveType);
-  for (const r of v.rooms ?? []) {
-    if (!r.items.length) continue;
-    out.push(`[${r.name}] ${r.items.map((i) => `${i.name} ${i.qty}`).join(", ")}`);
-  }
-  add("추가 옵션", (v.options ?? []).join(" · "));
-  add("추가 작업", (v.extraWork ?? []).join(" · "));
-  // 직원 공유에는 금액·계좌·약관을 넣지 않습니다
-  add("특약사항", v.specialTerms);
-  add("담당자", v.staffName);
-  add("상세보기", v.url);
+  add("사다리차", v.ladderText);
+  const staff = [
+    v.workers && v.workers > 0 ? `남자 ${v.workers}명` : "",
+    v.kitchenStaff && v.kitchenStaff > 0 ? `주방 ${v.kitchenStaff}명` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  add("작업 인원", staff);
+  add("추가 품목", (v.extraItems ?? []).filter(Boolean).join(" / "));
+  add("고객 메모", v.memo);
+  add("견적서 확인", v.url);
   return out;
 }
+
 
 /** 김보경 → 김*경 처럼 이름 일부를 가립니다 */
 export function maskName(name: string): string {
