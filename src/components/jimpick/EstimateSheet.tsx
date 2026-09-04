@@ -317,8 +317,15 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           />
         </div>
 
-
-
+        {/* 고객 메모 — 입력한 내용이 있을 때만 */}
+        {draft.memo?.trim() && (
+          <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+            <div className="mb-1.5 text-[17px] font-black text-[#0864DC]">고객 메모</div>
+            <p className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[#374151]">
+              {draft.memo.trim()}
+            </p>
+          </div>
+        )}
 
         {/* 특약사항 — 입력한 내용이 있을 때만 */}
         {draft.specialTerms?.trim() && (
