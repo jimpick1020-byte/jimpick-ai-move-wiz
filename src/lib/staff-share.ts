@@ -109,9 +109,8 @@ export function buildStaffKakaoLines(v: StaffKakaoInput): string[] {
   }
   add("추가 옵션", (v.options ?? []).join(" · "));
   add("추가 작업", (v.extraWork ?? []).join(" · "));
-  add("사다리차 비용", v.ladderFeeText);
+  // 직원 공유에는 금액·계좌·약관을 넣지 않습니다
   add("특약사항", v.specialTerms);
-  add("총 견적금액", v.totalText);
   add("담당자", v.staffName);
   add("상세보기", v.url);
   return out;

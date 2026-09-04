@@ -1335,7 +1335,8 @@ export function guessCategory(name: string): string {
 
 /**
  * 출발지·도착지 작업 조건 한 줄 — 실제로 고른 값만 적습니다.
- * 사다리차를 골랐다고 엘리베이터로 바꾸지 않습니다.
+ * 그 위치에 사다리차를 쓰면 그 위치는 「층수 · 사다리차」로만 적습니다
+ * (반대편에서 고른 계단·엘리베이터를 옮겨 적지 않습니다).
  */
 export function sideConditionText(e: Estimate, side: "from" | "to"): string {
   const floor = side === "from" ? e.fromFloor : e.toFloor;
@@ -1343,9 +1344,12 @@ export function sideConditionText(e: Estimate, side: "from" | "to"): string {
   const env = String(e.workEnv ?? "");
   const parts: string[] = [];
   if (floor) parts.push(`${floor}층`);
+  if (ladder) {
+    parts.push("사다리차");
+    return parts.join(" · ");
+  }
   if (env.includes("엘리베이터")) parts.push("엘리베이터");
   if (env.includes("계단")) parts.push("계단");
-  if (ladder) parts.push("사다리차");
   return parts.join(" · ");
 }
 

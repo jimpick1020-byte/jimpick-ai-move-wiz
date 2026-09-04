@@ -61,7 +61,7 @@ import {
   savePricing,
   DEFAULT_PRICING,
   sideConditionText,
-  ladderFeeText,
+  
   type Pricing,
   type MoveType,
   type Room,
@@ -3403,17 +3403,7 @@ export function Result() {
     })),
   });
 
-  /** 사다리차 비용 한 줄 — 출발지·도착지 실제 값만 */
-  const ladderFeeLine = (): string =>
-    (["from", "to"] as const)
-      .map((side) => {
-        const t = ladderFeeText(draft, side);
-        return t ? `${side === "from" ? "출발지" : "도착지"} ${t}` : "";
-      })
-      .filter(Boolean)
-      .join(" · ");
-
-  /** 공유 버튼을 누른 시점의 실제 견적정보로 만든 카카오톡 본문 */
+  /** 공유 버튼을 누른 시점의 실제 견적정보로 만든 카카오톡 본문 (금액·계좌·약관 제외) */
   const staffKakaoLines = (url?: string): string[] =>
     buildStaffKakaoLines({
       sheetNo: draft.sheetNo ?? "",
@@ -3435,9 +3425,7 @@ export function Result() {
       extraWork: [draft.ladderFrom ? "사다리차 출발지" : "", draft.ladderTo ? "사다리차 도착지" : ""].filter(
         Boolean,
       ),
-      ladderFeeText: ladderFeeLine(),
       specialTerms: draft.specialTerms ?? "",
-      totalText: won(total),
       staffName: draft.staffName ?? "",
       url,
     });
