@@ -317,30 +317,8 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           />
         </div>
 
-        {/* 작업 조건 — 출발지·도착지를 따로 적습니다 */}
-        <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
-          <div className="mb-1.5 text-[17px] font-black text-[#0864DC]">작업 조건</div>
-          {(["from", "to"] as const).map((side) => {
-            const cond = sideConditionText(draft, side);
-            const fee = ladderFeeText(draft, side);
-            if (!cond && !fee) return null;
-            return (
-              <div key={side} className="flex items-start justify-between gap-3 py-1.5">
-                <span className="shrink-0 text-[16px] text-[#6B7280]">
-                  {side === "from" ? "출발지" : "도착지"}
-                </span>
-                <span className="min-w-0 break-words text-right text-[16px] font-bold text-[#111827]">
-                  {cond || "-"}
-                  {fee && (
-                    <span className="mt-0.5 block text-[15px] font-medium text-[#6B7280]">
-                      사다리차 {fee}
-                    </span>
-                  )}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+
+
 
         {/* 특약사항 — 입력한 내용이 있을 때만 */}
         {draft.specialTerms?.trim() && (
