@@ -3406,29 +3406,41 @@ export function Result() {
   /** 공유 버튼을 누른 시점의 실제 견적정보로 만든 카카오톡 본문 (금액·계좌·약관 제외) */
   const staffKakaoLines = (url?: string): string[] =>
     buildStaffKakaoLines({
-      sheetNo: draft.sheetNo ?? "",
-      moveDate: draft.moveDate ?? "",
-      moveTime: draft.moveTime ?? "",
       customerName: draft.customerName ?? "",
       customerPhone: draft.phone ?? "",
+      moveDateText: formatMoveDateTime(draft.moveDate, draft.moveTime),
+      moveType: String(draft.moveType ?? ""),
       fromAddress: `${draft.fromAddress ?? ""} ${draft.fromDetail ?? ""}`.trim(),
       fromEnv: sideConditionText(draft, "from"),
       toAddress: `${draft.toAddress ?? ""} ${draft.toDetail ?? ""}`.trim(),
       toEnv: sideConditionText(draft, "to"),
-      truckText: staffSnapshot().truckText,
-      moveType: String(draft.moveType ?? ""),
-      rooms: sheetRooms.map((r) => ({
-        name: r.name,
-        items: r.items.map((i) => ({ name: i.name, qty: i.qty })),
-      })),
-      options: draft.options.filter((o) => o.enabled).map((o) => o.name),
-      extraWork: [draft.ladderFrom ? "사다리차 출발지" : "", draft.ladderTo ? "사다리차 도착지" : ""].filter(
-        Boolean,
-      ),
-      specialTerms: draft.specialTerms ?? "",
-      staffName: draft.staffName ?? "",
+      distanceKm: draft.distanceKm ?? 0,
+      durationMin: draft.durationMin ?? 0,
+      truckText: [
+        draft.truck5t > 0 ? `5톤 트럭 ${draft.truck5t}대` : "",
+        draft.truck1t > 0 ? `1톤 트럭 ${draft.truck1t}대` : "",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      ladderText:
+        draft.ladder > 0 || draft.ladderFrom || draft.ladderTo
+          ? `${Math.max(1, draft.ladder || 0)}대${
+              draft.ladderFrom || draft.ladderTo
+                ? `(${[draft.ladderFrom && "출발지", draft.ladderTo && "도착지"]
+                    .filter(Boolean)
+                    .join("·")})`
+                : ""
+            }`
+          : "",
+      workers: draft.workers ?? 0,
+      kitchenStaff: draft.kitchenStaff ?? 0,
+      extraItems: draft.options
+        .filter((o) => o.enabled)
+        .map((o) => `${o.name} · ${o.separate ? "별도" : won(o.price)}`),
+      memo: draft.memo ?? "",
       url,
     });
+
 
   /** 직원용 보안 링크를 만들고 카카오톡 공유창을 엽니다 */
   const doStaffShare = async () => {
