@@ -1845,11 +1845,19 @@ export function Step6() {
               <div className="flex-1 min-h-[44dvh] overflow-auto px-4 pt-3 space-y-3">
                 {/* 자주 담는 품목 — 검색 없이 눌러서 바로 담습니다 */}
                 <div className="rounded-2xl border border-[#DCE8FA] bg-white px-4 py-3 space-y-2 shadow-[inset_0_1px_0_#fff]">
-                  <div className="text-[13.5px] font-black text-[#0F172A]">
-                    자주 담는 품목
-                    <span className="ml-1.5 text-[11.5px] font-semibold text-[#9AA4B2]">
-                      눌러서 바로 담기
-                    </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[13.5px] font-black text-[#0F172A]">
+                      자주 담는 품목
+                      <span className="ml-1.5 text-[11.5px] font-semibold text-[#9AA4B2]">
+                        한 번 눌러 바로 담기
+                      </span>
+                    </div>
+                    <button
+                      onClick={openFavEdit}
+                      className="shrink-0 rounded-xl border border-[#DCE8FA] bg-white px-2.5 py-1.5 text-[12px] font-black text-[#0751D8] shadow-[0_2px_0_#EDF2FA] active:translate-y-[1px] active:shadow-none"
+                    >
+                      편집
+                    </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {frequent.map((it) => {
