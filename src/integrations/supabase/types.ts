@@ -274,6 +274,7 @@ export type Database = {
           cert_path: string | null
           company_name: string | null
           created_at: string
+          favorite_item_ids: string[]
           id: string
           owner_name: string | null
           phone: string | null
@@ -289,6 +290,7 @@ export type Database = {
           cert_path?: string | null
           company_name?: string | null
           created_at?: string
+          favorite_item_ids?: string[]
           id: string
           owner_name?: string | null
           phone?: string | null
@@ -304,6 +306,7 @@ export type Database = {
           cert_path?: string | null
           company_name?: string | null
           created_at?: string
+          favorite_item_ids?: string[]
           id?: string
           owner_name?: string | null
           phone?: string | null
