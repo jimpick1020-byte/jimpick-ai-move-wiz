@@ -3860,7 +3860,16 @@ export function Result() {
       </div>
 
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setConfirmDone(true)}>견적 완료</PrimaryButton>
+        <PrimaryButton
+          onClick={() => {
+            tap("success");
+            saveDraft();
+            toast.success("견적이 저장되었습니다");
+            openSheet();
+          }}
+        >
+          견적 완료
+        </PrimaryButton>
       </BottomButtonBar>
 
       {/* 고객용 첫 화면 (견적서 표지 · 표준약관) */}
@@ -4184,220 +4193,6 @@ export function Result() {
         </div>
       )}
 
-      {/* 고객이 받을 내용 미리보기 — 문자 + 견적서가 함께 갑니다 */}
-      {preview && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div className="absolute inset-0 bg-[#0F172A]/50" onClick={() => setPreview(false)} />
-          <div className="relative flex h-[92dvh] w-full max-w-md flex-col rounded-t-3xl bg-[#EEF3FA] shadow-[0_-14px_40px_rgba(7,81,216,0.28)]">
-            <div className="flex items-center gap-2 border-b border-[#E2E8F2] bg-white px-4 py-3">
-              <div className="text-[16px] font-black text-[#0F172A]">고객이 받을 내용</div>
-              <span className="rounded-full bg-[#EAF2FF] px-2 py-0.5 text-[11px] font-black text-[#0751D8]">
-                미리보기
-              </span>
-              <button
-                onClick={() => setPreview(false)}
-                className="ml-auto flex h-9 w-9 items-center justify-center rounded-full border border-[#DCE8FA] bg-white shadow-[0_3px_0_#EDF2FA]"
-                aria-label="닫기"
-              >
-                <X className="h-5 w-5 text-[#334155]" />
-              </button>
-            </div>
-
-            <div className="flex-1 space-y-4 overflow-auto p-4 pb-6">
-              {/* ① 문자 */}
-              <div>
-                <div className="mb-1.5 flex items-center gap-1.5 text-[12.5px] font-black text-[#5A6478]">
-                  <MessageSquare className="h-4 w-4" /> 문자 ({draft.phone || "연락처 미입력"})
-                </div>
-                <div className="ml-auto w-fit max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] px-3.5 py-3 text-[13px] font-semibold leading-relaxed text-white shadow-[0_3px_0_#0640A8]">
-                  {estimateMessage()}
-                </div>
-              </div>
-
-              {/* ② 문자 속 링크를 누르면 열리는 견적서 */}
-              <div>
-                <div className="mb-1.5 flex items-center gap-1.5 text-[12.5px] font-black text-[#5A6478]">
-                  <LinkIcon className="h-4 w-4" /> 링크를 누르면 열리는 견적서
-                </div>
-                <div className="overflow-hidden rounded-3xl border border-[#DCE8FA] bg-white shadow-[0_6px_18px_-10px_rgba(7,81,216,0.4)]">
-                  <div
-                    className="px-5 py-5 text-center text-white"
-                    style={{ background: "linear-gradient(135deg,#287BFF 0%,#0751D8 100%)" }}
-                  >
-                    <div className="text-[12px] font-bold opacity-90">JIMPICK 이사 견적서</div>
-                    <div className="mt-1 text-[28px] font-black tracking-tight">{won(total)}</div>
-                    <div className="mt-1 text-[12px] font-semibold opacity-90">
-                      {draft.customerName || "고객"}님 ·{" "}
-                      {formatMoveDateTime(draft.moveDate, draft.moveTime)}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 px-4 py-4 text-[12.5px] font-semibold text-[#334155]">
-                    <div>🚚 {draft.moveType}</div>
-                    <div className="text-[#6B7280]">출발: {draft.fromAddress}</div>
-                    <div className="text-[#6B7280]">도착: {draft.toAddress}</div>
-                    <div>
-                      실거리 {draft.distanceKm}km
-                      {draft.durationMin ? ` · 약 ${draft.durationMin}분` : ""} · {draft.workEnv} ·{" "}
-                      {draft.fromFloor}층→{draft.toFloor}층
-                    </div>
-                  </div>
-
-                  {/* 담은 품목 3D 미리보기 */}
-                  {(() => {
-                    const all = draft.rooms.flatMap((r) =>
-                      Object.entries(r.items).map(([id, qty]) => ({ id, qty, room: r.name })),
-                    );
-                    if (all.length === 0) return null;
-                    const head = all.slice(0, 8);
-                    const rest = all.length - head.length;
-                    const nameOf = (id: string) =>
-                      ITEM_CATALOG.find((c) => c.id === id)?.name ||
-                      (draft.customItems || []).find((c) => c.id === id)?.name ||
-                      id;
-                    return (
-                      <div className="border-t border-[#EDF2FA] px-4 py-3">
-                        <div className="text-[12.5px] font-black text-[#0F172A]">
-                          담는 품목{" "}
-                          <span className="font-bold text-[#6B7280]">
-                            {all.length}종 · {all.reduce((s, i) => s + i.qty, 0)}개
-                          </span>
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {head.map((it) => (
-                            <span
-                              key={`${it.room}-${it.id}`}
-                              className="relative rounded-xl border border-[#CFE0FA] bg-gradient-to-b from-white to-[#EAF2FF] p-0.5"
-                            >
-                              <ItemArt id={it.id} name={nameOf(it.id)} size={32} />
-                              {it.qty > 1 && (
-                                <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[#0751D8] px-1 text-center text-[9px] font-black text-white">
-                                  {it.qty}
-                                </span>
-                              )}
-                            </span>
-                          ))}
-                          {rest > 0 && (
-                            <span className="self-center rounded-xl bg-[#EAF2FF] px-2 py-2 text-[12px] font-black text-[#0751D8]">
-                              +{rest}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  <div className="border-t border-[#EDF2FA] bg-[#F8FBFF] px-4 py-3">
-                    {parts.map((p) => (
-                      <div key={p.label} className="flex justify-between text-[12.5px] font-semibold">
-                        <span className="text-[#6B7280]">{p.label}</span>
-                        <span className="text-[#0F172A] tabular-nums">{won(p.amount)}</span>
-                      </div>
-                    ))}
-                    <div className="mt-2 flex justify-between border-t border-[#E2E8F2] pt-2 text-[14px] font-black">
-                      <span>합계</span>
-                      <span className="text-[#0751D8] tabular-nums">{won(total)}</span>
-                    </div>
-                  </div>
-                </div>
-                <p className="mt-1.5 text-[11.5px] font-semibold text-[#94A3B8]">
-                  실제 주소: {shareUrl()}
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-2 border-t border-[#E2E8F2] bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              <PrimaryButton onClick={sendSMS} disabled={!isSendablePhone(draft.phone)}>
-                <span className="inline-flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" /> 이대로 문자 보내기
-                </span>
-              </PrimaryButton>
-              <button
-                onClick={() => {
-                  tap("soft");
-                  void navigator.clipboard?.writeText(shareUrl());
-                  toast.success("견적서 링크가 복사되었습니다");
-                }}
-                className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 font-black text-[14px] text-[#0751D8] shadow-[0_3px_0_#EDF2FA]"
-              >
-                견적서 링크만 복사
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 견적 완료 확인 — 고객에게 문자를 보낼지 여기서 고릅니다 */}
-      {confirmDone && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div
-            className="absolute inset-0 bg-[#0F172A]/45 backdrop-blur-[2px]"
-            onClick={() => setConfirmDone(false)}
-          />
-          <div className="relative w-full max-w-md rounded-t-3xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_-14px_40px_rgba(7,81,216,0.28)]">
-            <div className="text-[19px] font-black text-[#0F172A]">견적을 완료할까요?</div>
-            <p className="mt-1.5 text-[13px] font-semibold leading-relaxed text-[#6B7280]">
-              {draft.customerName || "고객"}님 · {won(total)}
-              <br />
-              {isSendablePhone(draft.phone)
-                ? `${draft.phone} 로 견적 문자를 보낼 수 있습니다.`
-                : "연락처가 올바르지 않아 문자는 보낼 수 없습니다."}
-            </p>
-
-            <div className="mt-4 space-y-2">
-              {/* 보내기 전에 고객이 받을 내용을 그대로 보여 줍니다 */}
-              <button
-                onClick={() => {
-                  tap("soft");
-                  saveDraft();
-                  setConfirmDone(false);
-                  setPreview(true);
-                }}
-                className="w-full rounded-2xl border-2 border-[#287BFF] bg-white py-4 font-black text-[15px] text-[#0751D8] shadow-[0_4px_0_#DCE8FA] active:translate-y-[2px] active:shadow-none"
-              >
-                <span className="inline-flex items-center gap-2">
-                  <Eye className="h-5 w-5" /> 고객에게 보낼 내용 미리보기
-                </span>
-              </button>
-
-              <PrimaryButton
-                onClick={() => {
-                  setConfirmDone(false);
-                  saveDraft();
-                  toast.success("견적이 완료되었습니다");
-                  // 저장이 끝난 뒤 문자 앱을 엽니다
-                  sendSMS();
-                }}
-                disabled={!isSendablePhone(draft.phone)}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" /> 완료하고 문자 보내기
-                </span>
-              </PrimaryButton>
-
-              <button
-                onClick={() => {
-                  setConfirmDone(false);
-                  tap("success");
-                  saveDraft();
-                  toast.success("견적이 완료되었습니다");
-                  setScreen("home");
-                }}
-                className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-4 font-black text-[15px] text-[#0751D8] shadow-[0_4px_0_#EDF2FA] active:translate-y-[2px] active:shadow-none"
-              >
-                문자 없이 완료
-              </button>
-
-              <button
-                onClick={() => setConfirmDone(false)}
-                className="w-full py-3 text-[14px] font-bold text-[#94A3B8]"
-              >
-                취소
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </MobileShell>
   );
 }
