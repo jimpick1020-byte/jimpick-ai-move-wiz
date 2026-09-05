@@ -1554,7 +1554,7 @@ export function Step6() {
 
   useEffect(() => {
     let alive = true;
-    getFavoriteItems({ data: {} })
+    getFavoriteItems()
       .then((r) => {
         if (alive && r.ok) setFavIds(r.itemIds);
       })
