@@ -2985,10 +2985,7 @@ export function Result() {
   const [detail, setDetail] = useState(false);
   const [detailEdit, setDetailEdit] = useState(false);
   const [edit, setEdit] = useState(false);
-  /** 견적 완료 확인창 */
-  const [confirmDone, setConfirmDone] = useState(false);
-  /** 고객에게 나갈 내용을 보여 주는 미리보기 */
-  const [preview, setPreview] = useState(false);
+  // 문자발송은 견적서 상세 화면의 「견적서 문자발송」 버튼에서만 실행합니다.
   /** 종이 견적서 화면 */
   const [sheetOpen, setSheetOpen] = useState(false);
   /** 견적서를 열면 먼저 보이는 고객용 표지 화면 (표는 「견적서 보기」에서만) */
