@@ -1541,14 +1541,86 @@ export function Step6() {
     });
   };
 
-  /** 지금까지 쓴 견적에서 자주 담은 품목 (이력이 없으면 기본 목록) */
-  const frequent = useMemo(
-    () =>
-      frequentItemIds(estimates, 8)
-        .map((id) => catalog.find((c) => c.id === id))
-        .filter((i): i is (typeof catalog)[number] => !!i),
-    [estimates, catalog],
-  );
+  /**
+   * 자주 담는 품목 —
+   * 사장님이 직접 등록한 목록이 있으면 그것을, 없으면 지난 견적 이력에서 뽑습니다.
+   */
+  const [favIds, setFavIds] = useState<string[] | null>(null);
+  const [favEditOpen, setFavEditOpen] = useState(false);
+  const [favDraft, setFavDraft] = useState<string[]>([]);
+  const [favQuery, setFavQuery] = useState("");
+  const [favSaving, setFavSaving] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getFavoriteItems({ data: {} })
+      .then((r) => {
+        if (alive && r.ok) setFavIds(r.itemIds);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const frequent = useMemo(() => {
+    const ids = favIds && favIds.length > 0 ? favIds : frequentItemIds(estimates, 8);
+    return ids
+      .map((id) => catalog.find((c) => c.id === id))
+      .filter((i): i is (typeof catalog)[number] => !!i);
+  }, [favIds, estimates, catalog]);
+
+  const openFavEdit = () => {
+    tap("soft");
+    setFavDraft(favIds && favIds.length > 0 ? favIds : frequent.map((i) => i.id));
+    setFavQuery("");
+    setFavEditOpen(true);
+  };
+
+  const toggleFav = (id: string) => {
+    setFavDraft((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= FAVORITE_LIMIT) {
+        toast.error(`자주 담는 품목은 최대 ${FAVORITE_LIMIT}개까지 등록할 수 있습니다`);
+        return prev;
+      }
+      return [...prev, id];
+    });
+    tap("soft");
+  };
+
+  const moveFav = (id: string, dir: -1 | 1) => {
+    setFavDraft((prev) => {
+      const i = prev.indexOf(id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+    tap("soft");
+  };
+
+  const saveFav = async () => {
+    if (favSaving) return;
+    setFavSaving(true);
+    try {
+      const r = await saveFavoriteItems({ data: { itemIds: favDraft } });
+      if (!r.ok) {
+        toast.error(r.error || "자주 담는 품목을 저장하지 못했습니다");
+        return;
+      }
+      setFavIds(favDraft);
+      setFavEditOpen(false);
+      tap("success");
+      toast.success("자주 담는 품목을 저장했습니다");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "자주 담는 품목을 저장하지 못했습니다");
+    } finally {
+      setFavSaving(false);
+    }
+  };
+
 
   return (
     <MobileShell>
