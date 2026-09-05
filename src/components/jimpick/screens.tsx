@@ -25,7 +25,6 @@ import {
   Truck,
   ArrowUpDown,
   Video,
-  Link as LinkIcon,
   X,
   ChevronDown,
   ChevronLeft,
