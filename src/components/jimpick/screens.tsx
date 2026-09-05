@@ -109,6 +109,7 @@ import {
 } from "@/lib/terms";
 import { publishEstimateTerms, getTermsStatuses, type TermsStatusRow } from "@/lib/terms.functions";
 import { getCompanyDefaults, saveCompanyDefaults } from "@/lib/company-defaults.functions";
+import { getFavoriteItems, saveFavoriteItems, FAVORITE_LIMIT } from "@/lib/favorite-items.functions";
 import {
   uploadCert,
   certSignedUrl,
