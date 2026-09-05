@@ -2245,6 +2245,126 @@ export function Step6() {
           </div>
         </div>
       )}
+      {/* 자주 담는 품목 편집 */}
+      {favEditOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div
+            className="absolute inset-0 bg-[#0F172A]/45"
+            onClick={() => !favSaving && setFavEditOpen(false)}
+          />
+          <div className="relative flex h-[86dvh] w-full max-w-md flex-col rounded-t-3xl bg-white shadow-[0_-14px_40px_rgba(7,81,216,0.28)]">
+            <div className="border-b border-[#EDF2FA] px-4 py-3">
+              <div className="text-[17px] font-black text-[#0F172A]">자주 담는 품목 편집</div>
+              <div className="mt-0.5 text-[12px] font-bold text-[#6B7280]">
+                등록 {favDraft.length} / {FAVORITE_LIMIT}개 · 눌러서 추가·삭제
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-auto px-4 py-3">
+              {/* 등록된 품목 — 순서 변경·삭제 */}
+              <div className="rounded-2xl border border-[#DCE8FA] bg-[#F8FBFF] p-3">
+                <div className="text-[12.5px] font-black text-[#0864DC]">등록한 품목</div>
+                {favDraft.length === 0 ? (
+                  <div className="py-3 text-center text-[12.5px] font-bold text-[#94A3B8]">
+                    아래에서 품목을 골라 추가해 주세요
+                  </div>
+                ) : (
+                  <div className="mt-2 space-y-1.5">
+                    {favDraft.map((id, i) => {
+                      const it = catalog.find((c) => c.id === id);
+                      return (
+                        <div
+                          key={id}
+                          className="flex items-center gap-2 rounded-xl border border-[#DCE8FA] bg-white px-2 py-1.5"
+                        >
+                          <span className="w-5 text-center text-[11px] font-black text-[#94A3B8]">
+                            {i + 1}
+                          </span>
+                          <ItemArt id={id} name={it?.name || id} size={26} />
+                          <span className="flex-1 truncate text-[13px] font-extrabold text-[#0F172A]">
+                            {it?.name || id}
+                          </span>
+                          <button
+                            onClick={() => moveFav(id, -1)}
+                            disabled={i === 0}
+                            aria-label="위로"
+                            className="h-8 w-8 rounded-lg border border-[#DCE8FA] text-[#0751D8] disabled:opacity-30"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() => moveFav(id, 1)}
+                            disabled={i === favDraft.length - 1}
+                            aria-label="아래로"
+                            className="h-8 w-8 rounded-lg border border-[#DCE8FA] text-[#0751D8] disabled:opacity-30"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            onClick={() => toggleFav(id)}
+                            aria-label={`${it?.name || id} 삭제`}
+                            className="h-8 w-8 rounded-lg border border-[#FBD5D5] text-[#D9282A]"
+                          >
+                            <X className="mx-auto h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* 전체 품목 검색 후 추가 */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+                <input
+                  value={favQuery}
+                  onChange={(e) => setFavQuery(e.target.value)}
+                  placeholder="전체 품목 검색 (예: 냉장고)"
+                  className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3 pl-9 pr-3 text-[14px] font-bold outline-none"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 pb-2">
+                {catalog
+                  .filter((i) => (favQuery ? i.name.includes(favQuery) : true))
+                  .slice(0, 120)
+                  .map((it) => {
+                    const on = favDraft.includes(it.id);
+                    return (
+                      <button
+                        key={it.id}
+                        onClick={() => toggleFav(it.id)}
+                        className="flex min-h-11 items-center gap-1.5 rounded-2xl border pl-1.5 pr-3 text-[13px] font-black"
+                        style={{
+                          borderColor: on ? "#287BFF" : "#DCE8FA",
+                          background: on ? "#F2F7FF" : "#FFFFFF",
+                          color: on ? "#0751D8" : "#475569",
+                        }}
+                      >
+                        <ItemArt id={it.id} name={it.name} size={26} />
+                        {it.name}
+                        {on && <Check className="h-4 w-4" />}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
+            <div className="space-y-2 border-t border-[#EDF2FA] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <PrimaryButton onClick={() => void saveFav()} disabled={favSaving}>
+                {favSaving ? "저장 중…" : "저장"}
+              </PrimaryButton>
+              <button
+                onClick={() => setFavEditOpen(false)}
+                disabled={favSaving}
+                className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 text-[14px] font-black text-[#334155] shadow-[0_3px_0_#EDF2FA] disabled:opacity-50"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </MobileShell>
   );
 }
