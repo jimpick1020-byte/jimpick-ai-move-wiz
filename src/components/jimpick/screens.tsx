@@ -3784,19 +3784,6 @@ export function Result() {
         >
           <FileText className="w-5 h-5" /> 견적서 확인
         </button>
-
-        <button
-          onClick={() => {
-            tap("success");
-            saveDraft();
-            const url = `${window.location.origin}/share/${draft.id}`;
-            void navigator.clipboard?.writeText(url);
-            toast.success("고객용 공유 링크가 복사되었습니다");
-          }}
-          className="w-full py-4 rounded-2xl bg-white border border-[#DFE6F2] font-bold flex items-center justify-center gap-2 shadow-[0_4px_0_#E3E9F5,0_10px_20px_-8px_rgba(15,23,42,0.25)] active:translate-y-[2px] active:shadow-[0_2px_0_#E3E9F5]"
-        >
-          <LinkIcon className="w-5 h-5" /> 공유 링크 복사
-        </button>
         <button
           onClick={() => {
             tap("soft");
