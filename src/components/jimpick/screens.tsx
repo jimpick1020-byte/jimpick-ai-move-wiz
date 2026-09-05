@@ -220,12 +220,9 @@ export function Splash() {
         className="flex-1 flex flex-col items-center px-8 pt-8 pb-4"
       >
         <div className="text-center">
-          <div className="flex items-baseline justify-center gap-2">
+          <div className="flex items-baseline justify-center">
             <span className="text-6xl font-black text-[#0751D8] tracking-tight drop-shadow-[0_4px_10px_rgba(7,81,216,0.25)]">
               JIMPICK
-            </span>
-            <span className="text-xl font-bold text-white bg-[#0751D8] rounded-lg px-2.5 py-0.5">
-              7.0
             </span>
           </div>
           <div className="text-lg font-bold text-[#111827] mt-3">AI 이사 견적 앱</div>
