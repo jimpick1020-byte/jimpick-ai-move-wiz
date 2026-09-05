@@ -44,6 +44,10 @@ import {
 import {
   useApp,
   ITEM_CATALOG,
+  BROWSE_ITEMS,
+  CATS20,
+  cat20For,
+  itemNameById,
   CATEGORIES,
   OPTION_PRESETS,
   calcEstimate,
@@ -1327,14 +1331,6 @@ export const ROOM_TINT: Record<string, string> = {
   서재: "from-[#94A3B8] to-[#475569]",
 };
 
-const ITEM_TABS = [
-  { key: "가전", cats: ["가전"] },
-  { key: "가구", cats: ["가구"] },
-  { key: "주방", cats: ["주방"] },
-  { key: "생활", cats: ["생활용품"] },
-  { key: "잔짐", cats: ["잔짐"] },
-  { key: "특수", cats: ["특수"] },
-];
 
 /** 번호 마지막 4자리 (발송 결과에 가려서 보여 줍니다) */
 function digitsTail(phone: string): string {
@@ -1361,7 +1357,7 @@ export function Step6() {
     return hit ? hit.key : "30~40평";
   });
   const [openRoom, setOpenRoom] = useState<string | null>(null);
-  const [tab, setTab] = useState<string>("가전");
+  const [tab, setTab] = useState<string>(CATS20[0]);
   const [q, setQ] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   /** 수량을 0으로 줄일 때 뜨는 삭제 확인창 */
@@ -1369,11 +1365,20 @@ export function Step6() {
 
   const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || SIZE_TABS[2]).rooms;
 
+  // 20카테고리 병합 목록(기존 이미지·요금 보존 + 1,000 신규) + 직접 추가 품목.
   const catalog = useMemo(
     () =>
       [
-        ...ITEM_CATALOG,
-        ...(draft.customItems || []).map((c) => ({ ...c, emoji: "📦", sub: "직접 추가" })),
+        ...BROWSE_ITEMS,
+        ...(draft.customItems || []).map((c) => ({
+          id: c.id,
+          name: c.name,
+          cat: c.cat,
+          cat20: cat20For(c.cat),
+          sub: "직접 추가",
+          emoji: "📦",
+          extra: c.extra,
+        })),
       ].filter((i) => !(draft.hiddenItems || []).includes(i.id)),
     [draft.customItems, draft.hiddenItems],
   );
@@ -1409,7 +1414,15 @@ export function Step6() {
     const items = { ...room.items };
     if (qty <= 0) delete items[itemId];
     else items[itemId] = qty;
-    updateDraft({ rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)) });
+    // 담을 때(수량>0) 최근 선택 목록 맨 앞에 기록합니다(최신순, 중복 제거, 최대 12개).
+    const recent =
+      qty > 0
+        ? [itemId, ...(draft.recentItems || []).filter((x) => x !== itemId)].slice(0, 12)
+        : draft.recentItems;
+    updateDraft({
+      rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)),
+      ...(recent ? { recentItems: recent } : {}),
+    });
   };
 
   /**
@@ -1523,12 +1536,12 @@ export function Step6() {
     toast.success(`「${c?.name ?? "품목"}」을(를) 목록에서 지웠습니다`);
   };
 
-  const tabCats = (ITEM_TABS.find((t) => t.key === tab) || ITEM_TABS[0]).cats;
-  const items = catalog.filter((i) => (q ? i.name.includes(q) : tabCats.includes(i.cat)));
+  // 검색어가 있으면 전체에서, 없으면 지금 20카테고리 탭에서 보여 줍니다.
+  const items = catalog.filter((i) => (q ? i.name.includes(q) : i.cat20 === tab));
   const picked = Object.entries(room?.items || {}).map(([id, qty]) => ({
     id,
     qty,
-    name: catalog.find((c) => c.id === id)?.name || id,
+    name: catalog.find((c) => c.id === id)?.name || itemNameById(id) || id,
   }));
   const totalKinds = draft.rooms.reduce((a, r) => a + roomSummary(r.items).kinds, 0);
 
@@ -1552,6 +1565,16 @@ export function Step6() {
         .map((id) => catalog.find((c) => c.id === id))
         .filter((i): i is (typeof catalog)[number] => !!i),
     [estimates, catalog],
+  );
+
+  /** 최근 선택한 품목 (최신순, 최대 8개) */
+  const recent = useMemo(
+    () =>
+      (draft.recentItems || [])
+        .map((id) => catalog.find((c) => c.id === id))
+        .filter((i): i is (typeof catalog)[number] => !!i)
+        .slice(0, 8),
+    [draft.recentItems, catalog],
   );
 
   return (
@@ -1775,6 +1798,46 @@ export function Step6() {
 
             {pickerOpen && (
               <div className="flex-1 min-h-[44dvh] overflow-auto px-4 pt-3 space-y-3">
+                {/* 최근 선택 — 방금 담았던 품목을 위쪽에 다시 보여 줍니다 */}
+                {recent.length > 0 && (
+                  <div className="rounded-2xl border border-[#DCE8FA] bg-white px-4 py-3 space-y-2 shadow-[inset_0_1px_0_#fff]">
+                    <div className="text-[13.5px] font-black text-[#0F172A]">
+                      최근 선택
+                      <span className="ml-1.5 text-[11.5px] font-semibold text-[#9AA4B2]">
+                        눌러서 바로 담기
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {recent.map((it) => {
+                        const qty = room?.items[it.id] || 0;
+                        return (
+                          <button
+                            key={it.id}
+                            onClick={() => {
+                              setQty(it.id, qty + 1);
+                              tap("success");
+                            }}
+                            className="flex min-h-12 items-center gap-1.5 rounded-2xl border pl-1.5 pr-3.5 text-[13px] font-black transition-transform active:translate-y-[2px]"
+                            style={{
+                              borderColor: qty > 0 ? "#287BFF" : "#DCE8FA",
+                              background: qty > 0 ? "#F2F7FF" : "#FFFFFF",
+                              color: qty > 0 ? "#0751D8" : "#475569",
+                              boxShadow: qty > 0 ? "0 3px 0 #BBD3FF" : "0 2px 0 #EDF2FA",
+                            }}
+                          >
+                            <ItemArt id={it.id} name={it.name} size={32} />
+                            {it.name}
+                            {qty > 0 && (
+                              <span className="ml-0.5 rounded-full bg-[#0751D8] px-1.5 py-0.5 text-[10px] font-black text-white">
+                                {qty}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 {/* 자주 담는 품목 — 검색 없이 눌러서 바로 담습니다 */}
                 <div className="rounded-2xl border border-[#DCE8FA] bg-white px-4 py-3 space-y-2 shadow-[inset_0_1px_0_#fff]">
                   <div className="text-[13.5px] font-black text-[#0F172A]">
@@ -1815,21 +1878,21 @@ export function Step6() {
                 </div>
 
                 <div className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {ITEM_TABS.map((t) => (
+                  {CATS20.map((c) => (
                     <button
-                      key={t.key}
+                      key={c}
                       onClick={() => {
                         tap("soft");
-                        setTab(t.key);
+                        setTab(c);
                         setQ("");
                       }}
                       className={`shrink-0 px-4 py-2.5 rounded-2xl text-[14px] font-black whitespace-nowrap transition-all active:translate-y-[2px] ${
-                        !q && t.key === tab
+                        !q && c === tab
                           ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0B5FE0] shadow-[0_4px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
                           : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F1F6FF] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff]"
                       }`}
                     >
-                      {t.key}
+                      {c}
                     </button>
                   ))}
                 </div>
@@ -3266,6 +3329,7 @@ export function Result() {
         name:
           ITEM_CATALOG.find((c) => c.id === id)?.name ||
           (draft.customItems || []).find((c) => c.id === id)?.name ||
+          itemNameById(id) ||
           id,
         qty,
       })),
@@ -4270,6 +4334,7 @@ export function Result() {
                     const nameOf = (id: string) =>
                       ITEM_CATALOG.find((c) => c.id === id)?.name ||
                       (draft.customItems || []).find((c) => c.id === id)?.name ||
+                      itemNameById(id) ||
                       id;
                     return (
                       <div className="border-t border-[#EDF2FA] px-4 py-3">

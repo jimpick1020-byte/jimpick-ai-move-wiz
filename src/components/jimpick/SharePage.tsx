@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import {
   ITEM_CATALOG,
+  itemNameById,
   calcEstimate,
   loadEstimateFromStorage,
   won,
@@ -248,7 +249,7 @@ export function SharePage() {
       .filter(([, qty]) => qty > 0)
       .map(([itemId, qty]) => {
         const catalog = ITEM_CATALOG.find((i) => i.id === itemId);
-        return { room: room.name, name: catalog?.name || itemId, qty };
+        return { room: room.name, name: catalog?.name || itemNameById(itemId) || itemId, qty };
       }),
   );
   const enabledOptions = (estimate?.options ?? []).filter((o) => o.enabled);
