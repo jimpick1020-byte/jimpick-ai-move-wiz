@@ -2382,6 +2382,16 @@ export function AIRecognition() {
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [photoUrl, setPhotoUrl] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  /** 분석 진행률 (0~100) */
+  const [progress, setProgress] = useState(0);
+  /** 사진이 흔들리거나 어두워 다시 찍어야 할 때의 안내 */
+  const [retake, setRetake] = useState("");
+  /** 다시 분석에 쓸 마지막 사진 묶음 */
+  const [lastBatch, setLastBatch] = useState<{
+    images: string[];
+    source: "photo" | "video";
+  } | null>(null);
+
   const [onlyHigh, setOnlyHigh] = useState(true);
   /** 찰칵 하는 순간 마스코트가 플래시를 터뜨립니다 */
   const [shooting, setShooting] = useState(false);
