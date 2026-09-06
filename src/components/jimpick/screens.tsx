@@ -651,6 +651,8 @@ export function Step1() {
     <MobileShell>
       <TopBar title="1단계. 고객 정보 입력" onBack={() => setScreen("home")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
+        <VoiceFill />
+
         <Field label="고객명">
           <TextInput
             placeholder="홍길동"
