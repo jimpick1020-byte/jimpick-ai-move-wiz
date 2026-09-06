@@ -238,10 +238,10 @@ export function mergeTranscript(prev: string, next: string): string {
   const b = next.trim();
   if (!b) return a;
   if (!a) return b;
-  if (a.endsWith(b)) return a;
+  if (a.endsWith(b) || a.includes(b)) return a;
   // 겹치는 끝/앞부분을 찾아 이어 붙입니다
   const max = Math.min(a.length, b.length);
-  for (let n = max; n >= 4; n--) {
+  for (let n = max; n >= 2; n--) {
     if (a.slice(-n) === b.slice(0, n)) return a + b.slice(n);
   }
   return `${a} ${b}`;
