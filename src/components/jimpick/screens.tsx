@@ -147,6 +147,9 @@ import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { TruckGauge } from "./TruckGauge";
 import { JimpickCharacter } from "./JimpickCharacter";
+import { VoiceFill } from "./VoiceFill";
+import { tileDataUrl, photoQuality } from "@/lib/media";
+
 import { icon3dFor, DEFAULT_ICON3D, ICON3D, Icon3D } from "@/lib/jimpick-icon3d";
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
@@ -651,6 +654,8 @@ export function Step1() {
     <MobileShell>
       <TopBar title="1단계. 고객 정보 입력" onBack={() => setScreen("home")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
+        <VoiceFill />
+
         <Field label="고객명">
           <TextInput
             placeholder="홍길동"
@@ -2377,6 +2382,16 @@ export function AIRecognition() {
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [photoUrl, setPhotoUrl] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  /** 분석 진행률 (0~100) */
+  const [progress, setProgress] = useState(0);
+  /** 사진이 흔들리거나 어두워 다시 찍어야 할 때의 안내 */
+  const [retake, setRetake] = useState("");
+  /** 다시 분석에 쓸 마지막 사진 묶음 */
+  const [lastBatch, setLastBatch] = useState<{
+    images: string[];
+    source: "photo" | "video";
+  } | null>(null);
+
   const [onlyHigh, setOnlyHigh] = useState(true);
   /** 찰칵 하는 순간 마스코트가 플래시를 터뜨립니다 */
   const [shooting, setShooting] = useState(false);
@@ -2420,29 +2435,98 @@ export function AIRecognition() {
   const shown = onlyHigh ? results.filter((r) => r.confidence >= THRESHOLD) : results;
   const lowCount = results.filter((r) => r.confidence < THRESHOLD).length;
 
-  const analyze = async (images: string[], source: "photo" | "video") => {
+  /**
+   * 여러 번 나눠 분석하고 결과를 합칩니다.
+   * 1) 사진 전체를 봅니다.
+   * 2) 사진을 4조각으로 나눠 확대해 다시 봅니다 (작거나 가려진 물건 찾기).
+   * 같은 물건은 가장 큰 수량 하나로만 남겨 중복 수량이 생기지 않게 합니다.
+   */
+  const mergeItems = (base: DetectedItem[], add: DetectedItem[]): DetectedItem[] => {
+    const map = new Map(base.map((i) => [i.id, { ...i }]));
+    for (const a of add) {
+      const cur = map.get(a.id);
+      if (!cur) {
+        map.set(a.id, { ...a });
+        continue;
+      }
+      cur.qty = Math.max(cur.qty, a.qty);
+      cur.confidence = Math.max(cur.confidence, a.confidence);
+      cur.note = cur.note || a.note;
+    }
+    return [...map.values()];
+  };
+
+  const analyze = async (images: string[], source: "photo" | "video", keepPrev = false) => {
     setBusy(true);
-    setResults([]);
-    try {
-      const res = await recognizeItems({ data: { images, source } });
-      if (res.error) {
-        toast.error(res.error);
+    setProgress(5);
+    setRetake("");
+    setLastBatch({ images, source });
+    if (!keepPrev) setResults([]);
+
+    // 흔들림·어두움을 먼저 살펴봅니다
+    if (source === "photo") {
+      const q = await photoQuality(images[0]);
+      if (!q.ok) {
+        setRetake(q.reason ?? "사진을 다시 찍어주세요.");
+        setBusy(false);
+        setProgress(0);
+        toast.error(q.reason ?? "사진을 다시 찍어주세요.");
         return;
       }
-      setResults(res.items);
-      const high = res.items.filter((i) => i.confidence >= THRESHOLD).length;
+    }
+
+    // 분석할 묶음 만들기 — 전체 + 확대 조각
+    const passes: string[][] = [images];
+    if (source === "photo") {
+      try {
+        const tiles = await tileDataUrl(images[0], 2);
+        passes.push(tiles.slice(0, 4));
+      } catch {
+        /* 조각을 못 만들면 전체만 봅니다 */
+      }
+    }
+
+    let merged: DetectedItem[] = keepPrev ? results : [];
+    let roomGuess: string | null = null;
+    let failed = 0;
+    try {
+      for (let p = 0; p < passes.length; p++) {
+        try {
+          const res = await recognizeItems({ data: { images: passes[p], source } });
+          if (res.error) {
+            failed++;
+          } else {
+            merged = mergeItems(merged, res.items);
+            if (!roomGuess && res.roomGuess) roomGuess = res.roomGuess;
+            setResults(merged);
+          }
+        } catch {
+          failed++;
+        }
+        setProgress(Math.round(((p + 1) / passes.length) * 100));
+      }
+
+      if (merged.length === 0) {
+        setRetake(
+          failed > 0
+            ? "AI 분석이 되지 않았습니다. 다시 분석을 눌러 주세요."
+            : "물건을 찾지 못했습니다. 더 밝고 가까이서 다시 찍어주세요.",
+        );
+        return;
+      }
+
+      const high = merged.filter((i) => i.confidence >= THRESHOLD).length;
       if (high === 0) {
-        toast.info(`${PCT}% 이상 확실한 품목이 없습니다. 더 밝고 가까이 촬영해 주세요.`);
+        toast.info(`${PCT}% 이상 확실한 품목이 없습니다. 「확인 필요 품목」을 살펴봐 주세요.`);
         setOnlyHigh(false);
       } else {
-        toast.success(`AI 인식 완료 — 정확도 ${PCT}% 이상 ${high}개 품목`);
+        toast.success(`AI 인식 완료 — 확실한 품목 ${high}개 · 확인 필요 ${merged.length - high}개`);
         tap("success");
       }
-      if (res.roomGuess) toast.info(`추정 공간: ${res.roomGuess}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "AI 분석에 실패했습니다");
+      if (roomGuess) toast.info(`추정 공간: ${roomGuess}`);
     } finally {
       setBusy(false);
+      setProgress(0);
     }
   };
 
@@ -2451,7 +2535,8 @@ export function AIRecognition() {
     setVideoUrl("");
     setPhotoUrl(URL.createObjectURL(f));
     const dataUrl = await fileToDataUrl(f);
-    await analyze([dataUrl], "photo");
+    // 사진을 여러 장 찍으면 앞서 찾은 품목에 이어서 합칩니다
+    await analyze([dataUrl], "photo", results.length > 0);
   };
 
   const onVideo = async (f: File) => {
@@ -2461,12 +2546,20 @@ export function AIRecognition() {
     setBusy(true);
     try {
       const frames = await videoToFrames(f, 5);
-      await analyze(frames, "video");
+      await analyze(frames, "video", results.length > 0);
     } catch {
       toast.error("동영상을 분석하지 못했습니다");
       setBusy(false);
     }
   };
+
+  /** 같은 사진으로 다시 분석합니다 */
+  const retry = () => {
+    if (!lastBatch) return;
+    tap("soft");
+    void analyze(lastBatch.images, lastBatch.source, false);
+  };
+
 
   /** 고른 공간에 품목을 바로 더합니다 */
   const addToRoom = (
@@ -2926,11 +3019,35 @@ export function AIRecognition() {
         </div>
 
         {busy && (
-          <Card className="text-center py-6">
-            <div className="font-bold text-[#0751D8]">AI가 분석 중입니다...</div>
-            <div className="text-xs text-[#6B7280] mt-1">가구·가전을 찾아 수량을 세는 중</div>
+          <Card className="py-5 text-center">
+            <div className="font-bold text-[#0751D8]">AI 품목 분석 중… {progress}%</div>
+            <div className="mt-1 text-xs text-[#6B7280]">
+              사진 전체를 본 뒤, 나눠서 확대해 작은 물건까지 다시 확인합니다
+            </div>
+            <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-[#EDF2FB]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#4C9BFF] to-[#0751D8] transition-[width] duration-300"
+                style={{ width: `${Math.max(5, progress)}%` }}
+              />
+            </div>
           </Card>
         )}
+
+        {/* 분석이 어려운 사진 · 실패했을 때 — 멈추지 않고 다시 할 수 있게 합니다 */}
+        {!busy && retake && (
+          <Card className="rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB]">
+            <div className="text-[14px] font-black text-[#B45309]">{retake}</div>
+            {lastBatch && (
+              <button
+                onClick={retry}
+                className="mt-2 w-full rounded-2xl border border-[#FCD34D] bg-white py-3 text-[14px] font-black text-[#B45309]"
+              >
+                같은 사진으로 다시 분석
+              </button>
+            )}
+          </Card>
+        )}
+
 
         <div className="text-xs text-[#6B7280] bg-[#F5F7FB] rounded-xl px-3 py-2">
           💡 밝고 선명하게, 물건 전체가 나오도록 촬영할수록 인식률이 높아집니다.
