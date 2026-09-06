@@ -3019,11 +3019,35 @@ export function AIRecognition() {
         </div>
 
         {busy && (
-          <Card className="text-center py-6">
-            <div className="font-bold text-[#0751D8]">AI가 분석 중입니다...</div>
-            <div className="text-xs text-[#6B7280] mt-1">가구·가전을 찾아 수량을 세는 중</div>
+          <Card className="py-5 text-center">
+            <div className="font-bold text-[#0751D8]">AI 품목 분석 중… {progress}%</div>
+            <div className="mt-1 text-xs text-[#6B7280]">
+              사진 전체를 본 뒤, 나눠서 확대해 작은 물건까지 다시 확인합니다
+            </div>
+            <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-[#EDF2FB]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#4C9BFF] to-[#0751D8] transition-[width] duration-300"
+                style={{ width: `${Math.max(5, progress)}%` }}
+              />
+            </div>
           </Card>
         )}
+
+        {/* 분석이 어려운 사진 · 실패했을 때 — 멈추지 않고 다시 할 수 있게 합니다 */}
+        {!busy && retake && (
+          <Card className="rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB]">
+            <div className="text-[14px] font-black text-[#B45309]">{retake}</div>
+            {lastBatch && (
+              <button
+                onClick={retry}
+                className="mt-2 w-full rounded-2xl border border-[#FCD34D] bg-white py-3 text-[14px] font-black text-[#B45309]"
+              >
+                같은 사진으로 다시 분석
+              </button>
+            )}
+          </Card>
+        )}
+
 
         <div className="text-xs text-[#6B7280] bg-[#F5F7FB] rounded-xl px-3 py-2">
           💡 밝고 선명하게, 물건 전체가 나오도록 촬영할수록 인식률이 높아집니다.
