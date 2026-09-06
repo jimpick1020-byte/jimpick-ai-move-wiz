@@ -2425,29 +2425,98 @@ export function AIRecognition() {
   const shown = onlyHigh ? results.filter((r) => r.confidence >= THRESHOLD) : results;
   const lowCount = results.filter((r) => r.confidence < THRESHOLD).length;
 
-  const analyze = async (images: string[], source: "photo" | "video") => {
+  /**
+   * 여러 번 나눠 분석하고 결과를 합칩니다.
+   * 1) 사진 전체를 봅니다.
+   * 2) 사진을 4조각으로 나눠 확대해 다시 봅니다 (작거나 가려진 물건 찾기).
+   * 같은 물건은 가장 큰 수량 하나로만 남겨 중복 수량이 생기지 않게 합니다.
+   */
+  const mergeItems = (base: DetectedItem[], add: DetectedItem[]): DetectedItem[] => {
+    const map = new Map(base.map((i) => [i.id, { ...i }]));
+    for (const a of add) {
+      const cur = map.get(a.id);
+      if (!cur) {
+        map.set(a.id, { ...a });
+        continue;
+      }
+      cur.qty = Math.max(cur.qty, a.qty);
+      cur.confidence = Math.max(cur.confidence, a.confidence);
+      cur.note = cur.note || a.note;
+    }
+    return [...map.values()];
+  };
+
+  const analyze = async (images: string[], source: "photo" | "video", keepPrev = false) => {
     setBusy(true);
-    setResults([]);
-    try {
-      const res = await recognizeItems({ data: { images, source } });
-      if (res.error) {
-        toast.error(res.error);
+    setProgress(5);
+    setRetake("");
+    setLastBatch({ images, source });
+    if (!keepPrev) setResults([]);
+
+    // 흔들림·어두움을 먼저 살펴봅니다
+    if (source === "photo") {
+      const q = await photoQuality(images[0]);
+      if (!q.ok) {
+        setRetake(q.reason ?? "사진을 다시 찍어주세요.");
+        setBusy(false);
+        setProgress(0);
+        toast.error(q.reason ?? "사진을 다시 찍어주세요.");
         return;
       }
-      setResults(res.items);
-      const high = res.items.filter((i) => i.confidence >= THRESHOLD).length;
+    }
+
+    // 분석할 묶음 만들기 — 전체 + 확대 조각
+    const passes: string[][] = [images];
+    if (source === "photo") {
+      try {
+        const tiles = await tileDataUrl(images[0], 2);
+        passes.push(tiles.slice(0, 4));
+      } catch {
+        /* 조각을 못 만들면 전체만 봅니다 */
+      }
+    }
+
+    let merged: DetectedItem[] = keepPrev ? results : [];
+    let roomGuess: string | null = null;
+    let failed = 0;
+    try {
+      for (let p = 0; p < passes.length; p++) {
+        try {
+          const res = await recognizeItems({ data: { images: passes[p], source } });
+          if (res.error) {
+            failed++;
+          } else {
+            merged = mergeItems(merged, res.items);
+            if (!roomGuess && res.roomGuess) roomGuess = res.roomGuess;
+            setResults(merged);
+          }
+        } catch {
+          failed++;
+        }
+        setProgress(Math.round(((p + 1) / passes.length) * 100));
+      }
+
+      if (merged.length === 0) {
+        setRetake(
+          failed > 0
+            ? "AI 분석이 되지 않았습니다. 다시 분석을 눌러 주세요."
+            : "물건을 찾지 못했습니다. 더 밝고 가까이서 다시 찍어주세요.",
+        );
+        return;
+      }
+
+      const high = merged.filter((i) => i.confidence >= THRESHOLD).length;
       if (high === 0) {
-        toast.info(`${PCT}% 이상 확실한 품목이 없습니다. 더 밝고 가까이 촬영해 주세요.`);
+        toast.info(`${PCT}% 이상 확실한 품목이 없습니다. 「확인 필요 품목」을 살펴봐 주세요.`);
         setOnlyHigh(false);
       } else {
-        toast.success(`AI 인식 완료 — 정확도 ${PCT}% 이상 ${high}개 품목`);
+        toast.success(`AI 인식 완료 — 확실한 품목 ${high}개 · 확인 필요 ${merged.length - high}개`);
         tap("success");
       }
-      if (res.roomGuess) toast.info(`추정 공간: ${res.roomGuess}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "AI 분석에 실패했습니다");
+      if (roomGuess) toast.info(`추정 공간: ${roomGuess}`);
     } finally {
       setBusy(false);
+      setProgress(0);
     }
   };
 
@@ -2456,7 +2525,8 @@ export function AIRecognition() {
     setVideoUrl("");
     setPhotoUrl(URL.createObjectURL(f));
     const dataUrl = await fileToDataUrl(f);
-    await analyze([dataUrl], "photo");
+    // 사진을 여러 장 찍으면 앞서 찾은 품목에 이어서 합칩니다
+    await analyze([dataUrl], "photo", results.length > 0);
   };
 
   const onVideo = async (f: File) => {
@@ -2466,12 +2536,20 @@ export function AIRecognition() {
     setBusy(true);
     try {
       const frames = await videoToFrames(f, 5);
-      await analyze(frames, "video");
+      await analyze(frames, "video", results.length > 0);
     } catch {
       toast.error("동영상을 분석하지 못했습니다");
       setBusy(false);
     }
   };
+
+  /** 같은 사진으로 다시 분석합니다 */
+  const retry = () => {
+    if (!lastBatch) return;
+    tap("soft");
+    void analyze(lastBatch.images, lastBatch.source, false);
+  };
+
 
   /** 고른 공간에 품목을 바로 더합니다 */
   const addToRoom = (
