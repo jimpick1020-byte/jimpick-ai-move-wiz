@@ -135,11 +135,29 @@ async function sendViaAligo(v: {
     if (v.viaProxy) {
       const r = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/send`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-jimpick-secret": v.proxySecret! },
+        headers: {
+          "Content-Type": "application/json",
+          // 보관함에 값을 넣을 때 끝에 줄바꿈이 딸려 들어가는 일이 흔합니다
+          "x-jimpick-secret": String(v.proxySecret ?? "").trim(),
+        },
         body: JSON.stringify({ to: v.to, text: v.text, title: v.title, userId: v.userId }),
       });
-      return await r.json().catch(() => ({ ok: false, error: "중계 서버 응답을 읽지 못했습니다." }));
+      const out = (await r.json().catch(() => null)) as SendOutcome | null;
+      if (r.status === 401 || r.status === 403) {
+        return {
+          ok: false,
+          code: r.status,
+          error:
+            "문자 중계 서버가 요청을 거절했습니다(인증 실패). 중계 서버의 JIMPICK_PROXY_SECRET 값과 앱에 저장된 값이 서로 달라 보입니다. 두 값을 똑같이 맞춘 뒤 다시 시도해 주세요.",
+        };
+      }
+      if (!out) {
+        return { ok: false, code: r.status, error: `중계 서버 응답을 읽지 못했습니다. (${r.status})` };
+      }
+      if (!out.ok && !out.error) out.error = `중계 서버가 발송에 실패했습니다. (${r.status})`;
+      return out;
     }
+
     const form = new FormData();
     form.append("user_id", v.aligoUserId);
     form.append("key", v.apiKey);
