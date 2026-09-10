@@ -233,7 +233,9 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ ok: false, error: "POST 로 불러 주세요." }, 405);
 
   const aligoUserId = Deno.env.get("ALIGO_USER_ID");
-  const apiKey = Deno.env.get("ALIGO_API_KEY");
+  // 비밀값 등록 과정에서 붙을 수 있는 줄바꿈·공백은 알리고 인증 실패(-102)를 일으킵니다.
+  // 원문은 로그나 응답에 남기지 않고, 정리한 값만 서버 내부에서 전송합니다.
+  const apiKey = Deno.env.get("ALIGO_API_KEY")?.trim();
   // 발신번호는 서버 코드에만 고정되어 있고, 업체 정보·요청 body·다른 변수에서 가져오지 않습니다.
   const sender = "01075662542";
   const appUrl = (Deno.env.get("PUBLIC_APP_URL") ?? Deno.env.get("APP_PUBLIC_URL") ?? "")
