@@ -98,6 +98,7 @@ import {
 } from "@/lib/staff-share";
 
 import { SmsConnectionCard } from "./SmsConnectionCard";
+import { DepositPanel } from "./DepositPanel";
 import {
   TERMS_VERSION,
   TERMS_NAME,
