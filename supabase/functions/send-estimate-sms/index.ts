@@ -535,29 +535,58 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 문자 내용 — 실제 자료만 씁니다
-    let deposit = 0;
+    // 문자 내용 — 이 견적서에 실제로 저장된 자료만 씁니다 (없는 줄은 아예 넣지 않습니다)
+    let snapDraft: Record<string, unknown> = {};
     try {
       const snap = JSON.parse(String(trow.sheet_snapshot ?? "{}")) as {
-        draft?: { deposit?: number };
+        draft?: Record<string, unknown>;
       };
-      deposit = Number(snap?.draft?.deposit ?? 0) || 0;
+      snapDraft = snap?.draft ?? {};
     } catch {
-      deposit = 0;
+      snapDraft = {};
     }
+    const sv = (k: string) => String(snapDraft[k] ?? "").trim();
+    const deposit = Number(snapDraft.deposit ?? 0) || 0;
     const wonM = (n: number) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
-    const customerM = String(trow.customer_name ?? "").trim() || "고객";
+    /** 기본주소 + 상세주소를 함께 표시합니다 */
+    const fullAddr = (base: string, detail: string) => [base, detail].filter(Boolean).join(" ");
+    const customerM = String(trow.customer_name ?? "").trim() || sv("customerName");
+    const custPhone = String(trow.contact_phone ?? "").trim() || sv("phone");
+    const fromFull = fullAddr(sv("fromAddress"), sv("fromDetail"));
+    const toFull = fullAddr(sv("toAddress"), sv("toDetail"));
+    const totalM = Number(trow.total ?? 0) || 0;
+    const acceptedAtM = String(arow.accepted_at ?? "");
+    let confirmedText = "";
+    if (acceptedAtM) {
+      const d = new Date(acceptedAtM);
+      if (!Number.isNaN(d.getTime())) {
+        // 사장님이 보는 시간은 한국 시간으로 표시합니다
+        confirmedText = new Intl.DateTimeFormat("ko-KR", {
+          timeZone: "Asia/Seoul",
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(d);
+      }
+    }
+    const lineM = (label: string, value: string) => (value ? `${label}: ${value}` : "");
     const textM = [
       "[JIMPICK 예약 확정]",
-      `${customerM} 고객님이 예약을 확정했습니다.`,
+      "고객이 견적서를 확인하고 예약을 확정했습니다.",
       "",
-      `이사일: ${String(trow.move_date ?? "").trim() || "미정"}`,
-      `견적번호: ${String(trow.sheet_no ?? "").trim() || estimateIdM}`,
-      `총 견적금액: ${wonM(Number(trow.total ?? 0))}`,
-      `예약금: ${wonM(deposit)}`,
+      lineM("고객명", customerM),
+      lineM("연락처", custPhone),
+      lineM("이사일", String(trow.move_date ?? "").trim()),
+      lineM("출발지", fromFull),
+      lineM("도착지", toFull),
+      lineM("총 견적금액", totalM > 0 ? wonM(totalM) : ""),
+      lineM("예약금", deposit > 0 ? wonM(deposit) : ""),
+      lineM("견적번호", String(trow.sheet_no ?? "").trim() || estimateIdM),
+      lineM("확정일시", confirmedText),
       "",
-      "예약금을 확인하고 고객에게 연락해 주세요.",
-    ].join("\n");
+      "고객에게 연락하여 예약금을 확인해 주세요.",
+    ]
+      .filter((l) => l !== "")
+      .join("\n");
     // 글자 길이에 따라 SMS · LMS 로 나갑니다
     const msgTypeM = new TextEncoder().encode(textM).length <= 90 ? "SMS" : "LMS";
 
