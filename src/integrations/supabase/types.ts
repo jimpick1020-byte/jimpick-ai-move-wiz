@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      deposit_records: {
+        Row: {
+          amount: number
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          customer_name: string
+          dedupe_key: string
+          deposited_at: string | null
+          depositor_name: string
+          estimate_id: string
+          estimate_version: number
+          id: string
+          name_matched: boolean
+          notified_at: string | null
+          notify_error: string | null
+          raw_text: string | null
+          review_note: string | null
+          sheet_no: string | null
+          source: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          customer_name?: string
+          dedupe_key: string
+          deposited_at?: string | null
+          depositor_name?: string
+          estimate_id: string
+          estimate_version?: number
+          id?: string
+          name_matched?: boolean
+          notified_at?: string | null
+          notify_error?: string | null
+          raw_text?: string | null
+          review_note?: string | null
+          sheet_no?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          customer_name?: string
+          dedupe_key?: string
+          deposited_at?: string | null
+          depositor_name?: string
+          estimate_id?: string
+          estimate_version?: number
+          id?: string
+          name_matched?: boolean
+          notified_at?: string | null
+          notify_error?: string | null
+          raw_text?: string | null
+          review_note?: string | null
+          sheet_no?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       estimate_deliveries: {
         Row: {
           company_id: string | null
@@ -153,6 +225,8 @@ export type Database = {
           contact_phone: string | null
           created_at: string
           customer_name: string
+          deposit_paid: number
+          deposit_paid_at: string | null
           estimate_id: string
           id: string
           move_date: string | null
@@ -176,6 +250,8 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           customer_name?: string
+          deposit_paid?: number
+          deposit_paid_at?: string | null
           estimate_id: string
           id?: string
           move_date?: string | null
@@ -199,6 +275,8 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           customer_name?: string
+          deposit_paid?: number
+          deposit_paid_at?: string | null
           estimate_id?: string
           id?: string
           move_date?: string | null

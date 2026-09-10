@@ -242,6 +242,9 @@ export function SharePage() {
   const sheetNo = ((link?.ok ? link.sheetNo : "") || estimate?.sheetNo || "").trim();
   const sheetVersion = (link?.ok ? link.sheetVersion : null) ?? estimate?.sheetVersion ?? 1;
   const hasData = Boolean(customerName && moveDate && total > 0);
+  /** 실제로 입금 확인된 예약금 — 사장님이 확인한 금액만 들어옵니다 */
+  const paidDeposit = Math.max(0, (link?.ok ? (link.depositPaid ?? 0) : 0) || 0);
+  const balanceDue = Math.max(0, total - paidDeposit);
 
   const selectedItems = (estimate?.rooms ?? []).flatMap((room) =>
     Object.entries(room.items)
@@ -427,6 +430,29 @@ export function SharePage() {
         이사 견적서 · 표준약관
       </h1>
 
+      {/* 예약금 입금이 확인되면 여기에 바로 보입니다 */}
+      {hasData && paidDeposit > 0 && (
+        <div className="mt-4 rounded-[14px] border border-[#BFE7CE] bg-[#F1FBF4] px-4 py-3.5 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+          <div className="flex items-center gap-1.5 text-[15px] font-black text-[#12A150]">
+            <ShieldCheck className="h-[18px] w-[18px]" /> 예약금 입금이 확인되었습니다
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[16px]">
+            <span className="text-[#4B5563]">총 견적금액</span>
+            <span className="font-bold tabular-nums">{won(total)}</span>
+          </div>
+          <div className="flex items-center justify-between text-[16px]">
+            <span className="text-[#4B5563]">예약금 (입금완료)</span>
+            <span className="font-bold tabular-nums text-[#12A150]">{won(paidDeposit)}</span>
+          </div>
+          <div className="mt-1 flex items-center justify-between border-t border-[#D8EFE0] pt-2">
+            <span className="text-[17px] font-black">잔금</span>
+            <span className="text-[20px] font-black tabular-nums text-[#0864DC]">
+              {won(balanceDue)}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* 정보를 못 불러온 경우에만 안내합니다 */}
       {!hasData && (
         <div className="mt-4 rounded-[14px] bg-white px-4 py-6 text-center text-[16px] font-bold text-[#6B7280] shadow-[0_2px_12px_rgba(17,24,39,0.10)]">
@@ -445,6 +471,7 @@ export function SharePage() {
             rooms={sentSheet.rooms}
             parts={sentSheet.parts}
             total={sentSheet.total}
+            paidDeposit={paidDeposit}
             companyPhone={contactPhone}
             acceptedAt={accepted ? new Date(accepted.acceptedAt).toISOString() : null}
             acceptedSheetVersion={accepted?.sheetVersion ?? null}

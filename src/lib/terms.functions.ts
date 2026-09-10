@@ -30,6 +30,10 @@ export interface TermsLinkInfo {
   acceptMethod?: string | null;
   /** 보낼 때의 견적서 원본(JSON 글). 고객 화면에 그대로 그립니다 */
   sheetSnapshot?: string | null;
+  /** 실제로 입금 확인된 예약금 (원). 확인되지 않은 입금은 들어가지 않습니다 */
+  depositPaid?: number;
+  /** 예약금 입금이 확인된 일시 */
+  depositPaidAt?: string | null;
 }
 
 /** 업체가 견적서·약관 문자를 보낼 때 기록합니다 */
@@ -97,7 +101,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("estimate_terms")
       .select(
-        "id, customer_name, move_date, total, contact_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot",
+        "id, customer_name, move_date, total, contact_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at",
       )
       .eq("access_token", data.token)
       .maybeSingle();
@@ -128,6 +132,8 @@ export const getTermsLink = createServerFn({ method: "POST" })
       acceptedAt: acc?.accepted_at ?? null,
       acceptMethod: acc?.accept_method ?? null,
       sheetSnapshot: (row as { sheet_snapshot?: string | null }).sheet_snapshot ?? null,
+      depositPaid: Number((row as { deposit_paid?: number | null }).deposit_paid ?? 0) || 0,
+      depositPaidAt: (row as { deposit_paid_at?: string | null }).deposit_paid_at ?? null,
     };
   });
 

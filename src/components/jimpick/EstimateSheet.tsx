@@ -164,6 +164,8 @@ export interface EstimateSheetProps {
   forCustomer?: boolean;
   /** 견적서 아래에 약관·동의 영역을 함께 그릴지 */
   showTerms?: boolean;
+  /** 실제로 입금이 확인된 예약금 (원). 있으면 이 금액을 예약금으로 보여 줍니다 */
+  paidDeposit?: number;
 }
 
 export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(function EstimateSheet(
@@ -179,6 +181,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     acceptedTermsVersion = null,
     forCustomer = false,
     showTerms = true,
+    paidDeposit = 0,
   },
   ref,
 ) {
@@ -193,7 +196,9 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     .filter((p) => ["옵션 비용", "보관료"].includes(p.label))
     .reduce((s, p) => s + p.amount, 0);
   const discount = Math.max(0, draft.discount ?? 0);
-  const deposit = Math.max(0, draft.deposit ?? 0);
+  /** 입금이 확인된 금액이 있으면 그 금액이 실제 예약금입니다 */
+  const paid = Math.max(0, paidDeposit ?? 0);
+  const deposit = paid > 0 ? paid : Math.max(0, draft.deposit ?? 0);
   const balance = Math.max(0, total - deposit);
   const version = draft.sheetVersion ?? 1;
   /** 사장님이 실제로 켠 추가 작업만 */
@@ -417,7 +422,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           {(deposit > 0 || discount > 0) && (
             <div className="my-1.5 border-t border-dashed border-[#DCE8FA]" />
           )}
-          <MoneyRow label="예약금" amount={deposit} />
+          <MoneyRow label={paid > 0 ? "예약금 (입금완료)" : "예약금"} amount={deposit} />
           <MoneyRow label="잔금" amount={deposit ? balance : 0} />
 
           <div className="mt-3 flex items-center justify-between gap-3 rounded-[12px] border border-[#DCE8FA] bg-[#F5F9FF] px-3.5 py-3">

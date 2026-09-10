@@ -642,6 +642,138 @@ Deno.serve(async (req) => {
     });
   }
 
+  // ── 예약금 입금 확인 안내 문자 (고객에게) ──
+  // 입금이 실제로 확인된 뒤에만, 견적서에 저장된 금액으로 보냅니다.
+  if (body.mode === "deposit_notify") {
+    const estIn = String(body.estimate_id ?? "").trim();
+    if (!estIn) return json({ ok: false, error: "견적서를 찾지 못했습니다." }, 400);
+    const dq = new URLSearchParams({
+      select:
+        "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,contact_phone,company_phone,total,deposit_paid,access_token",
+      estimate_id: `eq.${estIn}`,
+      order: "sheet_version.desc",
+      limit: "1",
+    });
+    const dres = await db(`estimate_terms?${dq}`, { supabaseUrl, serviceKey });
+    if (!dres.ok) return json({ ok: false, error: "견적서를 불러오지 못했습니다." }, 500);
+    const drow = ((await dres.json()) as Array<Record<string, unknown>>)?.[0];
+    if (!drow) return json({ ok: false, error: "견적서를 찾지 못했습니다." }, 404);
+    const ownerD = String(drow.user_id ?? "");
+    if (!isServerCall && ownerD !== userId) {
+      return json({ ok: false, error: "이 견적서의 문자를 보낼 권한이 없습니다." }, 403);
+    }
+    const paidD = Number(drow.deposit_paid ?? 0) || 0;
+    if (paidD <= 0) {
+      return json({ ok: false, error: "확인된 입금 금액이 없어 문자를 보내지 않았습니다." }, 400);
+    }
+    // 같은 견적·같은 입금액으로는 안내 문자가 한 번만 나갑니다
+    const idemD = `deposit-${estIn}-${paidD}`;
+    const dq2 = new URLSearchParams({
+      select: "id,status,provider_message_id,sent_at,msg_type",
+      idempotency_key: `eq.${idemD}`,
+      delivery_method: "eq.deposit_notification",
+      status: "in.(queued,sent,success)",
+      limit: "1",
+    });
+    const dres2 = await db(`estimate_deliveries?${dq2}`, { supabaseUrl, serviceKey });
+    if (dres2.ok) {
+      const doneD = ((await dres2.json()) as Array<Record<string, unknown>>)?.[0];
+      if (doneD) {
+        return json({
+          ok: true,
+          status: "already_sent",
+          msgId: doneD.provider_message_id ?? null,
+          msgType: doneD.msg_type ?? null,
+          sentAt: doneD.sent_at ?? null,
+          paid: paidD,
+        });
+      }
+    }
+    const custPhoneD = normalizePhone(String(drow.contact_phone ?? ""));
+    if (!isKoreanMobile(custPhoneD)) {
+      return json({ ok: false, error: "고객 휴대전화 번호를 확인해 주세요." }, 400);
+    }
+    const totalD = Number(drow.total ?? 0) || 0;
+    const balanceD = Math.max(0, totalD - paidD);
+    const wonD = (n: number) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
+    const tokenD = String(drow.access_token ?? "");
+    const linkD =
+      tokenD.length >= 8
+        ? `${appUrl}/share/${encodeURIComponent(estIn)}?t=${encodeURIComponent(tokenD)}`
+        : "";
+    const companyPhoneD = String(drow.company_phone ?? "").trim();
+    const textD = [
+      "[JIMPICK 짐픽]",
+      `${String(drow.customer_name ?? "고객").trim() || "고객"} 고객님, 예약금 입금이 확인되었습니다.`,
+      "",
+      `예약금(입금완료): ${wonD(paidD)}`,
+      ...(totalD > 0 ? [`총 견적금액: ${wonD(totalD)}`, `잔금: ${wonD(balanceD)}`] : []),
+      ...(linkD ? ["", "견적서 확인:", linkD] : []),
+      ...(companyPhoneD ? ["", `문의: ${companyPhoneD}`] : []),
+    ].join("\n");
+    const typeD = new TextEncoder().encode(textD).length <= 90 ? "SMS" : "LMS";
+    const sentD = await sendViaAligo({
+      to: custPhoneD,
+      text: textD,
+      title: "예약금 입금 확인",
+      msgType: typeD,
+      aligoUserId: aligoUserId!,
+      apiKey: apiKey!,
+      sender: sender!,
+      proxyUrl,
+      proxySecret,
+      viaProxy,
+      userId: ownerD,
+    });
+    const atD = new Date().toISOString();
+    try {
+      await db("estimate_deliveries", {
+        supabaseUrl,
+        serviceKey,
+        method: "POST",
+        headers: { Prefer: "resolution=ignore-duplicates" },
+        body: JSON.stringify({
+          estimate_id: estIn,
+          estimate_version: Number(drow.sheet_version ?? 1),
+          sheet_no: drow.sheet_no ?? null,
+          user_id: ownerD,
+          to_masked: `****${last4(custPhoneD)}`,
+          delivery_method: "deposit_notification",
+          provider: "aligo",
+          provider_message_id: sentD.msgId ?? null,
+          msg_id: sentD.msgId ?? null,
+          msg_type: sentD.msgType ?? typeD,
+          status: sentD.ok ? "sent" : "failed",
+          requested_at: atD,
+          sent_at: sentD.ok ? atD : null,
+          failed_at: sentD.ok ? null : atD,
+          error_code: sentD.ok ? null : String(sentD.code ?? ""),
+          error_message: sentD.ok ? null : (sentD.error ?? "").slice(0, 500),
+          idempotency_key: idemD,
+          provider_result: sentD.raw ?? null,
+        }),
+      });
+    } catch (e) {
+      console.error("[deposit_notify] 기록 실패", e instanceof Error ? e.message : e);
+    }
+    if (!sentD.ok) {
+      return json(
+        { ok: false, status: "failed", error: sentD.error ?? "입금 확인 문자 발송에 실패했습니다." },
+        502,
+      );
+    }
+    return json({
+      ok: true,
+      status: "sent",
+      msgId: sentD.msgId ?? null,
+      msgType: sentD.msgType ?? typeD,
+      recipientLast4: last4(custPhoneD),
+      sentAt: atD,
+      paid: paidD,
+      balance: balanceD,
+    });
+  }
+
   const estimateId = String(body.estimate_id ?? "").trim();
   const method = String(body.delivery_method ?? "link").trim();
   const idem = String(body.idempotency_key ?? "").trim();
