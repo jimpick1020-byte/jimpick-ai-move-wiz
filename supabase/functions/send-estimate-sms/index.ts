@@ -134,10 +134,14 @@ async function sendViaAligo(v: {
   try {
     if (v.viaProxy) {
       // 알리고 /send/ API는 반드시 application/x-www-form-urlencoded 형식을 받습니다.
+      // user_id 와 sender 는 서버 코드에만 고정되어 있으며,
+      // 요청 body, 고객정보, 업체정보, 다른 환경변수는 사용하지 않습니다.
+      const userId = "jimpick1020";
+      const sender = "01075662542";
       const params = new URLSearchParams();
       params.set("key", v.apiKey);
-      params.set("user_id", v.aligoUserId);
-      params.set("sender", v.sender);
+      params.set("user_id", userId);
+      params.set("sender", sender);
       params.set("receiver", v.to);
       params.set("msg", v.text);
       if (v.msgType === "LMS") {
