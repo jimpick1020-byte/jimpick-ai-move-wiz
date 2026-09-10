@@ -85,7 +85,7 @@ import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions"
 import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
 import { parseVoice, type ItemMatch } from "@/lib/voice-parse";
 import { WavRecorder } from "@/lib/recorder";
-import { sendSmsViaEdge, type EdgeSmsResult } from "@/lib/sms.edge";
+import { sendSmsViaEdge, resendManagerNotice, type EdgeSmsResult } from "@/lib/sms.edge";
 import { hasSession, signIn, signOut } from "@/lib/auth";
 import { setRememberMe } from "@/integrations/supabase/auth-persistence";
 import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functions";
@@ -107,7 +107,13 @@ import {
   TERMS_FULL,
   TERMS_NOTICE,
 } from "@/lib/terms";
-import { publishEstimateTerms, getTermsStatuses, type TermsStatusRow } from "@/lib/terms.functions";
+import {
+  publishEstimateTerms,
+  getTermsStatuses,
+  getManagerNotices,
+  type TermsStatusRow,
+  type ManagerNoticeRow,
+} from "@/lib/terms.functions";
 import { getCompanyDefaults, saveCompanyDefaults } from "@/lib/company-defaults.functions";
 import { getFavoriteItems, saveFavoriteItems, FAVORITE_LIMIT } from "@/lib/favorite-items.functions";
 import {
@@ -4513,6 +4519,16 @@ export function History() {
   const { estimates, setScreen, loadEstimate, deleteEstimate } = useApp();
   const [q, setQ] = useState("");
   const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
+  /** 사장님 예약확정 알림 문자 발송 기록 */
+  const [noticeRows, setNoticeRows] = useState<ManagerNoticeRow[]>([]);
+  const [resending, setResending] = useState<string | null>(null);
+  const loadNotices = () => {
+    getManagerNotices({ data: {} })
+      .then((r) => {
+        if (r.ok) setNoticeRows(r.rows);
+      })
+      .catch(() => {});
+  };
   useEffect(() => {
     let alive = true;
     getTermsStatuses({ data: {} })
@@ -4520,10 +4536,29 @@ export function History() {
         if (alive && r.ok) setTermsRows(r.rows);
       })
       .catch(() => {});
+    getManagerNotices({ data: {} })
+      .then((r) => {
+        if (alive && r.ok) setNoticeRows(r.rows);
+      })
+      .catch(() => {});
     return () => {
       alive = false;
     };
   }, []);
+  /** 이 견적의 사장님 알림 기록 (가장 최근) */
+  const noticeOf = (id: string) => noticeRows.find((n) => n.estimateId === id) ?? null;
+  const doResend = async (id: string) => {
+    if (resending) return;
+    setResending(id);
+    try {
+      const r = await resendManagerNotice(id);
+      if (r.ok) toast.success("사장님 알림 문자를 발송했습니다");
+      else toast.error("사장님 알림 발송 실패", { description: r.error ?? "알 수 없는 오류" });
+    } finally {
+      setResending(null);
+      loadNotices();
+    }
+  };
   const list = estimates.filter(
     (e) => !q || e.customerName.includes(q) || e.phone.includes(q) || e.moveDate.includes(q),
   );
@@ -4579,6 +4614,42 @@ export function History() {
                 </span>
               )}
             </div>
+            {ts.row?.acceptedAt &&
+              (() => {
+                const n = noticeOf(e.id);
+                const sent = n?.status === "sent" || n?.status === "success";
+                return (
+                  <div className="mt-2 rounded-xl bg-[#F7F9FC] p-2.5">
+                    <div className="text-[12.5px] font-bold text-[#334155]">
+                      사장님 알림 문자{" "}
+                      {sent ? (
+                        <span className="text-[#15803D]">
+                          발송 완료 {n?.toMasked ? `(${n.toMasked})` : ""}
+                          {n?.sentAt ? ` · ${new Date(n.sentAt).toLocaleString("ko-KR")}` : ""}
+                        </span>
+                      ) : n ? (
+                        <span className="text-[#B91C1C]">발송 실패</span>
+                      ) : (
+                        <span className="text-[#6B7280]">기록 없음</span>
+                      )}
+                    </div>
+                    {!sent && n?.errorMessage && (
+                      <div className="mt-1 text-[12px] font-semibold text-[#B91C1C]">
+                        {n.errorMessage}
+                      </div>
+                    )}
+                    {!sent && (
+                      <button
+                        onClick={() => doResend(e.id)}
+                        disabled={resending === e.id}
+                        className="mt-2 w-full rounded-xl bg-[#EEF4FF] py-2 text-[13px] font-bold text-[#0751D8] disabled:opacity-50"
+                      >
+                        {resending === e.id ? "발송 중…" : "사장님 알림 다시 보내기"}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => loadEstimate(e.id)}
