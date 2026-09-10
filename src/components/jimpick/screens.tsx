@@ -4523,7 +4523,7 @@ export function History() {
   const [noticeRows, setNoticeRows] = useState<ManagerNoticeRow[]>([]);
   const [resending, setResending] = useState<string | null>(null);
   const loadNotices = () => {
-    getManagerNotices({ data: {} })
+    getManagerNotices()
       .then((r) => {
         if (r.ok) setNoticeRows(r.rows);
       })
@@ -4536,7 +4536,7 @@ export function History() {
         if (alive && r.ok) setTermsRows(r.rows);
       })
       .catch(() => {});
-    getManagerNotices({ data: {} })
+    getManagerNotices()
       .then((r) => {
         if (alive && r.ok) setNoticeRows(r.rows);
       })
