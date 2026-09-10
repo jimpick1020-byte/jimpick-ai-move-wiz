@@ -419,6 +419,195 @@ Deno.serve(async (req) => {
     });
   }
 
+  // ── 사장님 예약확정 알림 ──
+  // 고객이 「동의하고 예약 확정」 저장에 성공한 뒤에만 우리 서버가 이 경로를 부릅니다.
+  // 관리자 화면에서 실패한 알림을 다시 보낼 때도 같은 경로를 씁니다.
+  if (body.mode === "manager_notify") {
+    const tokenIn = String(body.token ?? "").trim();
+    const estIn = String(body.estimate_id ?? "").trim();
+    if (!tokenIn && !estIn) {
+      return json({ ok: false, error: "알림을 보낼 견적서를 찾지 못했습니다." }, 400);
+    }
+
+    const tq = new URLSearchParams({
+      select:
+        "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,move_date,total,sheet_snapshot",
+      order: "sheet_version.desc",
+      limit: "1",
+    });
+    if (tokenIn) tq.set("access_token", `eq.${tokenIn}`);
+    else tq.set("estimate_id", `eq.${estIn}`);
+    const tres = await db(`estimate_terms?${tq}`, { supabaseUrl, serviceKey });
+    if (!tres.ok) return json({ ok: false, error: "견적서를 불러오지 못했습니다." }, 500);
+    const trow = ((await tres.json()) as Array<Record<string, unknown>>)?.[0];
+    if (!trow) return json({ ok: false, error: "견적서를 찾지 못했습니다." }, 404);
+    const ownerId = String(trow.user_id ?? "");
+    if (!isServerCall && ownerId !== userId) {
+      return json({ ok: false, error: "이 견적서의 알림을 보낼 권한이 없습니다." }, 403);
+    }
+
+    // 고객이 실제로 예약을 확정했는지 확인합니다 (확인란만 눌렀을 때는 보내지 않습니다)
+    const aq = new URLSearchParams({
+      select: "id,accepted,accepted_at,reservation_status",
+      estimate_terms_id: `eq.${trow.id}`,
+      limit: "1",
+    });
+    const ares = await db(`terms_acceptances?${aq}`, { supabaseUrl, serviceKey });
+    const arow = ares.ok ? ((await ares.json()) as Array<Record<string, unknown>>)?.[0] : null;
+    if (!arow || arow.accepted !== true) {
+      return json(
+        { ok: false, error: "고객의 예약 확정 기록이 없어 알림을 보내지 않았습니다." },
+        400,
+      );
+    }
+
+    const version = Number(trow.sheet_version ?? 1);
+    const estimateIdM = String(trow.estimate_id ?? "");
+    const idemKey = `manager-${estimateIdM}-v${version}`;
+
+    // 같은 견적·같은 차수의 사장님 알림은 한 번만 나갑니다 (새로고침·중복 클릭 대비)
+    const mq = new URLSearchParams({
+      select: "id,status,provider_message_id,sent_at,msg_type",
+      idempotency_key: `eq.${idemKey}`,
+      delivery_method: "eq.manager_notification",
+      status: "in.(queued,sent,success)",
+      limit: "1",
+    });
+    const mres = await db(`estimate_deliveries?${mq}`, { supabaseUrl, serviceKey });
+    if (mres.ok) {
+      const done = ((await mres.json()) as Array<Record<string, unknown>>)?.[0];
+      if (done) {
+        return json({
+          ok: true,
+          alreadySent: true,
+          msgId: done.provider_message_id ?? null,
+          msgType: done.msg_type ?? "SMS",
+          sentAt: done.sent_at ?? null,
+          status: String(done.status ?? "sent"),
+          message: "사장님 알림은 이미 발송되었습니다.",
+        });
+      }
+    }
+
+    // 사장님 수신번호 — 설정 화면에 저장된 업체 연락처만 씁니다 (코드에 고정하지 않습니다)
+    const pq = new URLSearchParams({ select: "phone,staff_phone", id: `eq.${ownerId}`, limit: "1" });
+    const pres = await db(`profiles?${pq}`, { supabaseUrl, serviceKey });
+    const prow = pres.ok ? ((await pres.json()) as Array<Record<string, unknown>>)?.[0] : null;
+    const managerPhone =
+      normalizePhone(String(prow?.phone ?? "")) || normalizePhone(String(prow?.staff_phone ?? ""));
+
+    const nowM = new Date().toISOString();
+    const record = async (fields: Record<string, unknown>) => {
+      try {
+        await db("estimate_deliveries", {
+          supabaseUrl,
+          serviceKey,
+          method: "POST",
+          headers: { Prefer: "resolution=ignore-duplicates" },
+          body: JSON.stringify({
+            estimate_id: estimateIdM,
+            estimate_version: version,
+            sheet_no: trow.sheet_no ?? null,
+            user_id: ownerId,
+            delivery_method: "manager_notification",
+            provider: "aligo",
+            idempotency_key: idemKey,
+            requested_at: nowM,
+            ...fields,
+          }),
+        });
+      } catch (e) {
+        console.error("[manager_notify] 기록 실패", e instanceof Error ? e.message : e);
+      }
+    };
+
+    if (!isKoreanMobile(managerPhone)) {
+      await record({
+        to_masked: "****",
+        status: "failed",
+        failed_at: nowM,
+        error_code: "no_manager_phone",
+        error_message: "업체 알림 수신번호 설정이 필요합니다",
+      });
+      return json(
+        { ok: false, status: "failed", error: "업체 알림 수신번호 설정이 필요합니다" },
+        400,
+      );
+    }
+
+    // 문자 내용 — 실제 자료만 씁니다
+    let deposit = 0;
+    try {
+      const snap = JSON.parse(String(trow.sheet_snapshot ?? "{}")) as {
+        draft?: { deposit?: number };
+      };
+      deposit = Number(snap?.draft?.deposit ?? 0) || 0;
+    } catch {
+      deposit = 0;
+    }
+    const wonM = (n: number) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
+    const customerM = String(trow.customer_name ?? "").trim() || "고객";
+    const textM = [
+      "[JIMPICK 예약 확정]",
+      `${customerM} 고객님이 예약을 확정했습니다.`,
+      "",
+      `이사일: ${String(trow.move_date ?? "").trim() || "미정"}`,
+      `견적번호: ${String(trow.sheet_no ?? "").trim() || estimateIdM}`,
+      `총 견적금액: ${wonM(Number(trow.total ?? 0))}`,
+      `예약금: ${wonM(deposit)}`,
+      "",
+      "예약금을 확인하고 고객에게 연락해 주세요.",
+    ].join("\n");
+    // 글자 길이에 따라 SMS · LMS 로 나갑니다
+    const msgTypeM = new TextEncoder().encode(textM).length <= 90 ? "SMS" : "LMS";
+
+    const sentM = await sendViaAligo({
+      to: managerPhone,
+      text: textM,
+      title: "짐픽 예약 확정 알림",
+      msgType: msgTypeM,
+      aligoUserId: aligoUserId!,
+      apiKey: apiKey!,
+      sender: sender!,
+      proxyUrl,
+      proxySecret,
+      viaProxy,
+      userId: ownerId,
+    });
+    const doneAt = new Date().toISOString();
+    await record({
+      to_masked: `****${last4(managerPhone)}`,
+      provider_message_id: sentM.msgId ?? null,
+      msg_id: sentM.msgId ?? null,
+      msg_type: sentM.msgType ?? msgTypeM,
+      status: sentM.ok ? "sent" : "failed",
+      sent_at: sentM.ok ? doneAt : null,
+      failed_at: sentM.ok ? null : doneAt,
+      error_code: sentM.ok ? null : String(sentM.code ?? ""),
+      error_message: sentM.ok ? null : (sentM.error ?? "").slice(0, 500),
+      provider_result: sentM.raw ?? null,
+    });
+    if (!sentM.ok) {
+      return json(
+        {
+          ok: false,
+          status: "failed",
+          error: sentM.error ?? "사장님 알림 발송에 실패했습니다.",
+          recipientLast4: last4(managerPhone),
+        },
+        502,
+      );
+    }
+    return json({
+      ok: true,
+      status: "sent",
+      msgId: sentM.msgId ?? null,
+      msgType: sentM.msgType ?? msgTypeM,
+      recipientLast4: last4(managerPhone),
+      sentAt: doneAt,
+    });
+  }
+
   const estimateId = String(body.estimate_id ?? "").trim();
   const method = String(body.delivery_method ?? "link").trim();
   const idem = String(body.idempotency_key ?? "").trim();
