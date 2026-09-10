@@ -255,6 +255,8 @@ Deno.serve(async (req) => {
     /** 연결 시험 — 정해진 문구 한 줄만, 사장님이 넣은 번호로 보냅니다 */
     mode?: string;
     test_to?: string;
+    /** 사장님 예약확정 알림 — 고객의 보안 링크 토큰 */
+    token?: string;
   };
   try {
     body = await req.json();
