@@ -1176,6 +1176,24 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
         return e ? { ...s, draft: { ...e }, screen: "result" } : s;
       }),
     setCurrentRoom: (id) => setState((s) => ({ ...s, currentRoomId: id })),
+    finishToHome: () => {
+      if (typeof window !== "undefined") {
+        try {
+          // 기록을 쌓지 않고 바꿔치기 — 뒤로가기로 완료된 견적 단계에 돌아가지 않습니다
+          window.history.replaceState({ jpScreen: "home" }, "");
+        } catch {
+          /* 기록을 못 바꿔도 화면 이동은 그대로 합니다 */
+        }
+      }
+      setState((s) => ({
+        ...s,
+        // 저장된 견적·고객정보(estimates)는 그대로 두고 작성 중 상태만 정리합니다
+        draft: newEstimate(),
+        currentRoomId: "",
+        stepSnapshot: null,
+        screen: "home",
+      }));
+    },
   };
 
   return <AppCtx.Provider value={ctx}>{children}</AppCtx.Provider>;
