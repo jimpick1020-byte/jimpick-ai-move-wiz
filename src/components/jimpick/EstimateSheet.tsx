@@ -196,7 +196,9 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     .filter((p) => ["옵션 비용", "보관료"].includes(p.label))
     .reduce((s, p) => s + p.amount, 0);
   const discount = Math.max(0, draft.discount ?? 0);
-  const deposit = Math.max(0, draft.deposit ?? 0);
+  /** 입금이 확인된 금액이 있으면 그 금액이 실제 예약금입니다 */
+  const paid = Math.max(0, paidDeposit ?? 0);
+  const deposit = paid > 0 ? paid : Math.max(0, draft.deposit ?? 0);
   const balance = Math.max(0, total - deposit);
   const version = draft.sheetVersion ?? 1;
   /** 사장님이 실제로 켠 추가 작업만 */
