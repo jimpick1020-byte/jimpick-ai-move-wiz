@@ -133,16 +133,29 @@ async function sendViaAligo(v: {
 }): Promise<SendOutcome> {
   try {
     if (v.viaProxy) {
+      // 알리고 /send/ API는 반드시 application/x-www-form-urlencoded 형식을 받습니다.
+      const params = new URLSearchParams();
+      params.set("key", v.apiKey);
+      params.set("user_id", v.aligoUserId);
+      params.set("sender", v.sender);
+      params.set("receiver", v.to);
+      params.set("msg", v.text);
+      if (v.msgType === "LMS") {
+        params.set("msg_type", "LMS");
+        params.set("title", v.title);
+      }
+
       const r = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/send`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
           // 보관함에 값을 넣을 때 끝에 줄바꿈이 딸려 들어가는 일이 흔합니다
           "x-proxy-secret": String(v.proxySecret ?? "").trim(),
         },
-        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, userId: v.userId }),
+        body: params.toString(),
       });
-      const out = (await r.json().catch(() => null)) as SendOutcome | null;
+
+      const data = (await r.json().catch(() => null)) as AligoResponse | null;
       if (r.status === 401 || r.status === 403) {
         return {
           ok: false,
@@ -151,12 +164,30 @@ async function sendViaAligo(v: {
             "문자 중계 서버가 요청을 거절했습니다(인증 실패). 중계 서버의 JIMPICK_PROXY_SECRET 값과 앱에 저장된 값이 서로 달라 보입니다. 두 값을 똑같이 맞춘 뒤 다시 시도해 주세요.",
         };
       }
-      if (!out) {
+      if (!data) {
         return { ok: false, code: r.status, error: `중계 서버 응답을 읽지 못했습니다. (${r.status})` };
       }
-      if (!out.ok && !out.error) out.error = `중계 서버가 발송에 실패했습니다. (${r.status})`;
-      return out;
+
+      // Cloud Run 이 HTTP 200을 줘도, 알리고 result_code가 1 미만이면 실패입니다.
+      const code = Number(data.result_code ?? -1);
+      if (code >= 1) {
+        return {
+          ok: true,
+          msgId: data.msg_id != null ? String(data.msg_id) : undefined,
+          msgType: data.msg_type || v.msgType,
+          successCount: data.success_cnt ?? 0,
+          code,
+          raw: { result_code: code, message: data.message ?? "", msg_type: data.msg_type ?? v.msgType },
+        };
+      }
+      return {
+        ok: false,
+        error: aligoError(code, data.message ?? ""),
+        code,
+        raw: { result_code: code, message: data.message ?? "" },
+      };
     }
+
 
     const form = new FormData();
     form.append("user_id", v.aligoUserId);
