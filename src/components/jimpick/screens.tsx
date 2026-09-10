@@ -3448,6 +3448,8 @@ export function Result() {
     }
     setSending(true);
     setSendResult(null);
+    // 발송 중에는 앱 업데이트 새로고침을 미룹니다 (작업 내용 보호)
+    (window as unknown as { __jimpickBusy?: boolean }).__jimpickBusy = true;
     try {
       // 0) 계정 세션이 있는지 먼저 봅니다.
       //    화면에 로그인으로 보여도 계정 세션이 없으면 서버가 막습니다.
