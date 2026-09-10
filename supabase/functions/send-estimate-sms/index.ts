@@ -666,6 +666,29 @@ Deno.serve(async (req) => {
     if (paidD <= 0) {
       return json({ ok: false, error: "확인된 입금 금액이 없어 문자를 보내지 않았습니다." }, 400);
     }
+    // 같은 견적·같은 입금액으로는 안내 문자가 한 번만 나갑니다
+    const idemD = `deposit-${estIn}-${paidD}`;
+    const dq2 = new URLSearchParams({
+      select: "id,status,provider_message_id,sent_at,msg_type",
+      idempotency_key: `eq.${idemD}`,
+      delivery_method: "eq.deposit_notification",
+      status: "in.(queued,sent,success)",
+      limit: "1",
+    });
+    const dres2 = await db(`estimate_deliveries?${dq2}`, { supabaseUrl, serviceKey });
+    if (dres2.ok) {
+      const doneD = ((await dres2.json()) as Array<Record<string, unknown>>)?.[0];
+      if (doneD) {
+        return json({
+          ok: true,
+          status: "already_sent",
+          msgId: doneD.provider_message_id ?? null,
+          msgType: doneD.msg_type ?? null,
+          sentAt: doneD.sent_at ?? null,
+          paid: paidD,
+        });
+      }
+    }
     const custPhoneD = normalizePhone(String(drow.contact_phone ?? ""));
     if (!isKoreanMobile(custPhoneD)) {
       return json({ ok: false, error: "고객 휴대전화 번호를 확인해 주세요." }, 400);
