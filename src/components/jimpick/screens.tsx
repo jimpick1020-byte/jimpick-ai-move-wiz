@@ -4650,6 +4650,9 @@ export function History() {
                   </div>
                 );
               })()}
+            {ts.row && (
+              <DepositPanel estimateId={e.id} customerName={e.customerName} total={e.total} />
+            )}
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => loadEstimate(e.id)}
