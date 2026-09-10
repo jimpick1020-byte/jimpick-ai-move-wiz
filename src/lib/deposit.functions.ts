@@ -98,33 +98,7 @@ async function notifyCustomer(estimateId: string): Promise<{ ok: boolean; error?
  * 확인된 입금만 더해서 견적서의 「받은 예약금」을 다시 계산합니다.
  * 확인 대기·거절된 입금은 절대 금액에 넣지 않습니다.
  */
-async function applyPaid(
-  supabase: {
-    from: (t: string) => {
-      select: (s: string) => {
-        eq: (
-          c: string,
-          v: string,
-        ) => {
-          eq: (
-            c2: string,
-            v2: string,
-          ) => Promise<{ data: Array<{ amount: number | null }> | null; error: unknown }>;
-        };
-      };
-    };
-  },
-  userId: string,
-  estimateId: string,
-): Promise<number> {
-  const { data } = await supabase
-    .from("deposit_records")
-    .select("amount")
-    .eq("user_id", userId)
-    .eq("estimate_id", estimateId);
-  const paid = (data ?? []).reduce((s, r) => s + (Number(r.amount) || 0), 0);
-  return paid;
-}
+
 
 async function recalcAndSave(
   context: { supabase: any; userId: string },
