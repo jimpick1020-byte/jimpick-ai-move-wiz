@@ -307,10 +307,12 @@ Deno.serve(async (req) => {
   }
 
   // ── 1. 누가 부르는지 확인합니다 (로그인한 사장님만) ──
+  // 예약확정 알림은 우리 서버가 직접 부르므로, 서비스 키로 온 요청도 받아 줍니다.
   const auth = req.headers.get("Authorization") ?? "";
   const jwt = auth.replace(/^Bearer\s+/i, "").trim();
+  const isServerCall = !!serviceKey && jwt === serviceKey;
   let userId = "";
-  if (jwt) {
+  if (jwt && !isServerCall) {
     try {
       const payload = JSON.parse(atob(jwt.split(".")[1] ?? ""));
       userId = String(payload?.sub ?? "");
