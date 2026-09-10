@@ -3302,7 +3302,10 @@ export function OptionsScreen() {
 
 // ============ Result ============
 export function Result() {
-  const { draft, setScreen, saveDraft, updateDraft, estimates } = useApp();
+  const { draft, setScreen, saveDraft, updateDraft, estimates, finishToHome } = useApp();
+  /** 「견적 완료 · 처음으로」 진행 중 — 두 번 눌려도 한 번만 실행됩니다 */
+  const [finishing, setFinishing] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
   const [detail, setDetail] = useState(false);
   const [detailEdit, setDetailEdit] = useState(false);
   const [edit, setEdit] = useState(false);
@@ -3445,6 +3448,8 @@ export function Result() {
     }
     setSending(true);
     setSendResult(null);
+    // 발송 중에는 앱 업데이트 새로고침을 미룹니다 (작업 내용 보호)
+    (window as unknown as { __jimpickBusy?: boolean }).__jimpickBusy = true;
     try {
       // 0) 계정 세션이 있는지 먼저 봅니다.
       //    화면에 로그인으로 보여도 계정 세션이 없으면 서버가 막습니다.
@@ -3535,7 +3540,51 @@ export function Result() {
       });
     } finally {
       setSending(false);
+      (window as unknown as { __jimpickBusy?: boolean }).__jimpickBusy = false;
     }
+  };
+
+  /**
+   * 「견적 완료 · 처음으로」
+   * 서버에 실제로 저장된 견적인지 확인한 뒤에만 첫 화면으로 갑니다.
+   * 저장된 고객정보·견적서·품목·발송내역은 지우지 않습니다.
+   */
+  const finishAndGoHome = async () => {
+    if (finishing) return;
+    setFinishing(true);
+    setFinishError(null);
+    try {
+      saveDraft();
+      const r = await getTermsStatuses({ data: { estimateId: draft.id } });
+      const saved = r.ok && (r.rows ?? []).some((row) => row.estimateId === draft.id);
+      if (!saved) {
+        setFinishError(
+          r.ok
+            ? "이 견적이 서버에 저장된 기록을 찾지 못했습니다. 「견적서 문자발송」으로 견적서를 올린 뒤 다시 눌러 주세요."
+            : "서버 저장 상태를 확인하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 눌러 주세요.",
+        );
+        return;
+      }
+      setConfirmSheet(false);
+      setSheetOpen(false);
+      finishToHome();
+    } catch (e) {
+      setFinishError(
+        e instanceof Error ? e.message : "서버 저장 상태를 확인하지 못했습니다.",
+      );
+    } finally {
+      setFinishing(false);
+    }
+  };
+
+  /** 문자발송이 실패했을 때만 쓰는 버튼 — 기기에 저장한 뒤 첫 화면으로 */
+  const saveAndGoHome = () => {
+    if (finishing) return;
+    setFinishing(true);
+    saveDraft();
+    setConfirmSheet(false);
+    setSheetOpen(false);
+    finishToHome();
   };
 
   /** 저장 중에는 버튼을 잠급니다 */
@@ -4468,7 +4517,34 @@ export function Result() {
                   </div>
                 )}
 
+                {/* 저장 확인에 실패했을 때 실제 이유를 보여 줍니다 */}
+                {finishError && (
+                  <div className="mt-3 rounded-2xl bg-[#FEE2E2] px-3 py-2.5 text-left text-[12.5px] font-bold leading-relaxed text-[#B91C1C]">
+                    {finishError}
+                  </div>
+                )}
+
                 <div className="mt-4 space-y-2">
+                  {/* 발송이 성공한 뒤에만 첫 화면으로 가는 큰 버튼을 보여 줍니다 */}
+                  {sendResult?.ok && (
+                    <button
+                      onClick={() => void finishAndGoHome()}
+                      disabled={finishing}
+                      className="w-full rounded-2xl bg-[#0864DC] py-4 text-[16px] font-black text-white shadow-[0_4px_0_#064AA6] disabled:opacity-60"
+                    >
+                      {finishing ? "확인 중…" : "견적 완료 · 처음으로"}
+                    </button>
+                  )}
+                  {/* 발송 실패 — 임시 데이터를 지우거나 자동으로 이동하지 않습니다 */}
+                  {sendResult && !sendResult.ok && (
+                    <button
+                      onClick={saveAndGoHome}
+                      disabled={sending || finishing}
+                      className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 text-[14px] font-black text-[#334155] shadow-[0_3px_0_#EDF2FA] disabled:opacity-50"
+                    >
+                      저장 후 처음으로
+                    </button>
+                  )}
                   <PrimaryButton
                     onClick={() => {
                       // 확정: 지금 금액·품목을 그대로 얼려 둡니다

@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { registerPwa } from "../lib/pwa";
 
 function NotFoundComponent() {
   return (
@@ -83,7 +84,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { title: "JIMPICK 7.0 — AI 이사 견적 앱" },
       // ── 홈 화면에 추가했을 때 앱처럼 뜨게 하는 설정 ──
-      { name: "theme-color", content: "#0751D8" },
+      { name: "theme-color", content: "#0864DC" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "짐픽" },
@@ -156,6 +157,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // 홈 화면에 설치한 앱을 최신 버전으로 유지합니다 (미리보기·개발 화면은 제외)
+  useEffect(() => {
+    void registerPwa();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
