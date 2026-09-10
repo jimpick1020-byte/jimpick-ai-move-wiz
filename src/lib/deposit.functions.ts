@@ -154,7 +154,7 @@ export const registerDeposit = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<RegisterDepositResult> => {
     const parsed = parseDepositSms(data.text ?? "");
-    const depositorName = (data.depositorName ?? parsed.depositorName ?? "").trim();
+    const depositorName = (data.depositorName?.trim() || parsed.depositorName || "").trim();
     const amount = Number(data.amount ?? parsed.amount ?? 0) || 0;
     const depositedAt = data.depositedAt ?? parsed.depositedAt ?? new Date().toISOString();
     if (amount <= 0) {
