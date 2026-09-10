@@ -242,6 +242,9 @@ export function SharePage() {
   const sheetNo = ((link?.ok ? link.sheetNo : "") || estimate?.sheetNo || "").trim();
   const sheetVersion = (link?.ok ? link.sheetVersion : null) ?? estimate?.sheetVersion ?? 1;
   const hasData = Boolean(customerName && moveDate && total > 0);
+  /** 실제로 입금 확인된 예약금 — 사장님이 확인한 금액만 들어옵니다 */
+  const paidDeposit = Math.max(0, (link?.ok ? (link.depositPaid ?? 0) : 0) || 0);
+  const balanceDue = Math.max(0, total - paidDeposit);
 
   const selectedItems = (estimate?.rooms ?? []).flatMap((room) =>
     Object.entries(room.items)
