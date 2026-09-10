@@ -147,7 +147,6 @@ import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { TruckGauge } from "./TruckGauge";
 import { JimpickCharacter } from "./JimpickCharacter";
-import { VoiceFill } from "./VoiceFill";
 import { tileDataUrl, photoQuality } from "@/lib/media";
 
 import { icon3dFor, DEFAULT_ICON3D, ICON3D, Icon3D } from "@/lib/jimpick-icon3d";
@@ -654,8 +653,6 @@ export function Step1() {
     <MobileShell>
       <TopBar title="1단계. 고객 정보 입력" onBack={() => setScreen("home")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
-        <VoiceFill />
-
         <Field label="고객명">
           <TextInput
             placeholder="홍길동"

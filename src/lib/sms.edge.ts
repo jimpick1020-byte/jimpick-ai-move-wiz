@@ -202,3 +202,36 @@ export function estimateSmsText(v: {
     v.secureUrl,
   ].join("\n");
 }
+
+/**
+ * 실패한 사장님 예약확정 알림을 다시 보냅니다 (관리자 화면).
+ * 알리고 키·중계 비밀값은 서버에만 있습니다.
+ */
+export async function resendManagerNotice(estimateId: string): Promise<EdgeSmsResult> {
+  try {
+    const auth = await authHeaders();
+    if (!auth) return { ok: false, error: NEED_LOGIN_MESSAGE, needLogin: true };
+    const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, {
+      body: { mode: "manager_notify", estimate_id: estimateId },
+      ...auth,
+    });
+    if (data && typeof data === "object" && "ok" in data) return data as EdgeSmsResult;
+    if (error) {
+      const ctx = (error as { context?: Response }).context;
+      if (ctx && typeof ctx.json === "function") {
+        try {
+          const b = await ctx.json();
+          if (b && typeof b === "object" && "error" in b) {
+            return { ok: false, error: String((b as { error: unknown }).error) };
+          }
+        } catch {
+          /* 본문을 못 읽으면 아래 문구를 씁니다 */
+        }
+      }
+      return { ok: false, error: `사장님 알림 재발송에 실패했습니다. (${error.message})` };
+    }
+    return { ok: false, error: "재발송 결과를 읽지 못했습니다." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "재발송에 실패했습니다." };
+  }
+}
