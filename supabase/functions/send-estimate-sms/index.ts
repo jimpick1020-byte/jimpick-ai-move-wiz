@@ -431,7 +431,7 @@ Deno.serve(async (req) => {
 
     const tq = new URLSearchParams({
       select:
-        "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,move_date,total,sheet_snapshot",
+        "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,contact_phone,move_date,total,sheet_snapshot",
       order: "sheet_version.desc",
       limit: "1",
     });
