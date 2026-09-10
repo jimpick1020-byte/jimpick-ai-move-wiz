@@ -422,7 +422,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           {(deposit > 0 || discount > 0) && (
             <div className="my-1.5 border-t border-dashed border-[#DCE8FA]" />
           )}
-          <MoneyRow label="예약금" amount={deposit} />
+          <MoneyRow label={paid > 0 ? "예약금 (입금완료)" : "예약금"} amount={deposit} />
           <MoneyRow label="잔금" amount={deposit ? balance : 0} />
 
           <div className="mt-3 flex items-center justify-between gap-3 rounded-[12px] border border-[#DCE8FA] bg-[#F5F9FF] px-3.5 py-3">
