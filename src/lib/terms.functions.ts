@@ -209,7 +209,84 @@ export const acceptTerms = createServerFn({ method: "POST" })
       return { ok: false, error: "동의 기록을 저장하지 못했습니다." };
     }
     await supabaseAdmin.from("estimate_terms").update({ viewed_at: acceptedAt }).eq("id", row.id);
+
+    // 예약 확정 저장이 성공한 뒤에만 사장님에게 알림 문자를 보냅니다.
+    // 문자가 실패해도 고객 동의·예약 확정 기록은 그대로 둡니다.
+    await notifyManager(data.token);
+
     return { ok: true, acceptedAt };
+  });
+
+/**
+ * 사장님 예약확정 알림 문자를 요청합니다.
+ *
+ * 문자 보내는 열쇠(알리고 키·중계 비밀값)는 발송 서버에만 있고,
+ * 이 함수는 「이 보안 링크의 예약이 확정됐다」만 알려 줍니다.
+ * 같은 견적·같은 차수는 발송 서버가 한 번만 보냅니다.
+ */
+async function notifyManager(token: string): Promise<void> {
+  const url = process.env["SUPABASE_URL"];
+  const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!url || !key) {
+    console.error("[notifyManager] 발송 서버 설정이 없어 사장님 알림을 보내지 못했습니다.");
+    return;
+  }
+  try {
+    const r = await fetch(`${url.replace(/\/$/, "")}/functions/v1/send-estimate-sms`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({ mode: "manager_notify", token }),
+    });
+    if (!r.ok) {
+      const body = await r.text().catch(() => "");
+      console.error("[notifyManager] 실패", r.status, body.slice(0, 300));
+    }
+  } catch (e) {
+    console.error("[notifyManager] 연결 오류", e instanceof Error ? e.message : e);
+  }
+}
+
+export interface ManagerNoticeRow {
+  estimateId: string;
+  status: string;
+  toMasked: string;
+  msgId: string | null;
+  sentAt: string | null;
+  failedAt: string | null;
+  errorMessage: string | null;
+}
+
+/** 관리자·업체용 — 사장님 예약확정 알림 발송 기록 */
+export const getManagerNotices = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ ok: boolean; rows: ManagerNoticeRow[] }> => {
+    const { data, error } = await context.supabase
+      .from("estimate_deliveries")
+      .select("estimate_id, status, to_masked, provider_message_id, sent_at, failed_at, error_message")
+      .eq("user_id", context.userId)
+      .eq("delivery_method", "manager_notification")
+      .order("requested_at", { ascending: false })
+      .limit(300);
+    if (error || !data) {
+      if (error) console.error("[getManagerNotices]", error.message);
+      return { ok: false, rows: [] };
+    }
+    return {
+      ok: true,
+      rows: data.map((d) => ({
+        estimateId: String(d.estimate_id ?? ""),
+        status: String(d.status ?? ""),
+        toMasked: String(d.to_masked ?? ""),
+        msgId: d.provider_message_id ?? null,
+        sentAt: d.sent_at ?? null,
+        failedAt: d.failed_at ?? null,
+        errorMessage: d.error_message ?? null,
+      })),
+    };
   });
 
 export interface TermsStatusRow {
