@@ -181,6 +181,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     acceptedTermsVersion = null,
     forCustomer = false,
     showTerms = true,
+    paidDeposit = 0,
   },
   ref,
 ) {
