@@ -230,8 +230,8 @@ Deno.serve(async (req) => {
 
   const aligoUserId = Deno.env.get("ALIGO_USER_ID");
   const apiKey = Deno.env.get("ALIGO_API_KEY");
-  // 새 이름을 먼저 보고, 예전에 넣어 둔 이름도 그대로 받아 줍니다
-  const senderRaw = Deno.env.get("ALIGO_SENDER") ?? Deno.env.get("ALIGO_SENDER_NUMBER") ?? "";
+  // 발신번호는 서버 시크릿 ALIGO_SENDER 에서만 가져옵니다. 업체 전화번호나 다른 데이터는 쓰지 않습니다.
+  const senderRaw = Deno.env.get("ALIGO_SENDER") ?? "";
   const sender = onlyDigits(senderRaw);
   const appUrl = (Deno.env.get("PUBLIC_APP_URL") ?? Deno.env.get("APP_PUBLIC_URL") ?? "")
     .trim()
