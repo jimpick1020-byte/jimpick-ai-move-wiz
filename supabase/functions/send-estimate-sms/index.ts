@@ -138,7 +138,7 @@ async function sendViaAligo(v: {
         headers: {
           "Content-Type": "application/json",
           // 보관함에 값을 넣을 때 끝에 줄바꿈이 딸려 들어가는 일이 흔합니다
-          "x-jimpick-secret": String(v.proxySecret ?? "").trim(),
+          "x-proxy-secret": String(v.proxySecret ?? "").trim(),
         },
         body: JSON.stringify({ to: v.to, text: v.text, title: v.title, userId: v.userId }),
       });
