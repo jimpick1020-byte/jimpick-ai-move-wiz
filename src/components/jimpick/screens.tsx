@@ -3302,7 +3302,10 @@ export function OptionsScreen() {
 
 // ============ Result ============
 export function Result() {
-  const { draft, setScreen, saveDraft, updateDraft, estimates } = useApp();
+  const { draft, setScreen, saveDraft, updateDraft, estimates, finishToHome } = useApp();
+  /** 「견적 완료 · 처음으로」 진행 중 — 두 번 눌려도 한 번만 실행됩니다 */
+  const [finishing, setFinishing] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
   const [detail, setDetail] = useState(false);
   const [detailEdit, setDetailEdit] = useState(false);
   const [edit, setEdit] = useState(false);
