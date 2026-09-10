@@ -1024,6 +1024,12 @@ interface Ctx extends AppState {
   setCurrentRoom: (id: string) => void;
   /** 5~6단계 변경 직전 스냅샷으로 즉시 복원 */
   restoreStepSnapshot: () => boolean;
+  /**
+   * 견적 완료 후 첫 화면으로. 작성 중이던 임시 화면 상태만 정리하고
+   * 저장된 견적·고객정보는 그대로 둡니다. 기록을 쌓지 않고 바꿔치기(replace)하므로
+   * 휴대폰 뒤로가기를 눌러도 완료된 견적 단계로 돌아가지 않습니다.
+   */
+  finishToHome: () => void;
 }
 
 const AppCtx = createContext<Ctx | null>(null);
