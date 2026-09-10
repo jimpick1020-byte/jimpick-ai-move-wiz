@@ -15,7 +15,7 @@
  * 필요한 값 (Supabase > Edge Functions > Secrets)
  *   ALIGO_USER_ID              알리고 아이디
  *   ALIGO_API_KEY              알리고 API 키
- *   ALIGO_SENDER_NUMBER        사전등록·승인된 발신번호
+ *   ALIGO_SENDER               사전등록·승인된 발신번호 (예: 01075662542)
  *   APP_PUBLIC_URL             고객이 여는 앱 주소 (예: https://example.com)
  *   SUPABASE_URL               (자동으로 들어 있습니다)
  *   SUPABASE_SERVICE_ROLE_KEY  (자동으로 들어 있습니다)
@@ -230,8 +230,8 @@ Deno.serve(async (req) => {
 
   const aligoUserId = Deno.env.get("ALIGO_USER_ID");
   const apiKey = Deno.env.get("ALIGO_API_KEY");
-  // 새 이름을 먼저 보고, 예전에 넣어 둔 이름도 그대로 받아 줍니다
-  const senderRaw = Deno.env.get("ALIGO_SENDER") ?? Deno.env.get("ALIGO_SENDER_NUMBER") ?? "";
+  // 발신번호는 서버 시크릿 ALIGO_SENDER 에서만 가져옵니다. 업체 전화번호나 다른 데이터는 쓰지 않습니다.
+  const senderRaw = Deno.env.get("ALIGO_SENDER") ?? "";
   const sender = onlyDigits(senderRaw);
   const appUrl = (Deno.env.get("PUBLIC_APP_URL") ?? Deno.env.get("APP_PUBLIC_URL") ?? "")
     .trim()
