@@ -15,7 +15,7 @@
  * 필요한 값 (Supabase > Edge Functions > Secrets)
  *   ALIGO_USER_ID              알리고 아이디
  *   ALIGO_API_KEY              알리고 API 키
- *   ALIGO_SENDER_NUMBER        사전등록·승인된 발신번호
+ *   ALIGO_SENDER               사전등록·승인된 발신번호 (예: 01075662542)
  *   APP_PUBLIC_URL             고객이 여는 앱 주소 (예: https://example.com)
  *   SUPABASE_URL               (자동으로 들어 있습니다)
  *   SUPABASE_SERVICE_ROLE_KEY  (자동으로 들어 있습니다)
