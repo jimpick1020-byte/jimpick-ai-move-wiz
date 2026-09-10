@@ -471,6 +471,7 @@ export function SharePage() {
             rooms={sentSheet.rooms}
             parts={sentSheet.parts}
             total={sentSheet.total}
+            paidDeposit={paidDeposit}
             companyPhone={contactPhone}
             acceptedAt={accepted ? new Date(accepted.acceptedAt).toISOString() : null}
             acceptedSheetVersion={accepted?.sheetVersion ?? null}
