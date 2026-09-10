@@ -70,8 +70,8 @@ function last4(d: string): string {
 function aligoError(code: number, message: string): string {
   const raw = (message || "").trim();
   const known: Record<number, string> = {
-    [-101]: "알리고 아이디 또는 API 키가 올바르지 않습니다.",
-    [-102]: "등록되지 않은 발신번호입니다. 알리고에서 발신번호 사전등록·승인을 마쳐 주세요.",
+    [-101]: "알리고 API 인증정보(user_id/API Key)를 확인해 주세요.",
+    [-102]: "알리고 API 인증정보(user_id/API Key)를 확인해 주세요.",
     [-103]: "발송 요청 형식이 올바르지 않습니다.",
     [-111]: "문자 잔액이 부족합니다. 알리고에서 충전해 주세요.",
     [-201]: "문자 보유건수가 부족합니다. 알리고에서 충전해 주세요.",
@@ -134,10 +134,14 @@ async function sendViaAligo(v: {
   try {
     if (v.viaProxy) {
       // 알리고 /send/ API는 반드시 application/x-www-form-urlencoded 형식을 받습니다.
+      // user_id 와 sender 는 서버 코드에만 고정되어 있으며,
+      // 요청 body, 고객정보, 업체정보, 다른 환경변수는 사용하지 않습니다.
+      const userId = "jimpick1020";
+      const sender = "01075662542";
       const params = new URLSearchParams();
       params.set("key", v.apiKey);
-      params.set("user_id", v.aligoUserId);
-      params.set("sender", v.sender);
+      params.set("user_id", userId);
+      params.set("sender", sender);
       params.set("receiver", v.to);
       params.set("msg", v.text);
       if (v.msgType === "LMS") {
