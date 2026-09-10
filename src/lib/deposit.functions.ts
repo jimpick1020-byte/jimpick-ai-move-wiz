@@ -329,4 +329,3 @@ export const listDeposits = createServerFn({ method: "POST" })
     },
   );
 
-export { applyPaid };
