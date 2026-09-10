@@ -749,7 +749,7 @@ Deno.serve(async (req) => {
           failed_at: sentD.ok ? null : atD,
           error_code: sentD.ok ? null : String(sentD.code ?? ""),
           error_message: sentD.ok ? null : (sentD.error ?? "").slice(0, 500),
-          idempotency_key: `deposit-${estIn}-${paidD}`,
+          idempotency_key: idemD,
           provider_result: sentD.raw ?? null,
         }),
       });
