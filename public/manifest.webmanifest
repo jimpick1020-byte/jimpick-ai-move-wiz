@@ -1,15 +1,16 @@
 {
-  "name": "JIMPICK — AI 이사 견적",
+  "name": "JIMPICK",
   "short_name": "짐픽",
   "description": "AI로 더 쉽고 정확한 이사 견적. 방별 품목, 차량, 옵션, 보관료까지 한 번에 계산합니다.",
   "lang": "ko",
   "dir": "ltr",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F5F9FF",
-  "theme_color": "#0751D8",
+  "theme_color": "#0864DC",
   "icons": [
     {
       "src": "/app-icon-192.png",
