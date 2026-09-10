@@ -3540,7 +3540,51 @@ export function Result() {
       });
     } finally {
       setSending(false);
+      (window as unknown as { __jimpickBusy?: boolean }).__jimpickBusy = false;
     }
+  };
+
+  /**
+   * 「견적 완료 · 처음으로」
+   * 서버에 실제로 저장된 견적인지 확인한 뒤에만 첫 화면으로 갑니다.
+   * 저장된 고객정보·견적서·품목·발송내역은 지우지 않습니다.
+   */
+  const finishAndGoHome = async () => {
+    if (finishing) return;
+    setFinishing(true);
+    setFinishError(null);
+    try {
+      saveDraft();
+      const r = await getTermsStatuses({ data: { estimateId: draft.id } });
+      const saved = r.ok && (r.rows ?? []).some((row) => row.estimateId === draft.id);
+      if (!saved) {
+        setFinishError(
+          r.ok
+            ? "이 견적이 서버에 저장된 기록을 찾지 못했습니다. 「견적서 문자발송」으로 견적서를 올린 뒤 다시 눌러 주세요."
+            : "서버 저장 상태를 확인하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 눌러 주세요.",
+        );
+        return;
+      }
+      setConfirmSheet(false);
+      setSheetOpen(false);
+      finishToHome();
+    } catch (e) {
+      setFinishError(
+        e instanceof Error ? e.message : "서버 저장 상태를 확인하지 못했습니다.",
+      );
+    } finally {
+      setFinishing(false);
+    }
+  };
+
+  /** 문자발송이 실패했을 때만 쓰는 버튼 — 기기에 저장한 뒤 첫 화면으로 */
+  const saveAndGoHome = () => {
+    if (finishing) return;
+    setFinishing(true);
+    saveDraft();
+    setConfirmSheet(false);
+    setSheetOpen(false);
+    finishToHome();
   };
 
   /** 저장 중에는 버튼을 잠급니다 */
