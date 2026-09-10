@@ -25,9 +25,11 @@ export default defineConfig({
         // 앱 이름·아이콘은 public/manifest.webmanifest 를 그대로 씁니다 (중복 생성 금지)
         manifest: false,
         filename: "sw.js",
+        // 빌드 결과가 dist/client 로 나가므로 서비스워커도 같은 폴더에 둡니다 (/sw.js 로 서비스됨)
+        outDir: "dist/client",
         workbox: {
           // 파일명이 해시 처리된 정적 파일만 미리 담습니다
-          globDirectory: ".vite/build/client",
+          globDirectory: "dist/client",
           globPatterns: ["assets/**/*.{js,css,woff2}"],
           navigateFallback: undefined,
           cleanupOutdatedCaches: true,
