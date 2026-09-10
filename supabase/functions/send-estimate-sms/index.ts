@@ -568,25 +568,30 @@ Deno.serve(async (req) => {
         }).format(d);
       }
     }
-    const lineM = (label: string, value: string) => (value ? `${label}: ${value}` : "");
+    // 값이 없는 항목은 줄 자체를 넣지 않습니다 (가짜 값 금지)
+    const infoLines = (
+      [
+        ["고객명", customerM],
+        ["연락처", custPhone],
+        ["이사일", String(trow.move_date ?? "").trim()],
+        ["출발지", fromFull],
+        ["도착지", toFull],
+        ["총 견적금액", totalM > 0 ? wonM(totalM) : ""],
+        ["예약금", deposit > 0 ? wonM(deposit) : ""],
+        ["견적번호", String(trow.sheet_no ?? "").trim() || estimateIdM],
+        ["확정일시", confirmedText],
+      ] as Array<[string, string]>
+    )
+      .filter(([, v]) => v !== "")
+      .map(([k, v]) => `${k}: ${v}`);
     const textM = [
       "[JIMPICK 예약 확정]",
       "고객이 견적서를 확인하고 예약을 확정했습니다.",
       "",
-      lineM("고객명", customerM),
-      lineM("연락처", custPhone),
-      lineM("이사일", String(trow.move_date ?? "").trim()),
-      lineM("출발지", fromFull),
-      lineM("도착지", toFull),
-      lineM("총 견적금액", totalM > 0 ? wonM(totalM) : ""),
-      lineM("예약금", deposit > 0 ? wonM(deposit) : ""),
-      lineM("견적번호", String(trow.sheet_no ?? "").trim() || estimateIdM),
-      lineM("확정일시", confirmedText),
+      ...infoLines,
       "",
       "고객에게 연락하여 예약금을 확인해 주세요.",
-    ]
-      .filter((l) => l !== "")
-      .join("\n");
+    ].join("\n");
     // 글자 길이에 따라 SMS · LMS 로 나갑니다
     const msgTypeM = new TextEncoder().encode(textM).length <= 90 ? "SMS" : "LMS";
 
