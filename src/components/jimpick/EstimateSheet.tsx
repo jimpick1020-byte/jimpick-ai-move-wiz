@@ -164,6 +164,8 @@ export interface EstimateSheetProps {
   forCustomer?: boolean;
   /** 견적서 아래에 약관·동의 영역을 함께 그릴지 */
   showTerms?: boolean;
+  /** 실제로 입금이 확인된 예약금 (원). 있으면 이 금액을 예약금으로 보여 줍니다 */
+  paidDeposit?: number;
 }
 
 export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(function EstimateSheet(
