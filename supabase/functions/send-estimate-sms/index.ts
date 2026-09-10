@@ -322,7 +322,7 @@ Deno.serve(async (req) => {
       userId = "";
     }
   }
-  if (!userId) {
+  if (!userId && !isServerCall) {
     return json({ ok: false, error: "로그인이 필요합니다. 다시 로그인한 뒤 시도해 주세요." }, 401);
   }
 
