@@ -38,6 +38,28 @@ const CATALOG = [
   ["bag", "잡화 가방"], ["blanketbag", "이불백"], ["vinyl", "비닐 포장"],
 ] as const;
 
+/**
+ * 사진·동영상 인식에서 쓰는 품목 — 가전과 가구만 봅니다.
+ * (박스·잡화·화분·운동소품 등은 사진으로 세지 않고 사장님이 직접 담습니다)
+ */
+const VISION_IDS = new Set<string>([
+  // 가전
+  "fridge", "kimchi", "minifridge", "freezer", "winecellar", "washer", "drumwasher", "dryer",
+  "styler", "tv", "bigtv", "walltv", "projector", "speaker", "console", "aircon", "wallaircon",
+  "airpurifier", "dehumid", "humid", "heater", "pc", "printer", "vacuum", "robotvac",
+  "digitalpiano", "microwave", "oven", "airfryer", "gasrange", "induction", "dishwasher",
+  "waterpurifier", "riceCooker", "coffee", "massagechair", "treadmill", "bike2",
+  // 가구
+  "bed", "bedq", "bunkbed", "babybed", "mattress", "wardrobe", "builtin", "hanger", "vanity",
+  "drawer", "nightstand", "sofa", "sofabig", "recliner", "floorsofa", "tvstand", "teatable",
+  "displaycase", "shoerack", "table", "table6", "marbletable", "island", "chair", "desk",
+  "officedesk", "officechair", "shelf", "wallshelf", "partition", "foldtable", "dishcabinet",
+  "kitchencabinet", "mirror", "piano", "grandpiano", "safe", "aquarium",
+]);
+
+/** 사진 인식용(가전·가구) 목록 */
+const VISION_CATALOG = CATALOG.filter(([id]) => VISION_IDS.has(id));
+
 
 const ResultSchema = z.object({
   items: z.array(
