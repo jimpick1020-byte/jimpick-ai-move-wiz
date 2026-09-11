@@ -201,52 +201,9 @@ export const recognizeItems = createServerFn({ method: "POST" })
         };
       };
 
-      let best = normalize(output);
-
-      // 2차 검증 패스 — 1차 결과를 사진과 다시 대조해 잘못 본 품목을 걸러냅니다 (인식률 향상)
-      try {
-        const listed = best.items
-          .map((i) => `${i.id}(${i.name}) x${i.qty} conf=${i.confidence.toFixed(2)}`)
-          .join(", ");
-        const { output: checked } = await generateText({
-          model,
-          output: Output.object({ schema: ResultSchema }),
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: SYSTEM },
-                {
-                  type: "text",
-                  text: `아래는 1차 인식 결과입니다. 사진을 한 번 더 꼼꼼히 확인해서 최종 목록을 만들어 주세요.
-1차 결과: ${listed || "(없음)"}
-
-검증 규칙:
-- 사진에 실제로 보이지 않는 품목은 삭제합니다.
-- 1차에서 빠뜨린 품목(가전·가구·박스 환산 포함)은 추가합니다.
-- 수량이 틀렸으면 사진 기준으로 바로잡습니다.
-- 확실히 보이는 품목은 confidence 0.95 이상, 애매하면 0.8 이하로 정직하게 표기합니다.
-- 같은 출력 형식(JSON 객체)으로만 답합니다.`,
-                },
-                ...data.images.map((img) => ({ type: "image" as const, image: img })),
-              ],
-            },
-          ],
-        });
-        const verified = normalize(checked);
-        if (verified.items.length > 0) {
-          best = {
-            ...verified,
-            roomGuess: verified.roomGuess ?? best.roomGuess,
-            roomConfidence: verified.roomConfidence ?? best.roomConfidence,
-            packingEstimate: verified.packingEstimate ?? best.packingEstimate,
-          };
-        }
-      } catch {
-        /* 검증 실패 시 1차 결과를 사용합니다 */
-      }
-
+      const best = normalize(output);
       return best;
+
     } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
         // 모델이 코드블록/여분 텍스트를 붙인 경우 직접 JSON을 추출해 복구합니다.
