@@ -683,7 +683,7 @@ export function SharePage() {
             동의 일시: {new Date(accepted.acceptedAt).toLocaleString("ko-KR")}
           </div>
           <div className="text-[16px] text-[#6B7280]">
-            적용 약관: {accepted.termsName} {accepted.termsVersion}
+            적용 약관: {accepted.termsName} {accepted.termsVersion} · {accepted.method}
           </div>
         </div>
       ) : (

@@ -104,7 +104,6 @@ import {
 
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { DepositPanel } from "./DepositPanel";
-import { listDeposits } from "@/lib/deposit.functions";
 import {
   TERMS_VERSION,
   TERMS_NAME,
@@ -160,7 +159,7 @@ import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { TruckGauge } from "./TruckGauge";
 import { JimpickCharacter } from "./JimpickCharacter";
-import { photoQuality } from "@/lib/media";
+import { tileDataUrl, photoQuality } from "@/lib/media";
 
 import { icon3dFor, DEFAULT_ICON3D, ICON3D, Icon3D } from "@/lib/jimpick-icon3d";
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
@@ -2507,8 +2506,9 @@ export function AIRecognition() {
   const lowCount = results.filter((r) => r.confidence < THRESHOLD).length;
 
   /**
-   * 여러 장(사진 여러 컷·동영상 프레임)을 합칠 때 씁니다.
-   * 사진 한 장은 한 번에 전체를 인식합니다(조각내어 확대하는 과정 없음 → 더 빠릅니다).
+   * 여러 번 나눠 분석하고 결과를 합칩니다.
+   * 1) 사진 전체를 봅니다.
+   * 2) 사진을 4조각으로 나눠 확대해 다시 봅니다 (작거나 가려진 물건 찾기).
    * 같은 물건은 가장 큰 수량 하나로만 남겨 중복 수량이 생기지 않게 합니다.
    */
   const mergeItems = (base: DetectedItem[], add: DetectedItem[]): DetectedItem[] => {
@@ -2545,14 +2545,22 @@ export function AIRecognition() {
       }
     }
 
-    // 사진은 한 번에 전체를 인식합니다 (조각내어 확대하는 과정 제거 → 훨씬 빠릅니다).
-    // 동영상은 뽑아낸 여러 프레임을 한 묶음으로 함께 봅니다.
+    // 분석할 묶음 만들기 — 전체 + 확대 조각
     const passes: string[][] = [images];
+    if (source === "photo") {
+      try {
+        const tiles = await tileDataUrl(images[0], 2);
+        passes.push(tiles.slice(0, 4));
+      } catch {
+        /* 조각을 못 만들면 전체만 봅니다 */
+      }
+    }
 
     let merged: DetectedItem[] = keepPrev ? results : [];
     let roomGuess: string | null = null;
     let failed = 0;
     try {
+      // 여러 묶음(전체 + 확대 조각)을 순차가 아니라 한꺼번에 분석해 속도를 높입니다.
       setProgress(40);
       const settled = await Promise.all(
         passes.map(async (imgs) => {
@@ -3097,7 +3105,7 @@ export function AIRecognition() {
           <Card className="py-5 text-center">
             <div className="font-bold text-[#0751D8]">AI 품목 분석 중… {progress}%</div>
             <div className="mt-1 text-xs text-[#6B7280]">
-              사진 한 장을 한 번에 인식합니다. 잠시만 기다려 주세요
+              사진 전체를 본 뒤, 나눠서 확대해 작은 물건까지 다시 확인합니다
             </div>
             <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-[#EDF2FB]">
               <div
@@ -3489,28 +3497,6 @@ export function Result() {
       .finally(() => {
         if (alive) setTermsLoading(false);
       });
-    return () => {
-      alive = false;
-    };
-  }, [draft.id]);
-
-  /**
-   * 실제로 입금 확인된 예약금 (원). 사장님이 DepositPanel 에서 입금을 확인하면
-   * 서버에 저장되고, 여기서 읽어 견적서의 예약금·잔금에 자동으로 반영합니다.
-   * (없으면 0 → 사장님이 적어 둔 예약금(draft.deposit)을 그대로 씁니다)
-   */
-  const [paidDeposit, setPaidDeposit] = useState(0);
-  useEffect(() => {
-    let alive = true;
-    listDeposits({ data: { estimateId: draft.id } })
-      .then((r) => {
-        if (!alive || !r.ok) return;
-        const sum = r.rows
-          .filter((d) => d.status === "confirmed")
-          .reduce((s, d) => s + (d.amount || 0), 0);
-        setPaidDeposit(Math.max(0, sum));
-      })
-      .catch(() => {});
     return () => {
       alive = false;
     };
@@ -4403,20 +4389,12 @@ export function Result() {
                     onChange={(n) => updateDraft({ deposit: n })}
                   />
                 </Field>
-                {/* 예약금(계약금)을 넣으면 남은 잔금을 바로 보여 줍니다.
-                    입금이 실제로 확인되면(paidDeposit) 그 금액이 예약금·잔금에 자동 반영됩니다. */}
-                <div className="rounded-2xl bg-[#F2F7FF] px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-[#334155]">잔금 (총액 − 예약금)</span>
-                    <span className="text-[17px] font-black text-[#0751D8]">
-                      {won(Math.max(0, total - (paidDeposit > 0 ? paidDeposit : (draft.deposit ?? 0))))}
-                    </span>
-                  </div>
-                  {paidDeposit > 0 && (
-                    <div className="mt-1 text-[12.5px] font-semibold text-[#15803D]">
-                      입금 확인된 예약금 {won(paidDeposit)} 이 자동 반영되었습니다
-                    </div>
-                  )}
+                {/* 예약금(계약금)을 넣으면 남은 잔금을 바로 보여 줍니다 */}
+                <div className="flex items-center justify-between rounded-2xl bg-[#F2F7FF] px-4 py-3">
+                  <span className="text-sm font-bold text-[#334155]">잔금 (총액 − 예약금)</span>
+                  <span className="text-[17px] font-black text-[#0751D8]">
+                    {won(Math.max(0, total - (draft.deposit ?? 0)))}
+                  </span>
                 </div>
                 <Field label="담당자 이름">
                   <TextInput
@@ -4474,7 +4452,6 @@ export function Result() {
                 total={total}
                 companyName={sheetCompanyName || undefined}
                 companyPhone={draft.staffPhone ?? ""}
-                paidDeposit={paidDeposit}
                 acceptedAt={termsStatus?.acceptedAt ?? null}
                 acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
                 acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
