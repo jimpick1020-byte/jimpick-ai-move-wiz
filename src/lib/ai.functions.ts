@@ -144,9 +144,11 @@ export const recognizeItems = createServerFn({ method: "POST" })
       return { items: [], roomGuess: null, roomConfidence: null, packingEstimate: null, error: "AI 키가 설정되지 않았습니다." };
 
     const gateway = createLovableAiGatewayProvider(key);
-    const model = gateway("google/gemini-3.6-flash");
+    // 빠른 인식용 모델 (한 번만 호출합니다)
+    const model = gateway("google/gemini-3.8-flash");
 
-    const valid = new Map(CATALOG.map(([id, name]) => [id, name] as const));
+    // 사진 인식은 가전·가구만 인정합니다
+    const valid = new Map(VISION_CATALOG.map(([id, name]) => [id, name] as const));
 
     try {
       const { output } = await generateText({
