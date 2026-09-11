@@ -84,6 +84,7 @@ import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
 import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
 import { parseVoice, type ItemMatch } from "@/lib/voice-parse";
+import { mergeTranscript } from "@/lib/voice-fields";
 import { WavRecorder } from "@/lib/recorder";
 import { sendSmsViaEdge, resendManagerNotice, type EdgeSmsResult } from "@/lib/sms.edge";
 import { hasSession, signIn, signOut } from "@/lib/auth";
