@@ -295,6 +295,101 @@ export const getManagerNotices = createServerFn({ method: "POST" })
     };
   });
 
+export interface OwnerEstimateDetail {
+  ok: boolean;
+  error?: string;
+  estimateId?: string;
+  sheetNo?: string | null;
+  sheetVersion?: number;
+  customerName?: string;
+  contactPhone?: string | null;
+  moveDate?: string | null;
+  total?: number;
+  termsName?: string;
+  termsVersion?: string;
+  termsEffectiveAt?: string | null;
+  /** 보낼 때의 견적서 원본(JSON 글) — 사장님 화면에 그대로 그립니다 */
+  sheetSnapshot?: string | null;
+  /** 실제로 입금 확인된 예약금 (원) */
+  depositPaid?: number;
+  depositPaidAt?: string | null;
+  /** 잔금 = 총 견적금액 - 예약금 (음수 없음) */
+  balanceDue?: number;
+  sentAt?: string | null;
+  /** 고객 동의·예약 확정 정보 (동의 전에는 null) */
+  acceptedAt?: string | null;
+  acceptMethod?: string | null;
+  acceptedSheetVersion?: number | null;
+  acceptedTermsVersion?: string | null;
+  reservationStatus?: string | null;
+}
+
+/**
+ * 관리자·업체용 — 예약확정 알림 문자의 관리자 링크로 여는 「이 고객 한 건」 상세.
+ *
+ * 보안: 로그인한 본인(user_id) 견적만 읽습니다. 주소의 견적번호를 남의 것으로 바꿔도
+ * 본인 소유가 아니면 찾지 못합니다(서버에서 user_id 로 거르고, RLS 도 함께 막습니다).
+ * 토큰을 주소에 넣지 않으므로 토큰 노출·유출 위험이 없습니다.
+ */
+export const getOwnerEstimateDetail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ estimateId: z.string().min(1).max(80) }).parse(d),
+  )
+  .handler(async ({ data, context }): Promise<OwnerEstimateDetail> => {
+    const { data: rows, error } = await context.supabase
+      .from("estimate_terms")
+      .select(
+        "id, estimate_id, sheet_no, sheet_version, customer_name, contact_phone, move_date, total, terms_name, terms_version, terms_effective_at, sheet_snapshot, deposit_paid, deposit_paid_at, sent_at",
+      )
+      .eq("user_id", context.userId)
+      .eq("estimate_id", data.estimateId)
+      .order("sheet_version", { ascending: false })
+      .limit(1);
+    if (error) {
+      console.error("[getOwnerEstimateDetail]", error.message);
+      return { ok: false, error: "견적서를 불러오지 못했습니다." };
+    }
+    const row = rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      return { ok: false, error: "이 견적서를 볼 권한이 없거나 찾을 수 없습니다." };
+    }
+
+    const { data: acc } = await context.supabase
+      .from("terms_acceptances")
+      .select("accepted_at, accept_method, sheet_version, terms_version, reservation_status")
+      .eq("estimate_terms_id", row.id as string)
+      .maybeSingle();
+
+    const total = Number(row.total ?? 0) || 0;
+    const depositPaid = Math.max(0, Number(row.deposit_paid ?? 0) || 0);
+    const balanceDue = Math.max(0, total - Math.min(depositPaid, total));
+
+    return {
+      ok: true,
+      estimateId: String(row.estimate_id ?? ""),
+      sheetNo: (row.sheet_no as string | null) ?? null,
+      sheetVersion: Number(row.sheet_version ?? 1),
+      customerName: String(row.customer_name ?? ""),
+      contactPhone: (row.contact_phone as string | null) ?? null,
+      moveDate: (row.move_date as string | null) ?? null,
+      total,
+      termsName: String(row.terms_name ?? ""),
+      termsVersion: String(row.terms_version ?? ""),
+      termsEffectiveAt: (row.terms_effective_at as string | null) ?? null,
+      sheetSnapshot: (row.sheet_snapshot as string | null) ?? null,
+      depositPaid,
+      depositPaidAt: (row.deposit_paid_at as string | null) ?? null,
+      balanceDue,
+      sentAt: (row.sent_at as string | null) ?? null,
+      acceptedAt: acc?.accepted_at ?? null,
+      acceptMethod: acc?.accept_method ?? null,
+      acceptedSheetVersion: acc?.sheet_version ?? null,
+      acceptedTermsVersion: acc?.terms_version ?? null,
+      reservationStatus: acc?.reservation_status ?? null,
+    };
+  });
+
 export interface TermsStatusRow {
   estimateId: string;
   /** 보낸 견적서 차수 */

@@ -549,7 +549,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                     acceptedAt ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#FEF3C7] text-[#B45309]"
                   }`}
                 >
-                  {acceptedAt ? "동의 완료" : "동의 대기"}
+                  {acceptedAt ? "동의 완료" : "동의 전"}
                 </span>
               </div>
               <div className="mt-2 space-y-1">
@@ -558,7 +558,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                   <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
                     {acceptedAt
                       ? new Date(acceptedAt).toLocaleString("ko-KR")
-                      : "아직 동의하지 않음"}
+                      : "아직 동의하지 않았습니다"}
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-3">

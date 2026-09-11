@@ -555,6 +555,8 @@ Deno.serve(async (req) => {
     const fromFull = fullAddr(sv("fromAddress"), sv("fromDetail"));
     const toFull = fullAddr(sv("toAddress"), sv("toDetail"));
     const totalM = Number(trow.total ?? 0) || 0;
+    // 잔금 = 총 견적금액 - 예약금 (음수가 되지 않게 막습니다)
+    const balanceM = Math.max(0, totalM - Math.min(deposit, totalM));
     const acceptedAtM = String(arow.accepted_at ?? "");
     let confirmedText = "";
     if (acceptedAtM) {
@@ -578,17 +580,24 @@ Deno.serve(async (req) => {
         ["도착지", toFull],
         ["총 견적금액", totalM > 0 ? wonM(totalM) : ""],
         ["예약금", deposit > 0 ? wonM(deposit) : ""],
+        // 예약금이 있을 때만 잔금을 함께 적습니다 (예약금·잔금을 같이 보여 줍니다)
+        ["잔금", deposit > 0 && totalM > 0 ? wonM(balanceM) : ""],
         ["견적번호", String(trow.sheet_no ?? "").trim() || estimateIdM],
         ["확정일시", confirmedText],
       ] as Array<[string, string]>
     )
       .filter(([, v]) => v !== "")
       .map(([k, v]) => `${k}: ${v}`);
+    // 사장님 전용 관리자 링크 — 이 견적서 한 건의 상세를 바로 엽니다.
+    // 고객용 링크와 다르며, 로그인한 본인 견적만 열립니다(주소를 바꿔도 남의 견적은 안 열림).
+    // 토큰을 주소에 넣지 않고, 관리자 로그인·권한으로만 확인합니다.
+    const manageLink = appUrl ? `${appUrl}/manage/${encodeURIComponent(estimateIdM)}` : "";
     const textM = [
       "[JIMPICK 예약 확정]",
       "고객이 견적서를 확인하고 예약을 확정했습니다.",
       "",
       ...infoLines,
+      ...(manageLink ? ["", "고객 견적서 상세(관리자):", manageLink] : []),
       "",
       "고객에게 연락하여 예약금을 확인해 주세요.",
     ].join("\n");
