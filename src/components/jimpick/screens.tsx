@@ -2560,21 +2560,28 @@ export function AIRecognition() {
     let roomGuess: string | null = null;
     let failed = 0;
     try {
-      for (let p = 0; p < passes.length; p++) {
-        try {
-          const res = await recognizeItems({ data: { images: passes[p], source } });
-          if (res.error) {
-            failed++;
-          } else {
-            merged = mergeItems(merged, res.items);
-            if (!roomGuess && res.roomGuess) roomGuess = res.roomGuess;
-            setResults(merged);
+      // 여러 묶음(전체 + 확대 조각)을 순차가 아니라 한꺼번에 분석해 속도를 높입니다.
+      setProgress(40);
+      const settled = await Promise.all(
+        passes.map(async (imgs) => {
+          try {
+            const res = await recognizeItems({ data: { images: imgs, source } });
+            return res.error ? null : res;
+          } catch {
+            return null;
           }
-        } catch {
+        }),
+      );
+      for (const res of settled) {
+        if (!res) {
           failed++;
+          continue;
         }
-        setProgress(Math.round(((p + 1) / passes.length) * 100));
+        merged = mergeItems(merged, res.items);
+        if (!roomGuess && res.roomGuess) roomGuess = res.roomGuess;
       }
+      setResults(merged);
+      setProgress(100);
 
       if (merged.length === 0) {
         setRetake(
@@ -2811,15 +2818,14 @@ export function AIRecognition() {
       toast.error(speechErrorMessage(code));
     };
 
-    // 브라우저가 스스로 멈춰도 사장님이 끝내기를 누를 때까지 계속 듣습니다
+    // 자동 재시작을 하지 않습니다(반복되는 "칭" 소리·마이크 재시작 방지).
+    // 「끝내기」를 누르거나, 말이 끝나 브라우저가 멈추면 → 지금까지 들은 말을 한 번에 인식합니다.
     rec.onend = () => {
       if (keepRef.current) {
-        try {
-          rec.start();
-          return;
-        } catch {
-          /* 재시작 실패 시 아래에서 끕니다 */
-        }
+        // 사용자가 아직 끝내지 않았는데 브라우저가 멈춤 → 바로 마무리해서 담습니다
+        keepRef.current = false;
+        stopVoice();
+        return;
       }
       setListening(false);
     };
@@ -4383,6 +4389,13 @@ export function Result() {
                     onChange={(n) => updateDraft({ deposit: n })}
                   />
                 </Field>
+                {/* 예약금(계약금)을 넣으면 남은 잔금을 바로 보여 줍니다 */}
+                <div className="flex items-center justify-between rounded-2xl bg-[#F2F7FF] px-4 py-3">
+                  <span className="text-sm font-bold text-[#334155]">잔금 (총액 − 예약금)</span>
+                  <span className="text-[17px] font-black text-[#0751D8]">
+                    {won(Math.max(0, total - (draft.deposit ?? 0)))}
+                  </span>
+                </div>
                 <Field label="담당자 이름">
                   <TextInput
                     value={draft.staffName ?? ""}
@@ -4831,11 +4844,11 @@ export function History() {
 
 // ============ Customers ============
 export function Customers() {
-  const { estimates, setScreen } = useApp();
+  const { estimates, setScreen, loadEstimate } = useApp();
   const [q, setQ] = useState("");
   const map = new Map<
     string,
-    { name: string; phone: string; last: number; count: number; lastAmount: number }
+    { id: string; name: string; phone: string; last: number; count: number; lastAmount: number }
   >();
   for (const e of estimates) {
     if (!e.phone) continue;
@@ -4843,6 +4856,7 @@ export function Customers() {
     const cur = map.get(k);
     if (!cur || e.createdAt > cur.last) {
       map.set(k, {
+        id: e.id,
         name: e.customerName,
         phone: e.phone,
         last: e.createdAt,
@@ -4865,7 +4879,15 @@ export function Customers() {
           <div className="text-center text-[#6B7280] py-16">고객 정보가 없습니다.</div>
         )}
         {list.map((c) => (
-          <Card key={c.phone}>
+          // 카드를 누르면 이 고객의 최근 견적서를 바로 엽니다
+          <Card
+            key={c.phone}
+            onClick={() => {
+              tap("soft");
+              loadEstimate(c.id);
+            }}
+            className="cursor-pointer active:scale-[0.99]"
+          >
             <div className="flex justify-between">
               <div>
                 <div className="font-bold">{c.name}</div>
@@ -4873,14 +4895,24 @@ export function Customers() {
                 <div className="text-xs text-[#6B7280] mt-1">
                   최근: {new Date(c.last).toLocaleDateString("ko-KR")} · {c.count}회
                 </div>
+                <div className="text-[11px] font-bold text-[#0751D8] mt-1">눌러서 견적서 보기</div>
               </div>
               <div className="text-right">
                 <div className="text-sm font-bold text-[#0751D8]">{won(c.lastAmount)}</div>
                 <div className="flex gap-1 mt-2">
-                  <a href={`tel:${c.phone}`} className="p-2 bg-[#EEF4FF] rounded-lg">
+                  {/* 전화·문자는 카드 열기와 겹치지 않게 클릭 전파를 막습니다 */}
+                  <a
+                    href={`tel:${c.phone}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-2 bg-[#EEF4FF] rounded-lg"
+                  >
                     <Phone className="w-4 h-4 text-[#0751D8]" />
                   </a>
-                  <a href={`sms:${c.phone}`} className="p-2 bg-[#EEF4FF] rounded-lg">
+                  <a
+                    href={`sms:${c.phone}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-2 bg-[#EEF4FF] rounded-lg"
+                  >
                     <MessageSquare className="w-4 h-4 text-[#0751D8]" />
                   </a>
                 </div>
