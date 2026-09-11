@@ -80,18 +80,17 @@ export function TopBar({
             tap("soft");
             onBack();
           }}
-          className="flex shrink-0 items-center gap-0.5 rounded-[14px] border border-[#DCE8FA] bg-gradient-to-b from-white to-[#F1F6FF] py-2 pl-1.5 pr-2.5 text-[18px] font-black text-[#0864DC] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff] transition-transform active:translate-y-[2px] active:shadow-none"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-[#DCE8FA] bg-gradient-to-b from-white to-[#F1F6FF] text-[#0864DC] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff] transition-transform active:translate-y-[2px] active:shadow-none"
           aria-label="뒤로"
         >
-          <ChevronLeft className="h-[22px] w-[22px]" strokeWidth={2.2} />
-          뒤로
+          <ChevronLeft className="h-[24px] w-[24px]" strokeWidth={2.2} />
         </button>
       )}
       <h1 className="min-w-0 flex-1 truncate text-center text-lg font-bold text-[#111827]">
         {title}
       </h1>
-      {/* 제목이 가운데 오도록 뒤로가기와 같은 너비를 비워 둡니다 */}
-      {onBack && <span aria-hidden className="w-[76px] shrink-0" />}
+      {/* 제목이 가운데 오도록 뒤로가기 버튼과 같은 너비를 비워 둡니다 */}
+      {onBack && <span aria-hidden className="w-11 shrink-0" />}
     </div>
   );
 }
