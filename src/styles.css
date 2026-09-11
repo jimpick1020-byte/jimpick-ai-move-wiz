@@ -140,6 +140,20 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    /* 한글 기본 글꼴 — Pretendard 가 없으면 기기 내장 한글 글꼴로 떨어집니다.
+       (iOS: Apple SD Gothic Neo / Windows: 맑은 고딕 → PDF·이미지 저장에서도 안전) */
+    font-family:
+      Pretendard,
+      "Noto Sans KR",
+      "Apple SD Gothic Neo",
+      "Malgun Gothic",
+      system-ui,
+      -apple-system,
+      sans-serif;
+    /* 한글이 "웹 링크 → 웹 링\n크" 처럼 글자 단위로 줄바꿈되지 않게 합니다. */
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+    letter-spacing: normal;
   }
 }
 
