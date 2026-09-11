@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { ITEMS_1000, CATS20 } from "./items-catalog-1000";
 
 // ============ Types ============
 export type MoveType = "포장이사" | "반포장이사" | "일반이사" | "보관이사" | "사무실이사";
@@ -84,6 +85,8 @@ export interface Estimate {
   sizeTab?: string;
   customItems: CustomItem[];
   hiddenItems: string[];
+  /** 최근 선택한 품목 id (최신순, 품목 화면 위쪽에 표시) */
+  recentItems?: string[];
   options: OptionItem[];
 
   storageStart: string;
@@ -620,7 +623,83 @@ export const TRUCK_CAPACITY = { truck1t: 8, truck5t: 28 } as const;
 
 /** 품목 1개의 부피 */
 export function volumeOf(id: string, cat?: string): number {
-  return ITEM_VOLUME[id] ?? VOLUME_BY_CAT[cat ?? ""] ?? DEFAULT_VOLUME;
+  return ITEM_VOLUME[id] ?? _vol1000.get(id) ?? VOLUME_BY_CAT[cat ?? ""] ?? DEFAULT_VOLUME;
+}
+
+// ── 1,000개 품목 마스터 통합 ────────────────────────────────────
+// 기존 ITEM_CATALOG(이미지·가격·AI id 보존)에 20카테고리 품목을 더합니다.
+// 같은 한글명은 기존 것을 우선(실물 아이콘·요금 유지), 나머지 신규만 추가 → 이름 중복 없음.
+
+/** 기존 품목의 소분류(sub) → 20카테고리 */
+const SUB_TO_CAT20: Record<string, string> = {
+  대형가전: "대형가전", 세탁가전: "대형가전", 대형: "대형가전",
+  주방가전: "주방가전",
+  생활가전: "생활가전", 의료: "생활가전", "사무·기타": "생활가전",
+  냉난방: "계절가전", 계절가전: "계절가전",
+  "영상·음향": "영상·음향기기", 악기: "영상·음향기기",
+  "서재·사무": "사무가구", 의자: "사무가구",
+  거실: "거실가구", 테이블: "거실가구",
+  침실: "침실가구", 침구: "침실가구",
+  "주방·식당": "주방가구", "주방 가구": "주방가구",
+  주방살림: "주방용품",
+  수납: "수납가구", "옷·수납": "수납가구",
+  유아: "아동가구", "유아·반려": "아동가구",
+  반려동물: "반려동물용품",
+  "취미·레저": "운동·레저용품", 레저: "운동·레저용품", 취미: "운동·레저용품", 운동: "운동·레저용품",
+  생활: "생활용품",
+  특수운반: "기타 이삿짐 및 폐기물", "포장 단위": "기타 이삿짐 및 폐기물",
+};
+/** 대분류(cat) → 20카테고리 (sub 로 못 정할 때) */
+const CAT_TO_CAT20: Record<string, string> = {
+  가전: "생활가전", 주방: "주방용품", 가구: "거실가구",
+  생활용품: "생활용품", 특수: "기타 이삿짐 및 폐기물", 잔짐: "기타 이삿짐 및 폐기물",
+};
+/** 임의의 대분류/소분류를 20카테고리 하나로 */
+export function cat20For(cat?: string, sub?: string): string {
+  return (sub && SUB_TO_CAT20[sub]) || (cat && CAT_TO_CAT20[cat]) || "기타 이삿짐 및 폐기물";
+}
+
+export interface BrowseItem {
+  id: string;
+  name: string;
+  cat20: string;
+  /** 그룹 소제목 */
+  sub: string;
+  emoji: string;
+  extra?: number;
+}
+
+const _existingNames = new Set(ITEM_CATALOG.map((i) => i.name));
+/** 품목 선택 화면이 쓰는 병합 목록(기존 + 신규, 이름 중복 없음) */
+export const BROWSE_ITEMS: BrowseItem[] = [
+  ...ITEM_CATALOG.map((i) => ({
+    id: i.id,
+    name: i.name,
+    cat20: cat20For(i.cat, i.sub),
+    sub: i.sub ?? i.cat,
+    emoji: i.emoji,
+    extra: i.extra,
+  })),
+  ...ITEMS_1000.filter((i) => !_existingNames.has(i.name)).map((i) => ({
+    id: i.id,
+    name: i.name,
+    cat20: i.cat20,
+    sub: i.cat20,
+    emoji: i.emoji,
+  })),
+];
+
+export { CATS20 };
+
+// 이름·부피 조회 — 견적서·고객정보·직원공유가 신규 품목도 동일하게 해석하도록.
+const _nameById = new Map<string, string>();
+for (const i of ITEM_CATALOG) _nameById.set(i.id, i.name);
+for (const i of ITEMS_1000) if (!_nameById.has(i.id)) _nameById.set(i.id, i.name);
+const _vol1000 = new Map<string, number>(ITEMS_1000.map((i) => [i.id, i.vol]));
+
+/** id 로 한글 품목명을 찾습니다(기존 + 1,000). 없으면 undefined. */
+export function itemNameById(id: string): string | undefined {
+  return _nameById.get(id);
 }
 
 export interface TruckLoad {

@@ -6,6 +6,7 @@
  * 깨진 그림 대신 기본 3D 박스가 나옵니다.
  */
 import { useState } from "react";
+import { ITEMS_1000 } from "./items-catalog-1000";
 
 const BASE = "/assets/items-3d";
 
@@ -222,6 +223,13 @@ export const ICON3D: Record<string, string> = {
   boardgame: `${BASE}/special/board-games.webp`,
   figurecase: `${BASE}/special/figure-case.webp`,
 };
+
+// 1,000개 품목 마스터의 아이콘 경로를 등록합니다.
+// 실제 이미지가 아직 없으면 <Icon3D> 가 로딩 실패 시 기본 3D 박스로 대체합니다.
+// 기존 매핑(실물 아이콘)이 있으면 그대로 두고, 없는 id 만 채웁니다.
+for (const it of ITEMS_1000) {
+  if (!(it.id in ICON3D)) ICON3D[it.id] = it.path;
+}
 
 /** 이름에 이 말이 들어가면 이 아이콘 (긴 말부터) */
 const NAME_ICON3D: { words: string[]; path: string }[] = [

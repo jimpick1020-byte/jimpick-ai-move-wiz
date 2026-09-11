@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Calculator, ChevronLeft, RotateCcw } from "lucide-react";
-import { useApp, ITEM_CATALOG, roomSummary } from "@/lib/jimpick";
+import { useApp, ITEM_CATALOG, itemNameById, roomSummary } from "@/lib/jimpick";
 import { MobileShell, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
 import { Art3D, ItemArt, ROOM_IMG } from "@/lib/jimpick-art";
 import { SIZE_TABS, ROOM_TINT } from "@/components/jimpick/screens";
@@ -185,7 +185,7 @@ export function Plan3D() {
                   {entries.length > 0 && (
                     <div className="mt-1 flex flex-wrap justify-center gap-1">
                       {entries.slice(0, 8).map(([id, qty]) => {
-                        const nm = nameOf.get(id) || id;
+                        const nm = nameOf.get(id) || itemNameById(id) || id;
                         return (
                           <span
                             key={id}
@@ -258,7 +258,7 @@ export function Plan3D() {
                 <p className="text-[13px] font-bold text-[#9AA4B2]">담긴 품목이 없습니다</p>
               )}
               {Object.entries(openRoom.items).map(([id, qty]) => {
-                const nm = nameOf.get(id) || id;
+                const nm = nameOf.get(id) || itemNameById(id) || id;
                 return (
                   <div
                     key={id}
