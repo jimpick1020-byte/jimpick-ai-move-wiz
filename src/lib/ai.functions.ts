@@ -38,6 +38,28 @@ const CATALOG = [
   ["bag", "잡화 가방"], ["blanketbag", "이불백"], ["vinyl", "비닐 포장"],
 ] as const;
 
+/**
+ * 사진·동영상 인식에서 쓰는 품목 — 가전과 가구만 봅니다.
+ * (박스·잡화·화분·운동소품 등은 사진으로 세지 않고 사장님이 직접 담습니다)
+ */
+const VISION_IDS = new Set<string>([
+  // 가전
+  "fridge", "kimchi", "minifridge", "freezer", "winecellar", "washer", "drumwasher", "dryer",
+  "styler", "tv", "bigtv", "walltv", "projector", "speaker", "console", "aircon", "wallaircon",
+  "airpurifier", "dehumid", "humid", "heater", "pc", "printer", "vacuum", "robotvac",
+  "digitalpiano", "microwave", "oven", "airfryer", "gasrange", "induction", "dishwasher",
+  "waterpurifier", "riceCooker", "coffee", "massagechair", "treadmill", "bike2",
+  // 가구
+  "bed", "bedq", "bunkbed", "babybed", "mattress", "wardrobe", "builtin", "hanger", "vanity",
+  "drawer", "nightstand", "sofa", "sofabig", "recliner", "floorsofa", "tvstand", "teatable",
+  "displaycase", "shoerack", "table", "table6", "marbletable", "island", "chair", "desk",
+  "officedesk", "officechair", "shelf", "wallshelf", "partition", "foldtable", "dishcabinet",
+  "kitchencabinet", "mirror", "piano", "grandpiano", "safe", "aquarium",
+]);
+
+/** 사진 인식용(가전·가구) 목록 */
+const VISION_CATALOG = CATALOG.filter(([id]) => VISION_IDS.has(id));
+
 
 const ResultSchema = z.object({
   items: z.array(
@@ -79,36 +101,23 @@ export interface DetectedItem {
 }
 
 const SYSTEM = `당신은 한국 이사 견적 전문 AI 비전 분석가입니다.
-사진(또는 동영상에서 추출된 여러 장면)을 보고 이사 대상 가구·가전을 식별합니다.
+사진(또는 동영상에서 추출된 여러 장면)에서 **가전과 가구만** 빠르게 식별합니다.
 
 규칙:
-1. 반드시 아래 품목 목록의 id만 사용합니다.
-${CATALOG.map(([id, name]) => `- ${id}: ${name}`).join("\n")}
-2. 여러 장면에서 같은 물건이 반복되면 중복으로 세지 말고 최대 수량 기준 1개로 합칩니다.
-3. confidence는 0~1 실수. 물건 전체가 또렷하게 보이고 종류가 확실할 때만 0.95 이상을 부여합니다.
-   일부만 보이거나 가려졌거나 유사 품목과 혼동될 수 있으면 0.95 미만으로 낮춥니다.
-   0.95 이상은 사장님이 확인 없이 그대로 담는 값이므로, 조금이라도 헷갈리면 0.9 이하로 적습니다.
-   (예: 드럼세탁기인지 건조기인지 애매하면 0.7, 문이 닫힌 냉장고의 도어 개수가 안 보이면 0.85)
-4. 벽지·바닥·조명·창문·사람 등 이사 대상이 아닌 것은 제외합니다.
-5. note에는 크기/색상 등 견적에 도움이 되는 한 줄 메모(예: "4도어 양문형")를 넣고, 없으면 null.
-6. roomGuess에는 안방/작은방/입구방/거실/부엌/베란다/기타 공간 중 하나 또는 null,
-   roomConfidence에는 공간 인식 확신도(0~1 실수)를 넣습니다.
-7. 수납공간 환산 규칙 — 옷장/붙박이장/주방 상·하부장/팬트리 내부가 보이면 가구 자체 대신
-   내용물을 포장 박스 수량으로 환산합니다.
-   - 옷·이불이 걸리거나 쌓여 있으면 clothbox(옷박스): 옷장 한 칸(폭 약 60cm) 가득 = 옷박스 2개,
-     선반에 접어둔 옷 한 단 = 옷박스 1개.
-   - 이불·베개·큰 잡화는 bigbox(대박스): 이불 2~3채 = 대박스 1개.
-   - 책·소형 잡화·서랍 내용물은 midbox(중박스): 서랍 2칸 = 중박스 1개.
-   - 주방 상·하부장, 팬트리 내용물(그릇·냄비·식료품)은 basket(바구니) 중심으로 환산합니다.
-     상·하부장 한 칸 = 바구니 1개, 팬트리 한 단 = 바구니 1개.
-   환산 품목의 note에는 근거를 적습니다(예: "붙박이장 3칸 환산").
-10. packingEstimate에는 포장 단위 예상 수량(clothesBox, largeBox, mediumBox, basket, vinyl)을 정수로 넣습니다.
-    이불·매트리스·소파처럼 비닐로 감싸는 품목 수는 vinyl로 셉니다.
-9. 출력은 반드시 {"items":[{"id","name","qty","confidence","note"}],"roomGuess","roomConfidence","packingEstimate"} 형태의 JSON 객체 하나입니다.
-   배열만 반환하거나 quantity 등 다른 키를 쓰지 마세요.
-8. 환산 품목의 confidence는 내부가 또렷하게 보일 때 0.95 이상, 일부만 보이면 그 이하로 낮춥니다.
-11. 사진의 구석·바닥·벽면·문 뒤까지 빠짐없이 훑어보고, 작은 가전(전기포트·토스터 등)과 박스·행거·건조대까지 놓치지 마세요.
-12. 확실하게 보이는 품목은 반드시 포함합니다. 애매한 품목도 제외하지 말고 낮은 confidence(0.5~0.8)로 포함해 사장님이 판단하게 합니다.`;
+1. 반드시 아래 품목 목록의 id만 사용합니다. 목록에 없는 물건은 무시합니다.
+${VISION_CATALOG.map(([id, name]) => `- ${id}: ${name}`).join("\n")}
+2. 가전·가구가 아닌 것은 모두 제외합니다 — 박스·잡화·옷·이불·그릇·주방소품·화분·자전거·운동소품·
+   액자·커튼·카펫·청소도구·사람·벽지·바닥·창문 등은 절대 넣지 마세요. 박스 환산도 하지 않습니다.
+3. 여러 장면에서 같은 물건이 반복되면 중복으로 세지 말고 최대 수량 기준 1개로 합칩니다.
+4. confidence는 0~1 실수. 물건 전체가 또렷하고 종류가 확실할 때만 0.95 이상, 조금이라도 헷갈리면 0.9 이하.
+   (예: 드럼세탁기인지 건조기인지 애매하면 0.7)
+5. note에는 크기/색상 등 한 줄 메모(예: "4도어 양문형")를 넣고, 없으면 null.
+6. roomGuess에는 안방/작은방/입구방/거실/부엌/베란다/기타 중 하나 또는 null,
+   roomConfidence에는 공간 인식 확신도(0~1)를 넣습니다.
+7. packingEstimate는 항상 null 입니다.
+8. 출력은 반드시 {"items":[{"id","name","qty","confidence","note"}],"roomGuess","roomConfidence","packingEstimate"}
+   형태의 JSON 객체 하나입니다. 설명·코드블록 없이 JSON만, 빠르게 답합니다.`;
+
 
 
 export const recognizeItems = createServerFn({ method: "POST" })
@@ -135,9 +144,11 @@ export const recognizeItems = createServerFn({ method: "POST" })
       return { items: [], roomGuess: null, roomConfidence: null, packingEstimate: null, error: "AI 키가 설정되지 않았습니다." };
 
     const gateway = createLovableAiGatewayProvider(key);
-    const model = gateway("google/gemini-3.6-flash");
+    // 빠른 인식용 모델 (한 번만 호출합니다)
+    const model = gateway("google/gemini-3.8-flash");
 
-    const valid = new Map(CATALOG.map(([id, name]) => [id, name] as const));
+    // 사진 인식은 가전·가구만 인정합니다
+    const valid = new Map(VISION_CATALOG.map(([id, name]) => [id, name] as const));
 
     try {
       const { output } = await generateText({
@@ -190,52 +201,9 @@ export const recognizeItems = createServerFn({ method: "POST" })
         };
       };
 
-      let best = normalize(output);
-
-      // 2차 검증 패스 — 1차 결과를 사진과 다시 대조해 잘못 본 품목을 걸러냅니다 (인식률 향상)
-      try {
-        const listed = best.items
-          .map((i) => `${i.id}(${i.name}) x${i.qty} conf=${i.confidence.toFixed(2)}`)
-          .join(", ");
-        const { output: checked } = await generateText({
-          model,
-          output: Output.object({ schema: ResultSchema }),
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: SYSTEM },
-                {
-                  type: "text",
-                  text: `아래는 1차 인식 결과입니다. 사진을 한 번 더 꼼꼼히 확인해서 최종 목록을 만들어 주세요.
-1차 결과: ${listed || "(없음)"}
-
-검증 규칙:
-- 사진에 실제로 보이지 않는 품목은 삭제합니다.
-- 1차에서 빠뜨린 품목(가전·가구·박스 환산 포함)은 추가합니다.
-- 수량이 틀렸으면 사진 기준으로 바로잡습니다.
-- 확실히 보이는 품목은 confidence 0.95 이상, 애매하면 0.8 이하로 정직하게 표기합니다.
-- 같은 출력 형식(JSON 객체)으로만 답합니다.`,
-                },
-                ...data.images.map((img) => ({ type: "image" as const, image: img })),
-              ],
-            },
-          ],
-        });
-        const verified = normalize(checked);
-        if (verified.items.length > 0) {
-          best = {
-            ...verified,
-            roomGuess: verified.roomGuess ?? best.roomGuess,
-            roomConfidence: verified.roomConfidence ?? best.roomConfidence,
-            packingEstimate: verified.packingEstimate ?? best.packingEstimate,
-          };
-        }
-      } catch {
-        /* 검증 실패 시 1차 결과를 사용합니다 */
-      }
-
+      const best = normalize(output);
       return best;
+
     } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
         // 모델이 코드블록/여분 텍스트를 붙인 경우 직접 JSON을 추출해 복구합니다.

@@ -84,6 +84,7 @@ import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
 import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
 import { parseVoice, type ItemMatch } from "@/lib/voice-parse";
+import { mergeTranscript } from "@/lib/voice-fields";
 import { WavRecorder } from "@/lib/recorder";
 import { sendSmsViaEdge, resendManagerNotice, type EdgeSmsResult } from "@/lib/sms.edge";
 import { hasSession, signIn, signOut } from "@/lib/auth";
@@ -2421,6 +2422,8 @@ export function AIRecognition() {
   const recRef = useRef<RecognitionLike | null>(null);
   const recorderRef = useRef<WavRecorder | null>(null);
   const keepRef = useRef(false);
+  /** 마이크를 누른 동안 들은 말을 모아 둡니다 (끝내기를 누를 때 한 번만 담습니다) */
+  const voiceTextRef = useRef("");
   const roomIdRef = useRef(roomId);
   useEffect(() => {
     roomIdRef.current = roomId;
@@ -2660,6 +2663,10 @@ export function AIRecognition() {
     setPending((p) => p.filter((x) => x !== m));
   };
 
+  /**
+   * 마이크를 끝내고 한 번만 담습니다.
+   * (말하는 중에는 담지 않으므로 인식 소리가 반복되지 않습니다)
+   */
   const stopVoice = () => {
     keepRef.current = false;
     try {
@@ -2667,10 +2674,17 @@ export function AIRecognition() {
     } catch {
       /* 이미 멈춘 경우 */
     }
-    void recorderRef.current?.stop();
-    recorderRef.current = null;
+    recRef.current = null;
     setListening(false);
+    const all = mergeTranscript(voiceTextRef.current, heard).trim();
+    voiceTextRef.current = "";
     setHeard("");
+    if (!all) {
+      setVoiceHint("들은 말이 없습니다. 마이크를 누르고 품목을 말씀해 주세요.");
+      return;
+    }
+    setVoiceHint(`들은 말: “${all}”`);
+    void applySpeech(all);
   };
 
   const startVoice = () => {
@@ -2695,6 +2709,8 @@ export function AIRecognition() {
     }
     setVoiceError(false);
     setVoiceHint("");
+    voiceTextRef.current = "";
+    setHeard("");
     const rec = new SR();
     rec.lang = "ko-KR";
     rec.continuous = true;
@@ -2711,26 +2727,18 @@ export function AIRecognition() {
           interim += r[0].transcript;
           continue;
         }
-        const best = bestAlternative(r);
-        if (!best.transcript.trim()) continue;
-        setHeard("");
-        setVoiceHint(`들은 말: “${best.transcript.trim()}”`);
-        void applySpeech(best.transcript.trim());
+        const best = bestAlternative(r).transcript.trim();
+        if (!best) continue;
+        // 말한 문장을 모아만 둡니다 — 담기는 「끝내기」를 누를 때 한 번에 합니다
+        voiceTextRef.current = mergeTranscript(voiceTextRef.current, best);
       }
-      if (interim) {
-        setHeard(interim);
-        setVoiceHint("");
-      }
+      setHeard(mergeTranscript(voiceTextRef.current, interim));
     };
 
     rec.onerror = (ev: SpeechErrorLike) => {
       const code = ev?.error ?? "";
-      // 잠깐 조용한 것뿐이면 계속 듣되, 화면에는 상태를 알려 줍니다
-      if (code === "no-speech") {
-        setHeard("");
-        setVoiceHint("소리가 들리지 않았어요. 마이크에 가까이서 말씀해 주세요.");
-        return;
-      }
+      // 잠깐 조용한 것뿐이면 계속 듣습니다
+      if (code === "no-speech" || code === "aborted") return;
       keepRef.current = false;
       setListening(false);
       setVoiceError(true);
@@ -2740,7 +2748,7 @@ export function AIRecognition() {
       toast.error(speechErrorMessage(code));
     };
 
-    // 브라우저가 스스로 멈춰도 계속 듣습니다
+    // 브라우저가 스스로 멈춰도 사장님이 끝내기를 누를 때까지 계속 듣습니다
     rec.onend = () => {
       if (keepRef.current) {
         try {
@@ -2758,7 +2766,7 @@ export function AIRecognition() {
       keepRef.current = true;
       setListening(true);
       setVoiceError(false);
-      setVoiceHint("듣고 있어요 — 예) 안방에 퀸 침대 하나, 장롱 세 짝");
+      setVoiceHint("듣고 있어요 — 예) 안방 퀸 침대, 화장대, 협탁, 서랍장 → 다 말한 뒤 「끝내기」");
       // 녹음기(getUserMedia)를 같이 켜면 음성인식이 마이크를 뺏겨
       // 아무 결과도 나오지 않습니다. 인식은 브라우저 음성인식만 씁니다.
       tap("soft");
@@ -2767,6 +2775,8 @@ export function AIRecognition() {
       fail("마이크를 시작하지 못했습니다. 다른 앱이 마이크를 쓰고 있는지 확인해 주세요.");
     }
   };
+
+
 
   // 화면을 벗어나면 마이크를 끕니다
   useEffect(() => {
