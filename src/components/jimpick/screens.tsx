@@ -2421,6 +2421,8 @@ export function AIRecognition() {
   const recRef = useRef<RecognitionLike | null>(null);
   const recorderRef = useRef<WavRecorder | null>(null);
   const keepRef = useRef(false);
+  /** 마이크를 누른 동안 들은 말을 모아 둡니다 (끝내기를 누를 때 한 번만 담습니다) */
+  const voiceTextRef = useRef("");
   const roomIdRef = useRef(roomId);
   useEffect(() => {
     roomIdRef.current = roomId;
