@@ -21,6 +21,7 @@ import {
 
 import { SignupScreen, SubscriptionScreen } from "@/components/jimpick/account";
 import { ForgotPasswordScreen } from "@/components/jimpick/password";
+import { AuthLoadingScreen } from "@/components/jimpick/AuthUi";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,7 +36,8 @@ export const Route = createFileRoute("/")({
 });
 
 function Router() {
-  const { screen } = useApp();
+  const { screen, authChecking, retryAuthCheck } = useApp();
+  if (authChecking) return <AuthLoadingScreen onRetry={retryAuthCheck} />;
   switch (screen) {
     case "splash": return <Splash />;
     case "login": return <Login />;

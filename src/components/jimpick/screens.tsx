@@ -19,6 +19,7 @@ import {
   Trash2,
   Edit3,
   Eye,
+  EyeOff,
   Phone,
   MessageSquare,
   LogOut,
@@ -93,6 +94,7 @@ import { WavRecorder } from "@/lib/recorder";
 import { sendSmsViaEdge, resendManagerNotice, type EdgeSmsResult } from "@/lib/sms.edge";
 import { hasSession, signIn, signOut } from "@/lib/auth";
 import { setRememberMe } from "@/integrations/supabase/auth-persistence";
+import { AuthField, AuthInput, AuthPrimaryButton, AuthShell } from "./AuthUi";
 import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functions";
 import {
   shareToKakao,
@@ -328,6 +330,9 @@ export function Login() {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const emailError = id.length === 0 ? "" : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id.trim()) ? "" : "이메일 주소를 정확히 입력해 주세요.";
 
   /**
    * 실제 계정으로 로그인합니다.
@@ -339,6 +344,18 @@ export function Login() {
     if (busy) return;
     setErr("");
     setShowSignup(false);
+    if (!id.trim()) {
+      setErr("아이디(이메일)를 입력해 주세요.");
+      return;
+    }
+    if (emailError) {
+      setErr(emailError);
+      return;
+    }
+    if (!pw) {
+      setErr("비밀번호를 입력해 주세요.");
+      return;
+    }
     setBusy(true);
     try {
       // 로그인 직전에 세션 저장 위치를 정합니다(유지 ON=브라우저 종료 후에도 유지).
@@ -355,92 +372,108 @@ export function Login() {
     }
   };
   return (
-    <MobileShell bg="bg-white">
-      <div
-        className="px-8 pt-10 pb-14 text-white text-center"
-        style={{ background: "linear-gradient(135deg, #287BFF 0%, #0751D8 100%)" }}
+    <AuthShell>
+      <header className="flex min-h-[190px] flex-col items-center justify-center bg-auth-primary px-4 text-auth-primary-foreground">
+        <img src={logoImg} alt="JIMPICK 로고" className="size-14 object-contain" />
+        <div className="mt-2 text-3xl font-black">JIMPICK</div>
+        <div className="mt-1 text-sm font-medium opacity-90">AI 이사 견적</div>
+      </header>
+      <form
+        className="flex flex-1 flex-col gap-5 px-4 py-7 sm:px-8"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+        noValidate
       >
-        <img src={logoImg} alt="JIMPICK" className="w-20 h-20 mx-auto" />
-        <div className="text-3xl font-black mt-2">JIMPICK</div>
-        <div className="text-sm opacity-90 mt-1">AI 이사 견적</div>
-      </div>
-      <div className="flex-1 px-6 py-8 space-y-5">
         <div>
-          <h2 className="text-2xl font-bold">JIMPICK 로그인</h2>
-          <p className="text-sm text-[#6B7280] mt-1">사장님 계정으로 로그인하세요.</p>
+          <h1 className="text-2xl font-bold text-auth-text">JIMPICK 로그인</h1>
+          <p className="mt-1 text-sm text-auth-muted">사장님 계정으로 로그인하세요.</p>
         </div>
-        <Field label="아이디 (이메일)">
-          <TextInput
+        <AuthField id="login-email" label="아이디(이메일)" error={emailError}>
+          <AuthInput
+            id="login-email"
+            name="email"
             type="email"
             inputMode="email"
             autoComplete="username"
             placeholder="jimpick@example.com"
             value={id}
             onChange={(e) => setId(e.target.value)}
+            aria-invalid={!!emailError}
+            aria-describedby={emailError ? "login-email-error" : undefined}
           />
-        </Field>
-        <Field label="비밀번호">
-          <TextInput
-            type="password"
+        </AuthField>
+        <AuthField id="login-password" label="비밀번호">
+          <div className="relative">
+          <AuthInput
+            id="login-password"
+            name="password"
+            type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             placeholder="비밀번호"
             value={pw}
             onChange={(e) => setPw(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void submit();
-            }}
+            className="pr-13"
           />
-        </Field>
-        <div className="flex items-center justify-between gap-3">
-          <label className="flex items-center gap-2 text-sm">
+          <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"} className="absolute right-1 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-auth-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-auth-primary">
+            {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+          </button>
+          </div>
+        </AuthField>
+        <div className="grid grid-cols-1 gap-1 min-[360px]:grid-cols-2">
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-auth-text">
             <input
               type="checkbox"
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
-              className="w-4 h-4"
+              className="size-6 accent-auth-primary"
             />
             아이디 저장
           </label>
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-auth-text">
             <input
               type="checkbox"
               checked={keepLoggedIn}
               onChange={(e) => setKeepLoggedIn(e.target.checked)}
-              className="w-4 h-4"
+              className="size-6 accent-auth-primary"
             />
             로그인 상태 유지
           </label>
         </div>
-        <p className="-mt-3 text-xs text-[#9AA3AF]">
-          공용 컴퓨터에서는 「로그인 상태 유지」를 꺼 주세요. 끄면 브라우저를 닫을 때 자동으로
-          로그아웃됩니다.
+        <p className="-mt-3 text-sm text-auth-muted">
+          공용 컴퓨터에서는 로그인 상태 유지를 해제해 주세요.
         </p>
-        {err && <div className="text-sm font-bold text-[#EF4444]">{err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="rounded-md bg-auth-soft p-3 text-sm font-semibold text-auth-error">{err}</div>}
         {showSignup && (
-          <div className="rounded-2xl bg-[#F7F9FC] p-3 text-[14px] text-[#4B5563]">
+          <div className="rounded-md bg-auth-soft p-3 text-sm text-auth-muted">
             처음이시면 아래 「업체 회원가입」으로 계정을 먼저 만들어 주세요.
             계정이 있어야 견적서 문자발송이 됩니다.
           </div>
         )}
-        <PrimaryButton onClick={() => void submit()} disabled={busy}>
+        <AuthPrimaryButton type="submit" busy={busy}>
           {busy ? "로그인 중…" : "로그인"}
-        </PrimaryButton>
-        <button
-          onClick={() => setScreen("signup")}
-          className="w-full py-3 rounded-2xl border border-[#0751D8] text-[#0751D8] font-bold bg-white"
-        >
-          업체 회원가입 · 구독 신청
-        </button>
-        <button
+        </AuthPrimaryButton>
+        <Button
           type="button"
-          onClick={() => setScreen("forgot")}
-          className="w-full py-4 text-center text-sm font-bold text-[#0751D8] underline underline-offset-4 active:opacity-70"
+          variant="outline"
+          onClick={() => setScreen("signup")}
+          className="h-12 w-full rounded-[14px] border-auth-primary bg-background text-base font-bold text-auth-primary hover:bg-auth-soft"
         >
-          아이디/비밀번호 찾기
-        </button>
-        <div className="text-center text-xs text-[#6B7280] pt-6">© JIMPICK · Ver 7.0.0</div>
-      </div>
-    </MobileShell>
+          업체 회원가입
+        </Button>
+        <p className="-mt-3 text-center text-sm text-auth-muted">가입 후 3일 동안 모든 기능을 무료로 체험할 수 있습니다.</p>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => setScreen("forgot")}
+          className="h-12 w-full text-base font-bold text-auth-primary underline underline-offset-4"
+        >
+          아이디 · 비밀번호 찾기
+        </Button>
+        <div className="mt-auto pt-4 text-center text-xs text-auth-muted">© JIMPICK · Ver 7.0.0</div>
+      </form>
+    </AuthShell>
   );
 }
 

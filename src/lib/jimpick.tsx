@@ -1216,6 +1216,8 @@ interface AppState {
 }
 
 interface Ctx extends AppState {
+  authChecking: boolean;
+  retryAuthCheck: () => void;
   setScreen: (s: Screen) => void;
   login: (id: string, remember: boolean) => void;
   logout: () => void;
@@ -1250,6 +1252,8 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   }));
 
   const [hydrated, setHydrated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authRetry, setAuthRetry] = useState(0);
 
   // 하이드레이션 이후에 저장된 상태를 불러옵니다 (SSR 불일치 방지).
   // 로그인 여부는 저장된 값을 믿지 않고 Supabase 세션으로만 판단합니다(아래 세션 효과).
@@ -1274,24 +1278,31 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     let alive = true;
     const apply = (hasSession: boolean) =>
       setState((s) => {
-        if (s.loggedIn === hasSession) return s;
-        if (hasSession) return { ...s, loggedIn: true };
-        // 세션이 사라짐(로그아웃·만료) → 보호 화면이면 로그인 화면으로
-        const publicScreens: Screen[] = ["splash", "login", "signup"];
+        if (hasSession) {
+          return { ...s, loggedIn: true, screen: s.screen === "splash" ? "home" : s.screen };
+        }
+        const publicScreens: Screen[] = ["login", "signup", "forgot"];
         return { ...s, loggedIn: false, screen: publicScreens.includes(s.screen) ? s.screen : "login" };
       });
 
+    setAuthChecked(false);
     supabase.auth.getSession().then(({ data }) => {
-      if (alive) apply(!!data.session);
+      if (!alive) return;
+      apply(!!data.session);
+      setAuthChecked(true);
+    }).catch(() => {
+      if (alive) setAuthChecked(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (alive) apply(!!session);
+      if (!alive) return;
+      apply(!!session);
+      setAuthChecked(true);
     });
     return () => {
       alive = false;
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [authRetry]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -1318,6 +1329,8 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
 
   const ctx: Ctx = {
     ...state,
+    authChecking: !hydrated || !authChecked,
+    retryAuthCheck: () => setAuthRetry((value) => value + 1),
     setScreen: (screen) => {
       // 휴대폰 뒤로가기 버튼이 앱을 닫지 않고 이전 화면으로 가도록
       // 화면을 옮길 때마다 기록을 하나 쌓습니다 (갤럭시 크롬 포함).
