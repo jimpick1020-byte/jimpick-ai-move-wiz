@@ -103,7 +103,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("estimate_terms")
       .select(
-        "id, customer_name, move_date, total, contact_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at",
+        "id, user_id, customer_name, move_date, total, contact_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at",
       )
       .eq("access_token", data.token)
       .maybeSingle();
