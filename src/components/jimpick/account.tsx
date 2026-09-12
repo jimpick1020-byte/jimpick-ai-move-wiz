@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { authErrorMessage, authHeader } from "@/lib/auth";
@@ -8,6 +8,17 @@ import { MobileShell, TopBar, Card, Field, TextInput, PrimaryButton, BottomButto
 import { PLANS, getMyAccount, subscribePlan, cancelSubscription, type PlanId } from "@/lib/subscription.functions";
 import { tap } from "@/lib/feedback";
 import { Check, Crown, CreditCard, LogOut } from "lucide-react";
+import { Eye, EyeOff, LoaderCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { AuthField, AuthInput, AuthPrimaryButton, AuthShell, AuthTopBar } from "./AuthUi";
 
 /** 로그인한 Cloud 사용자 세션 */
 export function useSession() {
@@ -45,28 +56,66 @@ export function SignupScreen() {
   /** 인증 메일을 보낸 주소 — 있으면 '인증메일 다시 보내기' 안내를 띄웁니다 */
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [resendBusy, setResendBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [marketingAccepted, setMarketingAccepted] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  const normalizedEmail = email.trim();
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+  const hasLength = password.length >= 8;
+  const hasLetter = /[A-Za-z]/.test(password);
+  const hasNumber = /\d/.test(password);
+  const commonPassword = /^(password|password1|qwerty|12345678|11111111|abc12345)$/i.test(password);
+  const passwordValid = hasLength && hasLetter && hasNumber && !commonPassword;
+  const phoneDigits = phone.replace(/\D/g, "");
+  const phoneValid = /^01[016789]\d{7,8}$/.test(phoneDigits);
+  const requiredComplete = emailValid && passwordValid && company.trim().length > 0 && owner.trim().length > 0 && phoneValid;
+  const canSubmit = mode === "signin" ? emailValid && password.length > 0 : requiredComplete && termsAccepted && privacyAccepted;
+
+  const formatSignupPhone = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, digits.length === 10 ? 6 : 7)}-${digits.slice(digits.length === 10 ? 6 : 7)}`;
+  };
 
   const submit = async () => {
     if (busy) return; // 연속 클릭으로 중복 요청되지 않게 잠급니다
-    if (!email.includes("@")) {
-      toast.error("이메일 주소를 정확히 입력해 주세요");
+    setFormError("");
+    if (!emailValid) {
+      setFormError("이메일 주소를 정확히 입력해 주세요.");
       return;
     }
-    if (password.length < 8) {
-      toast.error("비밀번호는 8자 이상으로 정해 주세요");
+    if (mode === "signup" && !passwordValid) {
+      setFormError("비밀번호 조건을 모두 충족해 주세요.");
+      return;
+    }
+    if (mode === "signup" && (!requiredComplete || !termsAccepted || !privacyAccepted)) {
+      setFormError("필수 정보와 필수 동의를 확인해 주세요.");
       return;
     }
     setBusy(true);
     try {
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: normalizedEmail,
           password,
           options: {
             // 게시 주소로 돌아오게 합니다 (게시: https://jimpick-ai-move-wiz.lovable.app,
             // 미리보기: lovable 프리뷰 주소). 어느 쪽이든 지금 접속한 주소로 맞춰집니다.
             emailRedirectTo: window.location.origin,
-            data: { company_name: company, owner_name: owner, phone },
+            data: {
+              company_name: company.trim(),
+              owner_name: owner.trim(),
+              phone,
+              terms_accepted: termsAccepted,
+              privacy_accepted: privacyAccepted,
+              marketing_accepted: marketingAccepted,
+              consent_accepted_at: new Date().toISOString(),
+              consent_version: "2026-09-13",
+            },
           },
         });
         if (error) throw error;
@@ -93,7 +142,7 @@ export function SignupScreen() {
         // 이메일 확인이 꺼져 있어 바로 세션이 생긴 경우만 로그인 처리합니다.
         toast.success("가입 완료! 3일 무료 체험이 시작되었습니다");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
         if (error) {
           // 인증이 끝나지 않은 계정이면 '인증메일 다시 보내기' 안내를 띄웁니다.
           if (/email not confirmed|not confirmed/i.test(error.message)) {
@@ -103,11 +152,13 @@ export function SignupScreen() {
         }
         toast.success("로그인되었습니다");
       }
-      login(email, true);
+      login(normalizedEmail, true);
       setScreen("subscription");
     } catch (e) {
       // 영어 안내를 쉬운 한국어로 바꿔 보여 줍니다
-      toast.error(authErrorMessage(e instanceof Error ? e.message : ""));
+      const message = authErrorMessage(e instanceof Error ? e.message : "");
+      setFormError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -155,61 +206,79 @@ export function SignupScreen() {
   };
 
   return (
-    <MobileShell>
-      <TopBar title={mode === "signup" ? "업체 회원가입" : "업체 로그인"} onBack={() => setScreen("login")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto">
-        <div className="grid grid-cols-2 gap-2 bg-[#EDF2FB] p-1 rounded-2xl">
+    <AuthShell>
+      <AuthTopBar title={mode === "signup" ? "업체 회원가입" : "업체 로그인"} onBack={() => setScreen("login")} />
+      <form className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-6 sm:px-8" onSubmit={(event) => { event.preventDefault(); void submit(); }} noValidate>
+        <div className="grid grid-cols-2 gap-1 rounded-md bg-auth-soft p-1">
           {(["signup", "signin"] as const).map((m) => (
-            <button
+            <Button
+              type="button"
+              variant="ghost"
               key={m}
-              onClick={() => setMode(m)}
-              className={`py-2.5 rounded-xl text-sm font-bold ${mode === m ? "bg-white text-[#0751D8] shadow" : "text-[#6B7280]"}`}
+              onClick={() => { setMode(m); setFormError(""); }}
+              className={`h-11 rounded-md text-base font-bold ${mode === m ? "bg-background text-auth-primary shadow-sm" : "text-auth-muted"}`}
             >
               {m === "signup" ? "회원가입" : "로그인"}
-            </button>
+            </Button>
           ))}
         </div>
 
-        <Card className="space-y-3">
-          <Field label="이메일">
-            <TextInput type="email" placeholder="company@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-          </Field>
-          <Field label="비밀번호">
-            <TextInput
-              type="password"
+        <div className="space-y-4">
+          <AuthField id="signup-email" label="이메일" error={email && !emailValid ? "이메일 주소를 정확히 입력해 주세요." : ""}>
+            <AuthInput id="signup-email" name="email" type="email" inputMode="email" autoComplete="email" placeholder="company@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </AuthField>
+          <AuthField id="signup-password" label="비밀번호" hint={mode === "signup" ? (
+            <ul className="grid gap-1" aria-live="polite">
+              <li className={hasLength ? "text-auth-primary" : ""}>• 8자 이상</li>
+              <li className={hasLetter ? "text-auth-primary" : ""}>• 영문 포함</li>
+              <li className={hasNumber ? "text-auth-primary" : ""}>• 숫자 포함</li>
+              {commonPassword && <li className="font-semibold text-auth-error">• 널리 알려진 비밀번호는 사용할 수 없습니다.</li>}
+            </ul>
+          ) : undefined}>
+            <div className="relative">
+            <AuthInput
+              id="signup-password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
               placeholder="영문·숫자를 섞어 8자 이상"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="pr-13"
             />
-            {mode === "signup" && (
-              <p className="mt-1.5 text-[13px] leading-relaxed text-[#6B7280]">
-                8자 이상으로 정해 주세요. 1234, password 처럼 널리 알려진 비밀번호는
-                안전을 위해 쓸 수 없습니다.
-              </p>
-            )}
-          </Field>
+            <Button type="button" variant="ghost" size="icon" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"} className="absolute right-1 top-1/2 size-11 -translate-y-1/2 text-auth-muted">
+              {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+            </Button>
+            </div>
+          </AuthField>
           {mode === "signup" && (
             <>
-              <Field label="업체명">
-                <TextInput placeholder="짐픽 이사" value={company} onChange={(e) => setCompany(e.target.value)} />
-              </Field>
-              <Field label="담당자명">
-                <TextInput placeholder="홍길동" value={owner} onChange={(e) => setOwner(e.target.value)} />
-              </Field>
-              <Field label="연락처">
-                <TextInput placeholder="010-0000-0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
-              </Field>
+              <AuthField id="signup-company" label="업체명">
+                <AuthInput id="signup-company" name="organization" autoComplete="organization" placeholder="업체명을 입력해 주세요" value={company} onChange={(e) => setCompany(e.target.value)} />
+              </AuthField>
+              <AuthField id="signup-owner" label="담당자명">
+                <AuthInput id="signup-owner" name="name" autoComplete="name" placeholder="담당자명을 입력해 주세요" value={owner} onChange={(e) => setOwner(e.target.value)} />
+              </AuthField>
+              <AuthField id="signup-phone" label="연락처" error={phone && !phoneValid ? "010으로 시작하는 휴대전화 번호를 정확히 입력해 주세요." : ""}>
+                <AuthInput id="signup-phone" name="tel" type="tel" inputMode="numeric" autoComplete="tel" placeholder="010-0000-0000" value={phone} onChange={(e) => setPhone(formatSignupPhone(e.target.value))} maxLength={13} />
+              </AuthField>
             </>
           )}
-        </Card>
+        </div>
 
-        <button
+        {mode === "signup" && <ConsentSection termsAccepted={termsAccepted} privacyAccepted={privacyAccepted} marketingAccepted={marketingAccepted} onTerms={setTermsAccepted} onPrivacy={setPrivacyAccepted} onMarketing={setMarketingAccepted} />}
+
+        <Button
+          type="button"
+          variant="outline"
           onClick={google}
           disabled={busy}
-          className="w-full py-3.5 rounded-2xl bg-white border border-[#E7EBF2] font-bold shadow-sm disabled:opacity-60"
+          aria-busy={busy}
+          className="h-13 w-full rounded-[14px] border-auth-border bg-background text-base font-bold text-auth-text shadow-sm hover:bg-auth-soft"
         >
+          <GoogleIcon />
           구글 계정으로 계속하기
-        </button>
+        </Button>
 
         {pendingEmail && (
           <Card className="space-y-2 border border-[#0751D8]/20 bg-[#F5F8FF]">
@@ -229,18 +298,46 @@ export function SignupScreen() {
           </Card>
         )}
 
-        <div className="text-xs text-[#6B7280] leading-relaxed px-1">
+        <div className="text-sm leading-relaxed text-auth-muted">
           가입 즉시 <b>3일 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능을 쓸 수 있습니다.
         </div>
-      </div>
-      <BottomButtonBar>
-        <PrimaryButton onClick={submit} disabled={busy}>
-          {busy ? "처리 중..." : mode === "signup" ? "가입하고 시작하기" : "로그인"}
-        </PrimaryButton>
-      </BottomButtonBar>
-    </MobileShell>
+        {formError && <div role="alert" aria-live="assertive" className="rounded-md bg-auth-soft p-3 text-sm font-semibold text-auth-error">{formError}</div>}
+        <div className="sticky bottom-0 -mx-4 mt-auto border-t border-auth-border bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:-mx-8 sm:px-8">
+          <AuthPrimaryButton type="submit" busy={busy} disabled={!canSubmit}>
+            {busy ? (mode === "signup" ? "가입 처리 중…" : "로그인 중…") : mode === "signup" ? "가입하고 시작하기" : "로그인"}
+          </AuthPrimaryButton>
+        </div>
+      </form>
+    </AuthShell>
   );
 }
+
+function GoogleIcon() {
+  return <svg aria-hidden viewBox="0 0 24 24" className="size-5"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.4a4.6 4.6 0 0 1-2 3v2.5h3.3c1.9-1.8 2.9-4.4 2.9-7.4Z"/><path fill="#34A853" d="M12 22c2.7 0 5-.9 6.7-2.4l-3.3-2.5c-.9.6-2.1 1-3.4 1-2.6 0-4.8-1.8-5.6-4.2H3v2.6A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.9a6 6 0 0 1 0-3.8V7.5H3a10 10 0 0 0 0 9l3.4-2.6Z"/><path fill="#EA4335" d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.9-2.8A9.7 9.7 0 0 0 3 7.5l3.4 2.6C7.2 7.7 9.4 5.9 12 5.9Z"/></svg>;
+}
+
+function ConsentSection({ termsAccepted, privacyAccepted, marketingAccepted, onTerms, onPrivacy, onMarketing }: { termsAccepted: boolean; privacyAccepted: boolean; marketingAccepted: boolean; onTerms: (value: boolean) => void; onPrivacy: (value: boolean) => void; onMarketing: (value: boolean) => void }) {
+  return <fieldset className="space-y-1 rounded-md border border-auth-border bg-auth-soft p-3">
+    <legend className="px-1 text-[15px] font-bold text-auth-text">약관 동의</legend>
+    <ConsentRow checked={termsAccepted} onChange={onTerms} label="이용약관에 동의합니다." required document="terms" />
+    <ConsentRow checked={privacyAccepted} onChange={onPrivacy} label="개인정보 처리방침에 동의합니다." required document="privacy" />
+    <ConsentRow checked={marketingAccepted} onChange={onMarketing} label="서비스 및 이벤트 안내 수신에 동의합니다." />
+  </fieldset>;
+}
+
+function ConsentRow({ checked, onChange, label, required = false, document }: { checked: boolean; onChange: (value: boolean) => void; label: string; required?: boolean; document?: "terms" | "privacy" }) {
+  const content = document === "terms" ? TERMS_DRAFT : PRIVACY_DRAFT;
+  return <div className="flex min-h-11 items-center gap-2">
+    <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 text-sm text-auth-text">
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="size-6 shrink-0 accent-auth-primary" />
+      <span><b className={required ? "text-auth-primary" : "text-auth-muted"}>[{required ? "필수" : "선택"}]</b> {label}</span>
+    </label>
+    {document && <Dialog><DialogTrigger asChild><Button type="button" variant="ghost" className="h-11 px-2 text-sm font-bold text-auth-primary underline">보기</Button></DialogTrigger><DialogContent className="max-h-[80dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-lg border-auth-border p-5"><DialogHeader><DialogTitle>{document === "terms" ? "JIMPICK 이용약관" : "JIMPICK 개인정보 처리방침"}</DialogTitle><DialogDescription>시행일 2026년 9월 13일</DialogDescription></DialogHeader><div className="whitespace-pre-line text-sm leading-6 text-auth-text">{content}</div></DialogContent></Dialog>}
+  </div>;
+}
+
+const TERMS_DRAFT = `제1조 목적\n본 약관은 JIMPICK이 제공하는 AI 이사 견적 작성·관리 서비스의 이용 조건을 정합니다.\n\n제2조 계정\n이용자는 정확한 업체 정보를 제공하고 계정 정보를 안전하게 관리해야 합니다.\n\n제3조 서비스 이용\n견적 결과는 입력 정보와 설정 단가를 기준으로 계산되며, 이용자는 고객에게 발송하기 전에 내용을 확인해야 합니다.\n\n제4조 금지행위\n타인의 계정 사용, 허위 정보 입력, 서비스 방해 및 관련 법령 위반 행위를 금지합니다.\n\n제5조 책임\n회사는 안정적인 서비스 제공을 위해 노력하며, 천재지변이나 외부 통신 장애 등 합리적으로 통제하기 어려운 사유에는 제한된 책임을 집니다.`;
+const PRIVACY_DRAFT = `1. 수집 항목\n이메일, 업체명, 담당자명, 연락처와 서비스 이용 중 이용자가 입력한 견적·고객 정보입니다.\n\n2. 이용 목적\n계정 생성과 인증, 견적 작성·보관·발송, 고객 지원, 서비스 안전성 확보에 사용합니다.\n\n3. 보유 기간\n회원 탈퇴 또는 법령상 보존 기간이 끝날 때까지 보관하며, 목적 달성 후 안전하게 파기합니다.\n\n4. 제3자 제공\n법령상 의무가 있거나 이용자가 별도로 동의한 경우를 제외하고 개인정보를 제3자에게 제공하지 않습니다.\n\n5. 이용자 권리\n이용자는 본인 정보의 열람·정정·삭제를 요청할 수 있습니다. 선택 안내 수신 동의는 언제든 철회할 수 있습니다.`;
 
 // ============ 구독 · 결제 ============
 type Account = Awaited<ReturnType<typeof getMyAccount>>;
