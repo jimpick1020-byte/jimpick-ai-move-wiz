@@ -1239,6 +1239,32 @@ interface Ctx extends AppState {
 
 const AppCtx = createContext<Ctx | null>(null);
 const STORAGE_KEY = "jimpick_v8_state";
+const OAUTH_CONSENT_KEY = "jimpick_pending_oauth_consent";
+
+async function savePendingOAuthConsent(userId: string): Promise<void> {
+  try {
+    const raw = localStorage.getItem(OAUTH_CONSENT_KEY);
+    if (!raw) return;
+    const pending = JSON.parse(raw) as {
+      termsAccepted?: boolean;
+      privacyAccepted?: boolean;
+      marketingAccepted?: boolean;
+      acceptedAt?: string;
+      version?: string;
+    };
+    if (!pending.termsAccepted || !pending.privacyAccepted || !pending.acceptedAt) return;
+    const { error } = await supabase.from("profiles").update({
+      terms_accepted_at: pending.acceptedAt,
+      privacy_accepted_at: pending.acceptedAt,
+      marketing_accepted: !!pending.marketingAccepted,
+      marketing_accepted_at: pending.marketingAccepted ? pending.acceptedAt : null,
+      consent_version: pending.version ?? "2026-09-13",
+    }).eq("id", userId);
+    if (!error) localStorage.removeItem(OAUTH_CONSENT_KEY);
+  } catch {
+    // OAuth 동의 기록이 실패하면 다음 인증 상태 확인 때 다시 시도합니다.
+  }
+}
 
 export function JimpickProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => ({
@@ -1276,7 +1302,8 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   //  - 비밀번호 원문은 어디에도 저장하지 않습니다.
   useEffect(() => {
     let alive = true;
-    const apply = (hasSession: boolean) =>
+    const apply = (hasSession: boolean, userId?: string) => {
+      if (hasSession && userId) void savePendingOAuthConsent(userId);
       setState((s) => {
         if (hasSession) {
           return { ...s, loggedIn: true, screen: s.screen === "splash" ? "home" : s.screen };
@@ -1284,18 +1311,19 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
         const publicScreens: Screen[] = ["login", "signup", "forgot"];
         return { ...s, loggedIn: false, screen: publicScreens.includes(s.screen) ? s.screen : "login" };
       });
+    };
 
     setAuthChecked(false);
     supabase.auth.getSession().then(({ data }) => {
       if (!alive) return;
-      apply(!!data.session);
+      apply(!!data.session, data.session?.user.id);
       setAuthChecked(true);
     }).catch(() => {
       if (alive) setAuthChecked(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!alive) return;
-      apply(!!session);
+      apply(!!session, session?.user.id);
       setAuthChecked(true);
     });
     return () => {

@@ -185,12 +185,26 @@ export function SignupScreen() {
 
   const google = async () => {
     if (busy) return; // 연속 클릭 잠금
+    if (mode === "signup" && (!termsAccepted || !privacyAccepted)) {
+      setFormError("Google로 가입하려면 필수 약관에 먼저 동의해 주세요.");
+      return;
+    }
     setBusy(true);
     try {
+      if (mode === "signup") {
+        localStorage.setItem("jimpick_pending_oauth_consent", JSON.stringify({
+          termsAccepted,
+          privacyAccepted,
+          marketingAccepted,
+          acceptedAt: new Date().toISOString(),
+          version: "2026-09-13",
+        }));
+      }
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin,
       });
       if (result.error) {
+        localStorage.removeItem("jimpick_pending_oauth_consent");
         toast.error("구글 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.");
         return;
       }
@@ -199,6 +213,7 @@ export function SignupScreen() {
       login(email || "google", true);
       setScreen("subscription");
     } catch {
+      localStorage.removeItem("jimpick_pending_oauth_consent");
       toast.error("구글 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setBusy(false);
@@ -272,7 +287,7 @@ export function SignupScreen() {
           type="button"
           variant="outline"
           onClick={google}
-          disabled={busy}
+          disabled={busy || (mode === "signup" && (!termsAccepted || !privacyAccepted))}
           aria-busy={busy}
           className="h-13 w-full rounded-[14px] border-auth-border bg-background text-base font-bold text-auth-text shadow-sm hover:bg-auth-soft"
         >
