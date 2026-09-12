@@ -766,19 +766,17 @@ export function cat20For(cat?: string, sub?: string): string {
 }
 
 /** 품목 선택 화면 상단 5개 대분류 탭 */
-export const CATS5 = ["가전", "가구", "생활용품", "운동·레저용품", "기타"] as const;
+export const CATS5 = ["가전", "주방", "가구", "생활용품", "운동·레저용품", "기타"] as const;
 
-/** 임의의 대분류/소분류를 5개 대분류 하나로 묶습니다 */
+/** 임의의 대분류/소분류를 상단 카테고리 탭 하나로 묶습니다 */
 export function cat5For(cat?: string, sub?: string): string {
   const s = sub ?? "";
   // 운동·레저·취미는 대분류와 상관없이 「운동·레저용품」으로
   if (["운동", "취미", "취미·레저", "레저"].includes(s)) return "운동·레저용품";
+  // 주방 관련(주방가전·주방살림·식탁·주방가구)은 모두 「주방」 탭으로 모읍니다
+  if (cat === "주방") return "주방";
+  if (s === "주방·식당" || s === "주방 가구") return "주방";
   if (cat === "가전") return "가전";
-  if (cat === "주방") {
-    if (s === "주방가전") return "가전";
-    if (s === "주방·식당" || s === "주방 가구") return "가구";
-    return "생활용품"; // 주방살림(그릇·냄비 등)
-  }
   if (cat === "가구") return "가구";
   if (cat === "생활용품") return "생활용품";
   return "기타"; // 특수·잔짐 등
