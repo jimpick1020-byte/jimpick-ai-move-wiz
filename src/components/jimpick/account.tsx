@@ -240,7 +240,7 @@ export function SignupScreen() {
 
         <div className="space-y-4">
           <AuthField id="signup-email" label="이메일" error={email && !emailValid ? "이메일 주소를 정확히 입력해 주세요." : ""}>
-            <AuthInput id="signup-email" name="email" type="email" inputMode="email" autoComplete="email" placeholder="company@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <AuthInput id="signup-email" name="email" type="email" inputMode="email" autoComplete="email" placeholder="company@email.com" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!email && !emailValid} aria-describedby={email && !emailValid ? "signup-email-error" : undefined} />
           </AuthField>
           <AuthField id="signup-password" label="비밀번호" hint={mode === "signup" ? (
             <ul className="grid gap-1" aria-live="polite">
@@ -259,6 +259,8 @@ export function SignupScreen() {
               placeholder="영문·숫자를 섞어 8자 이상"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              aria-invalid={mode === "signup" && !!password && !passwordValid}
+              aria-describedby={mode === "signup" ? "signup-password-hint" : undefined}
               className="pr-13"
             />
             <Button type="button" variant="ghost" size="icon" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"} className="absolute right-1 top-1/2 size-11 -translate-y-1/2 text-auth-muted">
@@ -269,13 +271,13 @@ export function SignupScreen() {
           {mode === "signup" && (
             <>
               <AuthField id="signup-company" label="업체명">
-                <AuthInput id="signup-company" name="organization" autoComplete="organization" placeholder="업체명을 입력해 주세요" value={company} onChange={(e) => setCompany(e.target.value)} />
+                <AuthInput id="signup-company" name="organization" autoComplete="organization" placeholder="업체명을 입력해 주세요" value={company} onChange={(e) => setCompany(e.target.value)} aria-invalid={false} aria-describedby={undefined} />
               </AuthField>
               <AuthField id="signup-owner" label="담당자명">
-                <AuthInput id="signup-owner" name="name" autoComplete="name" placeholder="담당자명을 입력해 주세요" value={owner} onChange={(e) => setOwner(e.target.value)} />
+                <AuthInput id="signup-owner" name="name" autoComplete="name" placeholder="담당자명을 입력해 주세요" value={owner} onChange={(e) => setOwner(e.target.value)} aria-invalid={false} aria-describedby={undefined} />
               </AuthField>
               <AuthField id="signup-phone" label="연락처" error={phone && !phoneValid ? "010으로 시작하는 휴대전화 번호를 정확히 입력해 주세요." : ""}>
-                <AuthInput id="signup-phone" name="tel" type="tel" inputMode="numeric" autoComplete="tel" placeholder="010-0000-0000" value={phone} onChange={(e) => setPhone(formatSignupPhone(e.target.value))} maxLength={13} />
+                <AuthInput id="signup-phone" name="tel" type="tel" inputMode="numeric" autoComplete="tel" placeholder="010-0000-0000" value={phone} onChange={(e) => setPhone(formatSignupPhone(e.target.value))} maxLength={13} aria-invalid={!!phone && !phoneValid} aria-describedby={phone && !phoneValid ? "signup-phone-error" : undefined} />
               </AuthField>
             </>
           )}
@@ -289,7 +291,7 @@ export function SignupScreen() {
           onClick={google}
           disabled={busy || (mode === "signup" && (!termsAccepted || !privacyAccepted))}
           aria-busy={busy}
-          className="h-13 w-full rounded-[14px] border-auth-border bg-background text-base font-bold text-auth-text shadow-sm hover:bg-auth-soft"
+          className="h-[52px] w-full rounded-[14px] border-auth-border bg-background text-base font-bold text-auth-text shadow-sm hover:bg-auth-soft"
         >
           <GoogleIcon />
           구글 계정으로 계속하기
