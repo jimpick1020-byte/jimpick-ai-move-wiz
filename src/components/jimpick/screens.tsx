@@ -3410,18 +3410,16 @@ export function Result() {
   const defaultsFilled = useRef(false);
   useEffect(() => {
     if (defaultsFilled.current) return;
-    if (draft.sheetConfirmedAt || draft.termsSentAt) {
-      defaultsFilled.current = true;
-      return;
-    }
     let alive = true;
     getCompanyDefaults()
       .then((r) => {
         if (!alive || !r.ok) return;
         defaultsFilled.current = true;
         const d = r.data;
-        // 상호명은 견적서 머리글에 씁니다(사장님 화면 표시용, 확정 견적은 아래에서 제외됨).
-        if (d.companyName) setSheetCompanyName(d.companyName);
+        // 상호명은 확정 여부와 관계없이 설정의 현재 값을 바로 반영합니다.
+        setSheetCompanyName(d.companyName.trim());
+        // 확정·발송된 견적의 나머지 스냅샷 값은 변경하지 않습니다.
+        if (draft.sheetConfirmedAt || draft.termsSentAt) return;
         const patch: Record<string, string> = {};
         // 담당자·연락처가 비어 있으면 설정의 담당자→대표자명, 담당자연락처→업체 연락처 순으로 채웁니다.
         if (!draft.staffName?.trim() && (d.staffName || d.ownerName))
@@ -4450,7 +4448,7 @@ export function Result() {
                 rooms={sheetRooms}
                 parts={parts}
                 total={total}
-                companyName={sheetCompanyName || undefined}
+                companyName={sheetCompanyName}
                 companyPhone={draft.staffPhone ?? ""}
                 acceptedAt={termsStatus?.acceptedAt ?? null}
                 acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}

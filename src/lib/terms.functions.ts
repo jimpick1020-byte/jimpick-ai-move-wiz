@@ -19,6 +19,8 @@ export interface TermsLinkInfo {
   moveDate?: string | null;
   total?: number;
   contactPhone?: string | null;
+  /** 설정에 저장된 현재 상호명 */
+  companyName?: string | null;
   termsName?: string;
   termsVersion?: string;
   termsEffectiveAt?: string | null;
@@ -101,7 +103,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("estimate_terms")
       .select(
-        "id, customer_name, move_date, total, contact_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at",
+        "id, user_id, customer_name, move_date, total, contact_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at",
       )
       .eq("access_token", data.token)
       .maybeSingle();
@@ -117,12 +119,21 @@ export const getTermsLink = createServerFn({ method: "POST" })
       .eq("estimate_terms_id", row.id)
       .maybeSingle();
 
+    // 공유 견적서도 설정에서 바꾼 최신 상호명을 즉시 사용합니다.
+    // 보안 토큰으로 확인된 견적 소유자의 프로필 한 건만 읽습니다.
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("company_name")
+      .eq("id", (row as { user_id?: string }).user_id ?? "")
+      .maybeSingle();
+
     return {
       ok: true,
       customerName: row.customer_name,
       moveDate: row.move_date,
       total: row.total,
       contactPhone: row.contact_phone,
+      companyName: profile?.company_name?.trim() || null,
       termsName: row.terms_name,
       termsVersion: row.terms_version,
       termsEffectiveAt: row.terms_effective_at,

@@ -1,2 +1,2 @@
 # Roadmap
-# - Preview typecheck errors
+# Roadmap
