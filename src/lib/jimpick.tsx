@@ -775,25 +775,21 @@ export interface BrowseItem {
   extra?: number;
 }
 
-const _existingNames = new Set(ITEM_CATALOG.map((i) => i.name));
-/** 품목 선택 화면이 쓰는 병합 목록(기존 + 신규, 이름 중복 없음) */
-export const BROWSE_ITEMS: BrowseItem[] = [
-  ...ITEM_CATALOG.map((i) => ({
-    id: i.id,
-    name: i.name,
-    cat20: cat20For(i.cat, i.sub),
-    sub: i.sub ?? i.cat,
-    emoji: i.emoji,
-    extra: i.extra,
-  })),
-  ...ITEMS_1000.filter((i) => !_existingNames.has(i.name)).map((i) => ({
-    id: i.id,
-    name: i.name,
-    cat20: i.cat20,
-    sub: i.cat20,
-    emoji: i.emoji,
-  })),
-];
+/**
+ * 품목 선택 화면 목록.
+ * 실제 3D 그림이 있는 품목(ITEM_CATALOG)만 보여 줍니다.
+ * 1,000개 자동 목록(ITEMS_1000)은 그림 파일이 없어 기본 박스로만 표시되므로
+ * 선택 목록에서 제외합니다. (이름·부피 조회는 아래에서 그대로 유지 →
+ * 예전에 저장된 견적/고객 데이터는 그대로 해석됩니다)
+ */
+export const BROWSE_ITEMS: BrowseItem[] = ITEM_CATALOG.map((i) => ({
+  id: i.id,
+  name: i.name,
+  cat20: cat20For(i.cat, i.sub),
+  sub: i.sub ?? i.cat,
+  emoji: i.emoji,
+  extra: i.extra,
+}));
 
 export { CATS20 };
 
