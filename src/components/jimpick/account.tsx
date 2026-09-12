@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { authErrorMessage, authHeader } from "@/lib/auth";
@@ -8,7 +8,7 @@ import { MobileShell, TopBar, Card, Field, TextInput, PrimaryButton, BottomButto
 import { PLANS, getMyAccount, subscribePlan, cancelSubscription, type PlanId } from "@/lib/subscription.functions";
 import { tap } from "@/lib/feedback";
 import { Check, Crown, CreditCard, LogOut } from "lucide-react";
-import { Eye, EyeOff, LoaderCircle } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

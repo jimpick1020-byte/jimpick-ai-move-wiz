@@ -95,6 +95,7 @@ import { sendSmsViaEdge, resendManagerNotice, type EdgeSmsResult } from "@/lib/s
 import { hasSession, signIn, signOut } from "@/lib/auth";
 import { setRememberMe } from "@/integrations/supabase/auth-persistence";
 import { AuthField, AuthInput, AuthPrimaryButton, AuthShell } from "./AuthUi";
+import { Button } from "@/components/ui/button";
 import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functions";
 import {
   shareToKakao,

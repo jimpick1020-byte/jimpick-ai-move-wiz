@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { authErrorMessage } from "@/lib/auth";
 import { useApp } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card, Field, TextInput, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
+import { AuthField, AuthInput, AuthPrimaryButton, AuthShell, AuthTopBar } from "./AuthUi";
 
 /** 비밀번호 재설정 메일이 돌아올 화면 주소 (공개 앱 주소로 고정) */
 export const RESET_REDIRECT_URL = "https://jimpick-ai-move-wiz.lovable.app/reset-password";
@@ -18,12 +19,21 @@ export function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState("");
+
+  const validateEmail = (value: string) => {
+    const target = value.trim();
+    if (!target) return "이메일 주소를 입력해 주세요.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) return "이메일 주소를 정확히 입력해 주세요.";
+    return "";
+  };
 
   const send = async () => {
     if (busy) return; // 전송 중 중복 클릭 방지
     const target = email.trim();
-    if (!target.includes("@")) {
-      toast.error("이메일 주소를 정확히 입력해 주세요");
+    const validation = validateEmail(target);
+    setEmailError(validation);
+    if (validation) {
       return;
     }
     setBusy(true);
@@ -33,7 +43,7 @@ export function ForgotPasswordScreen() {
       });
       if (error) throw error;
       setSentTo(target);
-      toast.success("비밀번호 재설정 메일을 보냈습니다. 메일의 링크를 눌러 주세요.");
+      toast.success("입력하신 이메일로 비밀번호 재설정 안내를 보냈습니다. 메일함을 확인해 주세요.");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
       toast.error(authErrorMessage(msg) || `메일 전송에 실패했습니다. (${msg})`);
@@ -43,44 +53,41 @@ export function ForgotPasswordScreen() {
   };
 
   return (
-    <MobileShell>
-      <TopBar title="아이디 · 비밀번호 찾기" onBack={() => setScreen("login")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto">
-        <Card className="space-y-3">
-          <div className="text-[14px] leading-relaxed text-[#4B5563]">
+    <AuthShell>
+      <AuthTopBar title="아이디 · 비밀번호 찾기" onBack={() => setScreen("login")} />
+      <form className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-6 sm:px-8" onSubmit={(event) => { event.preventDefault(); void send(); }} noValidate>
+        <section className="space-y-5 rounded-lg border border-auth-border bg-background p-4 shadow-sm">
+          <div className="text-sm leading-relaxed text-auth-muted">
             가입할 때 쓴 <b>이메일 주소</b>가 곧 아이디입니다. 아래에 적어 주시면 그 주소로
             비밀번호를 새로 정할 수 있는 링크를 보내 드립니다.
           </div>
-          <Field label="이메일 (아이디)">
-            <TextInput
+          <AuthField id="forgot-email" label="이메일(아이디)" error={emailError}>
+            <AuthInput
+              id="forgot-email"
+              name="email"
               type="email"
               inputMode="email"
               autoComplete="email"
               placeholder="jimpick@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void send();
-              }}
+              onChange={(e) => { setEmail(e.target.value); setEmailError(validateEmail(e.target.value)); }}
+              aria-invalid={!!emailError}
+              aria-describedby={emailError ? "forgot-email-error" : undefined}
             />
-          </Field>
-        </Card>
+          </AuthField>
+        </section>
 
         {sentTo && (
-          <Card className="space-y-1 border border-[#0751D8]/20 bg-[#F5F8FF]">
-            <div className="text-sm font-bold text-[#0751D8]">메일을 확인해 주세요</div>
-            <div className="text-[13px] leading-relaxed text-[#4B5563]">
-              <b>{sentTo}</b> 로 재설정 링크를 보냈습니다. 메일이 안 보이면 <b>스팸함</b>도 확인해 주세요.
-            </div>
-          </Card>
+          <div role="status" className="space-y-1 rounded-lg border border-auth-border bg-auth-soft p-4">
+            <div className="text-sm font-bold text-auth-primary">메일을 확인해 주세요</div>
+            <div className="text-sm leading-relaxed text-auth-muted">입력하신 이메일로 비밀번호 재설정 안내를 보냈습니다. 메일함을 확인해 주세요.</div>
+          </div>
         )}
-      </div>
-      <BottomButtonBar>
-        <PrimaryButton onClick={() => void send()} disabled={busy}>
-          {busy ? "보내는 중…" : "재설정 메일 보내기"}
-        </PrimaryButton>
-      </BottomButtonBar>
-    </MobileShell>
+        <div className="sticky bottom-0 -mx-4 mt-auto border-t border-auth-border bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:-mx-8 sm:px-8">
+          <AuthPrimaryButton type="submit" busy={busy}>{busy ? "전송 중…" : "재설정 메일 보내기"}</AuthPrimaryButton>
+        </div>
+      </form>
+    </AuthShell>
   );
 }
 
