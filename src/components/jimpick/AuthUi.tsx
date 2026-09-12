@@ -1,4 +1,10 @@
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from "react";
 import { ChevronLeft, LoaderCircle } from "lucide-react";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Button } from "@/components/ui/button";
@@ -67,11 +73,11 @@ export function AuthField({
 export function AuthInput({
   className = "",
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+}: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`h-13 w-full rounded-[14px] border border-auth-border bg-background px-4 text-base text-auth-text outline-none transition placeholder:text-auth-muted focus:border-auth-primary focus:ring-3 focus:ring-auth-focus disabled:bg-auth-soft disabled:text-auth-muted ${className}`}
+      className={`h-[52px] w-full rounded-[14px] border border-auth-border bg-background px-4 text-base text-auth-text outline-none transition placeholder:text-auth-muted focus:border-auth-primary focus:ring-[3px] focus:ring-auth-focus disabled:bg-auth-soft disabled:text-auth-muted ${className}`}
     />
   );
 }
@@ -80,7 +86,7 @@ export function AuthPrimaryButton({
   children,
   busy = false,
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { busy?: boolean }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { busy?: boolean }) {
   return (
     <Button
       {...props}

@@ -407,19 +407,28 @@ export function Login() {
         </AuthField>
         <AuthField id="login-password" label="비밀번호">
           <div className="relative">
-          <AuthInput
-            id="login-password"
-            name="password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            placeholder="비밀번호"
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            className="pr-13"
-          />
-          <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"} className="absolute right-1 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-auth-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-auth-primary">
-            {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-          </button>
+            <AuthInput
+              id="login-password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="비밀번호"
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              aria-invalid={false}
+              aria-describedby={undefined}
+              className="pr-13"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+              className="absolute right-1 top-1/2 size-11 -translate-y-1/2 text-auth-muted focus-visible:ring-2 focus-visible:ring-auth-primary"
+            >
+              {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+            </Button>
           </div>
         </AuthField>
         <div className="grid grid-cols-1 gap-1 min-[360px]:grid-cols-2">
