@@ -1390,6 +1390,12 @@ export function Step6() {
     [draft.customItems, draft.hiddenItems],
   );
 
+  /** 품목이 하나도 없는 카테고리 탭은 감춥니다 (박스 품목 제거 후 빈 탭 방지) */
+  const visibleCats = useMemo(
+    () => CATS20.filter((c) => catalog.some((i) => i.cat20 === c)),
+    [catalog],
+  );
+
   /** 평수를 고르면 없는 방만 새로 만들고, 기존 방 품목은 그대로 유지합니다 */
   const pickSize = (key: string) => {
     tap("soft");
@@ -1965,7 +1971,7 @@ export function Step6() {
                 </div>
 
                 <div className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {CATS20.map((c) => (
+                  {visibleCats.map((c) => (
                     <button
                       key={c}
                       onClick={() => {
