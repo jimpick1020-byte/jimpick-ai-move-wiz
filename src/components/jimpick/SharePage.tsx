@@ -155,7 +155,7 @@ export function SharePage() {
       );
     }, 20000);
     try {
-      const name = `짐픽_이사견적서_${sheetNo || id}`;
+      const name = `${companyName || "이사"}_이사견적서_${sheetNo || id}`;
       const r = await saveSheetAsPng(el, name);
       window.clearTimeout(guard);
       if (!r.ok) {
@@ -239,6 +239,7 @@ export function SharePage() {
         ? link.total
         : (localCalc?.total ?? 0);
   const contactPhone = ((link?.ok ? link.contactPhone : "") || estimate?.staffPhone || "").trim();
+  const companyName = (link?.ok ? link.companyName : "")?.trim() ?? "";
   /** 견적서 번호와 차수 — 서버(토큰) 값을 먼저 씁니다 */
   const sheetNo = ((link?.ok ? link.sheetNo : "") || estimate?.sheetNo || "").trim();
   const sheetVersion = (link?.ok ? link.sheetVersion : null) ?? estimate?.sheetVersion ?? 1;
@@ -323,7 +324,9 @@ export function SharePage() {
       {/* 상단 파란색 헤더 */}
       <header className="flex h-[88px] w-full items-center justify-center bg-[#0864DC]">
         <span className="text-[30px] font-black tracking-tight text-white">JIMPICK</span>
-        <span className="ml-2 text-[16px] font-bold text-white/95">짐픽</span>
+        {companyName && (
+          <span className="ml-2 text-[16px] font-bold text-white/95">{companyName}</span>
+        )}
       </header>
       <div className="mx-auto w-full max-w-[430px] px-4 pb-12">{children}</div>
     </div>
@@ -473,6 +476,7 @@ export function SharePage() {
             parts={sentSheet.parts}
             total={sentSheet.total}
             paidDeposit={paidDeposit}
+            companyName={companyName}
             companyPhone={contactPhone}
             acceptedAt={accepted ? new Date(accepted.acceptedAt).toISOString() : null}
             acceptedSheetVersion={accepted?.sheetVersion ?? null}

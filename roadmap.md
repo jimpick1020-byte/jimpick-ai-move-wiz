@@ -1,2 +1,2 @@
 # Roadmap
-# - Preview typecheck errors
+# - Verify shared and admin estimate company names on mobile

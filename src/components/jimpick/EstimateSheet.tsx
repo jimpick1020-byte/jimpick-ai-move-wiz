@@ -174,7 +174,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     rooms,
     parts,
     total,
-    companyName = "짐픽 이사",
+    companyName = "",
     companyPhone,
     acceptedAt = null,
     acceptedSheetVersion = null,
@@ -227,7 +227,9 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
       {/* 파란 머리띠 */}
       <div className="flex items-center gap-1.5 bg-[#0864DC] px-4 py-3.5">
         <span className="text-[22px] font-black tracking-tight text-white">JIMPICK</span>
-        <span className="text-[17px] font-bold text-white/90">짐픽</span>
+        {companyName.trim() && (
+          <span className="text-[17px] font-bold text-white/90">{companyName.trim()}</span>
+        )}
       </div>
 
       <div className="space-y-3 px-3 pt-3">
@@ -241,7 +243,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           )}
           <div className="flex items-center justify-between gap-3">
             <h1 className="shrink-0 whitespace-nowrap text-[24px] font-black leading-tight text-[#111827]">
-              짐픽 이사 견적서
+              {companyName.trim() ? `${companyName.trim()} 이사 견적서` : "이사 견적서"}
             </h1>
             <div className="shrink-0 text-right">
               <div
