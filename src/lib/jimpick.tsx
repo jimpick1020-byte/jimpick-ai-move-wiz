@@ -962,7 +962,9 @@ export function calcEstimate(
   const storageFee = storageFeeOf(e);
   const extras = (e.extraCharges ?? []).reduce((s2, x) => s2 + num(x.amount), 0);
 
-  const sum = transport + ladderFee + optionFee + storageFee + extras;
+  /** 할인 금액은 합계에서 바로 빼 줍니다 (총액이 자동으로 줄어듭니다) */
+  const discount = Math.max(0, num(e.discount));
+  const sum = transport + ladderFee + optionFee + storageFee + extras - discount;
   const raw =
     e.totalOverride === null || e.totalOverride === undefined ? sum : num(e.totalOverride);
   const total = Math.max(0, Math.round(Number.isFinite(raw) ? raw : 0));
