@@ -765,10 +765,31 @@ export function cat20For(cat?: string, sub?: string): string {
   return (sub && SUB_TO_CAT20[sub]) || (cat && CAT_TO_CAT20[cat]) || "기타 이삿짐 및 폐기물";
 }
 
+/** 품목 선택 화면 상단 5개 대분류 탭 */
+export const CATS5 = ["가전", "가구", "생활용품", "운동·레저용품", "기타"] as const;
+
+/** 임의의 대분류/소분류를 5개 대분류 하나로 묶습니다 */
+export function cat5For(cat?: string, sub?: string): string {
+  const s = sub ?? "";
+  // 운동·레저·취미는 대분류와 상관없이 「운동·레저용품」으로
+  if (["운동", "취미", "취미·레저", "레저"].includes(s)) return "운동·레저용품";
+  if (cat === "가전") return "가전";
+  if (cat === "주방") {
+    if (s === "주방가전") return "가전";
+    if (s === "주방·식당" || s === "주방 가구") return "가구";
+    return "생활용품"; // 주방살림(그릇·냄비 등)
+  }
+  if (cat === "가구") return "가구";
+  if (cat === "생활용품") return "생활용품";
+  return "기타"; // 특수·잔짐 등
+}
+
 export interface BrowseItem {
   id: string;
   name: string;
   cat20: string;
+  /** 5개 대분류 탭 */
+  cat5: string;
   /** 그룹 소제목 */
   sub: string;
   emoji: string;
@@ -786,6 +807,7 @@ export const BROWSE_ITEMS: BrowseItem[] = ITEM_CATALOG.map((i) => ({
   id: i.id,
   name: i.name,
   cat20: cat20For(i.cat, i.sub),
+  cat5: cat5For(i.cat, i.sub),
   sub: i.sub ?? i.cat,
   emoji: i.emoji,
   extra: i.extra,

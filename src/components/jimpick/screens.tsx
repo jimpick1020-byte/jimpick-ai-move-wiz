@@ -44,8 +44,8 @@ import {
   useApp,
   ITEM_CATALOG,
   BROWSE_ITEMS,
-  CATS20,
-  cat20For,
+  CATS5,
+  cat5For,
   itemNameById,
   CATEGORIES,
   OPTION_PRESETS,
@@ -1364,7 +1364,7 @@ export function Step6() {
     return hit ? hit.key : "30~40평";
   });
   const [openRoom, setOpenRoom] = useState<string | null>(null);
-  const [tab, setTab] = useState<string>(CATS20[0]);
+  const [tab, setTab] = useState<string>(CATS5[0]);
   const [q, setQ] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   /** 수량을 0으로 줄일 때 뜨는 삭제 확인창 */
@@ -1381,7 +1381,7 @@ export function Step6() {
           id: c.id,
           name: c.name,
           cat: c.cat,
-          cat20: cat20For(c.cat),
+          cat5: cat5For(c.cat),
           sub: "직접 추가",
           emoji: "📦",
           extra: c.extra,
@@ -1392,7 +1392,7 @@ export function Step6() {
 
   /** 품목이 하나도 없는 카테고리 탭은 감춥니다 (박스 품목 제거 후 빈 탭 방지) */
   const visibleCats = useMemo(
-    () => CATS20.filter((c) => catalog.some((i) => i.cat20 === c)),
+    () => CATS5.filter((c) => catalog.some((i) => i.cat5 === c)),
     [catalog],
   );
 
@@ -1530,7 +1530,11 @@ export function Step6() {
    * 지난 견적서에 남아 있는 이름·수량은 그대로 보입니다.
    */
   const removeFromCatalog = (id: string) => {
-    const c = (draft.customItems || []).find((x) => x.id === id);
+    const nm =
+      BROWSE_ITEMS.find((x) => x.id === id)?.name ||
+      (draft.customItems || []).find((x) => x.id === id)?.name ||
+      itemNameById(id) ||
+      "품목";
     updateDraft({
       hiddenItems: [...(draft.hiddenItems || []), id],
       customItems: (draft.customItems || []).map((x) =>
@@ -1546,11 +1550,11 @@ export function Step6() {
     });
     setItemMenu(null);
     tap("soft");
-    toast.success(`「${c?.name ?? "품목"}」을(를) 목록에서 지웠습니다`);
+    toast.success(`「${nm}」을(를) 목록에서 지웠습니다`);
   };
 
   // 검색어가 있으면 전체에서, 없으면 지금 20카테고리 탭에서 보여 줍니다.
-  const items = catalog.filter((i) => (q ? i.name.includes(q) : i.cat20 === tab));
+  const items = catalog.filter((i) => (q ? i.name.includes(q) : i.cat5 === tab));
   const picked = Object.entries(room?.items || {}).map(([id, qty]) => ({
     id,
     qty,
@@ -2030,20 +2034,18 @@ export function Step6() {
                                     <Check className="h-3.5 w-3.5 text-white" />
                                   </span>
                                 )}
-                                {/* 직접 추가한 품목에만 관리 메뉴를 답니다 (기본 품목은 없음) */}
-                                {it.id.startsWith("ci_") && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      tap("soft");
-                                      setItemMenu(it.id);
-                                    }}
-                                    className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full border border-[#DCE8FA] bg-white text-[11px] font-black leading-none text-[#64748B]"
-                                    aria-label={`${it.name} 관리`}
-                                  >
-                                    ⋯
-                                  </button>
-                                )}
+                                {/* 모든 품목에 관리 메뉴(⋯) — 목록에서 삭제할 수 있습니다 */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    tap("soft");
+                                    setItemMenu(it.id);
+                                  }}
+                                  className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full border border-[#DCE8FA] bg-white text-[11px] font-black leading-none text-[#64748B]"
+                                  aria-label={`${it.name} 관리`}
+                                >
+                                  ⋯
+                                </button>
                                 <button
                                   onClick={() => {
                                     tap("soft");
@@ -2223,21 +2225,27 @@ export function Step6() {
                 />
                 <div className="relative w-full rounded-t-3xl bg-white p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
                   <div className="text-[16px] font-black text-[#0F172A]">
-                    {(draft.customItems || []).find((c) => c.id === itemMenu)?.name}
+                    {catalog.find((c) => c.id === itemMenu)?.name ||
+                      itemNameById(itemMenu) ||
+                      "품목"}
                   </div>
-                  <p className="mt-1 text-[12.5px] font-bold text-[#9AA4B2]">직접 추가한 품목</p>
+                  <p className="mt-1 text-[12.5px] font-bold text-[#9AA4B2]">
+                    {itemMenu.startsWith("ci_") ? "직접 추가한 품목" : "품목 관리"}
+                  </p>
                   <div className="mt-3 space-y-2">
-                    <button
-                      onClick={() => openEditItem(itemMenu)}
-                      className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 font-black text-[14px] text-[#0751D8] shadow-[0_3px_0_#EDF2FA]"
-                    >
-                      이름 · 분류 · 아이콘 수정
-                    </button>
+                    {itemMenu.startsWith("ci_") && (
+                      <button
+                        onClick={() => openEditItem(itemMenu)}
+                        className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 font-black text-[14px] text-[#0751D8] shadow-[0_3px_0_#EDF2FA]"
+                      >
+                        이름 · 분류 · 아이콘 수정
+                      </button>
+                    )}
                     <button
                       onClick={() => setConfirmCatalogDel(itemMenu)}
                       className="w-full rounded-2xl border border-[#F3C7C7] bg-white py-3.5 font-black text-[14px] text-[#EF4444] shadow-[0_3px_0_#FBEAEA]"
                     >
-                      전체 목록에서 삭제
+                      이 품목을 목록에서 삭제
                     </button>
                     <button
                       onClick={() => setItemMenu(null)}
@@ -2259,9 +2267,11 @@ export function Step6() {
                 />
                 <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 text-center shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
                   <div className="text-[16px] font-black leading-snug text-[#0F172A]">
-                    직접 추가한 품목을
+                    「{catalog.find((c) => c.id === confirmCatalogDel)?.name ||
+                      itemNameById(confirmCatalogDel) ||
+                      "이 품목"}」을(를)
                     <br />
-                    전체 목록에서 삭제하시겠습니까?
+                    품목 목록에서 삭제하시겠습니까?
                   </div>
                   <p className="mt-2 text-[12.5px] font-bold leading-relaxed text-[#6B7280]">
                     지난 견적서에 적힌 이름과 수량은 그대로 남습니다.
