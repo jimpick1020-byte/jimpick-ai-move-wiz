@@ -143,8 +143,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    {/* 한국어 화면임을 알려 브라우저가 글자를 멋대로 번역하지 않게 합니다 */}
+    <html lang="ko" translate="no">
       <head>
+        <meta name="google" content="notranslate" />
         <HeadContent />
       </head>
       <body>
