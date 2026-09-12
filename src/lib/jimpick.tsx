@@ -766,7 +766,7 @@ export function cat20For(cat?: string, sub?: string): string {
 }
 
 /** 품목 선택 화면 상단 5개 대분류 탭 */
-export const CATS5 = ["가전", "주방", "가구", "생활용품", "운동·레저용품", "기타"] as const;
+export const CATS5 = ["가구", "가전", "주방", "생활용품", "운동·레저용품", "기타"] as const;
 
 /** 임의의 대분류/소분류를 상단 카테고리 탭 하나로 묶습니다 */
 export function cat5For(cat?: string, sub?: string): string {
