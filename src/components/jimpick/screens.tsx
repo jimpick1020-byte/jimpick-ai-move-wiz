@@ -1604,16 +1604,6 @@ export function Step6() {
       .filter((i): i is (typeof catalog)[number] => !!i);
   }, [favIds, estimates, catalog]);
 
-  /** 최근 선택한 품목 (최신순, 최대 8개) */
-  const recent = useMemo(
-    () =>
-      (draft.recentItems || [])
-        .map((id) => catalog.find((c) => c.id === id))
-        .filter((i): i is (typeof catalog)[number] => !!i)
-        .slice(0, 8),
-    [draft.recentItems, catalog],
-  );
-
   const openFavEdit = () => {
     tap("soft");
     setFavDraft(favIds && favIds.length > 0 ? favIds : frequent.map((i) => i.id));
@@ -1887,46 +1877,6 @@ export function Step6() {
 
             {pickerOpen && (
               <div className="flex-1 min-h-[44dvh] overflow-auto px-4 pt-3 space-y-3">
-                {/* 최근 선택 — 방금 담았던 품목을 위쪽에 다시 보여 줍니다 */}
-                {recent.length > 0 && (
-                  <div className="rounded-2xl border border-[#DCE8FA] bg-white px-4 py-3 space-y-2 shadow-[inset_0_1px_0_#fff]">
-                    <div className="text-[13.5px] font-black text-[#0F172A]">
-                      최근 선택
-                      <span className="ml-1.5 text-[11.5px] font-semibold text-[#9AA4B2]">
-                        한 번 눌러 바로 담기
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {recent.map((it) => {
-                        const qty = room?.items[it.id] || 0;
-                        return (
-                          <button
-                            key={it.id}
-                            onClick={() => {
-                              setQty(it.id, qty + 1);
-                              tap("success");
-                            }}
-                            className="flex min-h-12 items-center gap-1.5 rounded-2xl border pl-1.5 pr-3.5 text-[13px] font-black transition-transform active:translate-y-[2px]"
-                            style={{
-                              borderColor: qty > 0 ? "#287BFF" : "#DCE8FA",
-                              background: qty > 0 ? "#F2F7FF" : "#FFFFFF",
-                              color: qty > 0 ? "#0751D8" : "#475569",
-                              boxShadow: qty > 0 ? "0 3px 0 #BBD3FF" : "0 2px 0 #EDF2FA",
-                            }}
-                          >
-                            <ItemArt id={it.id} name={it.name} size={32} />
-                            {it.name}
-                            {qty > 0 && (
-                              <span className="ml-0.5 rounded-full bg-[#0751D8] px-1.5 py-0.5 text-[10px] font-black text-white">
-                                {qty}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
                 {/* 자주 담는 품목 — 검색 없이 눌러서 바로 담습니다 */}
                 <div className="rounded-2xl border border-[#DCE8FA] bg-white px-4 py-3 space-y-2 shadow-[inset_0_1px_0_#fff]">
                   <div className="flex items-center justify-between gap-2">
