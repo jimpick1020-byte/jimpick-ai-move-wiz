@@ -1216,6 +1216,8 @@ interface AppState {
 }
 
 interface Ctx extends AppState {
+  authChecking: boolean;
+  retryAuthCheck: () => void;
   setScreen: (s: Screen) => void;
   login: (id: string, remember: boolean) => void;
   logout: () => void;
@@ -1237,6 +1239,32 @@ interface Ctx extends AppState {
 
 const AppCtx = createContext<Ctx | null>(null);
 const STORAGE_KEY = "jimpick_v8_state";
+const OAUTH_CONSENT_KEY = "jimpick_pending_oauth_consent";
+
+async function savePendingOAuthConsent(userId: string): Promise<void> {
+  try {
+    const raw = localStorage.getItem(OAUTH_CONSENT_KEY);
+    if (!raw) return;
+    const pending = JSON.parse(raw) as {
+      termsAccepted?: boolean;
+      privacyAccepted?: boolean;
+      marketingAccepted?: boolean;
+      acceptedAt?: string;
+      version?: string;
+    };
+    if (!pending.termsAccepted || !pending.privacyAccepted || !pending.acceptedAt) return;
+    const { error } = await supabase.from("profiles").update({
+      terms_accepted_at: pending.acceptedAt,
+      privacy_accepted_at: pending.acceptedAt,
+      marketing_accepted: !!pending.marketingAccepted,
+      marketing_accepted_at: pending.marketingAccepted ? pending.acceptedAt : null,
+      consent_version: pending.version ?? "2026-09-13",
+    }).eq("id", userId);
+    if (!error) localStorage.removeItem(OAUTH_CONSENT_KEY);
+  } catch {
+    // OAuth 동의 기록이 실패하면 다음 인증 상태 확인 때 다시 시도합니다.
+  }
+}
 
 export function JimpickProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => ({
@@ -1250,6 +1278,8 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   }));
 
   const [hydrated, setHydrated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authRetry, setAuthRetry] = useState(0);
 
   // 하이드레이션 이후에 저장된 상태를 불러옵니다 (SSR 불일치 방지).
   // 로그인 여부는 저장된 값을 믿지 않고 Supabase 세션으로만 판단합니다(아래 세션 효과).
@@ -1272,26 +1302,35 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   //  - 비밀번호 원문은 어디에도 저장하지 않습니다.
   useEffect(() => {
     let alive = true;
-    const apply = (hasSession: boolean) =>
+    const apply = (hasSession: boolean, userId?: string) => {
+      if (hasSession && userId) void savePendingOAuthConsent(userId);
       setState((s) => {
-        if (s.loggedIn === hasSession) return s;
-        if (hasSession) return { ...s, loggedIn: true };
-        // 세션이 사라짐(로그아웃·만료) → 보호 화면이면 로그인 화면으로
-        const publicScreens: Screen[] = ["splash", "login", "signup"];
+        if (hasSession) {
+          return { ...s, loggedIn: true, screen: s.screen === "splash" ? "home" : s.screen };
+        }
+        const publicScreens: Screen[] = ["login", "signup", "forgot"];
         return { ...s, loggedIn: false, screen: publicScreens.includes(s.screen) ? s.screen : "login" };
       });
+    };
 
+    setAuthChecked(false);
     supabase.auth.getSession().then(({ data }) => {
-      if (alive) apply(!!data.session);
+      if (!alive) return;
+      apply(!!data.session, data.session?.user.id);
+      setAuthChecked(true);
+    }).catch(() => {
+      if (alive) setAuthChecked(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (alive) apply(!!session);
+      if (!alive) return;
+      apply(!!session, session?.user.id);
+      setAuthChecked(true);
     });
     return () => {
       alive = false;
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [authRetry]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -1318,6 +1357,8 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
 
   const ctx: Ctx = {
     ...state,
+    authChecking: !hydrated || !authChecked,
+    retryAuthCheck: () => setAuthRetry((value) => value + 1),
     setScreen: (screen) => {
       // 휴대폰 뒤로가기 버튼이 앱을 닫지 않고 이전 화면으로 가도록
       // 화면을 옮길 때마다 기록을 하나 쌓습니다 (갤럭시 크롬 포함).
