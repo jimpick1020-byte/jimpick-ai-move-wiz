@@ -502,17 +502,28 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
 
               <div className="mt-2.5 grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => setTermsOpen((v) => !v)}
+                  onClick={() => {
+                    setTermsOpen((v) => {
+                      if (!v) onTermsOpen?.();
+                      return !v;
+                    });
+                  }}
                   className="rounded-[12px] border border-[#0864DC] bg-white py-2.5 text-[16px] font-bold text-[#0864DC] active:translate-y-[1px]"
                 >
                   {termsOpen ? "약관 접기" : "약관 보기"}
                 </button>
                 <button
-                  onClick={() => setFullOpen((v) => !v)}
+                  onClick={() => {
+                    setFullOpen((v) => {
+                      if (!v) onTermsOpen?.();
+                      return !v;
+                    });
+                  }}
                   className="rounded-[12px] border border-[#0864DC] bg-white py-2.5 text-[16px] font-bold text-[#0864DC] active:translate-y-[1px]"
                 >
                   {fullOpen ? "전체 접기" : "약관 전체보기"}
                 </button>
+
               </div>
 
               {termsOpen && (
