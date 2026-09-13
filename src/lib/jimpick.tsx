@@ -1216,6 +1216,8 @@ interface AppState {
   currentRoomId: string;
   /** 5~6단계 진입 직전에 자동 저장되는 스냅샷 */
   stepSnapshot?: Estimate | null;
+  /** 견적 결과(Result) 화면에서 뒤로가기로 돌아갈 화면 (목록에서 열었을 때 기록) */
+  resultFrom?: string;
 }
 
 interface Ctx extends AppState {
@@ -1234,6 +1236,8 @@ interface Ctx extends AppState {
   saveDraft: () => void;
   deleteEstimate: (id: string) => void;
   loadEstimate: (id: string) => void;
+  /** 견적 결과 화면의 뒤로가기 목적지를 지정합니다 */
+  setResultFrom: (s: string) => void;
   setCurrentRoom: (id: string) => void;
   /** 5~6단계 변경 직전 스냅샷으로 즉시 복원 */
   restoreStepSnapshot: () => boolean;
@@ -1283,6 +1287,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     estimates: [],
     currentRoomId: "",
     stepSnapshot: null,
+    resultFrom: "",
   }));
 
   const [hydrated, setHydrated] = useState(false);
@@ -1480,8 +1485,12 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     loadEstimate: (id) =>
       setState((s) => {
         const e = s.estimates.find((x) => x.id === id);
-        return e ? { ...s, draft: { ...e }, screen: "result" } : s;
+        // 어느 목록에서 열었는지 기록해 두어, 뒤로가기로 그 목록으로 돌아갑니다.
+        return e
+          ? { ...s, draft: { ...e }, screen: "result", resultFrom: s.screen }
+          : s;
       }),
+    setResultFrom: (v) => setState((s) => ({ ...s, resultFrom: v })),
     setCurrentRoom: (id) => setState((s) => ({ ...s, currentRoomId: id })),
     finishToHome: () => {
       if (typeof window !== "undefined") {

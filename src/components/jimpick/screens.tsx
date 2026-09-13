@@ -3295,7 +3295,7 @@ export function AIRecognition() {
 
 // ============ Options & Storage ============
 export function OptionsScreen() {
-  const { draft, updateDraft, setScreen } = useApp();
+  const { draft, updateDraft, setScreen, setResultFrom } = useApp();
   const days = useMemo(
     () => storageDays(draft.storageStart, draft.storageEnd),
     [draft.storageStart, draft.storageEnd],
@@ -3440,7 +3440,14 @@ export function OptionsScreen() {
         )}
       </div>
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("result")}>견적 계산 보기</PrimaryButton>
+        <PrimaryButton
+          onClick={() => {
+            setResultFrom("options");
+            setScreen("result");
+          }}
+        >
+          견적 계산 보기
+        </PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
@@ -3448,7 +3455,11 @@ export function OptionsScreen() {
 
 // ============ Result ============
 export function Result() {
-  const { draft, setScreen, saveDraft, updateDraft, estimates, finishToHome } = useApp();
+  const { draft, setScreen, saveDraft, updateDraft, estimates, finishToHome, resultFrom } =
+    useApp();
+  /** 뒤로가기 목적지 — 목록(견적 내역·고객)에서 열었으면 그 목록으로, 아니면 이전 단계로 */
+  const backTo =
+    resultFrom === "history" || resultFrom === "customers" ? resultFrom : "options";
   /** 「견적 완료 · 처음으로」 진행 중 — 두 번 눌려도 한 번만 실행됩니다 */
   const [finishing, setFinishing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
@@ -4051,7 +4062,10 @@ export function Result() {
 
   return (
     <MobileShell>
-      <TopBar title="견적 결과" onBack={() => setScreen("options")} />
+      <TopBar
+        title={backTo === "options" ? "견적 결과" : "견적 상세"}
+        onBack={() => setScreen(backTo)}
+      />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         <div
           className="rounded-2xl p-6 text-white text-center"
