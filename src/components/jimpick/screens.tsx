@@ -4862,6 +4862,9 @@ export function History() {
   /** 카드별 '기록 보기' 펼침 상태 (기본은 접힘 → 목록이 짧게 보입니다) */
   const [openLog, setOpenLog] = useState<Record<string, boolean>>({});
   const toggleLog = (id: string) => setOpenLog((p) => ({ ...p, [id]: !p[id] }));
+  /** 카드 전체 펼침 상태 (기본 접힘 → 금액까지만 보임, 누르면 펼쳐짐) */
+  const [openCard, setOpenCard] = useState<Record<string, boolean>>({});
+  const toggleCard = (id: string) => setOpenCard((p) => ({ ...p, [id]: !p[id] }));
   const loadNotices = () => {
     getManagerNotices()
       .then((r) => {
@@ -4940,19 +4943,36 @@ export function History() {
           const ts = termsState(e.id);
           return (
           <Card key={e.id}>
-            <div className="flex justify-between items-start">
-              <div>
-                <div className="font-bold">{e.customerName || "이름 없음"}</div>
-                <div className="text-xs text-[#6B7280]">{e.phone}</div>
+            {(() => {
+              const open = !!openCard[e.id];
+              return (
+            <>
+            <button
+              type="button"
+              onClick={() => toggleCard(e.id)}
+              className="w-full text-left"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="font-bold">{e.customerName || "이름 없음"}</div>
+                  <div className="text-xs text-[#6B7280]">{e.phone}</div>
+                </div>
+                <span className="text-xs px-2 py-1 rounded-full bg-[#EEF4FF] text-[#0751D8] font-semibold">
+                  {e.status}
+                </span>
               </div>
-              <span className="text-xs px-2 py-1 rounded-full bg-[#EEF4FF] text-[#0751D8] font-semibold">
-                {e.status}
-              </span>
-            </div>
-            <div className="text-sm text-[#6B7280] mt-2">
-              {e.moveDate || "-"} · {e.fromAddress || "?"} → {e.toAddress || "?"}
-            </div>
-            <div className="text-lg font-black text-[#0751D8] mt-1">{won(e.total)}</div>
+              <div className="text-sm text-[#6B7280] mt-2">
+                {e.moveDate || "-"} · {e.fromAddress || "?"} → {e.toAddress || "?"}
+              </div>
+              <div className="mt-1 flex items-center justify-between">
+                <span className="text-lg font-black text-[#0751D8]">{won(e.total)}</span>
+                <span className="text-[13px] font-bold text-[#94A3B8]">
+                  {open ? "닫기 ▲" : "자세히 ▾"}
+                </span>
+              </div>
+            </button>
+            {open && (
+            <>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className={`text-[13px] px-2 py-1 rounded-full font-semibold ${ts.tone}`}>
                 {ts.text}
@@ -5080,6 +5100,18 @@ export function History() {
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => toggleCard(e.id)}
+              className="mt-2 w-full py-2 text-[13px] font-bold text-[#94A3B8]"
+            >
+              닫기 ▲
+            </button>
+            </>
+            )}
+            </>
+              );
+            })()}
           </Card>
           );
         })}
