@@ -8,7 +8,7 @@ import {
   Minus,
   Plus,
 } from "lucide-react";
-import { useApp, type Screen } from "@/lib/jimpick";
+import { useApp, useAppSafe, type Screen } from "@/lib/jimpick";
 import { tap } from "@/lib/feedback";
 
 /**
@@ -54,7 +54,9 @@ export function MobileShell({
           className={`jp-shell-inner relative w-full min-h-[100dvh] ${bg} rounded-[24px] overflow-hidden flex flex-col shadow-[0_20px_40px_-24px_rgba(7,81,216,0.3)]`}
         >
           <StatusBar />
+          <DraftSaveBadge />
           {children}
+
         </div>
       </div>
     </div>
