@@ -29,7 +29,7 @@ export const saveEstimateDraft = createServerFn({ method: "POST" })
         estimateId: z.string().min(1).max(80),
         /** 편집본 전체(JSON 글) */
         payload: z.string().min(2).max(400_000),
-        revision: z.number().int().min(1).max(1_000_000_000),
+        revision: z.number().int().min(1).max(9_000_000_000_000),
       })
       .parse(d),
   )
