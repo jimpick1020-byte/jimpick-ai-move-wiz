@@ -380,7 +380,7 @@ export const logCustomerView = createServerFn({ method: "POST" })
             viewed_at: now,
             first_viewed_at: r.first_viewed_at ?? now,
           };
-    const { error } = await supabaseAdmin.from("estimate_terms").update(patch).eq("id", r.id);
+    const { error } = await supabaseAdmin.from("estimate_terms").update(patch as never).eq("id", r.id);
     if (error) {
       console.error("[logCustomerView]", error.message);
       return { ok: false };
