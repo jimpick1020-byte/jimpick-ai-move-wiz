@@ -4088,7 +4088,19 @@ export function Result() {
     <MobileShell>
       <TopBar
         title={backTo === "options" ? "견적 결과" : "견적 상세"}
-        onBack={() => setScreen(backTo)}
+        onBack={() => {
+          // 왼쪽 화살표 = 전 화면(이전 화면)으로. 브라우저·휴대폰 뒤로가기와 똑같이
+          // 기록을 한 단계 되돌립니다. 기록이 없으면 목록/이전 단계로 직접 이동합니다.
+          if (typeof window !== "undefined" && window.history.length > 1) {
+            try {
+              window.history.back();
+              return;
+            } catch {
+              /* 기록 되돌리기에 실패하면 아래로 폴백합니다 */
+            }
+          }
+          setScreen(backTo);
+        }}
       />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         <div
