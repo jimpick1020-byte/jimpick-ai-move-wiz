@@ -1449,6 +1449,12 @@ export function useApp() {
   return c;
 }
 
+/** Provider 밖(고객 공유 화면 등)에서도 안전하게 쓰는 훅 — 없으면 null */
+export function useAppSafe() {
+  return useContext(AppCtx);
+}
+
+
 export function formatPhone(v: string) {
   const d = v.replace(/\D/g, "").slice(0, 11);
   if (d.length < 4) return d;
