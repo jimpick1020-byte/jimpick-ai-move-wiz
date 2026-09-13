@@ -1612,35 +1612,58 @@ export function Step6() {
     setIconGen({ name, cat: guessCategory(name), room: room?.name || sizeRooms[0] });
   };
 
-  /** 만들어진(또는 저장돼 있던) 아이콘을 품목으로 담습니다 */
-  const applyGeneratedIcon = (res: IconResult, roomName: string) => {
-    if (!res.itemId || !res.iconUrl) return;
+  /**
+   * 만들어진(또는 저장돼 있던) 아이콘을 품목으로 담습니다.
+   * 품목 등록 → 고른 공간에 수량 1 반영까지 모두 성공해야 true를 돌려줍니다.
+   */
+  const applyGeneratedIcon = (res: IconResult, roomName: string): string | null => {
+    if (!res.itemId || !res.iconUrl) return "아이콘 주소를 받지 못했습니다.";
     const itemId = res.itemId;
+    const iconUrl = res.iconUrl;
     const name = res.name || cleanItemName(q);
     const cat = res.cat || guessCategory(name);
-    registerCustomIcons([{ id: itemId, icon: res.iconUrl }]);
+
+    // 고른 공간이 아직 없으면 그 공간을 먼저 만듭니다 (기존 공간·품목은 그대로)
+    let rooms = draft.rooms;
+    if (!rooms.some((r) => r.name === roomName)) {
+      if (!roomName) return "담을 공간을 고르지 못했습니다. 공간을 다시 선택해 주세요.";
+      rooms = [...rooms, { id: `r_${roomName}`, name: roomName, items: {} as Record<string, number> }];
+    }
+    const target = rooms.find((r) => r.name === roomName);
+    if (!target) return "담을 공간을 찾지 못했습니다. 공간을 다시 선택해 주세요.";
+
+    registerCustomIcons([{ id: itemId, icon: iconUrl }]);
     const list = draft.customItems || [];
     const exists = list.some((c) => c.id === itemId);
-    const target = draft.rooms.find((r) => r.name === roomName) || room;
+    const nextCustom = exists
+      ? list.map((c) => (c.id === itemId ? { ...c, name, cat, icon: iconUrl, active: true } : c))
+      : [...list, { id: itemId, name, cat, extra: 0, icon: iconUrl, active: true }];
+    const nextRooms = rooms.map((r) =>
+      r.id === target.id
+        ? { ...r, items: { ...r.items, [itemId]: Math.max(1, r.items[itemId] ?? 0) } }
+        : r,
+    );
+    // 담기 결과가 실제로 반영됐는지 확인한 뒤에만 완료로 처리합니다
+    const placed = nextRooms.find((r) => r.id === target.id)?.items[itemId] ?? 0;
+    if (!nextCustom.some((c) => c.id === itemId) || placed < 1)
+      return "품목을 공간에 담지 못했습니다. 다시 시도해 주세요.";
+
     updateDraft({
-      customItems: exists
-        ? list.map((c) =>
-            c.id === itemId ? { ...c, name, cat, icon: res.iconUrl, active: true } : c,
-          )
-        : [...list, { id: itemId, name, cat, extra: 0, icon: res.iconUrl, active: true }],
+      customItems: nextCustom,
       hiddenItems: (draft.hiddenItems || []).filter((x) => x !== itemId),
-      rooms: draft.rooms.map((r) =>
-        r.id === target?.id
-          ? { ...r, items: { ...r.items, [itemId]: Math.max(1, r.items[itemId] ?? 0) } }
-          : r,
-      ),
+      rooms: nextRooms,
       recentItems: [itemId, ...(draft.recentItems || []).filter((x) => x !== itemId)].slice(0, 12),
     });
+
+    // 품목 목록에서 바로 보이도록 해당 분류 탭을 열고, 담긴 공간을 펼쳐 둡니다
+    setTab(cat5For(cat));
+    setOpenRoom(roomName);
     setSavedIcon(null);
     setIconGen(null);
     setQ("");
     tap("success");
-    toast.success(`「${name}」을(를) ${roomName}에 담았습니다`);
+    toast.success(`「${name}」을(를) ${roomName}에 수량 1로 담았습니다`);
+    return null;
   };
 
   const runIconGen = async () => {
@@ -1655,7 +1678,8 @@ export function Step6() {
         setIconError(res.error || "아이콘을 만들지 못했습니다. 다시 시도해 주세요.");
         return;
       }
-      applyGeneratedIcon(res, iconGen.room);
+      const failed = applyGeneratedIcon(res, iconGen.room);
+      if (failed) setIconError(failed);
     } catch (e) {
       setIconError(e instanceof Error ? e.message : "아이콘을 만들지 못했습니다.");
     } finally {
