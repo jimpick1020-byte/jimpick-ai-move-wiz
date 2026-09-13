@@ -1221,6 +1221,11 @@ interface AppState {
 interface Ctx extends AppState {
   authChecking: boolean;
   retryAuthCheck: () => void;
+  /** 작성 중인 견적 자동 임시저장 상태 */
+  draftSaveState: DraftSaveState;
+  /** 마지막으로 임시저장이 끝난 시각 */
+  draftSavedAt: number | null;
+
   setScreen: (s: Screen) => void;
   login: (id: string, remember: boolean) => void;
   logout: () => void;
