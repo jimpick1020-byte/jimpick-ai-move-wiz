@@ -4599,6 +4599,58 @@ export function Result() {
                   실제 문자 요금이 발생합니다. 알리고 충전금에서 차감됩니다.
                 </p>
 
+                {/* 고객이 실제로 받게 될 화면을 지금 견적서 그대로 보여 줍니다 */}
+                <button
+                  onClick={() => setCustomerPreview(true)}
+                  className="mt-2.5 w-full rounded-2xl border border-[#DCE8FA] bg-white py-3 text-[13.5px] font-black text-[#0751D8] shadow-[0_3px_0_#EDF2FA]"
+                >
+                  고객 화면 미리보기
+                </button>
+
+                {/* 빠진 필수 항목 — 있으면 발송하지 않습니다 */}
+                {missingFields.length > 0 && (
+                  <div className="mt-3 rounded-2xl bg-[#FEE2E2] px-3 py-2.5 text-left text-[12.5px] font-bold leading-relaxed text-[#B91C1C]">
+                    발송에 필요한 정보가 부족합니다.
+                    <ul className="mt-1.5 list-disc space-y-0.5 pl-4">
+                      {missingFields.map((m) => (
+                        <li key={m.label}>{m.label}</li>
+                      ))}
+                    </ul>
+                    <div className="mt-2 space-y-1.5">
+                      {Array.from(new Map(missingFields.map((m) => [m.screen, m])).values()).map(
+                        (m) => (
+                          <button
+                            key={m.screen}
+                            onClick={() => {
+                              setConfirmSheet(false);
+                              setSheetOpen(false);
+                              if (m.screen !== "result") setScreen(m.screen);
+                            }}
+                            className="block w-full rounded-xl bg-[#0864DC] py-2.5 text-[13px] font-black text-white"
+                          >
+                            {m.screenLabel} 화면으로 이동
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 이미 보낸 견적서 — 사장님이 직접 확인해야 다시 나갑니다 */}
+                {askResend && (
+                  <div className="mt-3 rounded-2xl bg-[#FFF7ED] px-3 py-2.5 text-left text-[12.5px] font-bold leading-relaxed text-[#B45309]">
+                    이미 발송한 견적서입니다. 다시 발송하시겠습니까?
+                    <button
+                      onClick={() => void doSendSms({ resend: true })}
+                      disabled={sending}
+                      className="mt-2 block w-full rounded-xl bg-[#B45309] py-2.5 text-[13px] font-black text-white disabled:opacity-60"
+                    >
+                      {sending ? "보내는 중…" : "네, 다시 발송합니다"}
+                    </button>
+                  </div>
+                )}
+
+
                 {/* 발송 결과 */}
                 {sendResult && (
                   <div
