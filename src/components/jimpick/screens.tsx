@@ -1455,7 +1455,8 @@ function iconChoices(name: string): string[] {
 }
 
 export function Step6() {
-  const { draft, updateDraft, setScreen, setCurrentRoom, estimates } = useApp();
+  const { draft, updateDraft, setScreen, setCurrentRoom, estimates, catalogHidden, hideCatalogItem } =
+    useApp();
   const [size, setSize] = useState<string>(() => {
     if (draft.sizeTab) return draft.sizeTab;
     const n = draft.rooms.length;
@@ -1485,8 +1486,12 @@ export function Step6() {
           emoji: "📦",
           extra: c.extra,
         })),
-      ].filter((i) => !(draft.hiddenItems || []).includes(i.id)),
-    [draft.customItems, draft.hiddenItems],
+      ].filter(
+        (i) =>
+          !(draft.hiddenItems || []).includes(i.id) &&
+          !(catalogHidden || []).includes(i.id),
+      ),
+    [draft.customItems, draft.hiddenItems, catalogHidden],
   );
 
   /** 품목이 하나도 없는 카테고리 탭은 감춥니다 (박스 품목 제거 후 빈 탭 방지) */
@@ -1634,6 +1639,8 @@ export function Step6() {
       (draft.customItems || []).find((x) => x.id === id)?.name ||
       itemNameById(id) ||
       "품목";
+    // 앱 전체에서 영구히 숨깁니다 (새 견적·새로고침에도 복원되지 않음)
+    hideCatalogItem(id);
     updateDraft({
       hiddenItems: [...(draft.hiddenItems || []), id],
       customItems: (draft.customItems || []).map((x) =>

@@ -1047,9 +1047,10 @@ export function calcEstimate(
       ? sideFee
       : num(e.ladderPrice) || ladderCount * pricing.ladder;
 
-  /** 차량 선택은 종류별로 1회만 금액에 반영합니다 (대수 곱하지 않음) */
+  /** 5톤은 기본 차량이라 1회만, 1톤은 고른 대수만큼 금액이 더해집니다 */
   const truck5Fee = num(e.truck5t) > 0 ? pricing.truck5t : 0;
-  const truck1Fee = num(e.truck1t) > 0 ? pricing.truck1t : 0;
+  const truck1Count = Math.max(0, num(e.truck1t));
+  const truck1Fee = truck1Count * pricing.truck1t;
   const extraKm = Math.max(0, num(e.distanceKm) - pricing.baseKm);
   const distanceFee = Math.round(extraKm * pricing.perKm);
   const stairFloors = e.workEnv.includes("계단")
@@ -1098,7 +1099,7 @@ export function calcEstimate(
     ? [{ label: "기본 운송료 (직접 입력)", amount: transport }]
     : [
         { label: "기본 차량 비용 (5톤)", amount: truck5Fee },
-        { label: "차 증차비용 (1톤)", amount: truck1Fee },
+        { label: `차 증차비용 (1톤 ${truck1Count}대)`, amount: truck1Fee },
         {
           label: `거리 추가비 (${pricing.baseKm}km 초과 ${extraKm.toFixed(1)}km)`,
           amount: distanceFee,
@@ -1218,6 +1219,11 @@ interface AppState {
   stepSnapshot?: Estimate | null;
   /** 견적 결과(Result) 화면에서 뒤로가기로 돌아갈 화면 (목록에서 열었을 때 기록) */
   resultFrom?: string;
+  /**
+   * 품목 목록에서 지운 품목 id (앱 전체 공통).
+   * 견적별(draft.hiddenItems)과 달리 새 견적·새로고침에도 계속 유지됩니다.
+   */
+  catalogHidden: string[];
 }
 
 interface Ctx extends AppState {
@@ -1238,6 +1244,8 @@ interface Ctx extends AppState {
   loadEstimate: (id: string) => void;
   /** 견적 결과 화면의 뒤로가기 목적지를 지정합니다 */
   setResultFrom: (s: string) => void;
+  /** 품목을 목록에서 영구히(앱 전체) 숨깁니다 — 새 견적·새로고침에도 유지 */
+  hideCatalogItem: (id: string) => void;
   setCurrentRoom: (id: string) => void;
   /** 5~6단계 변경 직전 스냅샷으로 즉시 복원 */
   restoreStepSnapshot: () => boolean;
@@ -1288,6 +1296,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     currentRoomId: "",
     stepSnapshot: null,
     resultFrom: "",
+    catalogHidden: [],
   }));
 
   const [hydrated, setHydrated] = useState(false);
@@ -1303,7 +1312,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const s = JSON.parse(raw) as AppState;
-        setState({ ...s, loggedIn: false, screen: "splash" });
+        setState({ ...s, catalogHidden: s.catalogHidden ?? [], loggedIn: false, screen: "splash" });
       }
     } catch {}
     setHydrated(true);
@@ -1491,6 +1500,12 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
           : s;
       }),
     setResultFrom: (v) => setState((s) => ({ ...s, resultFrom: v })),
+    hideCatalogItem: (id) =>
+      setState((s) =>
+        (s.catalogHidden || []).includes(id)
+          ? s
+          : { ...s, catalogHidden: [...(s.catalogHidden || []), id] },
+      ),
     setCurrentRoom: (id) => setState((s) => ({ ...s, currentRoomId: id })),
     finishToHome: () => {
       if (typeof window !== "undefined") {
