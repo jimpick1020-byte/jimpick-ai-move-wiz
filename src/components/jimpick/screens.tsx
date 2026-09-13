@@ -1771,9 +1771,9 @@ export function Step6() {
           <button
             onClick={() => {
               tap("soft");
-              setScreen("ai");
+              setScreen("step4");
             }}
-            aria-label="AI 집 안 스캔으로 돌아가기"
+            aria-label="뒤로"
             className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] flex items-center justify-center text-[#0751D8] shadow-[0_4px_0_#DCE8FA,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#DCE8FA]"
           >
             <ChevronLeft className="w-6 h-6" />
@@ -3466,8 +3466,8 @@ export function Result() {
   const { draft, setScreen, saveDraft, updateDraft, estimates, finishToHome, resultFrom } =
     useApp();
   /**
-   * 뒤로가기 목적지 — 견적 상세로 들어오기 직전에 보던 화면(resultFrom)으로 돌아갑니다.
-   * 직전 화면 기록이 없을 때만 견적 목록(history)으로 보냅니다.
+   * 견적 상세 상단 뒤로가기 화살표를 누르면 6단계(옵션)로 돌아갑니다.
+   * 이후 각 화면의 뒤로가기가 5→4→3→2→1→홈 순으로 이어집니다.
    */
   const backTo = (resultFrom as Screen) || "history";
   /** 「견적 완료 · 처음으로」 진행 중 — 두 번 눌려도 한 번만 실행됩니다 */
@@ -4092,10 +4092,10 @@ export function Result() {
       <TopBar
         title={backTo === "options" ? "견적 결과" : "견적 상세"}
         onBack={() => {
-          // 왼쪽 화살표 = 열었던 목록으로 곧바로 돌아갑니다.
-          // 견적 내역에서 상세 보기로 왔으면 견적 내역으로,
-          // 고객 목록에서 왔으면 고객 목록으로, 작성 흐름이면 이전 단계로.
-          setScreen(backTo);
+          // 견적 상세에서 뒤로가기는 6단계(옵션)로 돌아갑니다.
+          // 이후 옵션→5단계(공간별 품목)→4단계(차량)→3단계→2단계→1단계→홈
+          // 순으로 각 화면의 뒤로가기가 이어집니다.
+          setScreen("options");
         }}
       />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
