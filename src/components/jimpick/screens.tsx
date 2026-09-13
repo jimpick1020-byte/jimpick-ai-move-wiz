@@ -3466,16 +3466,10 @@ export function Result() {
   const { draft, setScreen, saveDraft, updateDraft, estimates, finishToHome, resultFrom } =
     useApp();
   /**
-   * 뒤로가기 목적지 — 견적 상세로 들어오기 직전에 보던 화면(resultFrom)으로 돌아갑니다.
-   * 직전 화면 기록이 없을 때만 견적 목록(history)으로 보냅니다.
+   * 견적 상세 상단 뒤로가기 화살표를 누르면 6단계(옵션)로 돌아갑니다.
+   * 이후 각 화면의 뒤로가기가 5→4→3→2→1→홈 순으로 이어집니다.
    */
   const backTo = (resultFrom as Screen) || "history";
-  /**
-   * 견적 상세 상단 뒤로가기 화살표를 누르면 6→5→4→3→2→1→홈 순으로 이동합니다.
-   * (6단계=옵션, 5단계=공간별 품목, 4=차량, 3=작업조건, 2=주소, 1=기본정보)
-   */
-  const [backStepIndex, setBackStepIndex] = useState(0);
-  const backSteps: Screen[] = ["options", "step6", "step4", "step3", "step2", "step1", "home"];
   /** 「견적 완료 · 처음으로」 진행 중 — 두 번 눌려도 한 번만 실행됩니다 */
   const [finishing, setFinishing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
