@@ -169,6 +169,7 @@ import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
 import { ScanMascot, type MascotState } from "./ScanMascot";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
+import { checkSendable, type MissingField } from "@/lib/send-check";
 
 import {
   FileText,
