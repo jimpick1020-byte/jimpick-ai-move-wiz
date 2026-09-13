@@ -1,6 +1,9 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ITEMS_1000, CATS20 } from "./items-catalog-1000";
+import { useDraftAutosave, type DraftSaveState } from "./use-draft-autosave";
+import { loadEstimateDraft } from "./draft-sync.functions";
+
 
 // ============ Types ============
 export type MoveType = "포장이사" | "반포장이사" | "일반이사" | "보관이사" | "사무실이사";
