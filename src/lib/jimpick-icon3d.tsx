@@ -572,9 +572,26 @@ export function guessIcon3d(name: string): string | undefined {
   return undefined;
 }
 
+/**
+ * 직접 추가·AI로 만든 품목의 아이콘 (품목 id → 그림 주소).
+ * 견적서·고객 공유 화면·이미지 견적서까지 같은 그림이 나오도록 여기에 모아 둡니다.
+ */
+const CUSTOM_ICON: Record<string, string> = {};
+
+/** 직접 추가 품목 목록의 아이콘 주소를 등록합니다 */
+export function registerCustomIcons(
+  items: { id: string; icon?: string | null }[] | undefined | null,
+): void {
+  for (const it of items ?? []) {
+    if (it?.id && it.icon) CUSTOM_ICON[it.id] = it.icon;
+  }
+}
+
 /** 품목 id·이름으로 아이콘 경로 정하기 (없으면 기본 박스) */
 export function icon3dFor(id: string | undefined, name: string): string {
-  return (id ? ICON3D[id] : undefined) ?? guessIcon3d(name) ?? DEFAULT_ICON3D;
+  return (
+    (id ? CUSTOM_ICON[id] ?? ICON3D[id] : undefined) ?? guessIcon3d(name) ?? DEFAULT_ICON3D
+  );
 }
 
 /**
