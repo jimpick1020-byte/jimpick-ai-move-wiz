@@ -107,6 +107,8 @@ import {
 
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { DepositPanel } from "./DepositPanel";
+import { PaymentPanel } from "./PaymentPanel";
+
 import {
   TERMS_VERSION,
   TERMS_NAME,
@@ -4813,6 +4815,14 @@ export function History() {
       })
       .catch(() => {});
   };
+  const loadTerms = () => {
+    getTermsStatuses({ data: {} })
+      .then((r) => {
+        if (r.ok) setTermsRows(r.rows);
+      })
+      .catch(() => {});
+  };
+
   useEffect(() => {
     let alive = true;
     getTermsStatuses({ data: {} })
@@ -4846,15 +4856,19 @@ export function History() {
   const list = estimates.filter(
     (e) => !q || e.customerName.includes(q) || e.phone.includes(q) || e.moveDate.includes(q),
   );
-  /** 약관 진행 상태 — 발송 성공과 고객 동의는 서로 다른 상태로 표시합니다 */
+  /** 약관 진행 상태 — 발송 성공과 고객 열람·동의는 서로 다른 상태로 표시합니다 */
   const termsState = (id: string) => {
     const r = termsRows.find((t) => t.estimateId === id);
     if (!r) return { text: "약관 미발송", tone: "bg-[#F3F4F6] text-[#6B7280]", row: null as TermsStatusRow | null };
     if (r.acceptedAt)
       return { text: "고객 동의 완료 · 예약 확정", tone: "bg-[#DCFCE7] text-[#15803D]", row: r };
-    if (r.viewedAt) return { text: "고객 확인", tone: "bg-[#FEF3C7] text-[#B45309]", row: r };
+    if (r.termsViewedAt)
+      return { text: "고객 약관 확인", tone: "bg-[#FEF3C7] text-[#B45309]", row: r };
+    if (r.firstViewedAt || r.viewedAt)
+      return { text: "고객 열람", tone: "bg-[#FEF3C7] text-[#B45309]", row: r };
     return { text: "약관 발송 완료", tone: "bg-[#EEF4FF] text-[#0751D8]", row: r };
   };
+
   return (
     <MobileShell>
       <TopBar title="견적 내역" onBack={() => setScreen("home")} />
@@ -4935,8 +4949,38 @@ export function History() {
                 );
               })()}
             {ts.row && (
+              <div className="mt-2 rounded-xl bg-[#F7F9FC] p-2.5 text-[12.5px] text-[#334155]">
+                <div className="font-bold">고객 열람 기록</div>
+                <div className="mt-0.5 text-[#6B7280]">
+                  {ts.row.firstViewedAt
+                    ? `최초 열람 ${new Date(ts.row.firstViewedAt).toLocaleString("ko-KR")}`
+                    : "아직 열지 않았습니다"}
+                </div>
+                {ts.row.lastViewedAt && (
+                  <div className="text-[#6B7280]">
+                    최근 열람 {new Date(ts.row.lastViewedAt).toLocaleString("ko-KR")} · 열람{" "}
+                    {ts.row.viewCount}회
+                  </div>
+                )}
+                {ts.row.termsViewedAt && (
+                  <div className="text-[#6B7280]">
+                    약관 확인 {new Date(ts.row.termsViewedAt).toLocaleString("ko-KR")}
+                  </div>
+                )}
+                {ts.row.acceptedAt && (
+                  <div className="font-semibold text-[#15803D]">
+                    예약 확정 {new Date(ts.row.acceptedAt).toLocaleString("ko-KR")}
+                  </div>
+                )}
+              </div>
+            )}
+            {ts.row && (
               <DepositPanel estimateId={e.id} customerName={e.customerName} total={e.total} />
             )}
+            {ts.row && (
+              <PaymentPanel estimateId={e.id} total={e.total} row={ts.row} onSaved={loadTerms} />
+            )}
+
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => loadEstimate(e.id)}

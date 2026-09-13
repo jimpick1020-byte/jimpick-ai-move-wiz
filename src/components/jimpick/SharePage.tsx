@@ -39,7 +39,13 @@ import {
   termsSnapshot,
 } from "@/lib/terms";
 import { Card } from "./ui";
-import { acceptTerms, getTermsLink, type TermsLinkInfo } from "@/lib/terms.functions";
+import {
+  acceptTerms,
+  getTermsLink,
+  logCustomerView,
+  type TermsLinkInfo,
+} from "@/lib/terms.functions";
+
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
 import { saveSheetAsPng } from "@/lib/sheet-image";
@@ -161,15 +167,31 @@ export function SharePage() {
     }
   };
 
+  /**
+   * 고객 열람 기록 — 약관을 펼쳐 본 시각만 남깁니다.
+   * 같은 화면에서 여러 번 눌러도 한 번만 보냅니다.
+   */
+  const termsLogged = useRef(false);
+  const logTermsOpen = () => {
+    if (termsLogged.current || staffMode) return;
+    termsLogged.current = true;
+    void logCustomerView({ data: { token, event: "terms" } }).catch(() => {});
+  };
+
   useEffect(() => {
     setEstimate(loadEstimateFromStorage(id));
     // 동의 완료 상태는 서버(Supabase)에 저장된 실제 기록만 믿습니다.
     // 브라우저에 남은 임시값으로 「예약 확정」을 만들지 않습니다.
     setAccepted(null);
+    termsLogged.current = false;
     // 보안 토큰으로 이 견적 한 건만 조회합니다 (다른 견적번호로는 열리지 않습니다)
     void getTermsLink({ data: { token } })
       .then((info) => {
         setLink(info);
+        // 고객이 실제로 링크를 연 것만 기록합니다 (직원용 화면은 세지 않습니다)
+        if (info.ok && !staffMode) {
+          void logCustomerView({ data: { token, event: "sheet" } }).catch(() => {});
+        }
         if (info.ok && info.acceptedAt) {
           setAccepted({
             estimateId: id,
@@ -187,7 +209,8 @@ export function SharePage() {
       })
       .catch(() => setLink(null))
       .finally(() => setLoading(false));
-  }, [id, token]);
+  }, [id, token, staffMode]);
+
 
   const localCalc = useMemo(() => (estimate ? calcEstimate(estimate) : null), [estimate]);
 
@@ -487,6 +510,8 @@ export function SharePage() {
             acceptedSheetVersion={accepted?.sheetVersion ?? null}
             acceptedTermsVersion={accepted?.termsVersion ?? null}
             forCustomer
+            onTermsOpen={logTermsOpen}
+
           />
         </div>
       )}

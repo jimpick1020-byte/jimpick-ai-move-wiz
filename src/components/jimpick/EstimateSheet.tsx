@@ -166,7 +166,10 @@ export interface EstimateSheetProps {
   showTerms?: boolean;
   /** 실제로 입금이 확인된 예약금 (원). 있으면 이 금액을 예약금으로 보여 줍니다 */
   paidDeposit?: number;
+  /** 고객이 약관을 펼쳐 볼 때 한 번 알려 줍니다 (열람 기록용) */
+  onTermsOpen?: () => void;
 }
+
 
 export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(function EstimateSheet(
   {
@@ -182,7 +185,9 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     forCustomer = false,
     showTerms = true,
     paidDeposit = 0,
+    onTermsOpen,
   },
+
   ref,
 ) {
   const transport = parts
@@ -497,17 +502,28 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
 
               <div className="mt-2.5 grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => setTermsOpen((v) => !v)}
+                  onClick={() => {
+                    setTermsOpen((v) => {
+                      if (!v) onTermsOpen?.();
+                      return !v;
+                    });
+                  }}
                   className="rounded-[12px] border border-[#0864DC] bg-white py-2.5 text-[16px] font-bold text-[#0864DC] active:translate-y-[1px]"
                 >
                   {termsOpen ? "약관 접기" : "약관 보기"}
                 </button>
                 <button
-                  onClick={() => setFullOpen((v) => !v)}
+                  onClick={() => {
+                    setFullOpen((v) => {
+                      if (!v) onTermsOpen?.();
+                      return !v;
+                    });
+                  }}
                   className="rounded-[12px] border border-[#0864DC] bg-white py-2.5 text-[16px] font-bold text-[#0864DC] active:translate-y-[1px]"
                 >
                   {fullOpen ? "전체 접기" : "약관 전체보기"}
                 </button>
+
               </div>
 
               {termsOpen && (

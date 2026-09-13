@@ -1,6 +1,9 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ITEMS_1000, CATS20 } from "./items-catalog-1000";
+import { useDraftAutosave, type DraftSaveState } from "./use-draft-autosave";
+import { loadEstimateDraft } from "./draft-sync.functions";
+
 
 // ============ Types ============
 export type MoveType = "포장이사" | "반포장이사" | "일반이사" | "보관이사" | "사무실이사";
@@ -1218,6 +1221,11 @@ interface AppState {
 interface Ctx extends AppState {
   authChecking: boolean;
   retryAuthCheck: () => void;
+  /** 작성 중인 견적 자동 임시저장 상태 */
+  draftSaveState: DraftSaveState;
+  /** 마지막으로 임시저장이 끝난 시각 */
+  draftSavedAt: number | null;
+
   setScreen: (s: Screen) => void;
   login: (id: string, remember: boolean) => void;
   logout: () => void;
@@ -1355,9 +1363,64 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("popstate", onPop);
   }, [hydrated]);
 
+  /**
+   * 작성 중인 견적 자동 임시저장.
+   * 편집본만 따로 보관하고, 저장된 견적·고객 원본은 건드리지 않습니다.
+   * 아직 아무것도 입력하지 않은 빈 견적은 보내지 않습니다.
+   */
+  const draftPayload = useMemo(() => {
+    const d = state.draft;
+    if (!d?.id) return "";
+    const hasSomething =
+      !!d.customerName ||
+      !!d.phone ||
+      !!d.moveDate ||
+      !!d.fromAddress ||
+      !!d.toAddress ||
+      (d.rooms ?? []).some((r) => Object.values(r.items ?? {}).some((v) => Number(v) > 0));
+    return hasSomething ? JSON.stringify(d) : "";
+  }, [state.draft]);
+
+  const autosave = useDraftAutosave(
+    hydrated && state.loggedIn && authChecked,
+    state.draft?.id ?? "",
+    draftPayload,
+  );
+
+  // 새로고침·다시 로그인했을 때 서버에 남은 마지막 편집본을 되살립니다.
+  // 이 기기에 더 새로운 값이 있으면 덮어쓰지 않습니다.
+  const [recoveredFor, setRecoveredFor] = useState<string>("");
+  useEffect(() => {
+    const id = state.draft?.id ?? "";
+    if (!hydrated || !state.loggedIn || !authChecked || !id || recoveredFor === id) return;
+    setRecoveredFor(id);
+    void loadEstimateDraft({ data: { estimateId: id } })
+      .then((r) => {
+        if (!r.ok || !r.found || !r.payload) return;
+        let localRev = 0;
+        try {
+          localRev = Number(localStorage.getItem("jimpick.draft.revision") || 0) || 0;
+        } catch {
+          /* 무시 */
+        }
+        if (Number(r.revision ?? 0) <= localRev) return;
+        try {
+          const server = JSON.parse(r.payload) as Estimate;
+          if (server?.id !== id) return;
+          setState((s) => (s.draft.id === id ? { ...s, draft: { ...s.draft, ...server } } : s));
+        } catch {
+          /* 읽을 수 없으면 이 기기 값을 그대로 씁니다 */
+        }
+      })
+      .catch(() => {});
+  }, [hydrated, state.loggedIn, authChecked, state.draft?.id, recoveredFor]);
+
   const ctx: Ctx = {
     ...state,
     authChecking: !hydrated || !authChecked,
+    draftSaveState: autosave.state,
+    draftSavedAt: autosave.savedAt,
+
     retryAuthCheck: () => setAuthRetry((value) => value + 1),
     setScreen: (screen) => {
       // 휴대폰 뒤로가기 버튼이 앱을 닫지 않고 이전 화면으로 가도록
@@ -1448,6 +1511,12 @@ export function useApp() {
   if (!c) throw new Error("useApp outside provider");
   return c;
 }
+
+/** Provider 밖(고객 공유 화면 등)에서도 안전하게 쓰는 훅 — 없으면 null */
+export function useAppSafe() {
+  return useContext(AppCtx);
+}
+
 
 export function formatPhone(v: string) {
   const d = v.replace(/\D/g, "").slice(0, 11);
