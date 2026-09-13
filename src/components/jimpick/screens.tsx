@@ -2292,7 +2292,10 @@ export function Step6() {
                       </p>
                       {savedIcon?.iconUrl && (
                         <button
-                          onClick={() => applyGeneratedIcon(savedIcon, room.name)}
+                          onClick={() => {
+                            const failed = applyGeneratedIcon(savedIcon, room.name);
+                            if (failed) toast.error(failed);
+                          }}
                           className="mx-auto mt-3 flex items-center gap-2 rounded-2xl border border-[#287BFF] bg-[#F2F7FF] px-3 py-2 text-[13px] font-black text-[#0751D8] active:translate-y-[1px]"
                         >
                           <Icon3D src={savedIcon.iconUrl} alt={savedIcon.name || "아이콘"} size={36} />
