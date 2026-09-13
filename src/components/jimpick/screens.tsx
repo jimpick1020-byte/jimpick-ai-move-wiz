@@ -4859,6 +4859,9 @@ export function History() {
   /** 사장님 예약확정 알림 문자 발송 기록 */
   const [noticeRows, setNoticeRows] = useState<ManagerNoticeRow[]>([]);
   const [resending, setResending] = useState<string | null>(null);
+  /** 카드별 '기록 보기' 펼침 상태 (기본은 접힘 → 목록이 짧게 보입니다) */
+  const [openLog, setOpenLog] = useState<Record<string, boolean>>({});
+  const toggleLog = (id: string) => setOpenLog((p) => ({ ...p, [id]: !p[id] }));
   const loadNotices = () => {
     getManagerNotices()
       .then((r) => {
@@ -4963,68 +4966,97 @@ export function History() {
                 </span>
               )}
             </div>
-            {ts.row?.acceptedAt &&
+            {ts.row &&
               (() => {
                 const n = noticeOf(e.id);
                 const sent = n?.status === "sent" || n?.status === "success";
+                const open = !!openLog[e.id];
+                const summary = [
+                  ts.row.viewCount
+                    ? `열람 ${ts.row.viewCount}회`
+                    : ts.row.firstViewedAt
+                      ? "열람함"
+                      : "미열람",
+                  ts.row.acceptedAt ? "예약 확정" : null,
+                  ts.row.acceptedAt ? (sent ? "알림 발송" : n ? "알림 실패" : null) : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
                 return (
-                  <div className="mt-2 rounded-xl bg-[#F7F9FC] p-2.5">
-                    <div className="text-[12.5px] font-bold text-[#334155]">
-                      사장님 알림 문자{" "}
-                      {sent ? (
-                        <span className="text-[#15803D]">
-                          발송 완료 {n?.toMasked ? `(${n.toMasked})` : ""}
-                          {n?.sentAt ? ` · ${new Date(n.sentAt).toLocaleString("ko-KR")}` : ""}
-                        </span>
-                      ) : n ? (
-                        <span className="text-[#B91C1C]">발송 실패</span>
-                      ) : (
-                        <span className="text-[#6B7280]">기록 없음</span>
-                      )}
-                    </div>
-                    {!sent && n?.errorMessage && (
-                      <div className="mt-1 text-[12px] font-semibold text-[#B91C1C]">
-                        {n.errorMessage}
+                  <div className="mt-2">
+                    <button
+                      onClick={() => toggleLog(e.id)}
+                      className="flex w-full items-center justify-between rounded-xl bg-[#F7F9FC] px-3 py-2 text-[12.5px] font-bold text-[#334155]"
+                    >
+                      <span className="truncate">{summary}</span>
+                      <span className="ml-2 shrink-0 text-[#6B7280]">
+                        {open ? "닫기" : "기록 보기"}
+                      </span>
+                    </button>
+                    {open && (
+                      <div className="mt-2 space-y-2">
+                        {ts.row.acceptedAt && (
+                          <div className="rounded-xl bg-[#F7F9FC] p-2.5">
+                            <div className="text-[12.5px] font-bold text-[#334155]">
+                              사장님 알림 문자{" "}
+                              {sent ? (
+                                <span className="text-[#15803D]">
+                                  발송 완료 {n?.toMasked ? `(${n.toMasked})` : ""}
+                                  {n?.sentAt
+                                    ? ` · ${new Date(n.sentAt).toLocaleString("ko-KR")}`
+                                    : ""}
+                                </span>
+                              ) : n ? (
+                                <span className="text-[#B91C1C]">발송 실패</span>
+                              ) : (
+                                <span className="text-[#6B7280]">기록 없음</span>
+                              )}
+                            </div>
+                            {!sent && n?.errorMessage && (
+                              <div className="mt-1 text-[12px] font-semibold text-[#B91C1C]">
+                                {n.errorMessage}
+                              </div>
+                            )}
+                            {!sent && (
+                              <button
+                                onClick={() => doResend(e.id)}
+                                disabled={resending === e.id}
+                                className="mt-2 w-full rounded-xl bg-[#EEF4FF] py-2 text-[13px] font-bold text-[#0751D8] disabled:opacity-50"
+                              >
+                                {resending === e.id ? "발송 중…" : "사장님 알림 다시 보내기"}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        <div className="rounded-xl bg-[#F7F9FC] p-2.5 text-[12.5px] text-[#334155]">
+                          <div className="font-bold">고객 열람 기록</div>
+                          <div className="mt-0.5 text-[#6B7280]">
+                            {ts.row.firstViewedAt
+                              ? `최초 열람 ${new Date(ts.row.firstViewedAt).toLocaleString("ko-KR")}`
+                              : "아직 열지 않았습니다"}
+                          </div>
+                          {ts.row.lastViewedAt && (
+                            <div className="text-[#6B7280]">
+                              최근 열람 {new Date(ts.row.lastViewedAt).toLocaleString("ko-KR")} · 열람{" "}
+                              {ts.row.viewCount}회
+                            </div>
+                          )}
+                          {ts.row.termsViewedAt && (
+                            <div className="text-[#6B7280]">
+                              약관 확인 {new Date(ts.row.termsViewedAt).toLocaleString("ko-KR")}
+                            </div>
+                          )}
+                          {ts.row.acceptedAt && (
+                            <div className="font-semibold text-[#15803D]">
+                              예약 확정 {new Date(ts.row.acceptedAt).toLocaleString("ko-KR")}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
-                    {!sent && (
-                      <button
-                        onClick={() => doResend(e.id)}
-                        disabled={resending === e.id}
-                        className="mt-2 w-full rounded-xl bg-[#EEF4FF] py-2 text-[13px] font-bold text-[#0751D8] disabled:opacity-50"
-                      >
-                        {resending === e.id ? "발송 중…" : "사장님 알림 다시 보내기"}
-                      </button>
                     )}
                   </div>
                 );
               })()}
-            {ts.row && (
-              <div className="mt-2 rounded-xl bg-[#F7F9FC] p-2.5 text-[12.5px] text-[#334155]">
-                <div className="font-bold">고객 열람 기록</div>
-                <div className="mt-0.5 text-[#6B7280]">
-                  {ts.row.firstViewedAt
-                    ? `최초 열람 ${new Date(ts.row.firstViewedAt).toLocaleString("ko-KR")}`
-                    : "아직 열지 않았습니다"}
-                </div>
-                {ts.row.lastViewedAt && (
-                  <div className="text-[#6B7280]">
-                    최근 열람 {new Date(ts.row.lastViewedAt).toLocaleString("ko-KR")} · 열람{" "}
-                    {ts.row.viewCount}회
-                  </div>
-                )}
-                {ts.row.termsViewedAt && (
-                  <div className="text-[#6B7280]">
-                    약관 확인 {new Date(ts.row.termsViewedAt).toLocaleString("ko-KR")}
-                  </div>
-                )}
-                {ts.row.acceptedAt && (
-                  <div className="font-semibold text-[#15803D]">
-                    예약 확정 {new Date(ts.row.acceptedAt).toLocaleString("ko-KR")}
-                  </div>
-                )}
-              </div>
-            )}
             {ts.row && (
               <DepositPanel estimateId={e.id} customerName={e.customerName} total={e.total} />
             )}
