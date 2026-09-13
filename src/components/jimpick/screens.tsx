@@ -127,6 +127,7 @@ import {
   type ManagerNoticeRow,
 } from "@/lib/terms.functions";
 import { getCompanyDefaults, saveCompanyDefaults } from "@/lib/company-defaults.functions";
+import { saveEstimateDraft } from "@/lib/draft-sync.functions";
 import { getFavoriteItems, saveFavoriteItems, FAVORITE_LIMIT } from "@/lib/favorite-items.functions";
 import {
   uploadCert,
@@ -3473,6 +3474,8 @@ export function Result() {
   /** 「견적 완료 · 처음으로」 진행 중 — 두 번 눌려도 한 번만 실행됩니다 */
   const [finishing, setFinishing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
+  /** 하단 「견적 완료」 버튼 저장 진행 중 — 중복 저장을 막습니다 */
+  const [completing, setCompleting] = useState(false);
   const [detail, setDetail] = useState(false);
   const [detailEdit, setDetailEdit] = useState(false);
   const [edit, setEdit] = useState(false);
@@ -3804,6 +3807,55 @@ export function Result() {
     }
     saveDraft();
     setSheetOpen(true);
+  };
+
+  /**
+   * 하단 「견적 완료」 — 현재 견적을 서버(Supabase estimate_drafts)에 실제로 저장한 뒤
+   * 저장이 성공한 경우에만 완료 처리(로컬 저장)하고 견적 목록으로 이동합니다.
+   *  · 저장/완료 처리 중에는 버튼을 잠가 중복 저장을 막습니다.
+   *  · 저장에 실패하면 완료로 표시하지 않고, 입력 내용을 그대로 둔 채 오류를 한글로 보여 주고
+   *    다시 시도할 수 있게 합니다.
+   */
+  const completeEstimate = async () => {
+    if (completing) return;
+    setCompleting(true);
+    try {
+      // 저장 순번(revision)은 자동 임시저장과 같은 방식으로 올려, 최신 값이 반영되게 합니다.
+      let rev = 0;
+      try {
+        rev = Number(localStorage.getItem("jimpick.draft.revision") || 0) || 0;
+      } catch {
+        /* 저장할 수 없는 브라우저는 시간값을 씁니다 */
+      }
+      const revision = Math.max(rev + 1, Math.floor(Date.now() / 1000));
+      try {
+        localStorage.setItem("jimpick.draft.revision", String(revision));
+      } catch {
+        /* 무시 */
+      }
+
+      const r = await saveEstimateDraft({
+        data: { estimateId: draft.id, payload: JSON.stringify(draft), revision },
+      });
+      if (!r?.ok) {
+        throw new Error(r?.error || "서버 저장에 실패했습니다.");
+      }
+
+      // 서버 저장이 성공한 경우에만 완료 상태로 저장(로컬 목록에 반영)합니다.
+      saveDraft();
+      tap("success");
+      toast.success("견적이 저장되었습니다");
+      setScreen("history");
+    } catch (e) {
+      // 실패 시: 완료로 표시하지 않고, 입력 내용은 그대로 두며, 실제 오류를 한글로 보여 줍니다.
+      toast.error(
+        e instanceof Error && e.message
+          ? `저장에 실패했습니다: ${e.message}`
+          : "저장에 실패했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.",
+      );
+    } finally {
+      setCompleting(false);
+    }
   };
 
   // 종이 견적서를 연 동안에는 휴대폰·브라우저 뒤로가기가 목록으로 바로 나가지 않고
@@ -4425,17 +4477,6 @@ export function Result() {
         )}
 
 
-        <button
-          onClick={() => {
-            tap("success");
-            saveDraft();
-            toast.success("견적이 저장되었습니다");
-          }}
-          className="w-full py-4 rounded-2xl bg-white border border-[#DFE6F2] font-bold flex items-center justify-center gap-2 shadow-[0_4px_0_#E3E9F5,0_10px_20px_-8px_rgba(15,23,42,0.25)] active:translate-y-[2px] active:shadow-[0_2px_0_#E3E9F5]"
-        >
-          <Check className="w-5 h-5" /> 견적 저장
-        </button>
-
         {backTo !== "options" && (
           <button
             onClick={() => {
@@ -4451,15 +4492,8 @@ export function Result() {
       </div>
 
       <BottomButtonBar>
-        <PrimaryButton
-          onClick={() => {
-            tap("success");
-            saveDraft();
-            toast.success("견적이 저장되었습니다");
-            openSheet();
-          }}
-        >
-          견적 완료
+        <PrimaryButton onClick={() => void completeEstimate()} disabled={completing}>
+          {completing ? "저장 중…" : "견적 완료"}
         </PrimaryButton>
       </BottomButtonBar>
 
