@@ -19,12 +19,17 @@ export interface AuthStorageLike {
   removeItem: (key: string) => MaybePromise<void> | void;
 }
 
-/** 지금 "로그인 상태 유지"를 쓰는지 (표시가 없으면 유지=기본값, 기존 세션 보존) */
+/**
+ * 지금 "로그인 상태 유지"를 쓰는지.
+ *
+ * 처음 접속했을 때는(표시가 없을 때) 유지하지 않습니다.
+ * 사장님이 로그인 화면에서 직접 「로그인 상태 유지」를 선택한 경우에만 유지합니다.
+ */
 export function isRememberMe(): boolean {
   try {
-    return (localStorage.getItem(REMEMBER_KEY) ?? "1") !== "0";
+    return localStorage.getItem(REMEMBER_KEY) === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 

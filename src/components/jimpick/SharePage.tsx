@@ -60,18 +60,6 @@ interface LocalAcceptance {
 
 const ACCEPT_KEY = "jimpick.terms.acceptances";
 
-function readAcceptance(id: string): LocalAcceptance | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const all = JSON.parse(localStorage.getItem(ACCEPT_KEY) || "{}") as Record<
-      string,
-      LocalAcceptance
-    >;
-    return all[id] ?? null;
-  } catch {
-    return null;
-  }
-}
 
 function writeAcceptance(rec: LocalAcceptance) {
   try {
@@ -175,7 +163,9 @@ export function SharePage() {
 
   useEffect(() => {
     setEstimate(loadEstimateFromStorage(id));
-    setAccepted(readAcceptance(id));
+    // 동의 완료 상태는 서버(Supabase)에 저장된 실제 기록만 믿습니다.
+    // 브라우저에 남은 임시값으로 「예약 확정」을 만들지 않습니다.
+    setAccepted(null);
     // 보안 토큰으로 이 견적 한 건만 조회합니다 (다른 견적번호로는 열리지 않습니다)
     void getTermsLink({ data: { token } })
       .then((info) => {
@@ -415,6 +405,21 @@ export function SharePage() {
             )}
           </>
         )}
+      </div>,
+    );
+  }
+
+  /* ───────── 링크가 맞지 않을 때 ─────────
+     토큰이 없거나 만료·폐기된 링크에서는 고객 정보와 동의 화면을 아예 보여 주지 않습니다. */
+  if (!link?.ok && !estimate) {
+    return shell(
+      <div className="py-20 text-center">
+        <div className="text-[18px] font-black text-[#111827]">
+          유효하지 않거나 만료된 링크입니다.
+        </div>
+        <div className="mt-2 text-[15px] font-medium text-[#6B7280]">
+          견적서를 보내 준 이사업체에 새 링크를 요청해 주세요.
+        </div>
       </div>,
     );
   }

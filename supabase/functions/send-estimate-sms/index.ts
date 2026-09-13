@@ -251,6 +251,8 @@ Deno.serve(async (req) => {
     estimate_id?: string;
     delivery_method?: string;
     idempotency_key?: string;
+    /** 사장님이 확인창에서 「다시 발송」을 직접 누른 경우에만 참 */
+    resend?: boolean;
     checkOnly?: boolean;
     /** 연결 시험 — 정해진 문구 한 줄만, 사장님이 넣은 번호로 보냅니다 */
     mode?: string;
@@ -861,8 +863,10 @@ Deno.serve(async (req) => {
     }
   }
 
-  // 같은 견적서를 같은 번호로 방금 보냈다면 다시 보내지 않습니다 (2분 안)
-  {
+  // 같은 견적서를 같은 번호로 방금 보냈다면 다시 보내지 않습니다 (2분 안).
+  // 사장님이 확인창에서 「다시 발송」을 직접 누른 경우(resend)에만 새 발송을 만듭니다.
+  const wantResend = body.resend === true;
+  if (!wantResend) {
     const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     const rq = new URLSearchParams({
       select: "id,status,provider_message_id,sent_at,msg_type",

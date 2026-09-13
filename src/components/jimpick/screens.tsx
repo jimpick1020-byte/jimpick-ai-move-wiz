@@ -169,6 +169,7 @@ import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
 import { ScanMascot, type MascotState } from "./ScanMascot";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
+import { checkSendable, type MissingField } from "@/lib/send-check";
 
 import {
   FileText,
@@ -325,9 +326,13 @@ export function Login() {
   const { login, savedId, setScreen } = useApp();
   const [id, setId] = useState(savedId || "");
   const [pw, setPw] = useState("");
+  /** 아이디 저장 — 다음 접속 때 아이디 칸만 미리 채웁니다 (세션과 무관) */
   const [remember, setRemember] = useState(!!savedId);
-  /** 로그인 상태 유지 — 체크 시 브라우저를 닫아도 세션을 유지합니다(기본 켜짐) */
-  const [keepLoggedIn, setKeepLoggedIn] = useState(true);
+  /**
+   * 로그인 상태 유지 — 처음에는 꺼져 있습니다(공용 PC 안전).
+   * 사장님이 직접 선택한 경우에만 브라우저를 닫아도 세션이 유지됩니다.
+   */
+  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -3516,8 +3521,12 @@ export function Result() {
   /** 문자 발송 상태 */
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<EdgeSmsResult | null>(null);
-
-
+  /** 발송에 필요한데 아직 비어 있는 항목 */
+  const [missingFields, setMissingFields] = useState<MissingField[]>([]);
+  /** 고객 화면 미리보기 열림 */
+  const [customerPreview, setCustomerPreview] = useState(false);
+  /** 이미 보낸 견적서 — 다시 보낼지 물어봅니다 */
+  const [askResend, setAskResend] = useState(false);
 
   /**
    * 실제 발송 — 같은 버튼을 여러 번 눌러도 한 번만 나갑니다.
@@ -3526,12 +3535,21 @@ export function Result() {
    * 2) 앱은 「어느 견적서인지」만 알려 줍니다.
    *    받는 번호·금액·문자 내용은 서버가 견적서에서 직접 읽어 만듭니다.
    */
-  const doSendSms = async () => {
+  const doSendSms = async (opts?: { resend?: boolean }) => {
     if (sending) return;
-    if (!isSendablePhone(draft.phone)) {
-      setSendResult({ ok: false, error: "휴대전화 번호 형식이 올바르지 않습니다." });
+    // 필수 데이터 검사 — 하나라도 비어 있으면 발송하지 않습니다
+    const check = checkSendable(draft, total);
+    setMissingFields(check.missing);
+    if (!check.ok) {
+      setAskResend(false);
+      setSendResult({
+        ok: false,
+        error: "발송에 필요한 정보가 부족합니다.",
+      });
       return;
     }
+    setMissingFields([]);
+    setAskResend(false);
     setSending(true);
     setSendResult(null);
     // 발송 중에는 앱 업데이트 새로고침을 미룹니다 (작업 내용 보호)
@@ -3594,14 +3612,21 @@ export function Result() {
         return;
       }
 
-      // 2) 발송 요청 — 알리고 키는 서버에만 있습니다
+      // 2) 발송 요청 — 알리고 키는 서버에만 있습니다.
+      //    같은 견적서·같은 차수·같은 번호는 같은 열쇠라 중복 발송이 막힙니다.
+      //    사장님이 「다시 발송」을 직접 확인한 경우에만 새 열쇠로 새 기록을 만듭니다.
+      const phoneKey = String(draft.phone ?? "").replace(/[^0-9]/g, "");
+      const baseKey = `${draft.id}-v${draft.sheetVersion ?? 1}-${phoneKey}`;
       const r = await sendSmsViaEdge({
         estimate_id: draft.id,
         delivery_method: "link",
-        idempotency_key: `${draft.id}-v${draft.sheetVersion ?? 1}`,
+        idempotency_key: opts?.resend ? `${baseKey}-r${Date.now()}` : baseKey,
+        ...(opts?.resend ? { resend: true } : {}),
       });
       setSendResult(r);
-      if (r.ok) {
+      // 이미 나간 발송이면 새로 보내지 않고, 다시 보낼지 물어봅니다
+      if (r.alreadySent) setAskResend(true);
+      if (r.ok && !r.alreadySent) {
         tap("success");
         updateDraft({
           termsSentAt: Date.now(),
@@ -4574,6 +4599,58 @@ export function Result() {
                   실제 문자 요금이 발생합니다. 알리고 충전금에서 차감됩니다.
                 </p>
 
+                {/* 고객이 실제로 받게 될 화면을 지금 견적서 그대로 보여 줍니다 */}
+                <button
+                  onClick={() => setCustomerPreview(true)}
+                  className="mt-2.5 w-full rounded-2xl border border-[#DCE8FA] bg-white py-3 text-[13.5px] font-black text-[#0751D8] shadow-[0_3px_0_#EDF2FA]"
+                >
+                  고객 화면 미리보기
+                </button>
+
+                {/* 빠진 필수 항목 — 있으면 발송하지 않습니다 */}
+                {missingFields.length > 0 && (
+                  <div className="mt-3 rounded-2xl bg-[#FEE2E2] px-3 py-2.5 text-left text-[12.5px] font-bold leading-relaxed text-[#B91C1C]">
+                    발송에 필요한 정보가 부족합니다.
+                    <ul className="mt-1.5 list-disc space-y-0.5 pl-4">
+                      {missingFields.map((m) => (
+                        <li key={m.label}>{m.label}</li>
+                      ))}
+                    </ul>
+                    <div className="mt-2 space-y-1.5">
+                      {Array.from(new Map(missingFields.map((m) => [m.screen, m])).values()).map(
+                        (m) => (
+                          <button
+                            key={m.screen}
+                            onClick={() => {
+                              setConfirmSheet(false);
+                              setSheetOpen(false);
+                              if (m.screen !== "result") setScreen(m.screen);
+                            }}
+                            className="block w-full rounded-xl bg-[#0864DC] py-2.5 text-[13px] font-black text-white"
+                          >
+                            {m.screenLabel} 화면으로 이동
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 이미 보낸 견적서 — 사장님이 직접 확인해야 다시 나갑니다 */}
+                {askResend && (
+                  <div className="mt-3 rounded-2xl bg-[#FFF7ED] px-3 py-2.5 text-left text-[12.5px] font-bold leading-relaxed text-[#B45309]">
+                    이미 발송한 견적서입니다. 다시 발송하시겠습니까?
+                    <button
+                      onClick={() => void doSendSms({ resend: true })}
+                      disabled={sending}
+                      className="mt-2 block w-full rounded-xl bg-[#B45309] py-2.5 text-[13px] font-black text-white disabled:opacity-60"
+                    >
+                      {sending ? "보내는 중…" : "네, 다시 발송합니다"}
+                    </button>
+                  </div>
+                )}
+
+
                 {/* 발송 결과 */}
                 {sendResult && (
                   <div
@@ -4675,6 +4752,42 @@ export function Result() {
                     {sendResult?.ok ? "닫기" : "취소"}
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* 고객 화면 미리보기 — 지금 발송할 견적서 그대로 (관리자 안내는 감춥니다) */}
+          {customerPreview && (
+            <div className="absolute inset-0 z-20 flex flex-col bg-white">
+              <div className="flex items-center justify-between gap-2 border-b border-[#E5EAF2] px-4 py-3">
+                <div className="min-w-0">
+                  <div className="text-[14px] font-black text-[#0F172A]">고객 화면 미리보기</div>
+                  <div className="text-[12px] text-[#6B7280]">
+                    {draft.sheetNo || draft.id} · {draft.sheetVersion ?? 1}차 · 약관{" "}
+                    {TERMS_VERSION}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setCustomerPreview(false)}
+                  className="shrink-0 rounded-xl border border-[#DCE8FA] px-3 py-2 text-[13px] font-black text-[#334155]"
+                >
+                  닫기
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto bg-white px-3 py-3">
+                <EstimateSheet
+                  draft={draft}
+                  rooms={sheetRooms}
+                  parts={parts}
+                  total={total}
+                  companyName={sheetCompanyName}
+                  companyPhone={draft.staffPhone ?? ""}
+                  acceptedAt={termsStatus?.acceptedAt ?? null}
+                  acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
+                  acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
+                  forCustomer
+                  showTerms
+                />
               </div>
             </div>
           )}

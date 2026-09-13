@@ -63,6 +63,8 @@ export interface EdgeSmsInput {
   delivery_method: "link";
   /** 같은 발송이 두 번 나가지 않게 하는 열쇠 */
   idempotency_key: string;
+  /** 사장님이 「다시 발송」을 직접 확인한 경우에만 참 */
+  resend?: boolean;
 }
 
 /** 문자 한 통을 보냅니다 */
