@@ -409,6 +409,21 @@ export function SharePage() {
     );
   }
 
+  /* ───────── 링크가 맞지 않을 때 ─────────
+     토큰이 없거나 만료·폐기된 링크에서는 고객 정보와 동의 화면을 아예 보여 주지 않습니다. */
+  if (!estimate) {
+    return shell(
+      <div className="py-20 text-center">
+        <div className="text-[18px] font-black text-[#111827]">
+          유효하지 않거나 만료된 링크입니다.
+        </div>
+        <div className="mt-2 text-[15px] font-medium text-[#6B7280]">
+          견적서를 보내 준 이사업체에 새 링크를 요청해 주세요.
+        </div>
+      </div>,
+    );
+  }
+
   /* ───────── 고객용 ───────── */
   return shell(
     <div className="pt-3">
