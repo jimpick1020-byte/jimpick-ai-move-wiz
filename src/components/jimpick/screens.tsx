@@ -3612,14 +3612,21 @@ export function Result() {
         return;
       }
 
-      // 2) 발송 요청 — 알리고 키는 서버에만 있습니다
+      // 2) 발송 요청 — 알리고 키는 서버에만 있습니다.
+      //    같은 견적서·같은 차수·같은 번호는 같은 열쇠라 중복 발송이 막힙니다.
+      //    사장님이 「다시 발송」을 직접 확인한 경우에만 새 열쇠로 새 기록을 만듭니다.
+      const phoneKey = String(draft.phone ?? "").replace(/[^0-9]/g, "");
+      const baseKey = `${draft.id}-v${draft.sheetVersion ?? 1}-${phoneKey}`;
       const r = await sendSmsViaEdge({
         estimate_id: draft.id,
         delivery_method: "link",
-        idempotency_key: `${draft.id}-v${draft.sheetVersion ?? 1}`,
+        idempotency_key: opts?.resend ? `${baseKey}-r${Date.now()}` : baseKey,
+        ...(opts?.resend ? { resend: true } : {}),
       });
       setSendResult(r);
-      if (r.ok) {
+      // 이미 나간 발송이면 새로 보내지 않고, 다시 보낼지 물어봅니다
+      if (r.alreadySent) setAskResend(true);
+      if (r.ok && !r.alreadySent) {
         tap("success");
         updateDraft({
           termsSentAt: Date.now(),
