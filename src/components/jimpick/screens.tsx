@@ -70,6 +70,7 @@ import {
   type MoveType,
   type Room,
   type WorkEnv,
+  type Screen,
 } from "@/lib/jimpick";
 import {
   MobileShell,
@@ -3464,9 +3465,11 @@ export function OptionsScreen() {
 export function Result() {
   const { draft, setScreen, saveDraft, updateDraft, estimates, finishToHome, resultFrom } =
     useApp();
-  /** 뒤로가기 목적지 — 목록(견적 내역·고객)에서 열었으면 그 목록으로, 아니면 이전 단계로 */
-  const backTo =
-    resultFrom === "history" || resultFrom === "customers" ? resultFrom : "options";
+  /**
+   * 뒤로가기 목적지 — 견적 상세로 들어오기 직전에 보던 화면(resultFrom)으로 돌아갑니다.
+   * 직전 화면 기록이 없을 때만 견적 목록(history)으로 보냅니다.
+   */
+  const backTo = (resultFrom as Screen) || "history";
   /** 「견적 완료 · 처음으로」 진행 중 — 두 번 눌려도 한 번만 실행됩니다 */
   const [finishing, setFinishing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
