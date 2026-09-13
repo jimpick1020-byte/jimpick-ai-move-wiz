@@ -161,6 +161,36 @@ export type Database = {
         }
         Relationships: []
       }
+      estimate_drafts: {
+        Row: {
+          created_at: string
+          estimate_id: string
+          id: string
+          payload: Json
+          revision: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          estimate_id: string
+          id?: string
+          payload?: Json
+          revision?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          estimate_id?: string
+          id?: string
+          payload?: Json
+          revision?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       estimate_staff_shares: {
         Row: {
           company_id: string
@@ -221,6 +251,8 @@ export type Database = {
       estimate_terms: {
         Row: {
           access_token: string
+          balance_paid: number
+          balance_paid_at: string | null
           company_phone: string | null
           contact_phone: string | null
           created_at: string
@@ -228,8 +260,14 @@ export type Database = {
           deposit_paid: number
           deposit_paid_at: string | null
           estimate_id: string
+          first_viewed_at: string | null
           id: string
+          last_viewed_at: string | null
           move_date: string | null
+          payment_confirmed_at: string | null
+          payment_confirmed_by: string | null
+          payment_note: string | null
+          payment_status: string
           sent_at: string | null
           sent_msg_id: string | null
           sheet_no: string | null
@@ -239,13 +277,17 @@ export type Database = {
           terms_effective_at: string | null
           terms_name: string
           terms_version: string
+          terms_viewed_at: string | null
           total: number
           updated_at: string
           user_id: string
+          view_count: number
           viewed_at: string | null
         }
         Insert: {
           access_token: string
+          balance_paid?: number
+          balance_paid_at?: string | null
           company_phone?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -253,8 +295,14 @@ export type Database = {
           deposit_paid?: number
           deposit_paid_at?: string | null
           estimate_id: string
+          first_viewed_at?: string | null
           id?: string
+          last_viewed_at?: string | null
           move_date?: string | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
+          payment_note?: string | null
+          payment_status?: string
           sent_at?: string | null
           sent_msg_id?: string | null
           sheet_no?: string | null
@@ -264,13 +312,17 @@ export type Database = {
           terms_effective_at?: string | null
           terms_name: string
           terms_version: string
+          terms_viewed_at?: string | null
           total?: number
           updated_at?: string
           user_id: string
+          view_count?: number
           viewed_at?: string | null
         }
         Update: {
           access_token?: string
+          balance_paid?: number
+          balance_paid_at?: string | null
           company_phone?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -278,8 +330,14 @@ export type Database = {
           deposit_paid?: number
           deposit_paid_at?: string | null
           estimate_id?: string
+          first_viewed_at?: string | null
           id?: string
+          last_viewed_at?: string | null
           move_date?: string | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
+          payment_note?: string | null
+          payment_status?: string
           sent_at?: string | null
           sent_msg_id?: string | null
           sheet_no?: string | null
@@ -289,9 +347,11 @@ export type Database = {
           terms_effective_at?: string | null
           terms_name?: string
           terms_version?: string
+          terms_viewed_at?: string | null
           total?: number
           updated_at?: string
           user_id?: string
+          view_count?: number
           viewed_at?: string | null
         }
         Relationships: [
