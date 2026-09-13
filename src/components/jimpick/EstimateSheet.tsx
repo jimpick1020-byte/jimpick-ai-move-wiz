@@ -166,7 +166,10 @@ export interface EstimateSheetProps {
   showTerms?: boolean;
   /** 실제로 입금이 확인된 예약금 (원). 있으면 이 금액을 예약금으로 보여 줍니다 */
   paidDeposit?: number;
+  /** 고객이 약관을 펼쳐 볼 때 한 번 알려 줍니다 (열람 기록용) */
+  onTermsOpen?: () => void;
 }
+
 
 export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(function EstimateSheet(
   {
@@ -182,7 +185,9 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     forCustomer = false,
     showTerms = true,
     paidDeposit = 0,
+    onTermsOpen,
   },
+
   ref,
 ) {
   const transport = parts
