@@ -39,7 +39,13 @@ import {
   termsSnapshot,
 } from "@/lib/terms";
 import { Card } from "./ui";
-import { acceptTerms, getTermsLink, type TermsLinkInfo } from "@/lib/terms.functions";
+import {
+  acceptTerms,
+  getTermsLink,
+  logCustomerView,
+  type TermsLinkInfo,
+} from "@/lib/terms.functions";
+
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
 import { saveSheetAsPng } from "@/lib/sheet-image";
@@ -487,6 +493,8 @@ export function SharePage() {
             acceptedSheetVersion={accepted?.sheetVersion ?? null}
             acceptedTermsVersion={accepted?.termsVersion ?? null}
             forCustomer
+            onTermsOpen={logTermsOpen}
+
           />
         </div>
       )}
