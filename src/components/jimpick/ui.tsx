@@ -32,6 +32,38 @@ export function StatusBar() {
 const NEON_GRADIENT =
   "conic-gradient(from var(--jp-angle), #ff007f, #7928ca, #00dfd8, #7928ca, #ff007f)";
 
+/**
+ * 작성 중인 견적 자동 임시저장 알림.
+ * 저장 중 · 저장 완료 · 저장 실패를 알려 줍니다. 입력한 값은 어떤 경우에도 지우지 않습니다.
+ */
+export function DraftSaveBadge() {
+  const app = useAppSafe();
+  const state = app?.draftSaveState ?? "idle";
+  if (!app || state === "idle") return null;
+  const text =
+    state === "saving"
+      ? "임시저장 중…"
+      : state === "saved"
+        ? "임시저장 완료"
+        : state === "offline"
+          ? "인터넷 연결을 기다립니다 · 입력은 그대로 있습니다"
+          : "임시저장 실패 · 연결되면 다시 저장합니다";
+  const tone =
+    state === "saved"
+      ? "bg-[#DCFCE7] text-[#15803D]"
+      : state === "saving"
+        ? "bg-[#EEF4FF] text-[#0751D8]"
+        : "bg-[#FEF3C7] text-[#B45309]";
+  return (
+    <div className="px-4 pt-1" aria-live="polite">
+      <span className={`inline-block rounded-full px-2 py-0.5 text-[12px] font-semibold ${tone}`}>
+        {text}
+      </span>
+    </div>
+  );
+}
+
+
 export function MobileShell({
   children,
   bg = "bg-[#F5F7FB]",
