@@ -60,18 +60,6 @@ interface LocalAcceptance {
 
 const ACCEPT_KEY = "jimpick.terms.acceptances";
 
-function readAcceptance(id: string): LocalAcceptance | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const all = JSON.parse(localStorage.getItem(ACCEPT_KEY) || "{}") as Record<
-      string,
-      LocalAcceptance
-    >;
-    return all[id] ?? null;
-  } catch {
-    return null;
-  }
-}
 
 function writeAcceptance(rec: LocalAcceptance) {
   try {
