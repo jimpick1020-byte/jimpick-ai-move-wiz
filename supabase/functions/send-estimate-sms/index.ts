@@ -251,6 +251,8 @@ Deno.serve(async (req) => {
     estimate_id?: string;
     delivery_method?: string;
     idempotency_key?: string;
+    /** 사장님이 확인창에서 「다시 발송」을 직접 누른 경우에만 참 */
+    resend?: boolean;
     checkOnly?: boolean;
     /** 연결 시험 — 정해진 문구 한 줄만, 사장님이 넣은 번호로 보냅니다 */
     mode?: string;
