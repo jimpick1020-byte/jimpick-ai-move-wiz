@@ -4067,18 +4067,6 @@ export function Result() {
         onBack={() => setScreen(backTo)}
       />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
-        {backTo !== "options" && (
-          <button
-            onClick={() => {
-              tap("soft");
-              setScreen(backTo);
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#DCE8FA] bg-gradient-to-b from-white to-[#F1F6FF] px-4 py-3 text-base font-bold text-[#0864DC] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff] transition-transform active:translate-y-[2px] active:shadow-none"
-          >
-            <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
-            {backTo === "customers" ? "고객 목록으로" : "견적 내역으로"}
-          </button>
-        )}
         <div
           className="rounded-2xl p-6 text-white text-center"
           style={{ background: "linear-gradient(135deg, #0A2A6C 0%, #0751D8 100%)" }}
