@@ -3521,8 +3521,12 @@ export function Result() {
   /** 문자 발송 상태 */
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<EdgeSmsResult | null>(null);
-
-
+  /** 발송에 필요한데 아직 비어 있는 항목 */
+  const [missingFields, setMissingFields] = useState<MissingField[]>([]);
+  /** 고객 화면 미리보기 열림 */
+  const [customerPreview, setCustomerPreview] = useState(false);
+  /** 이미 보낸 견적서 — 다시 보낼지 물어봅니다 */
+  const [askResend, setAskResend] = useState(false);
 
   /**
    * 실제 발송 — 같은 버튼을 여러 번 눌러도 한 번만 나갑니다.
@@ -3531,12 +3535,21 @@ export function Result() {
    * 2) 앱은 「어느 견적서인지」만 알려 줍니다.
    *    받는 번호·금액·문자 내용은 서버가 견적서에서 직접 읽어 만듭니다.
    */
-  const doSendSms = async () => {
+  const doSendSms = async (opts?: { resend?: boolean }) => {
     if (sending) return;
-    if (!isSendablePhone(draft.phone)) {
-      setSendResult({ ok: false, error: "휴대전화 번호 형식이 올바르지 않습니다." });
+    // 필수 데이터 검사 — 하나라도 비어 있으면 발송하지 않습니다
+    const check = checkSendable(draft, total);
+    setMissingFields(check.missing);
+    if (!check.ok) {
+      setAskResend(false);
+      setSendResult({
+        ok: false,
+        error: "발송에 필요한 정보가 부족합니다.",
+      });
       return;
     }
+    setMissingFields([]);
+    setAskResend(false);
     setSending(true);
     setSendResult(null);
     // 발송 중에는 앱 업데이트 새로고침을 미룹니다 (작업 내용 보호)
