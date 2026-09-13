@@ -4813,6 +4813,14 @@ export function History() {
       })
       .catch(() => {});
   };
+  const loadTerms = () => {
+    getTermsStatuses({ data: {} })
+      .then((r) => {
+        if (r.ok) setTermsRows(r.rows);
+      })
+      .catch(() => {});
+  };
+
   useEffect(() => {
     let alive = true;
     getTermsStatuses({ data: {} })
