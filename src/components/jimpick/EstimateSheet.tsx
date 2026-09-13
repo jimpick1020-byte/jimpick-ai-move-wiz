@@ -605,12 +605,6 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           <p className="px-1 text-[16px] font-medium text-[#374151]">{draft.sheetNote.trim()}</p>
         )}
 
-        {(companyName || companyPhone) && (
-          <p className="px-1 pb-1 text-center text-[15px] text-[#6B7280]">
-            {companyName}
-            {companyPhone ? ` · ${companyPhone}` : ""}
-          </p>
-        )}
       </div>
     </div>
   );
