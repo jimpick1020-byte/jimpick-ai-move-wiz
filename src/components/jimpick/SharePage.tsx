@@ -411,7 +411,7 @@ export function SharePage() {
 
   /* ───────── 링크가 맞지 않을 때 ─────────
      토큰이 없거나 만료·폐기된 링크에서는 고객 정보와 동의 화면을 아예 보여 주지 않습니다. */
-  if (!estimate) {
+  if (!link?.ok && !estimate) {
     return shell(
       <div className="py-20 text-center">
         <div className="text-[18px] font-black text-[#111827]">
