@@ -4092,10 +4092,10 @@ export function Result() {
       <TopBar
         title={backTo === "options" ? "견적 결과" : "견적 상세"}
         onBack={() => {
-          // 왼쪽 화살표를 누를 때마다 6→5→4→3→2→1→홈 순으로 한 단계씩 돌아갑니다.
-          const next = backSteps[backStepIndex] ?? "home";
-          setBackStepIndex((i) => i + 1);
-          setScreen(next);
+          // 견적 상세에서 뒤로가기는 6단계(옵션)로 돌아갑니다.
+          // 이후 옵션→5단계(공간별 품목)→4단계(차량)→3단계→2단계→1단계→홈
+          // 순으로 각 화면의 뒤로가기가 이어집니다.
+          setScreen("options");
         }}
       />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
