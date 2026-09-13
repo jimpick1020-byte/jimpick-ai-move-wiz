@@ -168,7 +168,19 @@ import { TruckGauge } from "./TruckGauge";
 import { JimpickCharacter } from "./JimpickCharacter";
 import { tileDataUrl, photoQuality } from "@/lib/media";
 
-import { icon3dFor, DEFAULT_ICON3D, ICON3D, Icon3D } from "@/lib/jimpick-icon3d";
+import {
+  icon3dFor,
+  DEFAULT_ICON3D,
+  ICON3D,
+  Icon3D,
+  registerCustomIcons,
+} from "@/lib/jimpick-icon3d";
+import {
+  generateItemIcon,
+  findItemIcon,
+  cleanItemName,
+  type IconResult,
+} from "@/lib/item-icon.functions";
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
 import { ScanMascot, type MascotState } from "./ScanMascot";
@@ -1581,6 +1593,103 @@ export function Step6() {
     });
   };
 
+  /** ─── 검색 결과에 없는 품목의 3D 아이콘 만들기 ─────────────────── */
+  /** 만들기 확인 화면 (null 이면 닫힘) */
+  const [iconGen, setIconGen] = useState<{ name: string; cat: string; room: string } | null>(null);
+  const [iconBusy, setIconBusy] = useState(false);
+  const [iconError, setIconError] = useState<string | null>(null);
+  /** 같은 업체가 전에 만들어 둔 아이콘 (있으면 다시 만들지 않습니다) */
+  const [savedIcon, setSavedIcon] = useState<IconResult | null>(null);
+
+  const openIconGen = () => {
+    const name = cleanItemName(q);
+    if (!name) {
+      toast.error("품목명을 먼저 입력해 주세요");
+      return;
+    }
+    tap("soft");
+    setIconError(null);
+    setIconGen({ name, cat: guessCategory(name), room: room?.name || sizeRooms[0] });
+  };
+
+  /** 만들어진(또는 저장돼 있던) 아이콘을 품목으로 담습니다 */
+  const applyGeneratedIcon = (res: IconResult, roomName: string) => {
+    if (!res.itemId || !res.iconUrl) return;
+    const itemId = res.itemId;
+    const name = res.name || cleanItemName(q);
+    const cat = res.cat || guessCategory(name);
+    registerCustomIcons([{ id: itemId, icon: res.iconUrl }]);
+    const list = draft.customItems || [];
+    const exists = list.some((c) => c.id === itemId);
+    const target = draft.rooms.find((r) => r.name === roomName) || room;
+    updateDraft({
+      customItems: exists
+        ? list.map((c) =>
+            c.id === itemId ? { ...c, name, cat, icon: res.iconUrl, active: true } : c,
+          )
+        : [...list, { id: itemId, name, cat, extra: 0, icon: res.iconUrl, active: true }],
+      hiddenItems: (draft.hiddenItems || []).filter((x) => x !== itemId),
+      rooms: draft.rooms.map((r) =>
+        r.id === target?.id
+          ? { ...r, items: { ...r.items, [itemId]: Math.max(1, r.items[itemId] ?? 0) } }
+          : r,
+      ),
+      recentItems: [itemId, ...(draft.recentItems || []).filter((x) => x !== itemId)].slice(0, 12),
+    });
+    setSavedIcon(null);
+    setIconGen(null);
+    setQ("");
+    tap("success");
+    toast.success(`「${name}」을(를) ${roomName}에 담았습니다`);
+  };
+
+  const runIconGen = async () => {
+    if (!iconGen || iconBusy) return;
+    setIconBusy(true);
+    setIconError(null);
+    try {
+      const res = await generateItemIcon({
+        data: { name: iconGen.name, cat: iconGen.cat, room: iconGen.room },
+      });
+      if (!res.ok || !res.iconUrl) {
+        setIconError(res.error || "아이콘을 만들지 못했습니다. 다시 시도해 주세요.");
+        return;
+      }
+      applyGeneratedIcon(res, iconGen.room);
+    } catch (e) {
+      setIconError(e instanceof Error ? e.message : "아이콘을 만들지 못했습니다.");
+    } finally {
+      setIconBusy(false);
+    }
+  };
+
+  // 검색 결과가 없을 때, 전에 만들어 둔 아이콘이 있으면 먼저 보여 줍니다 (중복 생성 방지)
+  const noResult = !!q.trim() && !catalog.some((i) => i.name.includes(q));
+  useEffect(() => {
+    if (!noResult) {
+      setSavedIcon(null);
+      return;
+    }
+    const name = cleanItemName(q);
+    if (name.length < 2) {
+      setSavedIcon(null);
+      return;
+    }
+    let alive = true;
+    const timer = setTimeout(() => {
+      findItemIcon({ data: { name } })
+        .then((r) => {
+          if (!alive) return;
+          setSavedIcon(r.ok && r.iconUrl ? r : null);
+        })
+        .catch(() => alive && setSavedIcon(null));
+    }, 400);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [q, noResult]);
+
   const openEditItem = (id: string) => {
     const c = (draft.customItems || []).find((x) => x.id === id);
     if (!c) return;
@@ -2145,10 +2254,42 @@ export function Step6() {
                       </div>
                     </div>
                   ))}
-                  {items.length === 0 && (
+                  {items.length === 0 && !noResult && (
                     <p className="py-3 text-center text-[13px] font-bold text-[#9AA4B2]">
                       검색 결과가 없습니다
                     </p>
+                  )}
+                  {/* 검색 결과에 없는 품목 — 깨진 그림·박스 대신 안내와 만들기 버튼을 보여 줍니다 */}
+                  {noResult && (
+                    <div className="rounded-2xl border border-[#DCE8FA] bg-white p-4 text-center shadow-[inset_0_1px_0_#fff]">
+                      <p className="text-[14px] font-black text-[#0F172A]">등록된 품목이 없습니다</p>
+                      <p className="mt-1 break-words text-[13px] font-bold text-[#0751D8]">
+                        「{q.trim()}」
+                      </p>
+                      {savedIcon?.iconUrl && (
+                        <button
+                          onClick={() => applyGeneratedIcon(savedIcon, room.name)}
+                          className="mx-auto mt-3 flex items-center gap-2 rounded-2xl border border-[#287BFF] bg-[#F2F7FF] px-3 py-2 text-[13px] font-black text-[#0751D8] active:translate-y-[1px]"
+                        >
+                          <Icon3D src={savedIcon.iconUrl} alt={savedIcon.name || "아이콘"} size={36} />
+                          전에 만든 아이콘으로 담기
+                        </button>
+                      )}
+                      <div className="mt-3 flex flex-col gap-2">
+                        <button
+                          onClick={openAddItem}
+                          className="w-full rounded-2xl border-2 border-dashed border-[#287BFF] py-3 text-[14px] font-black text-[#0751D8]"
+                        >
+                          새 품목 추가
+                        </button>
+                        <button
+                          onClick={openIconGen}
+                          className="w-full rounded-2xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] py-3 text-[14px] font-black text-white shadow-[0_4px_0_#0640A8] active:translate-y-[2px] active:shadow-none"
+                        >
+                          3D 아이콘 만들기
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -2172,6 +2313,111 @@ export function Step6() {
             </div>
 
             {/* 품목 만들기 · 고치기 */}
+            {/* 3D 아이콘 만들기 — 확인 후 실제로 그림을 만듭니다 */}
+            {iconGen && (
+              <div className="absolute inset-0 z-30 flex items-end justify-center">
+                <div
+                  className="absolute inset-0 bg-[#0F172A]/45"
+                  onClick={() => !iconBusy && setIconGen(null)}
+                />
+                <div className="relative max-h-[88%] w-full overflow-auto rounded-t-3xl bg-white p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                  <div className="text-[18px] font-black text-[#0F172A]">3D 아이콘 만들기</div>
+                  <p className="mt-1 text-[12.5px] font-bold text-[#6B7280]">
+                    품목명을 확인하고 만들면 이 품목의 3D 아이콘이 새로 그려집니다
+                  </p>
+
+                  <div className="mt-3 space-y-3">
+                    <Field label="품목명 — 오타가 있으면 고쳐 주세요">
+                      <TextInput
+                        value={iconGen.name}
+                        maxLength={24}
+                        placeholder="예: 정수기냉장고"
+                        onChange={(e) => {
+                          const name = e.target.value;
+                          setIconGen((f) => (f ? { ...f, name } : f));
+                        }}
+                      />
+                    </Field>
+
+                    <div>
+                      <div className="mb-1.5 text-[13px] font-black text-[#334155]">품목 분류</div>
+                      <div className="flex flex-wrap gap-2">
+                        {["가전", "가구", "주방", "생활용품", "잔짐", "특수"].map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => setIconGen((f) => (f ? { ...f, cat: c } : f))}
+                            className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black ${
+                              iconGen.cat === c
+                                ? "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white shadow-[0_3px_0_#0640A8]"
+                                : "border border-[#DCE8FA] bg-white text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                            }`}
+                          >
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-1.5 text-[13px] font-black text-[#334155]">담을 공간</div>
+                      <div className="flex flex-wrap gap-2">
+                        {draft.rooms.map((r) => (
+                          <button
+                            key={r.id}
+                            onClick={() => setIconGen((f) => (f ? { ...f, room: r.name } : f))}
+                            className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black ${
+                              iconGen.room === r.name
+                                ? "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white shadow-[0_3px_0_#0640A8]"
+                                : "border border-[#DCE8FA] bg-white text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                            }`}
+                          >
+                            {r.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {iconBusy && (
+                      <div className="flex items-center justify-center gap-3 rounded-2xl border border-[#DCE8FA] bg-[#F8FBFF] py-5">
+                        <span className="h-6 w-6 animate-spin rounded-full border-[3px] border-[#DCE8FA] border-t-[#0751D8]" />
+                        <span className="text-[13.5px] font-black text-[#0751D8]">
+                          3D 아이콘 생성 중
+                        </span>
+                      </div>
+                    )}
+
+                    {!iconBusy && iconError && (
+                      <div className="rounded-2xl border border-[#FBD5D5] bg-[#FFF5F5] p-3">
+                        <p className="text-[13px] font-black text-[#B42318]">
+                          아이콘을 만들지 못했습니다
+                        </p>
+                        <p className="mt-1 break-words text-[12.5px] font-bold text-[#7A271A]">
+                          {iconError}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => setIconGen(null)}
+                        disabled={iconBusy}
+                        className="flex-1 rounded-2xl border border-[#DCE8FA] bg-white py-3.5 text-[15px] font-black text-[#334155] disabled:opacity-50"
+                      >
+                        취소
+                      </button>
+                      <button
+                        onClick={runIconGen}
+                        disabled={iconBusy || cleanItemName(iconGen.name).length < 2}
+                        className="flex-1 rounded-2xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] py-3.5 text-[15px] font-black text-white shadow-[0_4px_0_#0640A8] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
+                      >
+                        {iconBusy ? "생성 중…" : iconError ? "다시 생성" : "3D 아이콘 생성"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {itemForm && (
               <div className="absolute inset-0 z-20 flex items-end justify-center">
                 <div

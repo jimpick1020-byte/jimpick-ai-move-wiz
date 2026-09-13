@@ -13,6 +13,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShareIdRouteImport } from './routes/share.$id'
 import { Route as StaffEstimateTokenRouteImport } from './routes/staff.estimate.$token'
+import { Route as ApiPublicItemIconFileRouteImport } from './routes/api/public/item-icon.$file'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -34,18 +35,25 @@ const StaffEstimateTokenRoute = StaffEstimateTokenRouteImport.update({
   path: '/staff/estimate/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicItemIconFileRoute = ApiPublicItemIconFileRouteImport.update({
+  id: '/api/public/item-icon/$file',
+  path: '/api/public/item-icon/$file',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
+  '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
+  '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,18 +61,30 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
+  '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/reset-password' | '/share/$id' | '/staff/estimate/$token'
+  fullPaths:
+    | '/'
+    | '/reset-password'
+    | '/share/$id'
+    | '/staff/estimate/$token'
+    | '/api/public/item-icon/$file'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/reset-password' | '/share/$id' | '/staff/estimate/$token'
+  to:
+    | '/'
+    | '/reset-password'
+    | '/share/$id'
+    | '/staff/estimate/$token'
+    | '/api/public/item-icon/$file'
   id:
     | '__root__'
     | '/'
     | '/reset-password'
     | '/share/$id'
     | '/staff/estimate/$token'
+    | '/api/public/item-icon/$file'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -72,6 +92,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ShareIdRoute: typeof ShareIdRoute
   StaffEstimateTokenRoute: typeof StaffEstimateTokenRoute
+  ApiPublicItemIconFileRoute: typeof ApiPublicItemIconFileRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -104,6 +125,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffEstimateTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/item-icon/$file': {
+      id: '/api/public/item-icon/$file'
+      path: '/api/public/item-icon/$file'
+      fullPath: '/api/public/item-icon/$file'
+      preLoaderRoute: typeof ApiPublicItemIconFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -112,6 +140,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ShareIdRoute: ShareIdRoute,
   StaffEstimateTokenRoute: StaffEstimateTokenRoute,
+  ApiPublicItemIconFileRoute: ApiPublicItemIconFileRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ITEMS_1000, CATS20 } from "./items-catalog-1000";
 import { useDraftAutosave, type DraftSaveState } from "./use-draft-autosave";
 import { loadEstimateDraft } from "./draft-sync.functions";
+import { registerCustomIcons } from "./jimpick-icon3d";
 
 
 // ============ Types ============
@@ -1411,6 +1412,9 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {});
   }, [hydrated, state.loggedIn, authChecked, state.draft?.id, recoveredFor]);
+
+  // 직접 추가·AI 로 만든 품목의 아이콘을 등록해 견적서·공유 화면에서도 같은 그림이 나오게 합니다
+  registerCustomIcons(state.draft?.customItems);
 
   const ctx: Ctx = {
     ...state,

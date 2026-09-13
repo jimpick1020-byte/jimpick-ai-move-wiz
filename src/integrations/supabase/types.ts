@@ -364,6 +364,60 @@ export type Database = {
           },
         ]
       }
+      item_icons: {
+        Row: {
+          active: boolean
+          cat: string
+          created_at: string
+          created_by: string
+          id: string
+          image_path: string | null
+          image_url: string | null
+          item_id: string
+          name: string
+          norm_name: string
+          prompt: string | null
+          room: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          cat?: string
+          created_at?: string
+          created_by: string
+          id?: string
+          image_path?: string | null
+          image_url?: string | null
+          item_id: string
+          name: string
+          norm_name: string
+          prompt?: string | null
+          room?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          cat?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          image_path?: string | null
+          image_url?: string | null
+          item_id?: string
+          name?: string
+          norm_name?: string
+          prompt?: string | null
+          room?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number

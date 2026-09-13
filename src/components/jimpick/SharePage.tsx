@@ -28,6 +28,7 @@ import {
   won,
   type Estimate,
 } from "@/lib/jimpick";
+import { registerCustomIcons } from "@/lib/jimpick-icon3d";
 import {
   TERMS_EFFECTIVE_AT,
   TERMS_FULL,
@@ -229,6 +230,8 @@ export function SharePage() {
         total?: number;
       };
       if (!v?.draft || !Array.isArray(v.rooms)) return null;
+      // 직접 추가·AI 로 만든 품목 아이콘도 고객 화면에서 그대로 보이게 등록합니다
+      registerCustomIcons(v.draft.customItems);
       return {
         draft: v.draft,
         rooms: v.rooms,
