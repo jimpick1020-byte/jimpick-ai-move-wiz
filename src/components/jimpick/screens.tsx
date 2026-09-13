@@ -3803,6 +3803,23 @@ export function Result() {
     setSheetOpen(true);
   };
 
+  // 종이 견적서를 연 동안에는 휴대폰·브라우저 뒤로가기가 목록으로 바로 나가지 않고
+  // 견적 요약 화면으로 먼저 돌아가도록, 기록을 하나 쌓고 뒤로가기를 소비해 시트만 닫습니다.
+  useEffect(() => {
+    if (!sheetOpen) return;
+    try {
+      window.history.pushState({ jpScreen: "result", jpSheet: true }, "");
+    } catch {
+      /* 기록을 못 쌓아도 화면 이동은 그대로 합니다 */
+    }
+    const onPop = () => {
+      setSheetOpen(false);
+      setSheetEdit(false);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [sheetOpen]);
+
   /** 공간별 품목 — 담긴 방만, 담긴 순서대로 */
   const sheetRooms: SheetRoom[] = draft.rooms
     .map((r) => ({
@@ -4449,6 +4466,12 @@ export function Result() {
               onClick={() => {
                 setSheetOpen(false);
                 setSheetEdit(false);
+                // 시트를 열 때 쌓아 둔 뒤로가기 기록을 정리합니다 (스택이 어긋나지 않게)
+                try {
+                  window.history.back();
+                } catch {
+                  /* 기록 정리에 실패해도 화면은 이미 닫혔습니다 */
+                }
               }}
               className="flex h-9 w-9 items-center justify-center rounded-full border border-[#DCE8FA] bg-white shadow-[0_3px_0_#EDF2FA]"
               aria-label="닫기"

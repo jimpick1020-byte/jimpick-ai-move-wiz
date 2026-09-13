@@ -1491,14 +1491,24 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       }),
     deleteEstimate: (id) =>
       setState((s) => ({ ...s, estimates: s.estimates.filter((e) => e.id !== id) })),
-    loadEstimate: (id) =>
+    loadEstimate: (id) => {
+      // 목록 위에 견적 상세(result) 기록을 하나 쌓아, 휴대폰 뒤로가기를 눌러도
+      // 목록을 건너뛰지 않고 견적 상세 → 목록 순으로 한 단계씩 돌아갑니다.
+      if (typeof window !== "undefined") {
+        try {
+          window.history.pushState({ jpScreen: "result" }, "");
+        } catch {
+          /* 기록을 못 쌓아도 화면 이동은 그대로 합니다 */
+        }
+      }
       setState((s) => {
         const e = s.estimates.find((x) => x.id === id);
         // 어느 목록에서 열었는지 기록해 두어, 뒤로가기로 그 목록으로 돌아갑니다.
         return e
           ? { ...s, draft: { ...e }, screen: "result", resultFrom: s.screen }
           : s;
-      }),
+      });
+    },
     setResultFrom: (v) => setState((s) => ({ ...s, resultFrom: v })),
     hideCatalogItem: (id) =>
       setState((s) =>
