@@ -107,6 +107,8 @@ import {
 
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { DepositPanel } from "./DepositPanel";
+import { PaymentPanel } from "./PaymentPanel";
+
 import {
   TERMS_VERSION,
   TERMS_NAME,
