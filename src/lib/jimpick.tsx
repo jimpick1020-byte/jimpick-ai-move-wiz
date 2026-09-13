@@ -1058,27 +1058,15 @@ export function calcEstimate(
     : 0;
   const stairFee = stairFloors * pricing.stairPerFloor;
 
-  /** 수작업 비용 — 사다리차를 쓰지 않는 구간만 인원 1명당 2만원 */
-  const manualWork = e.workEnv.includes("계단") || e.workEnv.includes("엘리베이터");
-  const manualSides = manualWork ? (e.ladderFrom ? 0 : 1) + (e.ladderTo ? 0 : 1) : 0;
-  const manualWorkers = Math.max(0, num(e.workers));
-  const MANUAL_PER_WORKER = 20000;
-  const manualFee = manualSides * manualWorkers * MANUAL_PER_WORKER;
-  const manualSideLabel =
-    manualSides === 2
-      ? "출발지·도착지"
-      : manualSides === 1
-        ? e.ladderFrom
-          ? "도착지"
-          : "출발지"
-        : "";
+  // 수작업 비용은 견적 합계·상세 내역에서 제외합니다.
+  // (과거에 저장된 견적의 저장 금액은 그대로 보존되며, 여기서는 새 계산에만 반영하지 않습니다.)
 
   /**
    * 기본 운송료 — 사다리차는 여기에 넣지 않습니다.
    * 사다리 금액은 사장님이 직접 넣는 값이라, 운송료를 직접 입력해 두었더라도
    * 옵션·보관료처럼 항상 따로 더해져야 합니다.
    */
-  const autoTransport = truck5Fee + truck1Fee + distanceFee + stairFee + manualFee;
+  const autoTransport = truck5Fee + truck1Fee + distanceFee + stairFee;
   const overridden = e.transportOverride !== null && e.transportOverride !== undefined;
   const transport = overridden ? num(e.transportOverride) : autoTransport;
 
@@ -1105,11 +1093,6 @@ export function calcEstimate(
           amount: distanceFee,
         },
         { label: `계단 추가비 (${stairFloors}개 층)`, amount: stairFee },
-        // 이 두 줄이 없으면 합계와 항목 합이 어긋납니다
-        {
-          label: `수작업 비용${manualSideLabel ? ` (${manualSideLabel})` : ""}`,
-          amount: manualFee,
-        },
       ].filter((p) => p.amount > 0);
 
   return {
