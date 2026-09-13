@@ -322,7 +322,71 @@ export interface TermsStatusRow {
   acceptedTermsVersion: string | null;
   /** 예약 확정 상태 (동의 전에는 null) */
   reservationStatus: string | null;
+  /** 고객이 링크를 처음 연 일시 */
+  firstViewedAt: string | null;
+  /** 고객이 가장 최근에 연 일시 */
+  lastViewedAt: string | null;
+  /** 고객이 링크를 연 횟수 */
+  viewCount: number;
+  /** 고객이 약관 전문을 본 일시 */
+  termsViewedAt: string | null;
+  /** 견적 총액 */
+  total: number;
+  /** 입금 확인된 예약금 */
+  depositPaid: number;
+  /** 입금 확인된 잔금 */
+  balancePaid: number;
+  balancePaidAt: string | null;
+  /** 결제 진행 상태 */
+  paymentStatus: string;
+  paymentNote: string | null;
+  paymentConfirmedAt: string | null;
 }
+
+/** 고객 열람 기록 — 어떤 행동을 남길지 */
+export type CustomerViewEvent = "sheet" | "terms";
+
+/**
+ * 고객용 — 보안 링크를 열었을 때 열람 기록을 남깁니다.
+ *
+ * 남기는 값은 견적서·차수·열람 일시·열람 횟수·약관 열람 일시뿐입니다.
+ * 접속 IP나 기기 상세정보는 저장하지 않습니다.
+ */
+export const logCustomerView = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        token: z.string().min(8).max(80),
+        event: z.enum(["sheet", "terms"]).default("sheet"),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }): Promise<{ ok: boolean }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin
+      .from("estimate_terms")
+      .select("id, view_count, first_viewed_at")
+      .eq("access_token", data.token)
+      .maybeSingle();
+    if (!row) return { ok: false };
+    const now = new Date().toISOString();
+    const r = row as { id: string; view_count?: number | null; first_viewed_at?: string | null };
+    const patch: Record<string, unknown> =
+      data.event === "terms"
+        ? { terms_viewed_at: now }
+        : {
+            view_count: Number(r.view_count ?? 0) + 1,
+            last_viewed_at: now,
+            viewed_at: now,
+            first_viewed_at: r.first_viewed_at ?? now,
+          };
+    const { error } = await supabaseAdmin.from("estimate_terms").update(patch).eq("id", r.id);
+    if (error) {
+      console.error("[logCustomerView]", error.message);
+      return { ok: false };
+    }
+    return { ok: true };
+  });
 
 /**
  * 관리자·업체용 — 내 견적들의 약관 발송·동의 상태.
@@ -338,7 +402,9 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ ok: boolean; rows: TermsStatusRow[] }> => {
     let q = context.supabase
       .from("estimate_terms")
-      .select("id, estimate_id, sheet_version, terms_version, sent_at, viewed_at")
+      .select(
+        "id, estimate_id, sheet_version, terms_version, sent_at, viewed_at, first_viewed_at, last_viewed_at, view_count, terms_viewed_at, total, deposit_paid, balance_paid, balance_paid_at, payment_status, payment_note, payment_confirmed_at",
+      )
       .eq("user_id", context.userId);
     if (data?.estimateId) q = q.eq("estimate_id", data.estimateId);
     const { data: rows, error } = await q.order("created_at", { ascending: false }).limit(300);
@@ -355,20 +421,33 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
     const byId = new Map((accs ?? []).map((a) => [a.estimate_terms_id, a]));
     return {
       ok: true,
-      rows: rows.map((r) => {
-        const a = byId.get(r.id);
+      rows: rows.map((raw) => {
+        const r = raw as Record<string, unknown>;
+        const a = byId.get(String(r["id"]));
         return {
-          estimateId: r.estimate_id,
-          sheetVersion: r.sheet_version,
-          termsVersion: r.terms_version,
-          sentAt: r.sent_at,
-          viewedAt: r.viewed_at,
+          estimateId: String(r["estimate_id"] ?? ""),
+          sheetVersion: Number(r["sheet_version"] ?? 1),
+          termsVersion: String(r["terms_version"] ?? ""),
+          sentAt: (r["sent_at"] as string | null) ?? null,
+          viewedAt: (r["viewed_at"] as string | null) ?? null,
           acceptedAt: a?.accepted_at ?? null,
           acceptMethod: a?.accept_method ?? null,
           acceptedSheetVersion: a?.sheet_version ?? null,
           acceptedTermsVersion: a?.terms_version ?? null,
           reservationStatus: a?.reservation_status ?? null,
+          firstViewedAt: (r["first_viewed_at"] as string | null) ?? null,
+          lastViewedAt: (r["last_viewed_at"] as string | null) ?? null,
+          viewCount: Number(r["view_count"] ?? 0) || 0,
+          termsViewedAt: (r["terms_viewed_at"] as string | null) ?? null,
+          total: Number(r["total"] ?? 0) || 0,
+          depositPaid: Number(r["deposit_paid"] ?? 0) || 0,
+          balancePaid: Number(r["balance_paid"] ?? 0) || 0,
+          balancePaidAt: (r["balance_paid_at"] as string | null) ?? null,
+          paymentStatus: String(r["payment_status"] ?? "unpaid"),
+          paymentNote: (r["payment_note"] as string | null) ?? null,
+          paymentConfirmedAt: (r["payment_confirmed_at"] as string | null) ?? null,
         };
       }),
     };
   });
+
