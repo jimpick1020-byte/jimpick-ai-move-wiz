@@ -4755,6 +4755,42 @@ export function Result() {
               </div>
             </div>
           )}
+
+          {/* 고객 화면 미리보기 — 지금 발송할 견적서 그대로 (관리자 안내는 감춥니다) */}
+          {customerPreview && (
+            <div className="absolute inset-0 z-20 flex flex-col bg-white">
+              <div className="flex items-center justify-between gap-2 border-b border-[#E5EAF2] px-4 py-3">
+                <div className="min-w-0">
+                  <div className="text-[14px] font-black text-[#0F172A]">고객 화면 미리보기</div>
+                  <div className="text-[12px] text-[#6B7280]">
+                    {draft.sheetNo || draft.id} · {draft.sheetVersion ?? 1}차 · 약관{" "}
+                    {TERMS_VERSION}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setCustomerPreview(false)}
+                  className="shrink-0 rounded-xl border border-[#DCE8FA] px-3 py-2 text-[13px] font-black text-[#334155]"
+                >
+                  닫기
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto bg-white px-3 py-3">
+                <EstimateSheet
+                  draft={draft}
+                  rooms={sheetRooms}
+                  parts={parts}
+                  total={total}
+                  companyName={sheetCompanyName}
+                  companyPhone={draft.staffPhone ?? ""}
+                  acceptedAt={termsStatus?.acceptedAt ?? null}
+                  acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
+                  acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
+                  forCustomer
+                  showTerms
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
