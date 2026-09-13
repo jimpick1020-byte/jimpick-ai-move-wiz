@@ -1320,20 +1320,32 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     };
 
     setAuthChecked(false);
+    // 세션 확인이 느려도(러버블 미리보기의 브로커 저장소는 응답에 최대 수 초가 걸립니다)
+    // 로딩 화면에 오래 머물지 않도록 상한을 둡니다. 실제 세션은 아래 getSession·
+    // onAuthStateChange 가 도착하는 즉시 loggedIn 에 반영됩니다.
+    const cap = setTimeout(() => {
+      if (alive) setAuthChecked(true);
+    }, 2000);
     supabase.auth.getSession().then(({ data }) => {
       if (!alive) return;
+      clearTimeout(cap);
       apply(!!data.session, data.session?.user.id);
       setAuthChecked(true);
     }).catch(() => {
-      if (alive) setAuthChecked(true);
+      if (alive) {
+        clearTimeout(cap);
+        setAuthChecked(true);
+      }
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!alive) return;
+      clearTimeout(cap);
       apply(!!session, session?.user.id);
       setAuthChecked(true);
     });
     return () => {
       alive = false;
+      clearTimeout(cap);
       sub.subscription.unsubscribe();
     };
   }, [authRetry]);
@@ -1405,7 +1417,27 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
         try {
           const server = JSON.parse(r.payload) as Estimate;
           if (server?.id !== id) return;
-          setState((s) => (s.draft.id === id ? { ...s, draft: { ...s.draft, ...server } } : s));
+          setState((s) => {
+            if (s.draft.id !== id) return s;
+            const merged = { ...s.draft, ...server } as Estimate;
+            // 앱 전체에서 지운 품목(catalogHidden)은 서버 편집본에서도 되살아나지
+            // 않도록 방·품목 목록에서 걸러 냅니다. (삭제가 새로고침·업그레이드에도 유지됨)
+            const hidden = new Set(s.catalogHidden || []);
+            if (hidden.size) {
+              merged.rooms = (merged.rooms || []).map((room) => {
+                const items = { ...room.items };
+                for (const k of Object.keys(items)) if (hidden.has(k)) delete items[k];
+                return { ...room, items };
+              });
+              merged.customItems = (merged.customItems || []).map((c) =>
+                hidden.has(c.id) ? { ...c, active: false } : c,
+              );
+              merged.hiddenItems = Array.from(
+                new Set([...(merged.hiddenItems || []), ...hidden]),
+              );
+            }
+            return { ...s, draft: merged };
+          });
         } catch {
           /* 읽을 수 없으면 이 기기 값을 그대로 씁니다 */
         }
