@@ -175,7 +175,9 @@ export function SharePage() {
 
   useEffect(() => {
     setEstimate(loadEstimateFromStorage(id));
-    setAccepted(readAcceptance(id));
+    // 동의 완료 상태는 서버(Supabase)에 저장된 실제 기록만 믿습니다.
+    // 브라우저에 남은 임시값으로 「예약 확정」을 만들지 않습니다.
+    setAccepted(null);
     // 보안 토큰으로 이 견적 한 건만 조회합니다 (다른 견적번호로는 열리지 않습니다)
     void getTermsLink({ data: { token } })
       .then((info) => {

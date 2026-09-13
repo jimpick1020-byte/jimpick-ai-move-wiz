@@ -325,9 +325,13 @@ export function Login() {
   const { login, savedId, setScreen } = useApp();
   const [id, setId] = useState(savedId || "");
   const [pw, setPw] = useState("");
+  /** 아이디 저장 — 다음 접속 때 아이디 칸만 미리 채웁니다 (세션과 무관) */
   const [remember, setRemember] = useState(!!savedId);
-  /** 로그인 상태 유지 — 체크 시 브라우저를 닫아도 세션을 유지합니다(기본 켜짐) */
-  const [keepLoggedIn, setKeepLoggedIn] = useState(true);
+  /**
+   * 로그인 상태 유지 — 처음에는 꺼져 있습니다(공용 PC 안전).
+   * 사장님이 직접 선택한 경우에만 브라우저를 닫아도 세션이 유지됩니다.
+   */
+  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
