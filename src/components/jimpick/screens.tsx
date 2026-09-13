@@ -1771,9 +1771,9 @@ export function Step6() {
           <button
             onClick={() => {
               tap("soft");
-              setScreen("ai");
+              setScreen("step4");
             }}
-            aria-label="AI 집 안 스캔으로 돌아가기"
+            aria-label="뒤로"
             className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] flex items-center justify-center text-[#0751D8] shadow-[0_4px_0_#DCE8FA,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#DCE8FA]"
           >
             <ChevronLeft className="w-6 h-6" />
