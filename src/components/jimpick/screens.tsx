@@ -2156,7 +2156,10 @@ export function Step6() {
       </div>
 
       {/* 디지털 3D 집 구조 */}
-      <div className="flex-1 overflow-auto p-4 pb-6 bg-gradient-to-b from-[#EEF6FF] to-[#E6EEFA]">
+      <div
+        className="flex-1 overflow-auto p-4 pb-6 bg-gradient-to-b from-[#EEF6FF] to-[#E6EEFA]"
+        {...swipe}
+      >
         <div className="grid grid-cols-2 gap-3">
           {sizeRooms.map((name) => {
             const r = roomOf(name);
