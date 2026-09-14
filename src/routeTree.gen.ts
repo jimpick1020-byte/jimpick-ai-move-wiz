@@ -14,6 +14,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShareIdRouteImport } from './routes/share.$id'
 import { Route as StaffEstimateTokenRouteImport } from './routes/staff.estimate.$token'
 import { Route as ApiPublicItemIconFileRouteImport } from './routes/api/public/item-icon.$file'
+import { Route as ApiPublicHooksSendMoveRemindersRouteImport } from './routes/api/public/hooks/send-move-reminders'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -40,12 +41,19 @@ const ApiPublicItemIconFileRoute = ApiPublicItemIconFileRouteImport.update({
   path: '/api/public/item-icon/$file',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksSendMoveRemindersRoute =
+  ApiPublicHooksSendMoveRemindersRouteImport.update({
+    id: '/api/public/hooks/send-move-reminders',
+    path: '/api/public/hooks/send-move-reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
+  '/api/public/hooks/send-move-reminders': typeof ApiPublicHooksSendMoveRemindersRoute
   '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +61,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
+  '/api/public/hooks/send-move-reminders': typeof ApiPublicHooksSendMoveRemindersRoute
   '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
 }
 export interface FileRoutesById {
@@ -61,6 +70,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
+  '/api/public/hooks/send-move-reminders': typeof ApiPublicHooksSendMoveRemindersRoute
   '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
 }
 export interface FileRouteTypes {
@@ -70,6 +80,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/share/$id'
     | '/staff/estimate/$token'
+    | '/api/public/hooks/send-move-reminders'
     | '/api/public/item-icon/$file'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -77,6 +88,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/share/$id'
     | '/staff/estimate/$token'
+    | '/api/public/hooks/send-move-reminders'
     | '/api/public/item-icon/$file'
   id:
     | '__root__'
@@ -84,6 +96,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/share/$id'
     | '/staff/estimate/$token'
+    | '/api/public/hooks/send-move-reminders'
     | '/api/public/item-icon/$file'
   fileRoutesById: FileRoutesById
 }
@@ -92,6 +105,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ShareIdRoute: typeof ShareIdRoute
   StaffEstimateTokenRoute: typeof StaffEstimateTokenRoute
+  ApiPublicHooksSendMoveRemindersRoute: typeof ApiPublicHooksSendMoveRemindersRoute
   ApiPublicItemIconFileRoute: typeof ApiPublicItemIconFileRoute
 }
 
@@ -132,6 +146,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicItemIconFileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/send-move-reminders': {
+      id: '/api/public/hooks/send-move-reminders'
+      path: '/api/public/hooks/send-move-reminders'
+      fullPath: '/api/public/hooks/send-move-reminders'
+      preLoaderRoute: typeof ApiPublicHooksSendMoveRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -140,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ShareIdRoute: ShareIdRoute,
   StaffEstimateTokenRoute: StaffEstimateTokenRoute,
+  ApiPublicHooksSendMoveRemindersRoute: ApiPublicHooksSendMoveRemindersRoute,
   ApiPublicItemIconFileRoute: ApiPublicItemIconFileRoute,
 }
 export const routeTree = rootRouteImport

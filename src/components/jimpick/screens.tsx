@@ -116,6 +116,8 @@ import {
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { DepositPanel } from "./DepositPanel";
 import { PaymentPanel } from "./PaymentPanel";
+import { ReminderPanel } from "./ReminderPanel";
+
 
 import {
   TERMS_VERSION,
@@ -5740,6 +5742,8 @@ export function History() {
             {ts.row && (
               <PaymentPanel estimateId={e.id} total={e.total} row={ts.row} onSaved={loadTerms} />
             )}
+            {ts.row && <ReminderPanel estimateId={e.id} />}
+
 
             <div className="flex gap-2 mt-3">
               <button

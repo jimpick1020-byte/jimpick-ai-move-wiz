@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_cron_secrets: {
+        Row: {
+          created_at: string
+          name: string
+          secret: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          secret?: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          secret?: string
+        }
+        Relationships: []
+      }
       deposit_records: {
         Row: {
           amount: number
@@ -418,6 +436,83 @@ export type Database = {
         }
         Relationships: []
       }
+      move_reminders: {
+        Row: {
+          aligo_message_id: string | null
+          company_id: string
+          company_phone: string | null
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          error_reason: string | null
+          estimate_id: string
+          estimate_terms_id: string | null
+          from_address: string | null
+          id: string
+          idempotency_key: string
+          move_date: string
+          retry_count: number
+          scheduled_at: string
+          sent_at: string | null
+          start_time: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aligo_message_id?: string | null
+          company_id: string
+          company_phone?: string | null
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string
+          error_reason?: string | null
+          estimate_id: string
+          estimate_terms_id?: string | null
+          from_address?: string | null
+          id?: string
+          idempotency_key: string
+          move_date: string
+          retry_count?: number
+          scheduled_at: string
+          sent_at?: string | null
+          start_time?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aligo_message_id?: string | null
+          company_id?: string
+          company_phone?: string | null
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string
+          error_reason?: string | null
+          estimate_id?: string
+          estimate_terms_id?: string | null
+          from_address?: string | null
+          id?: string
+          idempotency_key?: string
+          move_date?: string
+          retry_count?: number
+          scheduled_at?: string
+          sent_at?: string | null
+          start_time?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "move_reminders_estimate_terms_id_fkey"
+            columns: ["estimate_terms_id"]
+            isOneToOne: false
+            referencedRelation: "estimate_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -701,6 +796,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_move_reminders: {
+        Args: { _limit?: number }
+        Returns: {
+          aligo_message_id: string | null
+          company_id: string
+          company_phone: string | null
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          error_reason: string | null
+          estimate_id: string
+          estimate_terms_id: string | null
+          from_address: string | null
+          id: string
+          idempotency_key: string
+          move_date: string
+          retry_count: number
+          scheduled_at: string
+          sent_at: string | null
+          start_time: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "move_reminders"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
