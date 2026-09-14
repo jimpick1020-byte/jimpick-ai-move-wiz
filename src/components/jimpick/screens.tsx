@@ -3203,24 +3203,36 @@ export function AIRecognition() {
   };
 
 
-  /** 고른 공간에 품목을 바로 더합니다 */
+  /**
+   * 품목을 공간에 더합니다.
+   * auto 가 true 면 품목마다 어울리는 공간으로 자동 배정하고,
+   * 어울리는 공간을 못 찾은 품목만 고른 공간에 담습니다.
+   */
   const addToRoom = (
     add: { id: string; name: string; qty: number }[],
     targetId: string,
+    auto = false,
   ): string | null => {
-    const room = draft.rooms.find((r) => r.id === targetId) || draft.rooms[0];
-    if (!room || add.length === 0) return null;
-    const items = { ...room.items };
-    for (const a of add) items[a.id] = (items[a.id] || 0) + a.qty;
-    updateDraft({
-      rooms: draft.rooms.map((x) => (x.id === room.id ? { ...x, items } : x)),
-    });
-    return room.name;
+    const base = draft.rooms.find((r) => r.id === targetId) || draft.rooms[0];
+    if (!base || add.length === 0) return null;
+    const names = draft.rooms.map((r) => r.name);
+    const rooms = draft.rooms.map((r) => ({ ...r, items: { ...r.items } }));
+    const used: string[] = [];
+    for (const a of add) {
+      const pick = auto ? suggestRoomName(a.name, names) : undefined;
+      const target = (pick && rooms.find((r) => r.name === pick)) || rooms.find((r) => r.id === base.id);
+      if (!target) continue;
+      target.items[a.id] = (target.items[a.id] || 0) + a.qty;
+      if (!used.includes(target.name)) used.push(target.name);
+    }
+    if (used.length === 0) return null;
+    updateDraft({ rooms });
+    return used.join(", ");
   };
 
   const apply = () => {
     if (!targetRoom) return;
-    const name = addToRoom(shown, targetRoom.id);
+    const name = addToRoom(shown, targetRoom.id, true);
     if (!name) return;
     setCurrentRoom(targetRoom.id);
     toast.success(`「${name}」에 ${shown.length}개 품목을 담았습니다`);
