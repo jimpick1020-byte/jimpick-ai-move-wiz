@@ -65,33 +65,48 @@ export const publishEstimateTerms = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
-    const { error } = await context.supabase.from("estimate_terms").upsert(
-      {
-        user_id: context.userId,
-        estimate_id: data.estimateId,
-        sheet_no: data.sheetNo ?? null,
-        sheet_version: data.sheetVersion,
-        customer_name: data.customerName,
-        move_date: data.moveDate ?? null,
-        total: data.total,
-        contact_phone: data.contactPhone ?? null,
-        company_phone: data.companyPhone ?? null,
-        terms_name: data.termsName,
-        terms_version: data.termsVersion,
-        terms_effective_at: data.termsEffectiveAt ?? null,
-        access_token: data.accessToken,
-        sent_at: new Date(data.sentAt ?? Date.now()).toISOString(),
-        sent_msg_id: data.sentMsgId ?? null,
-        sheet_snapshot: data.sheetSnapshot ?? null,
-      },
-      { onConflict: "user_id,estimate_id,sheet_version" },
-    );
+    const { data: saved, error } = await context.supabase
+      .from("estimate_terms")
+      .upsert(
+        {
+          user_id: context.userId,
+          estimate_id: data.estimateId,
+          sheet_no: data.sheetNo ?? null,
+          sheet_version: data.sheetVersion,
+          customer_name: data.customerName,
+          move_date: data.moveDate ?? null,
+          total: data.total,
+          contact_phone: data.contactPhone ?? null,
+          company_phone: data.companyPhone ?? null,
+          terms_name: data.termsName,
+          terms_version: data.termsVersion,
+          terms_effective_at: data.termsEffectiveAt ?? null,
+          access_token: data.accessToken,
+          sent_at: new Date(data.sentAt ?? Date.now()).toISOString(),
+          sent_msg_id: data.sentMsgId ?? null,
+          sheet_snapshot: data.sheetSnapshot ?? null,
+        },
+        { onConflict: "user_id,estimate_id,sheet_version" },
+      )
+      .select("id")
+      .maybeSingle();
     if (error) {
       console.error("[publishEstimateTerms]", error.message);
       return { ok: false, error: "약관 발송 기록을 저장하지 못했습니다." };
     }
+    // 이미 예약이 확정된 견적이면, 바뀐 이사 날짜로 전날 안내 문자를 다시 예약합니다
+    const savedId = (saved as { id?: string } | null)?.id;
+    if (savedId) {
+      try {
+        const { syncMoveReminder } = await import("./reminder.server");
+        await syncMoveReminder(savedId);
+      } catch (e) {
+        console.error("[publishEstimateTerms] 안내 문자 재예약 실패", e instanceof Error ? e.message : e);
+      }
+    }
     return { ok: true };
   });
+
 
 /** 고객용 — 보안 토큰으로 약관 정보와 동의 여부를 읽습니다 */
 export const getTermsLink = createServerFn({ method: "POST" })
