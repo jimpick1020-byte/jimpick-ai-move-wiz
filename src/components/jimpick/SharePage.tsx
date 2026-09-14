@@ -26,6 +26,7 @@ import {
   calcEstimate,
   loadEstimateFromStorage,
   won,
+  workConditionSummary,
   type Estimate,
 } from "@/lib/jimpick";
 import { registerCustomIcons } from "@/lib/jimpick-icon3d";
@@ -578,8 +579,7 @@ export function SharePage() {
               </div>
             </div>
             <div className="text-[#6B7280]">
-              거리 {estimate.distanceKm}km · {estimate.workEnv} · {estimate.fromFloor}층 →{" "}
-              {estimate.toFloor}층
+              거리 {estimate.distanceKm}km · {workConditionSummary(estimate)}
             </div>
             {estimate.memo && (
               <div className="rounded-xl bg-[#F5F7FB] p-3">
