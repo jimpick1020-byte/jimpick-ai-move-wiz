@@ -1676,19 +1676,19 @@ export function Step6() {
   /** 품목 목록에서 좌우로 드래그하면 분류 탭이 넘어갑니다 */
   const tabSwipe = useSwipeNav(
     () => {
-      const i = visibleCats.indexOf(tab);
+      const i = visibleCats.indexOf(tab as (typeof visibleCats)[number]);
       if (i > 0) {
         tap("soft");
         setQ("");
-        setTab(visibleCats[i - 1] as typeof tab);
+        setTab(visibleCats[i - 1]);
       }
     },
     () => {
-      const i = visibleCats.indexOf(tab);
+      const i = visibleCats.indexOf(tab as (typeof visibleCats)[number]);
       if (i >= 0 && i < visibleCats.length - 1) {
         tap("soft");
         setQ("");
-        setTab(visibleCats[i + 1] as typeof tab);
+        setTab(visibleCats[i + 1]);
       }
     },
   );
