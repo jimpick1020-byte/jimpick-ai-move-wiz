@@ -807,14 +807,14 @@ const ROOM_HINT: [RegExp, string][] = [
 
 /**
  * 품목을 자동으로 배정할 공간 이름을 돌려줍니다.
- * 어울리는 공간이 지금 견적에 없으면 첫 번째 공간을 씁니다.
+ * 어울리는 공간을 못 찾으면 undefined — 이때는 부르는 쪽에서 고른 공간을 씁니다.
  */
 export function suggestRoomName(itemName: string, rooms: string[]): string | undefined {
   if (rooms.length === 0) return undefined;
   for (const [re, room] of ROOM_HINT) {
     if (re.test(itemName) && rooms.includes(room)) return room;
   }
-  return rooms[0];
+  return undefined;
 }
 
 export interface BrowseItem {
