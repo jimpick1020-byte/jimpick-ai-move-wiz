@@ -1261,16 +1261,34 @@ export function Step3() {
   const ladderUnit = getPricing().ladder;
 
   /** 출발지/도착지 작업 방식(계단·엘리베이터)을 각각 독립적으로 설정합니다. 한쪽을 바꿔도 반대편은 그대로 둡니다. */
+  // 공용 workEnv(구 데이터 호환·다른 화면 표시용) 계산
+  const combineEnv = (f?: WorkMethod, t?: WorkMethod): WorkEnv => {
+    const stair = f === "계단" || t === "계단";
+    const elev = f === "엘리베이터" || t === "엘리베이터";
+    return stair && elev ? "계단+엘리베이터" : stair ? "계단" : elev ? "엘리베이터" : "없음";
+  };
   const setSideEnv = (side: "from" | "to", method: WorkMethod) => {
     tap("soft");
-    const fromEnv = side === "from" ? method : draft.fromEnv;
-    const toEnv = side === "to" ? method : draft.toEnv;
-    // 다른 화면 표시용 공용 workEnv(구 데이터 호환)도 함께 맞춰 둡니다.
-    const stair = fromEnv === "계단" || toEnv === "계단";
-    const elev = fromEnv === "엘리베이터" || toEnv === "엘리베이터";
-    const workEnv: WorkEnv =
-      stair && elev ? "계단+엘리베이터" : stair ? "계단" : elev ? "엘리베이터" : "없음";
-    updateDraft(side === "from" ? { fromEnv: method, workEnv } : { toEnv: method, workEnv });
+    // 계단·엘리베이터를 고르면 그 장소의 사다리차는 해제(계단/엘리베이터/사다리차 중 하나만).
+    if (side === "from") {
+      updateDraft({
+        fromEnv: method,
+        workEnv: combineEnv(method, draft.toEnv),
+        ladderFrom: false,
+        ladderFromPrice: 0,
+        ladder: draft.ladderTo ? 1 : 0,
+        ladderPrice: draft.ladderToPrice,
+      });
+    } else {
+      updateDraft({
+        toEnv: method,
+        workEnv: combineEnv(draft.fromEnv, method),
+        ladderTo: false,
+        ladderToPrice: 0,
+        ladder: draft.ladderFrom ? 1 : 0,
+        ladderPrice: draft.ladderFromPrice,
+      });
+    }
   };
 
   /** 층수 입력 — 1~100 정수만 저장(빈값·소수·범위 밖은 저장하지 않음). 출발지·도착지 독립. */
@@ -1291,6 +1309,8 @@ export function Step3() {
         ladderFromPrice: price,
         ladder: (on ? 1 : 0) + (draft.ladderTo ? 1 : 0),
         ladderPrice: price + draft.ladderToPrice,
+        // 사다리차를 켜면 그 장소의 계단/엘리베이터 선택 해제(셋 중 하나만).
+        ...(on ? { fromEnv: undefined, workEnv: combineEnv(undefined, draft.toEnv) } : {}),
       });
     } else {
       const on = !draft.ladderTo;
@@ -1300,6 +1320,7 @@ export function Step3() {
         ladderToPrice: price,
         ladder: (draft.ladderFrom ? 1 : 0) + (on ? 1 : 0),
         ladderPrice: draft.ladderFromPrice + price,
+        ...(on ? { toEnv: undefined, workEnv: combineEnv(draft.fromEnv, undefined) } : {}),
       });
     }
   };
@@ -1339,7 +1360,7 @@ export function Step3() {
                   <div className="font-bold">엘리베이터</div>
                 </Card>
               </div>
-              {!env && (
+              {!env && !ladderOn && (
                 <div className="mt-2 text-[13px] font-semibold text-[#DC2626]">
                   {place} 작업 방식을 선택해 주세요 (계단 / 엘리베이터)
                 </div>
