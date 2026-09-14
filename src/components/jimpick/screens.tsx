@@ -3454,6 +3454,10 @@ export function AIRecognition() {
   useEffect(() => {
     return () => {
       keepRef.current = false;
+      if (silenceRef.current) {
+        clearInterval(silenceRef.current);
+        silenceRef.current = null;
+      }
       try {
         recRef.current?.stop();
       } catch {
