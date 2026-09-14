@@ -12,6 +12,7 @@ import {
   Users,
   BarChart3,
   Plus,
+  Minus,
   Search,
   Camera,
   Image as ImageIcon,
@@ -65,11 +66,13 @@ import {
   savePricing,
   DEFAULT_PRICING,
   sideConditionText,
-  
+  workConditionSummary,
+
   type Pricing,
   type MoveType,
   type Room,
   type WorkEnv,
+  type WorkMethod,
   type Screen,
 } from "@/lib/jimpick";
 import {
@@ -1132,96 +1135,144 @@ export function Step2() {
 // ============ Step 3: Work condition ============
 export function Step3() {
   const { draft, updateDraft, setScreen } = useApp();
-  const hasStair = draft.workEnv.includes("계단");
-  const hasElev = draft.workEnv.includes("엘리베이터");
-  const maxFloor = hasStair ? 6 : 50;
-  const toggleEnv = (env: "계단" | "엘리베이터") => {
-    const stair = env === "계단" ? !hasStair : hasStair;
-    const elev = env === "엘리베이터" ? !hasElev : hasElev;
-    const next: WorkEnv =
+  const ladderUnit = getPricing().ladder;
+
+  /** 출발지/도착지 작업 방식(계단·엘리베이터)을 각각 독립적으로 설정합니다. 한쪽을 바꿔도 반대편은 그대로 둡니다. */
+  const setSideEnv = (side: "from" | "to", method: WorkMethod) => {
+    tap("soft");
+    const fromEnv = side === "from" ? method : draft.fromEnv;
+    const toEnv = side === "to" ? method : draft.toEnv;
+    // 다른 화면 표시용 공용 workEnv(구 데이터 호환)도 함께 맞춰 둡니다.
+    const stair = fromEnv === "계단" || toEnv === "계단";
+    const elev = fromEnv === "엘리베이터" || toEnv === "엘리베이터";
+    const workEnv: WorkEnv =
       stair && elev ? "계단+엘리베이터" : stair ? "계단" : elev ? "엘리베이터" : "없음";
-    updateDraft(
-      stair
-        ? {
-            workEnv: next,
-            fromFloor: Math.min(draft.fromFloor, 6),
-            toFloor: Math.min(draft.toFloor, 6),
-          }
-        : { workEnv: next },
-    );
+    updateDraft(side === "from" ? { fromEnv: method, workEnv } : { toEnv: method, workEnv });
+  };
+
+  /** 층수 입력 — 1~100 정수만 저장(빈값·소수·범위 밖은 저장하지 않음). 출발지·도착지 독립. */
+  const setSideFloor = (side: "from" | "to", raw: number) => {
+    if (!Number.isFinite(raw)) return;
+    const n = Math.min(100, Math.max(1, Math.floor(raw)));
+    updateDraft(side === "from" ? { fromFloor: n } : { toFloor: n });
+  };
+
+  /** 출발지/도착지 사다리차 사용 — 각각 독립(4단계 차량 화면과 같은 필드를 씁니다). */
+  const toggleSideLadder = (side: "from" | "to") => {
+    tap("soft");
+    if (side === "from") {
+      const on = !draft.ladderFrom;
+      const price = on ? draft.ladderFromPrice || ladderUnit : 0;
+      updateDraft({
+        ladderFrom: on,
+        ladderFromPrice: price,
+        ladder: (on ? 1 : 0) + (draft.ladderTo ? 1 : 0),
+        ladderPrice: price + draft.ladderToPrice,
+      });
+    } else {
+      const on = !draft.ladderTo;
+      const price = on ? draft.ladderToPrice || ladderUnit : 0;
+      updateDraft({
+        ladderTo: on,
+        ladderToPrice: price,
+        ladder: (draft.ladderFrom ? 1 : 0) + (on ? 1 : 0),
+        ladderPrice: draft.ladderFromPrice + price,
+      });
+    }
   };
   return (
     <MobileShell>
       <TopBar title="3단계. 작업 조건" onBack={() => setScreen("step2")} />
       <div className="p-5 space-y-5 flex-1 overflow-auto pb-24">
-        <Field label="작업 환경 (중복 선택 가능)">
-          <div className="grid grid-cols-2 gap-3">
-            <Card
-              selected={hasStair}
-              onClick={() => toggleEnv("계단")}
-              className="text-center py-6"
-            >
-              <Art3D src={ENV_IMG["계단"]} alt="계단" size={72} className="mx-auto mb-2" />
-              <div className="font-bold">계단 (수작업)</div>
-            </Card>
-            <Card
-              selected={hasElev}
-              onClick={() => toggleEnv("엘리베이터")}
-              className="text-center py-6"
-            >
-              <Art3D
-                src={ENV_IMG["엘리베이터"]}
-                alt="엘리베이터"
-                size={72}
-                className="mx-auto mb-2"
-              />
-              <div className="font-bold">엘리베이터</div>
-            </Card>
-          </div>
-        </Field>
-        <Field label="사다리차">
-          <Card
-            selected={draft.ladder > 0}
-            onClick={() => updateDraft({ ladder: draft.ladder > 0 ? 0 : 1 })}
-          >
-            <div className="flex items-center gap-3">
-              <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={56} />
-              <div className="flex-1">
-                <div className="font-semibold">사다리차 사용</div>
-                <div className="text-xs text-[#6B7280]">필요하면 눌러서 선택하세요</div>
+        {(["from", "to"] as const).map((side) => {
+          const isFrom = side === "from";
+          const place = isFrom ? "출발지" : "도착지";
+          const env = isFrom ? draft.fromEnv : draft.toEnv;
+          const floor = isFrom ? draft.fromFloor : draft.toFloor;
+          const ladderOn = isFrom ? !!draft.ladderFrom : !!draft.ladderTo;
+          return (
+            <Field key={side} label={`${place} 작업 조건`}>
+              <div className="grid grid-cols-2 gap-3">
+                <Card
+                  selected={env === "계단"}
+                  onClick={() => setSideEnv(side, "계단")}
+                  className="text-center py-5"
+                >
+                  <Art3D src={ENV_IMG["계단"]} alt="계단" size={56} className="mx-auto mb-2" />
+                  <div className="font-bold">계단 (수작업)</div>
+                </Card>
+                <Card
+                  selected={env === "엘리베이터"}
+                  onClick={() => setSideEnv(side, "엘리베이터")}
+                  className="text-center py-5"
+                >
+                  <Art3D
+                    src={ENV_IMG["엘리베이터"]}
+                    alt="엘리베이터"
+                    size={56}
+                    className="mx-auto mb-2"
+                  />
+                  <div className="font-bold">엘리베이터</div>
+                </Card>
               </div>
-              <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center ${
-                  draft.ladder > 0 ? "bg-[#0751D8] text-white" : "border-2 border-[#DFE6F2]"
-                }`}
-              >
-                {draft.ladder > 0 && <Check className="w-4 h-4" />}
-              </div>
-            </div>
-          </Card>
-        </Field>
-        <Card>
-          <div className="flex items-center justify-between">
-            <div className="font-semibold">출발지 층수</div>
-            <Counter
-              value={draft.fromFloor}
-              onChange={(n) => updateDraft({ fromFloor: n })}
-              min={1}
-              max={maxFloor}
-            />
-          </div>
-        </Card>
-        <Card>
-          <div className="flex items-center justify-between">
-            <div className="font-semibold">도착지 층수</div>
-            <Counter
-              value={draft.toFloor}
-              onChange={(n) => updateDraft({ toFloor: n })}
-              min={1}
-              max={maxFloor}
-            />
-          </div>
-        </Card>
+              {!env && (
+                <div className="mt-2 text-[13px] font-semibold text-[#DC2626]">
+                  {place} 작업 방식을 선택해 주세요 (계단 / 엘리베이터)
+                </div>
+              )}
+              <div className="h-3" />
+              <Card>
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold">{place} 층수</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSideFloor(side, floor - 1)}
+                      className="w-10 h-10 rounded-full bg-gradient-to-b from-white to-[#EDF1F8] border border-[#DCE3EE] shadow-[0_3px_0_#DCE3EE] flex items-center justify-center active:translate-y-[2px]"
+                      aria-label={`${place} 층수 감소`}
+                    >
+                      <Minus className="w-5 h-5 text-[#334155]" />
+                    </button>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={100}
+                      value={floor}
+                      onChange={(e) => setSideFloor(side, Number(e.target.value))}
+                      className="w-16 text-center text-xl font-bold tabular-nums rounded-xl border border-[#DCE3EE] py-1.5"
+                      aria-label={`${place} 층수`}
+                    />
+                    <button
+                      onClick={() => setSideFloor(side, floor + 1)}
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-[0_3px_0_#0645B0] active:translate-y-[2px]"
+                      style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
+                      aria-label={`${place} 층수 증가`}
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </Card>
+              <div className="h-3" />
+              <Card selected={ladderOn} onClick={() => toggleSideLadder(side)}>
+                <div className="flex items-center gap-3">
+                  <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={48} />
+                  <div className="flex-1">
+                    <div className="font-semibold">{place} 사다리차 사용</div>
+                    <div className="text-xs text-[#6B7280]">필요하면 눌러서 선택하세요</div>
+                  </div>
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                      ladderOn ? "bg-[#0751D8] text-white" : "border-2 border-[#DFE6F2]"
+                    }`}
+                  >
+                    {ladderOn && <Check className="w-4 h-4" />}
+                  </div>
+                </div>
+              </Card>
+            </Field>
+          );
+        })}
         <Field label="작업 인원">
           <Card>
             <div className="flex items-center justify-between">
@@ -4649,8 +4700,8 @@ export function Result() {
               </div>
               <div>
                 실거리 {draft.distanceKm}km
-                {draft.durationMin ? ` · 약 ${draft.durationMin}분` : ""} · {draft.workEnv} ·{" "}
-                {draft.fromFloor}층→{draft.toFloor}층
+                {draft.durationMin ? ` · 약 ${draft.durationMin}분` : ""} ·{" "}
+                {workConditionSummary(draft)}
               </div>
               <div>
                 1톤 {draft.truck1t} · 5톤 {draft.truck5t} · 사다리 {draft.ladder}

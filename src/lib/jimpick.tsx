@@ -9,6 +9,8 @@ import { registerCustomIcons } from "./jimpick-icon3d";
 // ============ Types ============
 export type MoveType = "포장이사" | "반포장이사" | "일반이사" | "보관이사" | "사무실이사";
 export type WorkEnv = "없음" | "계단" | "엘리베이터" | "계단+엘리베이터";
+/** 한 장소(출발지/도착지)의 작업 방식 — 둘 중 하나만 선택 */
+export type WorkMethod = "계단" | "엘리베이터";
 export type EstimateStatus = "작성중" | "진행중" | "완료" | "취소";
 
 export interface RoomItems {
@@ -60,7 +62,14 @@ export interface Estimate {
   toY?: number | null;
   distanceKm: number;
   durationMin: number;
+  /** @deprecated 출발지·도착지 공용 작업환경(구 데이터 호환용). 새 코드는 fromEnv/toEnv 를 씁니다. */
   workEnv: WorkEnv;
+  /**
+   * 출발지·도착지 작업 방식(계단/엘리베이터) — 각각 독립적으로 저장합니다.
+   * 값이 없으면 아직 선택하지 않은 것으로 봅니다(구 데이터). 임의로 계단으로 간주하지 않습니다.
+   */
+  fromEnv?: WorkMethod;
+  toEnv?: WorkMethod;
   fromFloor: number;
   toFloor: number;
   workers: number;
@@ -1054,9 +1063,14 @@ export function calcEstimate(
   const truck1Fee = truck1Count * pricing.truck1t;
   const extraKm = Math.max(0, num(e.distanceKm) - pricing.baseKm);
   const distanceFee = Math.round(extraKm * pricing.perKm);
-  const stairFloors = e.workEnv.includes("계단")
-    ? Math.max(0, num(e.fromFloor) - 1) + Math.max(0, num(e.toFloor) - 1)
-    : 0;
+  // 계단 추가비는 각 장소가 「계단」으로 선택된 경우에만, 그 장소의 층수로만 계산합니다.
+  // 엘리베이터로 선택된 장소에는 계단 추가비를 매기지 않습니다.
+  // (fromEnv/toEnv 가 없는 구 데이터는 과거 workEnv 가 "계단"일 때만 양쪽을 계단으로 봅니다.)
+  const fromIsStair = e.fromEnv ? e.fromEnv === "계단" : e.workEnv === "계단";
+  const toIsStair = e.toEnv ? e.toEnv === "계단" : e.workEnv === "계단";
+  const stairFloors =
+    (fromIsStair ? Math.max(0, num(e.fromFloor) - 1) : 0) +
+    (toIsStair ? Math.max(0, num(e.toFloor) - 1) : 0);
   const stairFee = stairFloors * pricing.stairPerFloor;
 
   // 수작업 비용은 견적 합계·상세 내역에서 제외합니다.
@@ -1134,7 +1148,9 @@ export function newEstimate(): Estimate {
     distanceKm: 0,
     durationMin: 0,
     // 고르지 않은 값을 미리 정해 두지 않습니다 (엘리베이터로 잘못 표시되는 문제)
-    workEnv: "없음",
+    workEnv: "엘리베이터",
+    fromEnv: "엘리베이터",
+    toEnv: "엘리베이터",
     fromFloor: 1,
     toFloor: 1,
     workers: 2,
@@ -1731,7 +1747,10 @@ export function guessCategory(name: string): string {
 export function sideConditionText(e: Estimate, side: "from" | "to"): string {
   const floor = side === "from" ? e.fromFloor : e.toFloor;
   const ladder = side === "from" ? !!e.ladderFrom : !!e.ladderTo;
-  const env = String(e.workEnv ?? "");
+  // 그 장소의 작업 방식만 씁니다(반대편 값을 옮겨 적지 않음).
+  // 새 필드(fromEnv/toEnv)가 있으면 그것을, 없으면 구 데이터의 공용 workEnv 를 씁니다.
+  const sideEnv = side === "from" ? e.fromEnv : e.toEnv;
+  const env = String(sideEnv ?? e.workEnv ?? "");
   const parts: string[] = [];
   if (floor) parts.push(`${floor}층`);
   if (ladder) {
@@ -1741,6 +1760,13 @@ export function sideConditionText(e: Estimate, side: "from" | "to"): string {
   if (env.includes("엘리베이터")) parts.push("엘리베이터");
   if (env.includes("계단")) parts.push("계단");
   return parts.join(" · ");
+}
+
+/** 요약 한 줄 — 출발지·도착지 작업 조건을 각각(서로 바꾸지 않고) 보여 줍니다. */
+export function workConditionSummary(e: Estimate): string {
+  const f = sideConditionText(e, "from");
+  const t = sideConditionText(e, "to");
+  return `출발 ${f || "-"} · 도착 ${t || "-"}`;
 }
 
 /** 사다리차 비용 한 줄 (별도 결제 표시 포함) */
