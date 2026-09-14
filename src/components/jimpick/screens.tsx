@@ -1721,9 +1721,28 @@ export function Step6() {
   const roomOf = (name: string) => draft.rooms.find((r) => r.name === name);
   const room = openRoom ? roomOf(openRoom) : undefined;
 
-  const setQty = (itemId: string, qty: number) => {
-    if (!room) return;
-    const items = { ...room.items };
+  /**
+   * 수량을 정합니다.
+   * 담을 공간을 아직 고르지 않았으면 품목 이름에 어울리는 공간으로 자동 배정합니다.
+   */
+  const setQty = (itemId: string, qty: number, itemName?: string) => {
+    let rooms = draft.rooms;
+    let target = room;
+    if (!target) {
+      if (qty <= 0) return;
+      const name = itemName || catalog.find((c) => c.id === itemId)?.name || itemNameById(itemId) || "";
+      const pick = suggestRoomName(name, sizeRooms) || sizeRooms[0];
+      if (!pick) return;
+      if (!rooms.some((r) => r.name === pick))
+        rooms = [...rooms, { id: `r_${pick}`, name: pick, items: {} as Record<string, number> }];
+      target = rooms.find((r) => r.name === pick);
+      if (!target) return;
+      setOpenRoom(pick);
+      setCurrentRoom(target.id);
+      toast.success(`「${name || "품목"}」을(를) ${pick}에 담았습니다`);
+    }
+    const tid = target.id;
+    const items = { ...target.items };
     if (qty <= 0) delete items[itemId];
     else items[itemId] = qty;
     // 담을 때(수량>0) 최근 선택 목록 맨 앞에 기록합니다(최신순, 중복 제거, 최대 12개).
@@ -1732,7 +1751,7 @@ export function Step6() {
         ? [itemId, ...(draft.recentItems || []).filter((x) => x !== itemId)].slice(0, 12)
         : draft.recentItems;
     updateDraft({
-      rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)),
+      rooms: rooms.map((r) => (r.id === tid ? { ...r, items } : r)),
       ...(recent ? { recentItems: recent } : {}),
     });
   };
