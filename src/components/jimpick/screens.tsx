@@ -3048,6 +3048,10 @@ export function AIRecognition() {
   const keepRef = useRef(false);
   /** 마이크를 누른 동안 들은 말을 모아 둡니다 (끝내기를 누를 때 한 번만 담습니다) */
   const voiceTextRef = useRef("");
+  /** 마지막으로 말소리가 들어온 시각 — 오래 조용할 때만 마무리합니다 */
+  const lastSoundRef = useRef(0);
+  /** 조용한 시간을 재는 타이머 */
+  const silenceRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const roomIdRef = useRef(roomId);
   useEffect(() => {
     roomIdRef.current = roomId;
