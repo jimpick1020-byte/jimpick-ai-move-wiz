@@ -5,6 +5,7 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
   type ChangeEvent as ReactChangeEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
   Bell,
@@ -777,10 +778,11 @@ export function Step1() {
     if (!draft.phone.trim()) return setErr("연락처를 입력해 주세요.");
     setScreen("step2");
   };
+  const swipe = useSwipeNav(() => setScreen("home"), next);
   return (
     <MobileShell>
       <TopBar title="1단계. 고객 정보 입력" onBack={() => setScreen("home")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
+      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
         <Field label="고객명">
           <TextInput
             placeholder="홍길동"
@@ -1040,10 +1042,14 @@ export function Step2() {
     };
   }, [from?.x, from?.y, to?.x, to?.y, hasBoth, tick]);
 
+  const swipe = useSwipeNav(
+    () => setScreen("step1"),
+    hasBoth ? () => setScreen("step3") : undefined,
+  );
   return (
     <MobileShell>
       <TopBar title="2단계. 주소 검색" onBack={() => setScreen("step1")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
+      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
         <AddressSearch
           label="출발지"
           value={draft.fromAddress}
@@ -1130,6 +1136,35 @@ export function Step2() {
       </BottomButtonBar>
     </MobileShell>
   );
+}
+
+/**
+ * 손가락으로 좌우로 밀면 이전/다음 단계로 넘어갑니다.
+ *  · 오른쪽으로 밀기 → 이전(onPrev), 왼쪽으로 밀기 → 다음(onNext)
+ *  · 가로로 70px 이상 + 세로 움직임보다 가로가 확실히 클 때만 반응(세로 스크롤·버튼 탭과 충돌 방지)
+ */
+function useSwipeNav(onPrev?: () => void, onNext?: () => void) {
+  const start = useRef<{ x: number; y: number; t: number } | null>(null);
+  return {
+    onPointerDown: (e: ReactPointerEvent) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      start.current = { x: e.clientX, y: e.clientY, t: Date.now() };
+    },
+    onPointerUp: (e: ReactPointerEvent) => {
+      const s = start.current;
+      start.current = null;
+      if (!s) return;
+      const dx = e.clientX - s.x;
+      const dy = e.clientY - s.y;
+      if (Date.now() - s.t > 800) return; // 너무 느린 드래그(스크롤 등)는 무시
+      if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      if (dx < 0) onNext?.();
+      else onPrev?.();
+    },
+    onPointerCancel: () => {
+      start.current = null;
+    },
+  };
 }
 
 // ============ Step 3: Work condition ============
@@ -1267,10 +1302,11 @@ export function Step3() {
       });
     }
   };
+  const swipe = useSwipeNav(() => setScreen("step2"), () => setScreen("step4"));
   return (
     <MobileShell>
       <TopBar title="3단계. 작업 조건" onBack={() => setScreen("step2")} />
-      <div className="p-5 space-y-5 flex-1 overflow-auto pb-24">
+      <div className="p-5 space-y-5 flex-1 overflow-auto pb-24" {...swipe}>
         {(["from", "to"] as const).map((side) => {
           const isFrom = side === "from";
           const place = isFrom ? "출발지" : "도착지";
@@ -1372,10 +1408,11 @@ export function Step4() {
       val: draft.truck5t,
     },
   ];
+  const swipe = useSwipeNav(() => setScreen("step3"), goNext);
   return (
     <MobileShell>
       <TopBar title="4단계. 차량 선택" onBack={() => setScreen("step3")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
+      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
         {vehicles.map((v) => (
           <Card key={v.key} selected={v.val > 0}>
             <div className="flex items-center justify-between">
