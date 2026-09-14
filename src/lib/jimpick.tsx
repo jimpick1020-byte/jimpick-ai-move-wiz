@@ -1088,8 +1088,9 @@ export function calcEstimate(
   // 계단 추가비는 각 장소가 「계단」으로 선택된 경우에만, 그 장소의 층수로만 계산합니다.
   // 엘리베이터로 선택된 장소에는 계단 추가비를 매기지 않습니다.
   // (fromEnv/toEnv 가 없는 구 데이터는 과거 workEnv 가 "계단"일 때만 양쪽을 계단으로 봅니다.)
-  const fromIsStair = e.fromEnv ? e.fromEnv === "계단" : e.workEnv === "계단";
-  const toIsStair = e.toEnv ? e.toEnv === "계단" : e.workEnv === "계단";
+  // 사다리차를 쓰는 장소는 계단이 아닙니다(계단/엘리베이터/사다리차 중 하나만).
+  const fromIsStair = !e.ladderFrom && (e.fromEnv ? e.fromEnv === "계단" : e.workEnv === "계단");
+  const toIsStair = !e.ladderTo && (e.toEnv ? e.toEnv === "계단" : e.workEnv === "계단");
   const stairFloors =
     (fromIsStair ? Math.max(0, num(e.fromFloor) - 1) : 0) +
     (toIsStair ? Math.max(0, num(e.toFloor) - 1) : 0);
