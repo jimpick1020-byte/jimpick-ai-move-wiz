@@ -795,6 +795,28 @@ export function cat5For(cat?: string, sub?: string): string {
   return "기타"; // 특수·잔짐 등
 }
 
+/** 품목 이름에 따라 어느 공간에 두는 것이 자연스러운지 고릅니다 */
+const ROOM_HINT: [RegExp, string][] = [
+  [/냉장고|김치|냉동고|와인|전자레인지|오븐|에어프라이|가스레인지|인덕션|식기|정수기|밥솥|커피|믹서|토스터|전기포트|그릇|주방|냄비|쌀통|식탁|아일랜드/, "부엌"],
+  [/세탁기|건조기|스타일러|빨래|청소도구|공구|사다리|화분|장독/, "베란다"],
+  [/침대|매트리스|장롱|붙박이|행거|화장대|서랍장|협탁|이불/, "안방"],
+  [/책상|책장|의자|컴퓨터|모니터|프린터|파티션|피아노|아기|유모차|2층/, "작은방"],
+  [/소파|리클라이너|좌식|TV|티비|거실장|티테이블|장식장|진열장|카펫|러그|커튼|블라인드|안마의자|러닝머신|실내자전거|어항|수족관|스피커|오디오|프로젝터|에어컨|공기청정기|제습기|가습기|스탠드 조명/, "거실"],
+  [/신발장|우산|전신거울/, "입구방"],
+];
+
+/**
+ * 품목을 자동으로 배정할 공간 이름을 돌려줍니다.
+ * 어울리는 공간이 지금 견적에 없으면 첫 번째 공간을 씁니다.
+ */
+export function suggestRoomName(itemName: string, rooms: string[]): string | undefined {
+  if (rooms.length === 0) return undefined;
+  for (const [re, room] of ROOM_HINT) {
+    if (re.test(itemName) && rooms.includes(room)) return room;
+  }
+  return rooms[0];
+}
+
 export interface BrowseItem {
   id: string;
   name: string;
