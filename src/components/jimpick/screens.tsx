@@ -3371,6 +3371,8 @@ export function AIRecognition() {
         // 말한 문장을 모아만 둡니다 — 담기는 「끝내기」를 누를 때 한 번에 합니다
         voiceTextRef.current = mergeTranscript(voiceTextRef.current, best);
       }
+      // 말소리가 들어온 시각을 남겨, 잠깐 쉬어도 끊기지 않게 합니다
+      lastSoundRef.current = Date.now();
       setHeard(mergeTranscript(voiceTextRef.current, interim));
     };
 
@@ -3387,16 +3389,26 @@ export function AIRecognition() {
       toast.error(speechErrorMessage(code));
     };
 
-    // 자동 재시작을 하지 않습니다(반복되는 "칭" 소리·마이크 재시작 방지).
-    // 「끝내기」를 누르거나, 말이 끝나 브라우저가 멈추면 → 지금까지 들은 말을 한 번에 인식합니다.
+    // 브라우저가 스스로 멈춰도 바로 다시 이어 듣습니다.
+    // 길게 말해도 중간에 끊기지 않고, 「끝내기」를 누를 때 한 번에 담습니다.
     rec.onend = () => {
-      if (keepRef.current) {
-        // 사용자가 아직 끝내지 않았는데 브라우저가 멈춤 → 바로 마무리해서 담습니다
-        keepRef.current = false;
-        stopVoice();
+      if (!keepRef.current) {
+        setListening(false);
         return;
       }
-      setListening(false);
+      try {
+        rec.start();
+      } catch {
+        window.setTimeout(() => {
+          if (!keepRef.current) return;
+          try {
+            rec.start();
+          } catch {
+            // 더는 이을 수 없으면 지금까지 들은 말로 마무리합니다
+            stopVoice();
+          }
+        }, 350);
+      }
     };
 
     try {
@@ -3404,7 +3416,16 @@ export function AIRecognition() {
       keepRef.current = true;
       setListening(true);
       setVoiceError(false);
-      setVoiceHint("듣고 있어요 — 예) 안방 퀸 침대, 화장대, 협탁, 서랍장 → 다 말한 뒤 「끝내기」");
+      lastSoundRef.current = Date.now();
+      // 20초 넘게 아무 말이 없으면 스스로 마무리합니다 (그 전에는 계속 듣습니다)
+      if (silenceRef.current) clearInterval(silenceRef.current);
+      silenceRef.current = window.setInterval(() => {
+        if (!keepRef.current) return;
+        if (Date.now() - lastSoundRef.current > 20000) stopVoice();
+      }, 1000) as unknown as ReturnType<typeof setInterval>;
+      setVoiceHint(
+        "듣고 있어요 — 천천히 길게 말씀하세요. 잠깐 쉬어도 계속 듣습니다. 다 말한 뒤 「끝내기」",
+      );
       // 녹음기(getUserMedia)를 같이 켜면 음성인식이 마이크를 뺏겨
       // 아무 결과도 나오지 않습니다. 인식은 브라우저 음성인식만 씁니다.
       tap("soft");
