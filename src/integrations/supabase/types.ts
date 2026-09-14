@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_cron_secrets: {
+        Row: {
+          created_at: string
+          name: string
+          secret: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          secret?: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          secret?: string
+        }
+        Relationships: []
+      }
       deposit_records: {
         Row: {
           amount: number
