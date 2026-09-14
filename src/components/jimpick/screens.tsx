@@ -1668,6 +1668,33 @@ export function Step6() {
     [catalog],
   );
 
+  /** 화면을 좌우로 드래그하면 앞·뒤 단계로 넘어갑니다 */
+  const swipe = useSwipeNav(
+    () => setScreen("step4"),
+    () => setScreen("options"),
+  );
+  /** 품목 목록에서 좌우로 드래그하면 분류 탭이 넘어갑니다 */
+  const tabSwipe = useSwipeNav(
+    () => {
+      const i = visibleCats.indexOf(tab);
+      if (i > 0) {
+        tap("soft");
+        setQ("");
+        setTab(visibleCats[i - 1]);
+      }
+    },
+    () => {
+      const i = visibleCats.indexOf(tab);
+      if (i >= 0 && i < visibleCats.length - 1) {
+        tap("soft");
+        setQ("");
+        setTab(visibleCats[i + 1]);
+      }
+    },
+  );
+
+
+
   /** 평수를 고르면 없는 방만 새로 만들고, 기존 방 품목은 그대로 유지합니다 */
   const pickSize = (key: string) => {
     tap("soft");
