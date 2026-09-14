@@ -1809,7 +1809,11 @@ export function Step6() {
     }
     tap("soft");
     setIconError(null);
-    setIconGen({ name, cat: guessCategory(name), room: room?.name || sizeRooms[0] });
+    setIconGen({
+      name,
+      cat: guessCategory(name),
+      room: room?.name || suggestRoomName(name, sizeRooms) || sizeRooms[0],
+    });
   };
 
   /**
