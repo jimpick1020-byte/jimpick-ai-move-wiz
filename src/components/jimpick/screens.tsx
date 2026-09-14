@@ -2341,28 +2341,33 @@ export function Step6() {
                       편집
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-4 gap-2">
                     {frequent.map((it) => {
                       const qty = room?.items[it.id] || 0;
                       return (
                         <button
                           key={it.id}
                           onClick={() => {
-                            setQty(it.id, qty + 1);
+                            setQty(it.id, qty + 1, it.name);
                             tap("success");
                           }}
-                          className="flex min-h-12 items-center gap-1.5 rounded-2xl border pl-1.5 pr-3.5 text-[13px] font-black transition-transform active:translate-y-[2px]"
+                          className="relative flex flex-col items-center gap-1 rounded-2xl border px-1 pb-1.5 pt-2 transition-transform active:translate-y-[2px]"
                           style={{
                             borderColor: qty > 0 ? "#287BFF" : "#DCE8FA",
                             background: qty > 0 ? "#F2F7FF" : "#FFFFFF",
-                            color: qty > 0 ? "#0751D8" : "#475569",
                             boxShadow: qty > 0 ? "0 3px 0 #BBD3FF" : "0 2px 0 #EDF2FA",
                           }}
                         >
-                          <ItemArt id={it.id} name={it.name} size={32} />
-                          {it.name}
+                          <ItemArt id={it.id} name={it.name} size={36} />
+                          <span
+                            className="w-full truncate text-center text-[11.5px] font-black leading-tight"
+                            style={{ color: qty > 0 ? "#0751D8" : "#475569" }}
+                            title={it.name}
+                          >
+                            {it.name}
+                          </span>
                           {qty > 0 && (
-                            <span className="ml-0.5 rounded-full bg-[#0751D8] px-1.5 py-0.5 text-[10px] font-black text-white">
+                            <span className="absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-[#0751D8] px-1.5 py-0.5 text-[10px] font-black text-white shadow-[0_2px_0_#0640A8]">
                               {qty}
                             </span>
                           )}
