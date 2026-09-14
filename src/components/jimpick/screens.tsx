@@ -3285,7 +3285,8 @@ export function AIRecognition() {
       if (res.needConfirm.length) setPending(res.needConfirm);
 
       if (res.items.length) {
-        const name = addToRoom(res.items, finalId);
+        // 공간을 직접 말했으면 그 공간에, 아니면 품목마다 어울리는 공간으로 자동 배정합니다
+        const name = addToRoom(res.items, finalId, !spoken);
         if (name) {
           tap("success");
           setVoiceHint(`「${name}」 · ${res.items.map((i) => `${i.name} ${i.qty}${i.unit}`).join(", ")}`);
