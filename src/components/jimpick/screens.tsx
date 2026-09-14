@@ -49,6 +49,7 @@ import {
   BROWSE_ITEMS,
   CATS5,
   cat5For,
+  suggestRoomName,
   itemNameById,
   CATEGORIES,
   OPTION_PRESETS,
