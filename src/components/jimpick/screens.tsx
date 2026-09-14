@@ -1133,6 +1133,93 @@ export function Step2() {
 }
 
 // ============ Step 3: Work condition ============
+/**
+ * 층수 입력 — 직접 입력 + 「−/+」 버튼(길게 누르면 연속으로 오르내림).
+ * 1~100 정수만 저장합니다.
+ */
+function FloorStepper({
+  value,
+  onChange,
+  label,
+  min = 1,
+  max = 100,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  label: string;
+  min?: number;
+  max?: number;
+}) {
+  const timers = useRef<{ t?: ReturnType<typeof setTimeout>; i?: ReturnType<typeof setInterval> }>(
+    {},
+  );
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const clear = () => {
+    if (timers.current.t) clearTimeout(timers.current.t);
+    if (timers.current.i) clearInterval(timers.current.i);
+    timers.current = {};
+  };
+  useEffect(() => clear, []);
+  const step = (dir: 1 | -1) => {
+    const next =
+      dir === 1 ? Math.min(max, valueRef.current + 1) : Math.max(min, valueRef.current - 1);
+    if (next === valueRef.current) return;
+    valueRef.current = next;
+    onChange(next);
+  };
+  const hold = (dir: 1 | -1) => {
+    tap("soft");
+    step(dir);
+    clear();
+    // 길게 누르면 계속 오르내립니다
+    timers.current.t = setTimeout(() => {
+      timers.current.i = setInterval(() => step(dir), 80);
+    }, 400);
+  };
+  return (
+    <div className="flex items-center gap-2 select-none">
+      <button
+        onPointerDown={() => hold(-1)}
+        onPointerUp={clear}
+        onPointerLeave={clear}
+        onPointerCancel={clear}
+        onContextMenu={(e) => e.preventDefault()}
+        className="w-10 h-10 rounded-full bg-gradient-to-b from-white to-[#EDF1F8] border border-[#DCE3EE] shadow-[0_3px_0_#DCE3EE] flex items-center justify-center active:translate-y-[2px] touch-none"
+        aria-label={`${label} 감소`}
+      >
+        <Minus className="w-5 h-5 text-[#334155]" />
+      </button>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => {
+          const n = Number(e.target.value);
+          if (!Number.isFinite(n)) return;
+          onChange(Math.min(max, Math.max(min, Math.floor(n))));
+        }}
+        className="w-16 text-center text-xl font-bold tabular-nums rounded-xl border border-[#DCE3EE] py-1.5"
+        aria-label={label}
+      />
+      <button
+        onPointerDown={() => hold(1)}
+        onPointerUp={clear}
+        onPointerLeave={clear}
+        onPointerCancel={clear}
+        onContextMenu={(e) => e.preventDefault()}
+        className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-[0_3px_0_#0645B0] active:translate-y-[2px] touch-none"
+        style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
+        aria-label={`${label} 증가`}
+      >
+        <Plus className="w-5 h-5" />
+      </button>
+    </div>
+  );
+}
+
 export function Step3() {
   const { draft, updateDraft, setScreen } = useApp();
   const ladderUnit = getPricing().ladder;
@@ -1224,33 +1311,11 @@ export function Step3() {
               <Card>
                 <div className="flex items-center justify-between">
                   <div className="font-semibold">{place} 층수</div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setSideFloor(side, floor - 1)}
-                      className="w-10 h-10 rounded-full bg-gradient-to-b from-white to-[#EDF1F8] border border-[#DCE3EE] shadow-[0_3px_0_#DCE3EE] flex items-center justify-center active:translate-y-[2px]"
-                      aria-label={`${place} 층수 감소`}
-                    >
-                      <Minus className="w-5 h-5 text-[#334155]" />
-                    </button>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      max={100}
-                      value={floor}
-                      onChange={(e) => setSideFloor(side, Number(e.target.value))}
-                      className="w-16 text-center text-xl font-bold tabular-nums rounded-xl border border-[#DCE3EE] py-1.5"
-                      aria-label={`${place} 층수`}
-                    />
-                    <button
-                      onClick={() => setSideFloor(side, floor + 1)}
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-[0_3px_0_#0645B0] active:translate-y-[2px]"
-                      style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
-                      aria-label={`${place} 층수 증가`}
-                    >
-                      <Plus className="w-5 h-5" />
-                    </button>
-                  </div>
+                  <FloorStepper
+                    value={floor}
+                    onChange={(n) => setSideFloor(side, n)}
+                    label={`${place} 층수`}
+                  />
                 </div>
               </Card>
               <div className="h-3" />
