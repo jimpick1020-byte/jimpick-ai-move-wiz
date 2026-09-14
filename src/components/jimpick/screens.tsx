@@ -1273,43 +1273,6 @@ export function Step3() {
             </Field>
           );
         })}
-        <Field label="작업 인원">
-          <Card>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Art3D src={CHAR_IMG.male} alt="남자 작업자" size={56} />
-                <div>
-                  <div className="font-semibold">남자 작업자</div>
-                  <div className="text-xs text-[#6B7280]">0~10명</div>
-                </div>
-              </div>
-              <Counter
-                value={draft.workers}
-                onChange={(n) => updateDraft({ workers: n })}
-                min={0}
-                max={10}
-              />
-            </div>
-          </Card>
-          <div className="h-2" />
-          <Card>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Art3D src={CHAR_IMG.female} alt="주방 이모" size={56} />
-                <div>
-                  <div className="font-semibold">주방 이모</div>
-                  <div className="text-xs text-[#6B7280]">0~5명</div>
-                </div>
-              </div>
-              <Counter
-                value={draft.kitchenStaff}
-                onChange={(n) => updateDraft({ kitchenStaff: n })}
-                min={0}
-                max={5}
-              />
-            </div>
-          </Card>
-        </Field>
       </div>
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("step4")}>다음: 차량 선택</PrimaryButton>
@@ -1473,6 +1436,43 @@ export function Step4() {
             </div>
           </div>
         </Card>
+        <Field label="작업 인원">
+          <Card>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Art3D src={CHAR_IMG.male} alt="남자 작업자" size={56} />
+                <div>
+                  <div className="font-semibold">남자 작업자</div>
+                  <div className="text-xs text-[#6B7280]">0~10명</div>
+                </div>
+              </div>
+              <Counter
+                value={draft.workers}
+                onChange={(n) => updateDraft({ workers: n })}
+                min={0}
+                max={10}
+              />
+            </div>
+          </Card>
+          <div className="h-2" />
+          <Card>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Art3D src={CHAR_IMG.female} alt="주방 이모" size={56} />
+                <div>
+                  <div className="font-semibold">주방 이모</div>
+                  <div className="text-xs text-[#6B7280]">0~5명</div>
+                </div>
+              </div>
+              <Counter
+                value={draft.kitchenStaff}
+                onChange={(n) => updateDraft({ kitchenStaff: n })}
+                min={0}
+                max={5}
+              />
+            </div>
+          </Card>
+        </Field>
       </div>
       <BottomButtonBar>
         <PrimaryButton onClick={goNext}>다음: 공간별 품목</PrimaryButton>
