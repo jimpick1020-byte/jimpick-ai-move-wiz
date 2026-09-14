@@ -1366,17 +1366,6 @@ export function Step3() {
                 </div>
               )}
               <div className="h-3" />
-              <Card>
-                <div className="flex items-center justify-between">
-                  <div className="font-semibold">{place} 층수</div>
-                  <FloorStepper
-                    value={floor}
-                    onChange={(n) => setSideFloor(side, n)}
-                    label={`${place} 층수`}
-                  />
-                </div>
-              </Card>
-              <div className="h-3" />
               <Card selected={ladderOn} onClick={() => toggleSideLadder(side)}>
                 <div className="flex items-center gap-3">
                   <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={48} />
@@ -1391,6 +1380,17 @@ export function Step3() {
                   >
                     {ladderOn && <Check className="w-4 h-4" />}
                   </div>
+                </div>
+              </Card>
+              <div className="h-3" />
+              <Card>
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold">{place} 층수</div>
+                  <FloorStepper
+                    value={floor}
+                    onChange={(n) => setSideFloor(side, n)}
+                    label={`${place} 층수`}
+                  />
                 </div>
               </Card>
             </Field>
@@ -1608,12 +1608,16 @@ export function Step4() {
 // ============ Step 6: Items ============
 /** 평수별 집 구조(구획) */
 export const SIZE_TABS: { key: string; rooms: string[] }[] = [
+  { key: "5~10평", rooms: ["안방", "부엌", "베란다"] },
   { key: "10~20평", rooms: ["안방", "거실", "부엌", "베란다"] },
   { key: "20~30평", rooms: ["안방", "작은방", "거실", "부엌", "베란다"] },
   { key: "30~40평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다"] },
   { key: "40~50평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다", "옷방"] },
   { key: "50~60평", rooms: ["안방", "작은방", "입구방", "거실", "부엌", "베란다", "옷방", "서재"] },
 ];
+
+/** 평수를 못 찾았을 때 쓰는 기본 구간 */
+const DEFAULT_SIZE_TAB = SIZE_TABS.find((t) => t.key === "30~40평") ?? SIZE_TABS[0];
 
 export const ROOM_TINT: Record<string, string> = {
   안방: "from-[#4C9BFF] to-[#0751D8]",
@@ -1659,7 +1663,7 @@ export function Step6() {
   /** 수량을 0으로 줄일 때 뜨는 삭제 확인창 */
   const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string } | null>(null);
 
-  const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || SIZE_TABS[2]).rooms;
+  const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || DEFAULT_SIZE_TAB).rooms;
 
   // 20카테고리 병합 목록(기존 이미지·요금 보존 + 1,000 신규) + 직접 추가 품목.
   const catalog = useMemo(
@@ -1720,7 +1724,7 @@ export function Step6() {
   const pickSize = (key: string) => {
     tap("soft");
     setSize(key);
-    const rooms = (SIZE_TABS.find((t) => t.key === key) || SIZE_TABS[2]).rooms;
+    const rooms = (SIZE_TABS.find((t) => t.key === key) || DEFAULT_SIZE_TAB).rooms;
     const missing = rooms.filter((n) => !draft.rooms.some((r) => r.name === n));
     updateDraft({
       sizeTab: key,
