@@ -49,6 +49,7 @@ import {
   BROWSE_ITEMS,
   CATS5,
   cat5For,
+  suggestRoomName,
   itemNameById,
   CATEGORIES,
   OPTION_PRESETS,
@@ -1667,6 +1668,33 @@ export function Step6() {
     [catalog],
   );
 
+  /** 화면을 좌우로 드래그하면 앞·뒤 단계로 넘어갑니다 */
+  const swipe = useSwipeNav(
+    () => setScreen("step4"),
+    () => setScreen("options"),
+  );
+  /** 품목 목록에서 좌우로 드래그하면 분류 탭이 넘어갑니다 */
+  const tabSwipe = useSwipeNav(
+    () => {
+      const i = visibleCats.indexOf(tab as (typeof visibleCats)[number]);
+      if (i > 0) {
+        tap("soft");
+        setQ("");
+        setTab(visibleCats[i - 1]);
+      }
+    },
+    () => {
+      const i = visibleCats.indexOf(tab as (typeof visibleCats)[number]);
+      if (i >= 0 && i < visibleCats.length - 1) {
+        tap("soft");
+        setQ("");
+        setTab(visibleCats[i + 1]);
+      }
+    },
+  );
+
+
+
   /** 평수를 고르면 없는 방만 새로 만들고, 기존 방 품목은 그대로 유지합니다 */
   const pickSize = (key: string) => {
     tap("soft");
@@ -1693,9 +1721,28 @@ export function Step6() {
   const roomOf = (name: string) => draft.rooms.find((r) => r.name === name);
   const room = openRoom ? roomOf(openRoom) : undefined;
 
-  const setQty = (itemId: string, qty: number) => {
-    if (!room) return;
-    const items = { ...room.items };
+  /**
+   * 수량을 정합니다.
+   * 담을 공간을 아직 고르지 않았으면 품목 이름에 어울리는 공간으로 자동 배정합니다.
+   */
+  const setQty = (itemId: string, qty: number, itemName?: string) => {
+    let rooms = draft.rooms;
+    let target = room;
+    if (!target) {
+      if (qty <= 0) return;
+      const name = itemName || catalog.find((c) => c.id === itemId)?.name || itemNameById(itemId) || "";
+      const pick = suggestRoomName(name, sizeRooms) || sizeRooms[0];
+      if (!pick) return;
+      if (!rooms.some((r) => r.name === pick))
+        rooms = [...rooms, { id: `r_${pick}`, name: pick, items: {} as Record<string, number> }];
+      target = rooms.find((r) => r.name === pick);
+      if (!target) return;
+      setOpenRoom(pick);
+      setCurrentRoom(target.id);
+      toast.success(`「${name || "품목"}」을(를) ${pick}에 담았습니다`);
+    }
+    const tid = target.id;
+    const items = { ...target.items };
     if (qty <= 0) delete items[itemId];
     else items[itemId] = qty;
     // 담을 때(수량>0) 최근 선택 목록 맨 앞에 기록합니다(최신순, 중복 제거, 최대 12개).
@@ -1704,7 +1751,7 @@ export function Step6() {
         ? [itemId, ...(draft.recentItems || []).filter((x) => x !== itemId)].slice(0, 12)
         : draft.recentItems;
     updateDraft({
-      rooms: draft.rooms.map((r) => (r.id === room.id ? { ...r, items } : r)),
+      rooms: rooms.map((r) => (r.id === tid ? { ...r, items } : r)),
       ...(recent ? { recentItems: recent } : {}),
     });
   };
@@ -1762,7 +1809,11 @@ export function Step6() {
     }
     tap("soft");
     setIconError(null);
-    setIconGen({ name, cat: guessCategory(name), room: room?.name || sizeRooms[0] });
+    setIconGen({
+      name,
+      cat: guessCategory(name),
+      room: room?.name || suggestRoomName(name, sizeRooms) || sizeRooms[0],
+    });
   };
 
   /**
@@ -2105,7 +2156,10 @@ export function Step6() {
       </div>
 
       {/* 디지털 3D 집 구조 */}
-      <div className="flex-1 overflow-auto p-4 pb-6 bg-gradient-to-b from-[#EEF6FF] to-[#E6EEFA]">
+      <div
+        className="flex-1 overflow-auto p-4 pb-6 bg-gradient-to-b from-[#EEF6FF] to-[#E6EEFA]"
+        {...swipe}
+      >
         <div className="grid grid-cols-2 gap-3">
           {sizeRooms.map((name) => {
             const r = roomOf(name);
@@ -2270,7 +2324,7 @@ export function Step6() {
             </div>
 
             {pickerOpen && (
-              <div className="flex-1 min-h-[44dvh] overflow-auto px-4 pt-3 space-y-3">
+              <div className="flex-1 min-h-[44dvh] overflow-auto px-4 pt-3 space-y-3" {...tabSwipe}>
                 {/* 자주 담는 품목 — 검색 없이 눌러서 바로 담습니다 */}
                 <div className="rounded-2xl border border-[#DCE8FA] bg-white px-4 py-3 space-y-2 shadow-[inset_0_1px_0_#fff]">
                   <div className="flex items-center justify-between gap-2">
@@ -2287,28 +2341,33 @@ export function Step6() {
                       편집
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-4 gap-2">
                     {frequent.map((it) => {
                       const qty = room?.items[it.id] || 0;
                       return (
                         <button
                           key={it.id}
                           onClick={() => {
-                            setQty(it.id, qty + 1);
+                            setQty(it.id, qty + 1, it.name);
                             tap("success");
                           }}
-                          className="flex min-h-12 items-center gap-1.5 rounded-2xl border pl-1.5 pr-3.5 text-[13px] font-black transition-transform active:translate-y-[2px]"
+                          className="relative flex flex-col items-center gap-1 rounded-2xl border px-1 pb-1.5 pt-2 transition-transform active:translate-y-[2px]"
                           style={{
                             borderColor: qty > 0 ? "#287BFF" : "#DCE8FA",
                             background: qty > 0 ? "#F2F7FF" : "#FFFFFF",
-                            color: qty > 0 ? "#0751D8" : "#475569",
                             boxShadow: qty > 0 ? "0 3px 0 #BBD3FF" : "0 2px 0 #EDF2FA",
                           }}
                         >
-                          <ItemArt id={it.id} name={it.name} size={32} />
-                          {it.name}
+                          <ItemArt id={it.id} name={it.name} size={36} />
+                          <span
+                            className="w-full truncate text-center text-[11.5px] font-black leading-tight"
+                            style={{ color: qty > 0 ? "#0751D8" : "#475569" }}
+                            title={it.name}
+                          >
+                            {it.name}
+                          </span>
                           {qty > 0 && (
-                            <span className="ml-0.5 rounded-full bg-[#0751D8] px-1.5 py-0.5 text-[10px] font-black text-white">
+                            <span className="absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-[#0751D8] px-1.5 py-0.5 text-[10px] font-black text-white shadow-[0_2px_0_#0640A8]">
                               {qty}
                             </span>
                           )}
@@ -2989,6 +3048,10 @@ export function AIRecognition() {
   const keepRef = useRef(false);
   /** 마이크를 누른 동안 들은 말을 모아 둡니다 (끝내기를 누를 때 한 번만 담습니다) */
   const voiceTextRef = useRef("");
+  /** 마지막으로 말소리가 들어온 시각 — 오래 조용할 때만 마무리합니다 */
+  const lastSoundRef = useRef(0);
+  /** 조용한 시간을 재는 타이머 */
+  const silenceRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const roomIdRef = useRef(roomId);
   useEffect(() => {
     roomIdRef.current = roomId;
@@ -3140,24 +3203,36 @@ export function AIRecognition() {
   };
 
 
-  /** 고른 공간에 품목을 바로 더합니다 */
+  /**
+   * 품목을 공간에 더합니다.
+   * auto 가 true 면 품목마다 어울리는 공간으로 자동 배정하고,
+   * 어울리는 공간을 못 찾은 품목만 고른 공간에 담습니다.
+   */
   const addToRoom = (
     add: { id: string; name: string; qty: number }[],
     targetId: string,
+    auto = false,
   ): string | null => {
-    const room = draft.rooms.find((r) => r.id === targetId) || draft.rooms[0];
-    if (!room || add.length === 0) return null;
-    const items = { ...room.items };
-    for (const a of add) items[a.id] = (items[a.id] || 0) + a.qty;
-    updateDraft({
-      rooms: draft.rooms.map((x) => (x.id === room.id ? { ...x, items } : x)),
-    });
-    return room.name;
+    const base = draft.rooms.find((r) => r.id === targetId) || draft.rooms[0];
+    if (!base || add.length === 0) return null;
+    const names = draft.rooms.map((r) => r.name);
+    const rooms = draft.rooms.map((r) => ({ ...r, items: { ...r.items } }));
+    const used: string[] = [];
+    for (const a of add) {
+      const pick = auto ? suggestRoomName(a.name, names) : undefined;
+      const target = (pick && rooms.find((r) => r.name === pick)) || rooms.find((r) => r.id === base.id);
+      if (!target) continue;
+      target.items[a.id] = (target.items[a.id] || 0) + a.qty;
+      if (!used.includes(target.name)) used.push(target.name);
+    }
+    if (used.length === 0) return null;
+    updateDraft({ rooms });
+    return used.join(", ");
   };
 
   const apply = () => {
     if (!targetRoom) return;
-    const name = addToRoom(shown, targetRoom.id);
+    const name = addToRoom(shown, targetRoom.id, true);
     if (!name) return;
     setCurrentRoom(targetRoom.id);
     toast.success(`「${name}」에 ${shown.length}개 품목을 담았습니다`);
@@ -3210,7 +3285,8 @@ export function AIRecognition() {
       if (res.needConfirm.length) setPending(res.needConfirm);
 
       if (res.items.length) {
-        const name = addToRoom(res.items, finalId);
+        // 공간을 직접 말했으면 그 공간에, 아니면 품목마다 어울리는 공간으로 자동 배정합니다
+        const name = addToRoom(res.items, finalId, !spoken);
         if (name) {
           tap("success");
           setVoiceHint(`「${name}」 · ${res.items.map((i) => `${i.name} ${i.qty}${i.unit}`).join(", ")}`);
@@ -3241,6 +3317,10 @@ export function AIRecognition() {
    */
   const stopVoice = () => {
     keepRef.current = false;
+    if (silenceRef.current) {
+      clearInterval(silenceRef.current);
+      silenceRef.current = null;
+    }
     try {
       recRef.current?.stop();
     } catch {
@@ -3304,6 +3384,8 @@ export function AIRecognition() {
         // 말한 문장을 모아만 둡니다 — 담기는 「끝내기」를 누를 때 한 번에 합니다
         voiceTextRef.current = mergeTranscript(voiceTextRef.current, best);
       }
+      // 말소리가 들어온 시각을 남겨, 잠깐 쉬어도 끊기지 않게 합니다
+      lastSoundRef.current = Date.now();
       setHeard(mergeTranscript(voiceTextRef.current, interim));
     };
 
@@ -3320,16 +3402,26 @@ export function AIRecognition() {
       toast.error(speechErrorMessage(code));
     };
 
-    // 자동 재시작을 하지 않습니다(반복되는 "칭" 소리·마이크 재시작 방지).
-    // 「끝내기」를 누르거나, 말이 끝나 브라우저가 멈추면 → 지금까지 들은 말을 한 번에 인식합니다.
+    // 브라우저가 스스로 멈춰도 바로 다시 이어 듣습니다.
+    // 길게 말해도 중간에 끊기지 않고, 「끝내기」를 누를 때 한 번에 담습니다.
     rec.onend = () => {
-      if (keepRef.current) {
-        // 사용자가 아직 끝내지 않았는데 브라우저가 멈춤 → 바로 마무리해서 담습니다
-        keepRef.current = false;
-        stopVoice();
+      if (!keepRef.current) {
+        setListening(false);
         return;
       }
-      setListening(false);
+      try {
+        rec.start();
+      } catch {
+        window.setTimeout(() => {
+          if (!keepRef.current) return;
+          try {
+            rec.start();
+          } catch {
+            // 더는 이을 수 없으면 지금까지 들은 말로 마무리합니다
+            stopVoice();
+          }
+        }, 350);
+      }
     };
 
     try {
@@ -3337,7 +3429,16 @@ export function AIRecognition() {
       keepRef.current = true;
       setListening(true);
       setVoiceError(false);
-      setVoiceHint("듣고 있어요 — 예) 안방 퀸 침대, 화장대, 협탁, 서랍장 → 다 말한 뒤 「끝내기」");
+      lastSoundRef.current = Date.now();
+      // 20초 넘게 아무 말이 없으면 스스로 마무리합니다 (그 전에는 계속 듣습니다)
+      if (silenceRef.current) clearInterval(silenceRef.current);
+      silenceRef.current = window.setInterval(() => {
+        if (!keepRef.current) return;
+        if (Date.now() - lastSoundRef.current > 20000) stopVoice();
+      }, 1000) as unknown as ReturnType<typeof setInterval>;
+      setVoiceHint(
+        "듣고 있어요 — 천천히 길게 말씀하세요. 잠깐 쉬어도 계속 듣습니다. 다 말한 뒤 「끝내기」",
+      );
       // 녹음기(getUserMedia)를 같이 켜면 음성인식이 마이크를 뺏겨
       // 아무 결과도 나오지 않습니다. 인식은 브라우저 음성인식만 씁니다.
       tap("soft");
@@ -3353,6 +3454,10 @@ export function AIRecognition() {
   useEffect(() => {
     return () => {
       keepRef.current = false;
+      if (silenceRef.current) {
+        clearInterval(silenceRef.current);
+        silenceRef.current = null;
+      }
       try {
         recRef.current?.stop();
       } catch {

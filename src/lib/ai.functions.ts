@@ -39,22 +39,21 @@ const CATALOG = [
 ] as const;
 
 /**
- * 사진·동영상 인식에서 쓰는 품목 — 가전과 가구만 봅니다.
- * (박스·잡화·화분·운동소품 등은 사진으로 세지 않고 사장님이 직접 담습니다)
+ * 사진·동영상 인식에서 쓰는 품목 — 대형 가전과 가구만 봅니다.
+ * (탁상용 소형가전·박스·잡화·화분·운동소품 등은 사진으로 세지 않고 사장님이 직접 담습니다)
  */
 const VISION_IDS = new Set<string>([
-  // 가전
-  "fridge", "kimchi", "minifridge", "freezer", "winecellar", "washer", "drumwasher", "dryer",
-  "styler", "tv", "bigtv", "walltv", "projector", "speaker", "console", "aircon", "wallaircon",
-  "airpurifier", "dehumid", "humid", "heater", "pc", "printer", "vacuum", "robotvac",
-  "digitalpiano", "microwave", "oven", "airfryer", "gasrange", "induction", "dishwasher",
-  "waterpurifier", "riceCooker", "coffee", "massagechair", "treadmill", "bike2",
+  // 대형 가전
+  "fridge", "kimchi", "freezer", "winecellar", "washer", "drumwasher", "dryer",
+  "styler", "tv", "bigtv", "walltv", "aircon", "wallaircon", "airpurifier",
+  "dishwasher", "waterpurifier", "gasrange", "massagechair", "treadmill", "bike2",
+  "digitalpiano",
   // 가구
   "bed", "bedq", "bunkbed", "babybed", "mattress", "wardrobe", "builtin", "hanger", "vanity",
   "drawer", "nightstand", "sofa", "sofabig", "recliner", "floorsofa", "tvstand", "teatable",
   "displaycase", "shoerack", "table", "table6", "marbletable", "island", "chair", "desk",
-  "officedesk", "officechair", "shelf", "wallshelf", "partition", "foldtable", "dishcabinet",
-  "kitchencabinet", "mirror", "piano", "grandpiano", "safe", "aquarium",
+  "officedesk", "officechair", "shelf", "partition", "dishcabinet",
+  "kitchencabinet", "piano", "grandpiano", "safe", "aquarium",
 ]);
 
 /** 사진 인식용(가전·가구) 목록 */
@@ -101,13 +100,17 @@ export interface DetectedItem {
 }
 
 const SYSTEM = `당신은 한국 이사 견적 전문 AI 비전 분석가입니다.
-사진(또는 동영상에서 추출된 여러 장면)에서 **가전과 가구만** 빠르게 식별합니다.
+사진(또는 동영상에서 추출된 여러 장면)에서 **대형 가전과 가구만** 빠르게 식별합니다.
 
 규칙:
 1. 반드시 아래 품목 목록의 id만 사용합니다. 목록에 없는 물건은 무시합니다.
 ${VISION_CATALOG.map(([id, name]) => `- ${id}: ${name}`).join("\n")}
-2. 가전·가구가 아닌 것은 모두 제외합니다 — 박스·잡화·옷·이불·그릇·주방소품·화분·자전거·운동소품·
-   액자·커튼·카펫·청소도구·사람·벽지·바닥·창문 등은 절대 넣지 마세요. 박스 환산도 하지 않습니다.
+2. 대형 가전·가구가 아닌 것은 모두 제외합니다 — 전자레인지·에어프라이어·밥솥·커피머신·믹서기·토스터·
+   전기포트·청소기·로봇청소기·프린터·선풍기·가습기·제습기·히터 같은 소형가전과, 박스·잡화·옷·이불·
+   그릇·주방소품·화분·자전거·운동소품·액자·커튼·카펫·청소도구·사람·벽지·바닥·창문 등은 절대 넣지
+   마세요. 박스 환산도 하지 않습니다.
+2-1. 사람이 혼자 들 수 있는 작은 물건은 넣지 않습니다. 어른 두 명이 들어야 할 만큼 크거나 무거운
+   가전·가구만 넣습니다.
 3. 여러 장면에서 같은 물건이 반복되면 중복으로 세지 말고 최대 수량 기준 1개로 합칩니다.
 4. confidence는 0~1 실수. 물건 전체가 또렷하고 종류가 확실할 때만 0.95 이상, 조금이라도 헷갈리면 0.9 이하.
    (예: 드럼세탁기인지 건조기인지 애매하면 0.7)
