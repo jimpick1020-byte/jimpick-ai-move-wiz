@@ -10,14 +10,27 @@ export const Route = createFileRoute("/api/public/hooks/send-move-reminders")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const expected = String(process.env["JIMPICK_PROXY_SECRET"] ?? "").trim();
         const given = String(request.headers.get("x-reminder-secret") ?? "").trim();
-        if (!expected || given !== expected) {
+        const envSecret = String(process.env["JIMPICK_PROXY_SECRET"] ?? "").trim();
+        let allowed = !!envSecret && given === envSecret;
+        if (!allowed && given) {
+          // 크론이 쓰는 비밀값은 서버만 읽을 수 있는 표에 있습니다
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data } = await supabaseAdmin
+            .from("app_cron_secrets")
+            .select("secret")
+            .eq("name", "move_reminders")
+            .maybeSingle();
+          const dbSecret = String((data as { secret?: string } | null)?.secret ?? "").trim();
+          allowed = !!dbSecret && given === dbSecret;
+        }
+        if (!allowed) {
           return new Response(JSON.stringify({ ok: false, error: "권한이 없습니다." }), {
             status: 401,
             headers: { "Content-Type": "application/json" },
           });
         }
+
 
         const { runDueMoveReminders } = await import("@/lib/reminder-send.server");
         const result = await runDueMoveReminders(20);
