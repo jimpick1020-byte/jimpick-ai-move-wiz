@@ -814,20 +814,20 @@ export function Step1() {
           </div>
         </Field>
         <Field label="이사 날짜">
-          <TextInput
-            type="date"
+          <MoveDateCalendar
             value={draft.moveDate}
-            onChange={(e) =>
+            onSelect={(date) =>
               updateDraft({
-                moveDate: e.target.value,
+                moveDate: date,
                 storageStart:
                   !draft.storageStart || draft.storageStart === draft.moveDate
-                    ? e.target.value
+                    ? date
                     : draft.storageStart,
               })
             }
           />
         </Field>
+
         <Field label="시작 시간">
           <div className="grid grid-cols-2 gap-2">
             <select
