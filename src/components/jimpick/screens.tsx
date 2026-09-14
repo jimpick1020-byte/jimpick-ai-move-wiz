@@ -116,6 +116,8 @@ import {
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { DepositPanel } from "./DepositPanel";
 import { PaymentPanel } from "./PaymentPanel";
+import { ReminderPanel } from "./ReminderPanel";
+
 
 import {
   TERMS_VERSION,
