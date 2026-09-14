@@ -81,6 +81,21 @@ export const setPaymentState = createServerFn({ method: "POST" })
         console.error("[setPaymentState]", error.message);
         return { ok: false, error: "결제 상태를 저장하지 못했습니다." };
       }
+
+      // 예약이 취소·환불되면 전날 안내 문자도 보내지 않습니다.
+      // 다시 진행 상태로 돌아오면 확정된 예약에 한해 다시 예약합니다.
+      try {
+        if (data.status === "canceled" || data.status === "refunded") {
+          const { cancelMoveReminders } = await import("./reminder.server");
+          await cancelMoveReminders(data.estimateId, context.userId, "예약이 취소되었습니다.");
+        } else {
+          const { syncMoveReminder } = await import("./reminder.server");
+          await syncMoveReminder((terms as { id: string }).id);
+        }
+      } catch (e) {
+        console.error("[setPaymentState] 안내 문자 예약 변경 실패", e instanceof Error ? e.message : e);
+      }
       return { ok: true, balancePaid: balance, confirmedAt: now };
     },
   );
+
