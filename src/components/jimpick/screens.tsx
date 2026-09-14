@@ -1680,7 +1680,7 @@ export function Step6() {
       if (i > 0) {
         tap("soft");
         setQ("");
-        setTab(visibleCats[i - 1]);
+        setTab(visibleCats[i - 1] as typeof tab);
       }
     },
     () => {
@@ -1688,7 +1688,7 @@ export function Step6() {
       if (i >= 0 && i < visibleCats.length - 1) {
         tap("soft");
         setQ("");
-        setTab(visibleCats[i + 1]);
+        setTab(visibleCats[i + 1] as typeof tab);
       }
     },
   );
