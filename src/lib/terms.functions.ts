@@ -175,7 +175,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
       sentAt: row.sent_at,
       acceptedAt: acc?.accepted_at ?? null,
       acceptMethod: acc?.accept_method ?? null,
-      sheetSnapshot: (row as { sheet_snapshot?: string | null }).sheet_snapshot ?? null,
+      sheetSnapshot: snapshot,
       depositPaid: Number((row as { deposit_paid?: number | null }).deposit_paid ?? 0) || 0,
       depositPaidAt: (row as { deposit_paid_at?: string | null }).deposit_paid_at ?? null,
     };
