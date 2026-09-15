@@ -955,6 +955,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_reservation: { Args: { _terms_id: string }; Returns: boolean }
       claim_move_reminders: {
         Args: { _limit?: number }
         Returns: {
