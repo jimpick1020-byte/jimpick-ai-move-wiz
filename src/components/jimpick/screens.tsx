@@ -659,6 +659,14 @@ export function HomeScreen() {
             7일 무료체험 중 · {remainingText}
           </div>
         )}
+        {entitlement?.state === "active" && (
+          <div className="rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] px-4 py-2.5 text-xs font-semibold text-[#166534]">
+            구독 이용 중
+            {entitlement.periodEnd
+              ? ` · 다음 결제 예정일 ${new Date(entitlement.periodEnd).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}`
+              : ""}
+          </div>
+        )}
         <div
           onClick={() => {
             if (blocked) {
