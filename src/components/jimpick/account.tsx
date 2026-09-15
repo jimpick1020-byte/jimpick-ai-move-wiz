@@ -5,7 +5,15 @@ import { authErrorMessage, authHeader } from "@/lib/auth";
 import { lovable } from "@/integrations/lovable/index";
 import { useApp, won } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card, Field, TextInput, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
-import { PLANS, getMyAccount, subscribePlan, cancelSubscription, type PlanId } from "@/lib/subscription.functions";
+import {
+  PLANS,
+  getMyAccount,
+  subscribePlan,
+  cancelSubscription,
+  resumeSubscription,
+  type PlanId,
+} from "@/lib/subscription.functions";
+
 import {
   getTossBillingConfig,
   getTossBilling,
