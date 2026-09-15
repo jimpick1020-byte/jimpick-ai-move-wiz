@@ -931,6 +931,7 @@ export function Step1() {
             placeholder="홍길동"
             value={draft.customerName}
             onChange={(e) => updateDraft({ customerName: e.target.value })}
+            onBlur={(e) => syncContractName(draft.id, e.target.value)}
           />
         </Field>
         <Field label="연락처">
