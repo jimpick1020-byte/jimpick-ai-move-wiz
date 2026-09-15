@@ -7,7 +7,7 @@
 
 ```
 짐픽 앱
-  → Supabase Edge Function (send-sms)
+  → Supabase Edge Function (send-estimate-sms)
   → 이 서버 (Google Cloud Run, 고정 IP)
   → 알리고 문자 API
   → 고객 휴대전화
@@ -134,7 +134,7 @@ GET https://<Cloud Run 주소>/my-ip
 그리고 함수를 올립니다.
 
 ```bash
-supabase functions deploy send-sms
+supabase functions deploy send-estimate-sms
 ```
 
 발송 이력 표도 만들어 줍니다.

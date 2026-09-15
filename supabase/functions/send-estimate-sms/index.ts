@@ -443,11 +443,15 @@ Deno.serve(async (req) => {
   const isServerCall = !!serviceKey && jwt === serviceKey;
   let userId = "";
   if (jwt && !isServerCall) {
+    // 토큰 내용을 그대로 믿지 않고, 인증 서버에 직접 물어 확인합니다.
     try {
-      const payload = JSON.parse(atob(jwt.split(".")[1] ?? ""));
-      userId = String(payload?.sub ?? "");
-      const exp = Number(payload?.exp ?? 0);
-      if (exp && exp * 1000 < Date.now()) userId = "";
+      const who = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: { Authorization: `Bearer ${jwt}`, apikey: serviceKey! },
+      });
+      if (who.ok) {
+        const u = await who.json();
+        userId = String(u?.id ?? "");
+      }
     } catch {
       userId = "";
     }
