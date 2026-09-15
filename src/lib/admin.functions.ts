@@ -33,11 +33,12 @@ export interface CompanyAccount {
   role: string;
 }
 
-/** 최고관리자인지 서버에서 확인합니다 */
+/** 최고관리자인지 서버에서 확인합니다 (확인 함수는 서버에서만 실행됩니다) */
 export const amISuperAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ superAdmin: boolean }> => {
-    const { data } = await context.supabase.rpc("is_super_admin", {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin.rpc("is_super_admin", {
       _user_id: context.userId,
     });
     return { superAdmin: data === true };
@@ -47,12 +48,12 @@ export const amISuperAdmin = createServerFn({ method: "GET" })
 export const listCompanyAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<CompanyAccount[]> => {
-    const { data: isAdmin } = await context.supabase.rpc("is_super_admin", {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: isAdmin } = await supabaseAdmin.rpc("is_super_admin", {
       _user_id: context.userId,
     });
     if (isAdmin !== true) throw new Error("Forbidden: 관리자만 사용할 수 있습니다");
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [usersRes, profilesRes, subsRes, paymentsRes, deliveriesRes, rolesRes] =
       await Promise.all([

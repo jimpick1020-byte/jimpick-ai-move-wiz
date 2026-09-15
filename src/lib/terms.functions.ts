@@ -585,8 +585,10 @@ export const cancelReservation = createServerFn({ method: "POST" })
   .handler(async ({ context, data }): Promise<{ ok: boolean; error?: string }> => {
     // 동의 기록은 직접 수정할 수 없으므로(보안 규칙) 서버 전용 취소 기능으로 처리합니다.
     // 같은 견적의 모든 차수를 함께 취소해 달력에서 다시 살아나지 않게 합니다.
-    const { data: res, error } = await context.supabase.rpc("cancel_reservation_all", {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: res, error } = await supabaseAdmin.rpc("cancel_reservation_all_for", {
       _terms_id: data.termsId,
+      _user_id: context.userId,
     });
     if (error) {
       console.error("[cancelReservation]", error.message);

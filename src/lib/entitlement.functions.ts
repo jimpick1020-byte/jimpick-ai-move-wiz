@@ -186,12 +186,12 @@ export async function loadEntitlement(
   supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<Entitlement> {
+  // 권한·사용량 확인 함수는 서버에서만 실행합니다(브라우저에서는 부를 수 없습니다).
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const [subRes, adminRes, quotaRes] = await Promise.all([
     supabase.from("subscriptions").select(SELECT).eq("user_id", userId).maybeSingle(),
-    // 최고관리자 여부는 서버 함수(is_super_admin)로만 확인합니다 — 화면에서 바꿀 수 없습니다.
-    supabase.rpc("is_super_admin", { _user_id: userId }),
-    // 무료 문자 사용량도 서버 함수가 준 실제 값만 씁니다.
-    supabase.rpc("sms_quota", { _user_id: userId }),
+    supabaseAdmin.rpc("is_super_admin", { _user_id: userId }),
+    supabaseAdmin.rpc("sms_quota", { _user_id: userId }),
   ]);
   const q = (quotaRes.data ?? null) as Record<string, unknown> | null;
   const used = Number(q?.["free_sms_used"] ?? 0);
