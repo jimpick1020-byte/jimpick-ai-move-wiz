@@ -62,11 +62,16 @@ function BillingCallbackPage() {
         if (r.ok) {
           setState("done");
           setAmount(r.amount ?? 0);
-          setMessage("결제가 완료되어 업체 구독이 시작되었습니다.");
+          setMessage(
+            r.duplicate
+              ? "이미 결제가 완료되어 구독이 이용 중입니다. 중복 결제되지 않았습니다."
+              : "결제가 완료되어 업체 구독이 시작되었습니다.",
+          );
         } else {
           setState("error");
           setMessage(r.error ?? "결제에 실패했습니다.");
         }
+
       } catch (e) {
         if (!alive) return;
         setState("error");
