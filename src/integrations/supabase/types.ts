@@ -32,6 +32,39 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_keys: {
+        Row: {
+          billing_key: string
+          card_company: string | null
+          card_number_masked: string | null
+          card_type: string | null
+          created_at: string
+          customer_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billing_key: string
+          card_company?: string | null
+          card_number_masked?: string | null
+          card_type?: string | null
+          created_at?: string
+          customer_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billing_key?: string
+          card_company?: string | null
+          card_number_masked?: string | null
+          card_type?: string | null
+          created_at?: string
+          customer_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       deposit_records: {
         Row: {
           amount: number
@@ -518,10 +551,14 @@ export type Database = {
           amount: number
           created_at: string
           currency: string
+          fail_reason: string | null
           id: string
           method: string
+          order_id: string | null
           paid_at: string
+          payment_key: string | null
           plan: Database["public"]["Enums"]["plan_tier"]
+          provider: string | null
           receipt_no: string | null
           status: string
           user_id: string
@@ -530,10 +567,14 @@ export type Database = {
           amount: number
           created_at?: string
           currency?: string
+          fail_reason?: string | null
           id?: string
           method?: string
+          order_id?: string | null
           paid_at?: string
+          payment_key?: string | null
           plan: Database["public"]["Enums"]["plan_tier"]
+          provider?: string | null
           receipt_no?: string | null
           status?: string
           user_id: string
@@ -542,10 +583,14 @@ export type Database = {
           amount?: number
           created_at?: string
           currency?: string
+          fail_reason?: string | null
           id?: string
           method?: string
+          order_id?: string | null
           paid_at?: string
+          payment_key?: string | null
           plan?: Database["public"]["Enums"]["plan_tier"]
+          provider?: string | null
           receipt_no?: string | null
           status?: string
           user_id?: string
