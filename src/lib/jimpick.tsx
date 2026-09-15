@@ -1487,6 +1487,8 @@ interface Ctx extends AppState {
   saveDraft: () => void;
   deleteEstimate: (id: string) => void;
   loadEstimate: (id: string) => void;
+  /** 그 견적번호의 고객 이름을 최신 이름으로 맞춥니다(작성 중 견적 + 저장된 견적 목록) */
+  applyCustomerName: (estimateId: string, name: string) => void;
   /** 서버에서 불러온 견적서(이 기기에 없는 계약)를 상세 화면으로 바로 엽니다 */
   openEstimate: (e: Estimate) => void;
   /** 견적 결과 화면의 뒤로가기 목적지를 지정합니다 */
@@ -1796,6 +1798,17 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
         // 어느 목록에서 열었는지 기록해 두어, 뒤로가기로 그 목록으로 돌아갑니다.
         return e ? { ...s, draft: { ...e }, screen: "result", resultFrom: s.screen } : s;
       });
+    },
+    applyCustomerName: (estimateId, name) => {
+      const clean = (name ?? "").trim();
+      if (!estimateId || !clean) return; // 빈 값으로는 절대 덮어쓰지 않습니다
+      setState((s) => ({
+        ...s,
+        draft: s.draft.id === estimateId ? { ...s.draft, customerName: clean } : s.draft,
+        estimates: s.estimates.map((e) =>
+          e.id === estimateId ? { ...e, customerName: clean } : e,
+        ),
+      }));
     },
     openEstimate: (e) => {
       // 서버에서 불러온 계약 견적서를 상세(result)로 엽니다. 뒤로가기 기록도 loadEstimate 와 동일하게 쌓습니다.

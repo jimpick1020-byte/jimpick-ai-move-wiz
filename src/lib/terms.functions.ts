@@ -679,3 +679,82 @@ export const getReservationSheet = createServerFn({ method: "POST" })
       return { ok: true, estimateJson: JSON.stringify(draft), customerName };
     },
   );
+
+/**
+ * 고객 이름을 나중에 알게 되었을 때, 그 견적번호에 연결된 계약·입금·안내문자 기록의
+ * 고객 이름을 최신 이름으로 함께 맞춰 줍니다.
+ *
+ * - 본인(user_id) 견적만 바꿉니다.
+ * - 이름 외의 값(연락처·주소·이사 날짜·금액·계약 상태)은 건드리지 않습니다.
+ * - 빈 이름으로는 덮어쓰지 않습니다.
+ */
+export const renameReservationCustomer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({ estimateId: z.string().min(1), customerName: z.string().trim().min(1).max(60) })
+      .parse(d),
+  )
+  .handler(
+    async ({ context, data }): Promise<{ ok: boolean; updated: number; error?: string }> => {
+      const name = data.customerName.trim();
+      // 내 계약인지 먼저 확인합니다(다른 업체 계약은 절대 바꾸지 않습니다).
+      const { data: mine, error: findErr } = await context.supabase
+        .from("estimate_terms")
+        .select("id")
+        .eq("user_id", context.userId)
+        .eq("estimate_id", data.estimateId);
+      if (findErr) {
+        console.error("[renameReservationCustomer] find", findErr.message);
+        return { ok: false, updated: 0, error: "고객 이름을 저장하지 못했습니다." };
+      }
+      if (!mine?.length) return { ok: true, updated: 0 };
+
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: rows, error } = await supabaseAdmin
+        .from("estimate_terms")
+        .update({ customer_name: name, updated_at: new Date().toISOString() })
+        .eq("user_id", context.userId)
+        .eq("estimate_id", data.estimateId)
+        .select("id");
+      if (error) {
+        console.error("[renameReservationCustomer] update", error.message);
+        return { ok: false, updated: 0, error: "고객 이름을 저장하지 못했습니다." };
+      }
+      // 입금 기록·이사 전날 안내문자에 표시되는 이름도 같이 맞춥니다(실패해도 계약 이름은 유지).
+      await supabaseAdmin
+        .from("deposit_records")
+        .update({ customer_name: name, updated_at: new Date().toISOString() })
+        .eq("user_id", context.userId)
+        .eq("estimate_id", data.estimateId);
+      await supabaseAdmin
+        .from("move_reminders")
+        .update({ customer_name: name, updated_at: new Date().toISOString() })
+        .eq("user_id", context.userId)
+        .eq("estimate_id", data.estimateId)
+        .is("sent_at", null);
+      return { ok: true, updated: rows?.length ?? 0 };
+    },
+  );
+
+/**
+ * 그 견적번호의 계약에 저장된 "최신" 고객 이름을 읽습니다.
+ * 값을 확인하지 못하면 이름을 돌려주지 않습니다(임의로 덮어쓰지 않기 위해).
+ */
+export const getReservationCustomerName = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ estimateId: z.string().min(1) }).parse(d))
+  .handler(async ({ context, data }): Promise<{ ok: boolean; customerName?: string }> => {
+    const { data: rows, error } = await context.supabase
+      .from("estimate_terms")
+      .select("customer_name, sheet_version, updated_at")
+      .eq("user_id", context.userId)
+      .eq("estimate_id", data.estimateId)
+      .order("sheet_version", { ascending: false })
+      .order("updated_at", { ascending: false })
+      .limit(1);
+    if (error || !rows?.length) return { ok: false };
+    const name = String((rows[0] as { customer_name: string | null }).customer_name ?? "").trim();
+    if (!name) return { ok: false };
+    return { ok: true, customerName: name };
+  });
