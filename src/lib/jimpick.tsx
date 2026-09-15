@@ -5,7 +5,6 @@ import { useDraftAutosave, type DraftSaveState } from "./use-draft-autosave";
 import { loadEstimateDraft } from "./draft-sync.functions";
 import { registerCustomIcons } from "./jimpick-icon3d";
 
-
 // ============ Types ============
 export type MoveType = "포장이사" | "반포장이사" | "일반이사" | "보관이사" | "사무실이사";
 export type WorkEnv = "없음" | "계단" | "엘리베이터" | "계단+엘리베이터";
@@ -477,9 +476,30 @@ export const ITEM_CATALOG: {
   { id: "figurecase", name: "피규어 진열장", cat: "생활용품", sub: "취미", emoji: "🤖" },
 
   // ===== 신규 품목 (새 블루/화이트 3D 아이콘) =====
-  { id: "sidefridge", name: "양문형냉장고", cat: "가전", sub: "대형가전", emoji: "🧊", extra: 30000 },
-  { id: "frenchfridge", name: "프렌치도어 냉장고", cat: "가전", sub: "대형가전", emoji: "🧊", extra: 30000 },
-  { id: "bizfridge", name: "업소용 냉장고", cat: "가전", sub: "대형가전", emoji: "🧊", extra: 30000 },
+  {
+    id: "sidefridge",
+    name: "양문형냉장고",
+    cat: "가전",
+    sub: "대형가전",
+    emoji: "🧊",
+    extra: 30000,
+  },
+  {
+    id: "frenchfridge",
+    name: "프렌치도어 냉장고",
+    cat: "가전",
+    sub: "대형가전",
+    emoji: "🧊",
+    extra: 30000,
+  },
+  {
+    id: "bizfridge",
+    name: "업소용 냉장고",
+    cat: "가전",
+    sub: "대형가전",
+    emoji: "🧊",
+    extra: 30000,
+  },
   { id: "washtower", name: "워시타워", cat: "가전", sub: "세탁가전", emoji: "🌀", extra: 30000 },
   { id: "electricrange", name: "전기레인지", cat: "주방", sub: "주방가전", emoji: "🔥" },
   { id: "ceilingac", name: "천장형 에어컨", cat: "가전", sub: "냉난방", emoji: "❄️", extra: 30000 },
@@ -487,7 +507,14 @@ export const ITEM_CATALOG: {
   { id: "sofa2", name: "소파(2인)", cat: "가구", sub: "거실", emoji: "🛋️", extra: 20000 },
   { id: "cornersofa", name: "코너소파", cat: "가구", sub: "거실", emoji: "🛋️", extra: 30000 },
   { id: "sofabed", name: "소파베드", cat: "가구", sub: "거실", emoji: "🛋️", extra: 20000 },
-  { id: "marblecoffee", name: "대리석 소파테이블", cat: "가구", sub: "거실", emoji: "☕", extra: 10000 },
+  {
+    id: "marblecoffee",
+    name: "대리석 소파테이블",
+    cat: "가구",
+    sub: "거실",
+    emoji: "☕",
+    extra: 10000,
+  },
   { id: "tvwall", name: "벽면 수납장(TV)", cat: "가구", sub: "거실", emoji: "📺", extra: 20000 },
   { id: "glasscabinet", name: "유리 진열장", cat: "가구", sub: "거실", emoji: "🏺", extra: 10000 },
   { id: "sideboard", name: "사이드보드", cat: "가구", sub: "거실", emoji: "🗄️", extra: 10000 },
@@ -499,18 +526,53 @@ export const ITEM_CATALOG: {
   { id: "storagebed", name: "수납침대", cat: "가구", sub: "침실", emoji: "🛏️", extra: 30000 },
   { id: "canopybed", name: "캐노피침대", cat: "가구", sub: "침실", emoji: "🛏️", extra: 30000 },
   { id: "wardrobe4", name: "옷장(4도어)", cat: "가구", sub: "침실", emoji: "🚪", extra: 30000 },
-  { id: "slidewardrobe", name: "슬라이딩 옷장", cat: "가구", sub: "침실", emoji: "🚪", extra: 30000 },
+  {
+    id: "slidewardrobe",
+    name: "슬라이딩 옷장",
+    cat: "가구",
+    sub: "침실",
+    emoji: "🚪",
+    extra: 30000,
+  },
   { id: "chestdrawer", name: "서랍장(높은)", cat: "가구", sub: "침실", emoji: "🗄️", extra: 10000 },
   { id: "table8", name: "식탁(8인)", cat: "가구", sub: "주방·식당", emoji: "🍽️", extra: 30000 },
   { id: "roundtable", name: "원형 식탁", cat: "가구", sub: "주방·식당", emoji: "🍽️", extra: 10000 },
-  { id: "extendtable", name: "확장형 식탁", cat: "가구", sub: "주방·식당", emoji: "🍽️", extra: 20000 },
-  { id: "kitchenisland", name: "주방 아일랜드", cat: "가구", sub: "주방·식당", emoji: "🍽️", extra: 30000 },
+  {
+    id: "extendtable",
+    name: "확장형 식탁",
+    cat: "가구",
+    sub: "주방·식당",
+    emoji: "🍽️",
+    extra: 20000,
+  },
+  {
+    id: "kitchenisland",
+    name: "주방 아일랜드",
+    cat: "가구",
+    sub: "주방·식당",
+    emoji: "🍽️",
+    extra: 30000,
+  },
   { id: "pantry", name: "팬트리장", cat: "주방", sub: "주방살림", emoji: "🗄️", extra: 20000 },
-  { id: "kitchensideboard", name: "주방 사이드보드", cat: "주방", sub: "주방살림", emoji: "🗄️", extra: 10000 },
+  {
+    id: "kitchensideboard",
+    name: "주방 사이드보드",
+    cat: "주방",
+    sub: "주방살림",
+    emoji: "🗄️",
+    extra: 10000,
+  },
   { id: "worktable", name: "스텐 작업대", cat: "주방", sub: "주방살림", emoji: "🍽️", extra: 10000 },
   { id: "cafetable", name: "카페 테이블", cat: "가구", sub: "주방·식당", emoji: "🪑" },
   { id: "homebar", name: "홈바", cat: "가구", sub: "거실", emoji: "🍷", extra: 20000 },
-  { id: "microwavestand", name: "전자레인지장", cat: "주방", sub: "주방살림", emoji: "🗄️", extra: 10000 },
+  {
+    id: "microwavestand",
+    name: "전자레인지장",
+    cat: "주방",
+    sub: "주방살림",
+    emoji: "🗄️",
+    extra: 10000,
+  },
 
   // ===== 신규 품목 2차 (전자·오피스·헬스/게임·소형가전·수납/생활·업소용) =====
   { id: "curvedtv", name: "커브드 TV", cat: "가전", sub: "영상·음향", emoji: "📺" },
@@ -521,17 +583,59 @@ export const ITEM_CATALOG: {
   { id: "arcade", name: "오락실 게임기", cat: "가전", sub: "영상·음향", emoji: "🕹️" },
   { id: "execdesk", name: "임원 책상", cat: "가구", sub: "서재·사무", emoji: "🪑", extra: 20000 },
   { id: "ldesk", name: "L자 책상", cat: "가구", sub: "서재·사무", emoji: "🪑", extra: 20000 },
-  { id: "workstation", name: "2인 워크스테이션", cat: "가구", sub: "서재·사무", emoji: "🪑", extra: 30000 },
-  { id: "conferencetable", name: "회의 탁자", cat: "가구", sub: "서재·사무", emoji: "🪑", extra: 30000 },
+  {
+    id: "workstation",
+    name: "2인 워크스테이션",
+    cat: "가구",
+    sub: "서재·사무",
+    emoji: "🪑",
+    extra: 30000,
+  },
+  {
+    id: "conferencetable",
+    name: "회의 탁자",
+    cat: "가구",
+    sub: "서재·사무",
+    emoji: "🪑",
+    extra: 30000,
+  },
   { id: "standdesk", name: "높이조절 책상", cat: "가구", sub: "서재·사무", emoji: "🪑" },
-  { id: "reception", name: "리셉션 데스크", cat: "가구", sub: "서재·사무", emoji: "🪑", extra: 20000 },
+  {
+    id: "reception",
+    name: "리셉션 데스크",
+    cat: "가구",
+    sub: "서재·사무",
+    emoji: "🪑",
+    extra: 20000,
+  },
   { id: "filecabinet", name: "파일 캐비닛", cat: "가구", sub: "서재·사무", emoji: "🗄️" },
-  { id: "doccabinet", name: "서류 수납장", cat: "가구", sub: "서재·사무", emoji: "🗄️", extra: 10000 },
+  {
+    id: "doccabinet",
+    name: "서류 수납장",
+    cat: "가구",
+    sub: "서재·사무",
+    emoji: "🗄️",
+    extra: 10000,
+  },
   { id: "serverrack", name: "서버랙", cat: "가전", sub: "사무·기타", emoji: "🖥️", extra: 20000 },
   { id: "draftingtable", name: "제도판", cat: "가구", sub: "서재·사무", emoji: "📐" },
   { id: "whiteboard", name: "화이트보드", cat: "가구", sub: "서재·사무", emoji: "📋" },
-  { id: "meetingtable", name: "회의 테이블(소)", cat: "가구", sub: "서재·사무", emoji: "🪑", extra: 10000 },
-  { id: "officehutch", name: "사무 데스크(상부장)", cat: "가구", sub: "서재·사무", emoji: "🪑", extra: 10000 },
+  {
+    id: "meetingtable",
+    name: "회의 테이블(소)",
+    cat: "가구",
+    sub: "서재·사무",
+    emoji: "🪑",
+    extra: 10000,
+  },
+  {
+    id: "officehutch",
+    name: "사무 데스크(상부장)",
+    cat: "가구",
+    sub: "서재·사무",
+    emoji: "🪑",
+    extra: 10000,
+  },
   { id: "podium", name: "연단", cat: "가구", sub: "서재·사무", emoji: "🎤" },
   { id: "servicecart", name: "서비스 카트", cat: "가구", sub: "수납", emoji: "🛒" },
   { id: "elliptical", name: "일립티컬", cat: "특수", sub: "운동", emoji: "🏃", extra: 20000 },
@@ -552,34 +656,125 @@ export const ITEM_CATALOG: {
   { id: "standmixer", name: "스탠드 믹서", cat: "주방", sub: "주방가전", emoji: "🥣" },
   { id: "bigcabinet", name: "대형 수납장", cat: "가구", sub: "수납", emoji: "🗄️", extra: 20000 },
   { id: "cabinet2", name: "수납장(2문)", cat: "가구", sub: "수납", emoji: "🗄️", extra: 10000 },
-  { id: "outdoorcabinet", name: "야외 수납장", cat: "가구", sub: "수납", emoji: "🗄️", extra: 10000 },
+  {
+    id: "outdoorcabinet",
+    name: "야외 수납장",
+    cat: "가구",
+    sub: "수납",
+    emoji: "🗄️",
+    extra: 10000,
+  },
   { id: "anglerack", name: "앵글 선반", cat: "가구", sub: "수납", emoji: "🗄️", extra: 10000 },
   { id: "toolcart", name: "공구 카트", cat: "가구", sub: "수납", emoji: "🧰" },
   { id: "shoeopenrack", name: "신발 정리대", cat: "가구", sub: "수납", emoji: "👟" },
   { id: "entrybench", name: "현관 벤치", cat: "가구", sub: "수납", emoji: "🪑" },
   { id: "mirrorcabinet", name: "거울 수납장", cat: "가구", sub: "침실", emoji: "🪞" },
   { id: "foldscreen", name: "가리개(병풍)", cat: "가구", sub: "거실", emoji: "🎐" },
-  { id: "laundrycabinet", name: "세탁실 수납장", cat: "생활용품", sub: "생활", emoji: "🧺", extra: 10000 },
+  {
+    id: "laundrycabinet",
+    name: "세탁실 수납장",
+    cat: "생활용품",
+    sub: "생활",
+    emoji: "🧺",
+    extra: 10000,
+  },
   { id: "bathvanity", name: "세면대장", cat: "생활용품", sub: "생활", emoji: "🚰", extra: 10000 },
-  { id: "showcasefridge", name: "쇼케이스 냉장고", cat: "가전", sub: "대형가전", emoji: "🧊", extra: 30000 },
-  { id: "chestfreezer", name: "뚜껑형 냉동고", cat: "가전", sub: "대형가전", emoji: "🧊", extra: 20000 },
-  { id: "beveragefridge", name: "음료 냉장고", cat: "가전", sub: "대형가전", emoji: "🥤", extra: 20000 },
-  { id: "bizdishwasher", name: "업소용 식기세척기", cat: "주방", sub: "주방가전", emoji: "🍽️", extra: 20000 },
-  { id: "convectionoven", name: "컨벡션 오븐", cat: "주방", sub: "주방가전", emoji: "🔥", extra: 20000 },
+  {
+    id: "showcasefridge",
+    name: "쇼케이스 냉장고",
+    cat: "가전",
+    sub: "대형가전",
+    emoji: "🧊",
+    extra: 30000,
+  },
+  {
+    id: "chestfreezer",
+    name: "뚜껑형 냉동고",
+    cat: "가전",
+    sub: "대형가전",
+    emoji: "🧊",
+    extra: 20000,
+  },
+  {
+    id: "beveragefridge",
+    name: "음료 냉장고",
+    cat: "가전",
+    sub: "대형가전",
+    emoji: "🥤",
+    extra: 20000,
+  },
+  {
+    id: "bizdishwasher",
+    name: "업소용 식기세척기",
+    cat: "주방",
+    sub: "주방가전",
+    emoji: "🍽️",
+    extra: 20000,
+  },
+  {
+    id: "convectionoven",
+    name: "컨벡션 오븐",
+    cat: "주방",
+    sub: "주방가전",
+    emoji: "🔥",
+    extra: 20000,
+  },
   { id: "deckoven", name: "제빵 오븐", cat: "주방", sub: "주방가전", emoji: "🥖", extra: 20000 },
-  { id: "bizgasrange", name: "업소용 가스레인지", cat: "주방", sub: "주방가전", emoji: "🔥", extra: 20000 },
+  {
+    id: "bizgasrange",
+    name: "업소용 가스레인지",
+    cat: "주방",
+    sub: "주방가전",
+    emoji: "🔥",
+    extra: 20000,
+  },
   { id: "rangehood", name: "렌지후드", cat: "주방", sub: "주방가전", emoji: "💨" },
   { id: "vending", name: "자판기", cat: "특수", sub: "특수운반", emoji: "🥤", extra: 30000 },
   { id: "waterdispenser", name: "냉온수기", cat: "주방", sub: "주방가전", emoji: "🚰" },
-  { id: "bizwasher", name: "업소용 세탁기", cat: "가전", sub: "세탁가전", emoji: "🌀", extra: 20000 },
-  { id: "bizdryer", name: "업소용 건조기", cat: "가전", sub: "세탁가전", emoji: "♨️", extra: 20000 },
+  {
+    id: "bizwasher",
+    name: "업소용 세탁기",
+    cat: "가전",
+    sub: "세탁가전",
+    emoji: "🌀",
+    extra: 20000,
+  },
+  {
+    id: "bizdryer",
+    name: "업소용 건조기",
+    cat: "가전",
+    sub: "세탁가전",
+    emoji: "♨️",
+    extra: 20000,
+  },
   { id: "medbed", name: "진료용 베드", cat: "특수", sub: "특수운반", emoji: "🛏️", extra: 10000 },
   { id: "salonchair", name: "미용 의자", cat: "특수", sub: "특수운반", emoji: "💇" },
-  { id: "shampoochair", name: "샴푸 의자", cat: "특수", sub: "특수운반", emoji: "💇", extra: 10000 },
-  { id: "antiquecabinet", name: "앤틱 장식장", cat: "가구", sub: "거실", emoji: "🏺", extra: 20000 },
+  {
+    id: "shampoochair",
+    name: "샴푸 의자",
+    cat: "특수",
+    sub: "특수운반",
+    emoji: "💇",
+    extra: 10000,
+  },
+  {
+    id: "antiquecabinet",
+    name: "앤틱 장식장",
+    cat: "가구",
+    sub: "거실",
+    emoji: "🏺",
+    extra: 20000,
+  },
   { id: "pooltable", name: "당구대", cat: "특수", sub: "취미", emoji: "🎱", extra: 30000 },
   { id: "pingpong", name: "탁구대", cat: "특수", sub: "취미", emoji: "🏓", extra: 20000 },
-  { id: "bathvanity2", name: "세면대장(더블)", cat: "생활용품", sub: "생활", emoji: "🚰", extra: 10000 },
+  {
+    id: "bathvanity2",
+    name: "세면대장(더블)",
+    cat: "생활용품",
+    sub: "생활",
+    emoji: "🚰",
+    extra: 10000,
+  },
   { id: "bathtub", name: "욕조", cat: "생활용품", sub: "생활", emoji: "🛁", extra: 10000 },
 ];
 
@@ -751,27 +946,47 @@ export function volumeOf(id: string, cat?: string): number {
 
 /** 기존 품목의 소분류(sub) → 20카테고리 */
 const SUB_TO_CAT20: Record<string, string> = {
-  대형가전: "대형가전", 세탁가전: "대형가전", 대형: "대형가전",
+  대형가전: "대형가전",
+  세탁가전: "대형가전",
+  대형: "대형가전",
   주방가전: "주방가전",
-  생활가전: "생활가전", 의료: "생활가전", "사무·기타": "생활가전",
-  냉난방: "계절가전", 계절가전: "계절가전",
-  "영상·음향": "영상·음향기기", 악기: "영상·음향기기",
-  "서재·사무": "사무가구", 의자: "사무가구",
-  거실: "거실가구", 테이블: "거실가구",
-  침실: "침실가구", 침구: "침실가구",
-  "주방·식당": "주방가구", "주방 가구": "주방가구",
+  생활가전: "생활가전",
+  의료: "생활가전",
+  "사무·기타": "생활가전",
+  냉난방: "계절가전",
+  계절가전: "계절가전",
+  "영상·음향": "영상·음향기기",
+  악기: "영상·음향기기",
+  "서재·사무": "사무가구",
+  의자: "사무가구",
+  거실: "거실가구",
+  테이블: "거실가구",
+  침실: "침실가구",
+  침구: "침실가구",
+  "주방·식당": "주방가구",
+  "주방 가구": "주방가구",
   주방살림: "주방용품",
-  수납: "수납가구", "옷·수납": "수납가구",
-  유아: "아동가구", "유아·반려": "아동가구",
+  수납: "수납가구",
+  "옷·수납": "수납가구",
+  유아: "아동가구",
+  "유아·반려": "아동가구",
   반려동물: "반려동물용품",
-  "취미·레저": "운동·레저용품", 레저: "운동·레저용품", 취미: "운동·레저용품", 운동: "운동·레저용품",
+  "취미·레저": "운동·레저용품",
+  레저: "운동·레저용품",
+  취미: "운동·레저용품",
+  운동: "운동·레저용품",
   생활: "생활용품",
-  특수운반: "기타 이삿짐 및 폐기물", "포장 단위": "기타 이삿짐 및 폐기물",
+  특수운반: "기타 이삿짐 및 폐기물",
+  "포장 단위": "기타 이삿짐 및 폐기물",
 };
 /** 대분류(cat) → 20카테고리 (sub 로 못 정할 때) */
 const CAT_TO_CAT20: Record<string, string> = {
-  가전: "생활가전", 주방: "주방용품", 가구: "거실가구",
-  생활용품: "생활용품", 특수: "기타 이삿짐 및 폐기물", 잔짐: "기타 이삿짐 및 폐기물",
+  가전: "생활가전",
+  주방: "주방용품",
+  가구: "거실가구",
+  생활용품: "생활용품",
+  특수: "기타 이삿짐 및 폐기물",
+  잔짐: "기타 이삿짐 및 폐기물",
 };
 /** 임의의 대분류/소분류를 20카테고리 하나로 */
 export function cat20For(cat?: string, sub?: string): string {
@@ -797,11 +1012,17 @@ export function cat5For(cat?: string, sub?: string): string {
 
 /** 품목 이름에 따라 어느 공간에 두는 것이 자연스러운지 고릅니다 */
 const ROOM_HINT: [RegExp, string][] = [
-  [/냉장고|김치|냉동고|와인|전자레인지|오븐|에어프라이|가스레인지|인덕션|식기|정수기|밥솥|커피|믹서|토스터|전기포트|그릇|주방|냄비|쌀통|식탁|아일랜드/, "부엌"],
+  [
+    /냉장고|김치|냉동고|와인|전자레인지|오븐|에어프라이|가스레인지|인덕션|식기|정수기|밥솥|커피|믹서|토스터|전기포트|그릇|주방|냄비|쌀통|식탁|아일랜드/,
+    "부엌",
+  ],
   [/세탁기|건조기|스타일러|빨래|청소도구|공구|사다리|화분|장독/, "베란다"],
   [/침대|매트리스|장롱|붙박이|행거|화장대|서랍장|협탁|이불/, "안방"],
   [/책상|책장|의자|컴퓨터|모니터|프린터|파티션|피아노|아기|유모차|2층/, "작은방"],
-  [/소파|리클라이너|좌식|TV|티비|거실장|티테이블|장식장|진열장|카펫|러그|커튼|블라인드|안마의자|러닝머신|실내자전거|어항|수족관|스피커|오디오|프로젝터|에어컨|공기청정기|제습기|가습기|스탠드 조명/, "거실"],
+  [
+    /소파|리클라이너|좌식|TV|티비|거실장|티테이블|장식장|진열장|카펫|러그|커튼|블라인드|안마의자|러닝머신|실내자전거|어항|수족관|스피커|오디오|프로젝터|에어컨|공기청정기|제습기|가습기|스탠드 조명/,
+    "거실",
+  ],
   [/신발장|우산|전신거울/, "입구방"],
 ];
 
@@ -1266,6 +1487,8 @@ interface Ctx extends AppState {
   saveDraft: () => void;
   deleteEstimate: (id: string) => void;
   loadEstimate: (id: string) => void;
+  /** 서버에서 불러온 견적서(이 기기에 없는 계약)를 상세 화면으로 바로 엽니다 */
+  openEstimate: (e: Estimate) => void;
   /** 견적 결과 화면의 뒤로가기 목적지를 지정합니다 */
   setResultFrom: (s: string) => void;
   /** 품목을 목록에서 영구히(앱 전체) 숨깁니다 — 새 견적·새로고침에도 유지 */
@@ -1297,13 +1520,16 @@ async function savePendingOAuthConsent(userId: string): Promise<void> {
       version?: string;
     };
     if (!pending.termsAccepted || !pending.privacyAccepted || !pending.acceptedAt) return;
-    const { error } = await supabase.from("profiles").update({
-      terms_accepted_at: pending.acceptedAt,
-      privacy_accepted_at: pending.acceptedAt,
-      marketing_accepted: !!pending.marketingAccepted,
-      marketing_accepted_at: pending.marketingAccepted ? pending.acceptedAt : null,
-      consent_version: pending.version ?? "2026-09-13",
-    }).eq("id", userId);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        terms_accepted_at: pending.acceptedAt,
+        privacy_accepted_at: pending.acceptedAt,
+        marketing_accepted: !!pending.marketingAccepted,
+        marketing_accepted_at: pending.marketingAccepted ? pending.acceptedAt : null,
+        consent_version: pending.version ?? "2026-09-13",
+      })
+      .eq("id", userId);
     if (!error) localStorage.removeItem(OAUTH_CONSENT_KEY);
   } catch {
     // OAuth 동의 기록이 실패하면 다음 인증 상태 확인 때 다시 시도합니다.
@@ -1355,7 +1581,11 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
           return { ...s, loggedIn: true, screen: s.screen === "splash" ? "home" : s.screen };
         }
         const publicScreens: Screen[] = ["login", "signup", "forgot"];
-        return { ...s, loggedIn: false, screen: publicScreens.includes(s.screen) ? s.screen : "login" };
+        return {
+          ...s,
+          loggedIn: false,
+          screen: publicScreens.includes(s.screen) ? s.screen : "login",
+        };
       });
     };
 
@@ -1366,17 +1596,20 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     const cap = setTimeout(() => {
       if (alive) setAuthChecked(true);
     }, 2000);
-    supabase.auth.getSession().then(({ data }) => {
-      if (!alive) return;
-      clearTimeout(cap);
-      apply(!!data.session, data.session?.user.id);
-      setAuthChecked(true);
-    }).catch(() => {
-      if (alive) {
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!alive) return;
         clearTimeout(cap);
+        apply(!!data.session, data.session?.user.id);
         setAuthChecked(true);
-      }
-    });
+      })
+      .catch(() => {
+        if (alive) {
+          clearTimeout(cap);
+          setAuthChecked(true);
+        }
+      });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!alive) return;
       clearTimeout(cap);
@@ -1472,9 +1705,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
               merged.customItems = (merged.customItems || []).map((c) =>
                 hidden.has(c.id) ? { ...c, active: false } : c,
               );
-              merged.hiddenItems = Array.from(
-                new Set([...(merged.hiddenItems || []), ...hidden]),
-              );
+              merged.hiddenItems = Array.from(new Set([...(merged.hiddenItems || []), ...hidden]));
             }
             return { ...s, draft: merged };
           });
@@ -1563,10 +1794,19 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       setState((s) => {
         const e = s.estimates.find((x) => x.id === id);
         // 어느 목록에서 열었는지 기록해 두어, 뒤로가기로 그 목록으로 돌아갑니다.
-        return e
-          ? { ...s, draft: { ...e }, screen: "result", resultFrom: s.screen }
-          : s;
+        return e ? { ...s, draft: { ...e }, screen: "result", resultFrom: s.screen } : s;
       });
+    },
+    openEstimate: (e) => {
+      // 서버에서 불러온 계약 견적서를 상세(result)로 엽니다. 뒤로가기 기록도 loadEstimate 와 동일하게 쌓습니다.
+      if (typeof window !== "undefined") {
+        try {
+          window.history.pushState({ jpScreen: "result" }, "");
+        } catch {
+          /* 기록을 못 쌓아도 화면 이동은 그대로 합니다 */
+        }
+      }
+      setState((s) => ({ ...s, draft: { ...e }, screen: "result", resultFrom: s.screen }));
     },
     setResultFrom: (v) => setState((s) => ({ ...s, resultFrom: v })),
     hideCatalogItem: (id) =>
@@ -1609,7 +1849,6 @@ export function useApp() {
 export function useAppSafe() {
   return useContext(AppCtx);
 }
-
 
 export function formatPhone(v: string) {
   const d = v.replace(/\D/g, "").slice(0, 11);
