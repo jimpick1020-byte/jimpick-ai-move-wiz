@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { generateText, Output, NoObjectGeneratedError } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
@@ -124,6 +125,7 @@ ${VISION_CATALOG.map(([id, name]) => `- ${id}: ${name}`).join("\n")}
 
 
 export const recognizeItems = createServerFn({ method: "POST" })
+  .middleware([requireActiveEntitlement])
   .inputValidator((d: unknown) =>
     z
       .object({
@@ -340,6 +342,7 @@ function extractJson(text: string): unknown {
 
 /** 음성 문장을 AI가 해석해 방과 품목을 뽑아냅니다 ("추가" 같은 명령어가 없어도 동작) */
 export const parseVoiceOrder = createServerFn({ method: "POST" })
+  .middleware([requireActiveEntitlement])
   .inputValidator((d: unknown) =>
     z
       .object({

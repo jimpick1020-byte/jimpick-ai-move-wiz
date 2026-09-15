@@ -10,6 +10,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { z } from "zod";
 
 export interface DraftSyncResult {
@@ -22,7 +23,7 @@ export interface DraftSyncResult {
 }
 
 export const saveEstimateDraft = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveEntitlement])
   .inputValidator((d: unknown) =>
     z
       .object({

@@ -195,6 +195,7 @@ import { printSheet } from "@/lib/sheet-export";
 import { ScanMascot, type MascotState } from "./ScanMascot";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
 import { checkSendable, type MissingField } from "@/lib/send-check";
+import { useEntitlement, TRIAL_EXPIRED_MESSAGE } from "@/lib/use-entitlement";
 
 import {
   FileText,
@@ -551,7 +552,7 @@ export function Login() {
         >
           업체 회원가입
         </Button>
-        <p className="-mt-3 text-center text-sm text-auth-muted">가입 후 3일 동안 모든 기능을 무료로 체험할 수 있습니다.</p>
+        <p className="-mt-3 text-center text-sm text-auth-muted">가입 후 7일 동안 모든 기능을 무료로 체험할 수 있습니다.</p>
         <Button
           type="button"
           variant="ghost"
@@ -614,6 +615,7 @@ export function HomeScreen() {
     .filter((e) => e.status === "완료")
     .reduce((s, e) => s + (e.total || 0), 0);
   const recent = [...estimates].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3);
+  const { blocked, remainingText, entitlement } = useEntitlement();
 
   return (
     <MobileShell>
@@ -630,8 +632,35 @@ export function HomeScreen() {
 
 
       <div className="px-5 space-y-4 flex-1 pb-4">
+        {blocked && (
+          <div className="rounded-2xl border border-[#FCA5A5] bg-[#FEF2F2] p-4">
+            <div className="text-sm font-bold text-[#B91C1C] break-keep">
+              {TRIAL_EXPIRED_MESSAGE}
+            </div>
+            <div className="mt-1 text-xs text-[#7F1D1D] break-keep">
+              저장된 고객·견적 기록은 그대로 볼 수 있습니다. 새 견적 작성과 문자 발송은 구독 후
+              사용할 수 있습니다.
+            </div>
+            <button
+              onClick={() => setScreen("subscription")}
+              className="mt-3 w-full rounded-xl bg-[#0751D8] py-2.5 text-sm font-bold text-white"
+            >
+              구독하고 계속 사용하기
+            </button>
+          </div>
+        )}
+        {!blocked && entitlement?.state === "trial" && remainingText && (
+          <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-2.5 text-xs font-semibold text-[#0751D8]">
+            7일 무료체험 중 · {remainingText}
+          </div>
+        )}
         <div
           onClick={() => {
+            if (blocked) {
+              toast.error(TRIAL_EXPIRED_MESSAGE);
+              setScreen("subscription");
+              return;
+            }
             resetDraft();
             setScreen("step1");
           }}
@@ -3036,6 +3065,7 @@ export function Step6() {
 // ============ AI Recognition ============
 export function AIRecognition() {
   const { draft, updateDraft, setScreen, currentRoomId, setCurrentRoom } = useApp();
+  const { blocked: entBlocked } = useEntitlement();
   const [results, setResults] = useState<DetectedItem[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [photoUrl, setPhotoUrl] = useState<string>("");
@@ -3121,6 +3151,11 @@ export function AIRecognition() {
   };
 
   const analyze = async (images: string[], source: "photo" | "video", keepPrev = false) => {
+    if (entBlocked) {
+      toast.error(TRIAL_EXPIRED_MESSAGE);
+      setScreen("subscription");
+      return;
+    }
     setBusy(true);
     setProgress(5);
     setRetake("");
@@ -4031,6 +4066,7 @@ export function Result() {
    * 이후 각 화면의 뒤로가기가 5→4→3→2→1→홈 순으로 이어집니다.
    */
   const backTo = (resultFrom as Screen) || "history";
+  const { blocked: entBlocked } = useEntitlement();
   /** 「견적 완료 · 처음으로」 진행 중 — 두 번 눌려도 한 번만 실행됩니다 */
   const [finishing, setFinishing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
@@ -4174,6 +4210,10 @@ export function Result() {
    */
   const doSendSms = async (opts?: { resend?: boolean }) => {
     if (sending) return;
+    if (entBlocked) {
+      setSendResult({ ok: false, error: TRIAL_EXPIRED_MESSAGE });
+      return;
+    }
     // 필수 데이터 검사 — 하나라도 비어 있으면 발송하지 않습니다
     const check = checkSendable(draft, total);
     setMissingFields(check.missing);
@@ -4346,6 +4386,10 @@ export function Result() {
       return;
     }
     if (exporting) return;
+    if (entBlocked) {
+      toast.error(TRIAL_EXPIRED_MESSAGE);
+      return;
+    }
     setExporting("pdf");
     try {
       await printSheet(el);
@@ -6174,7 +6218,7 @@ export function SettingsScreen() {
         </Card>
         <Card className="space-y-2 text-sm">
           <div className="font-bold text-base">구독 안내</div>
-          <div>· 무료 체험 3일</div>
+          <div>· 무료 체험 7일</div>
           <div>· 이후 월 22,000원 (부가세 포함)</div>
           <div>· 약정 없이 언제든 해지 가능</div>
           <div>· 재구독 시 기존 데이터 복원</div>

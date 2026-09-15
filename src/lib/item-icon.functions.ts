@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 
 /** 한 업체가 하루에 만들 수 있는 3D 아이콘 개수 (비용 폭주 방지) */
 export const ICON_DAILY_LIMIT = 20;
@@ -78,7 +79,7 @@ export const findItemIcon = createServerFn({ method: "POST" })
 
 /** 검색 결과에 없는 품목의 3D 아이콘을 실제로 생성합니다 (서버에서만 AI 호출) */
 export const generateItemIcon = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveEntitlement])
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data, context }): Promise<IconResult> => {
     const name = cleanItemName(data.name);

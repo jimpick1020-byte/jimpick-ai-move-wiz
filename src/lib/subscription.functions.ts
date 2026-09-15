@@ -13,8 +13,9 @@ export interface Plan {
   aiLimit: number;
 }
 
-/** 무료 체험 기간(일) */
-export const TRIAL_DAYS = 3;
+/** 무료 체험 기간(일) — 실제 값은 entitlement.functions.ts 한 곳에서 관리합니다 */
+export { TRIAL_DAYS } from "@/lib/entitlement.functions";
+import { TRIAL_DAYS } from "@/lib/entitlement.functions";
 
 /** 업체용 월 구독 요금제 (VAT 포함 월 22,000원 단일 요금제) */
 export const PLANS: Plan[] = [
@@ -69,7 +70,7 @@ export const subscribePlan = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const now = new Date();
-    // 무료 체험은 3일, 유료 구독은 30일 주기
+    // 무료 체험은 7일(168시간), 유료 구독은 30일 주기
     const end = new Date(now.getTime() + (plan.price === 0 ? TRIAL_DAYS : 30) * 86400000);
 
 
@@ -83,6 +84,9 @@ export const subscribePlan = createServerFn({ method: "POST" })
         current_period_start: now.toISOString(),
         current_period_end: end.toISOString(),
         cancel_at_period_end: false,
+        ...(plan.price === 0
+          ? { trial_started_at: now.toISOString(), trial_ends_at: end.toISOString() }
+          : {}),
       },
       { onConflict: "user_id" },
     );
