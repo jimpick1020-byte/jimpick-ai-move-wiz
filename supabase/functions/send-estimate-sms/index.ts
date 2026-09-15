@@ -107,6 +107,55 @@ async function db(
   });
 }
 
+/**
+ * 이용 권한 확인 — 7일 무료체험 중이거나 유료 구독 중이거나 관리자여야 문자를 보낼 수 있습니다.
+ */
+async function canSend(
+  userId: string,
+  supabaseUrl: string,
+  serviceKey: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const EXPIRED = "7일 무료체험이 종료되었습니다. 구독 후 계속 사용할 수 있습니다";
+  try {
+    const roleRes = await db(
+      `user_roles?select=role&user_id=eq.${userId}&role=eq.admin&limit=1`,
+      { supabaseUrl, serviceKey },
+    );
+    const roles = (await roleRes.json().catch(() => [])) as unknown[];
+    if (Array.isArray(roles) && roles.length > 0) return { ok: true };
+
+    const subRes = await db(
+      `subscriptions?select=plan,status,trial_started_at,trial_ends_at,current_period_start,current_period_end,created_at&user_id=eq.${userId}&limit=1`,
+      { supabaseUrl, serviceKey },
+    );
+    const rows = (await subRes.json().catch(() => [])) as {
+      plan?: string;
+      status?: string;
+      trial_started_at?: string | null;
+      trial_ends_at?: string | null;
+      current_period_start?: string;
+      current_period_end?: string;
+      created_at?: string;
+    }[];
+    const sub = Array.isArray(rows) ? rows[0] : undefined;
+    if (!sub) return { ok: false, error: EXPIRED };
+    const now = Date.now();
+    const periodEnd = sub.current_period_end ? new Date(sub.current_period_end).getTime() : 0;
+    if (sub.plan !== "free" && sub.status === "active" && periodEnd > now) return { ok: true };
+    const startStr = sub.trial_started_at ?? sub.current_period_start ?? sub.created_at ?? "";
+    const trialEnd = sub.trial_ends_at
+      ? new Date(sub.trial_ends_at).getTime()
+      : startStr
+        ? new Date(startStr).getTime() + 7 * 24 * 3600_000
+        : 0;
+    if (sub.status === "trialing" && trialEnd > now) return { ok: true };
+    return { ok: false, error: EXPIRED };
+  } catch {
+    // 확인에 실패하면 발송을 막지 않습니다 (기존 동작 유지)
+    return { ok: true };
+  }
+}
+
 interface SendOutcome {
   ok: boolean;
   msgId?: string;
@@ -326,6 +375,12 @@ Deno.serve(async (req) => {
   }
   if (!userId && !isServerCall) {
     return json({ ok: false, error: "로그인이 필요합니다. 다시 로그인한 뒤 시도해 주세요." }, 401);
+  }
+
+  // 7일 무료체험이 끝나고 결제하지 않은 업체는 문자 발송을 막습니다 (기존 기록은 그대로 둡니다).
+  if (userId && !isServerCall) {
+    const allow = await canSend(userId, supabaseUrl, serviceKey);
+    if (!allow.ok) return json({ ok: false, error: allow.error }, 403);
   }
 
   if (missing.length) {

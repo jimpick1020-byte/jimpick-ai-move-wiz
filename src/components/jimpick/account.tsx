@@ -539,7 +539,7 @@ export function SubscriptionScreen() {
               <span className="px-2 py-0.5 rounded-full bg-[#EDF2FB] text-[#0751D8] text-xs font-bold">
                 {PLANS.find((p) => p.id === current.plan)?.name}
               </span>
-              <span className="text-[#6B7280] text-xs">{statusLabel[current.status] ?? current.status}</span>
+              <span className="text-[#6B7280] text-xs">{blocked ? "체험 종료" : (statusLabel[current.status] ?? current.status)}</span>
               <span className="text-[#6B7280] text-xs">
                 ~ {new Date(current.current_period_end).toLocaleDateString("ko-KR")}
               </span>

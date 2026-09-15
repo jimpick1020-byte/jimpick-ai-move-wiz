@@ -45,7 +45,9 @@ export function useEntitlement() {
     };
     listeners.add(fn);
     if (cached === null) void refreshEntitlement().then(() => setLoaded(true));
-    return () => listeners.delete(fn);
+    return () => {
+      listeners.delete(fn);
+    };
   }, []);
 
   const refresh = useCallback(async () => {
