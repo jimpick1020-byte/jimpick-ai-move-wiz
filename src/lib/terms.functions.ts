@@ -750,6 +750,28 @@ export const renameReservationCustomer = createServerFn({ method: "POST" })
         .eq("user_id", context.userId)
         .eq("estimate_id", data.estimateId)
         .is("sent_at", null);
+      // 작성 중 임시저장본(새로고침 복구용)의 이름도 맞춰, 되살릴 때 옛 이름으로 돌아가지 않게 합니다.
+      const { data: drafts } = await supabaseAdmin
+        .from("estimate_drafts")
+        .select("id, payload, revision")
+        .eq("user_id", context.userId)
+        .eq("estimate_id", data.estimateId);
+      for (const d of (drafts ?? []) as {
+        id: string;
+        payload: Record<string, unknown> | null;
+        revision: number | null;
+      }[]) {
+        if (!d.payload || typeof d.payload !== "object") continue;
+        if (String(d.payload["customerName"] ?? "").trim() === name) continue;
+        await supabaseAdmin
+          .from("estimate_drafts")
+          .update({
+            payload: { ...d.payload, customerName: name },
+            revision: Number(d.revision ?? 0) + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", d.id);
+      }
       return { ok: true, updated: rows?.length ?? 0 };
     },
   );
