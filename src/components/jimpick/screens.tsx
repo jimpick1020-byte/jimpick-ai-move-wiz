@@ -3097,9 +3097,18 @@ export function AIRecognition() {
   /** 찰칵 하는 순간 마스코트가 플래시를 터뜨립니다 */
   const [shooting, setShooting] = useState(false);
 
-  /** 담을 공간 — 스캔이 끝나면 여기서 고른 방으로 들어갑니다 */
+  /** 담을 공간 — 지금 화면에서 고른 방 */
   const [roomId, setRoomId] = useState<string>(() => currentRoomId || draft.rooms[0]?.id || "");
   const targetRoom = draft.rooms.find((r) => r.id === roomId) || draft.rooms[0];
+  /**
+   * 촬영을 시작한 순간의 방을 고정합니다.
+   * 비동기 AI 분석이 끝난 뒤 화면에서 방을 바꿔도, 이 사진의 품목은 촬영 당시 고른 방에 저장됩니다.
+   */
+  const [capturedRoomId, setCapturedRoomId] = useState<string>("");
+  const capturedRoom =
+    draft.rooms.find((r) => r.id === capturedRoomId) || targetRoom;
+  /** AI가 추정한 공간 이름(참고용). 저장 위치를 자동으로 바꾸지 않습니다. */
+  const [roomGuessName, setRoomGuessName] = useState<string>("");
 
   /** 음성으로 바로 담기 */
   const [listening, setListening] = useState(false);
@@ -3172,6 +3181,7 @@ export function AIRecognition() {
     setBusy(true);
     setProgress(5);
     setRetake("");
+    setRoomGuessName("");
     setLastBatch({ images, source });
     if (!keepPrev) setResults([]);
 
@@ -3242,7 +3252,8 @@ export function AIRecognition() {
         toast.success(`AI 인식 완료 — 확실한 품목 ${high}개 · 확인 필요 ${merged.length - high}개`);
         tap("success");
       }
-      if (roomGuess) toast.info(`추정 공간: ${roomGuess}`);
+      // AI 추정 공간은 참고용으로만 저장합니다(저장 위치를 자동으로 바꾸지 않음).
+      if (roomGuess) setRoomGuessName(roomGuess);
     } finally {
       setBusy(false);
       setProgress(0);
@@ -3251,6 +3262,8 @@ export function AIRecognition() {
 
   const onPhoto = async (f: File) => {
     flash();
+    // 촬영을 시작한 순간의 방을 고정합니다 (분석 중 방을 바꿔도 이 사진은 이 방에 저장).
+    setCapturedRoomId(roomId);
     setVideoUrl("");
     setPhotoUrl(URL.createObjectURL(f));
     const dataUrl = await fileToDataUrl(f);
@@ -3260,6 +3273,7 @@ export function AIRecognition() {
 
   const onVideo = async (f: File) => {
     flash();
+    setCapturedRoomId(roomId);
     setPhotoUrl("");
     setVideoUrl(URL.createObjectURL(f));
     setBusy(true);
@@ -3307,14 +3321,28 @@ export function AIRecognition() {
     return used.join(", ");
   };
 
-  const apply = () => {
-    if (!targetRoom) return;
-    const name = addToRoom(shown, targetRoom.id, true);
+  /**
+   * 인식한 품목을 방에 담습니다.
+   * 저장 위치는 촬영 당시 고른 방(capturedRoom)입니다. AI 추정 공간으로 자동 이동하지 않습니다.
+   * roomIdOverride 가 있으면(사용자가 "…으로 변경"을 직접 누른 경우) 그 방으로 담습니다.
+   */
+  const apply = (roomIdOverride?: string) => {
+    const dest =
+      draft.rooms.find((r) => r.id === (roomIdOverride || capturedRoomId)) || targetRoom;
+    if (!dest) return;
+    // auto=false → 품목 이름으로 다른 방에 흩어 담지 않고, 고른 방 하나에만 담습니다.
+    const name = addToRoom(shown, dest.id, false);
     if (!name) return;
-    setCurrentRoom(targetRoom.id);
-    toast.success(`「${name}」에 ${shown.length}개 품목을 담았습니다`);
+    setCurrentRoom(dest.id);
+    toast.success(`「${dest.name}」에 ${shown.length}개 품목을 담았습니다`);
     setScreen("step6");
   };
+
+  /** AI가 추정한 공간(있으면)과 촬영 당시 고른 방이 다른지 — 다르면 확인만 받고 자동 이동하지 않습니다. */
+  const guessedRoom = roomGuessName
+    ? draft.rooms.find((r) => r.name === roomGuessName)
+    : undefined;
+  const roomMismatch = !!guessedRoom && !!capturedRoom && guessedRoom.id !== capturedRoom.id;
 
   // ---- 음성으로 바로 담기 (대화 없이, 말하는 즉시 들어갑니다) ----
 
@@ -3711,6 +3739,11 @@ export function AIRecognition() {
           </button>
         </div>
 
+        {/* 지금 어느 방에 저장되는지 촬영 버튼 위에 분명히 보여 줍니다 */}
+        <div className="rounded-2xl bg-[#EAF2FF] px-4 py-2.5 text-center text-[14px] font-black text-[#0751D8]">
+          현재 선택: {targetRoom ? targetRoom.name : "공간을 먼저 선택해 주세요"}
+        </div>
+
         {/* 촬영 — 사진 / 동영상 */}
         <div className="grid grid-cols-2 gap-3">
           <label
@@ -3877,23 +3910,46 @@ export function AIRecognition() {
       </div>
       <BottomButtonBar>
         <div className="space-y-2">
-          {results.length > 0 && (
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setResults([]);
-                  setVideoUrl("");
-                  setPhotoUrl("");
-                }}
-                className="flex-1 py-4 rounded-2xl border border-[#E7EBF2] font-bold"
-              >
-                다시 촬영
-              </button>
-              <PrimaryButton onClick={apply} className="flex-1" disabled={shown.length === 0}>
-                {targetRoom ? `「${targetRoom.name}」에 담기` : "담고 다음으로"}
-              </PrimaryButton>
+          {results.length > 0 && roomMismatch && (
+            <div className="rounded-2xl border border-[#FED7AA] bg-[#FFF7ED] px-3 py-2 text-[13px] font-semibold text-[#9A3412]">
+              AI는 이 사진을 「{guessedRoom!.name}」으로 판단했습니다. 선택하신 「{capturedRoom!.name}」에 저장할까요?
             </div>
           )}
+          {results.length > 0 &&
+            (roomMismatch ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => apply(guessedRoom!.id)}
+                  disabled={shown.length === 0}
+                  className="flex-1 py-4 rounded-2xl border border-[#DCE8FA] bg-white font-black text-[13.5px] text-[#334155] disabled:opacity-50"
+                >
+                  「{guessedRoom!.name}」으로 변경
+                </button>
+                <PrimaryButton
+                  onClick={() => apply()}
+                  className="flex-1"
+                  disabled={shown.length === 0}
+                >
+                  「{capturedRoom!.name}」에 저장
+                </PrimaryButton>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setResults([]);
+                    setVideoUrl("");
+                    setPhotoUrl("");
+                  }}
+                  className="flex-1 py-4 rounded-2xl border border-[#E7EBF2] font-bold"
+                >
+                  다시 촬영
+                </button>
+                <PrimaryButton onClick={() => apply()} className="flex-1" disabled={shown.length === 0}>
+                  {capturedRoom ? `「${capturedRoom.name}」에 담기` : "담고 다음으로"}
+                </PrimaryButton>
+              </div>
+            ))}
           {/* 스캔은 선택입니다 — 건너뛰어도 5단계에서 직접 담을 수 있습니다 */}
           <button
             onClick={() => {
