@@ -98,6 +98,7 @@ export function computeEntitlement(
   if (sub.status === "trialing" && end > now) {
     return {
       allowed: true,
+      isSuperAdmin: false,
       state: "trial",
       trialEndsAt: new Date(end).toISOString(),
       periodEnd: sub.current_period_end,
