@@ -998,6 +998,17 @@ export type Database = {
         Args: { _key: string; _user_id: string }
         Returns: undefined
       }
+      confirm_reservation_atomic: {
+        Args: {
+          _accept_method: string
+          _estimate_snapshot: string
+          _terms_id: string
+          _terms_snapshot: string
+          _token_hint: string
+          _user_agent: string
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
