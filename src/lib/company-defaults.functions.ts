@@ -118,7 +118,9 @@ export const saveCompanyDefaults = createServerFn({ method: "POST" })
 
     // 사업자등록번호·휴대전화번호는 해시로만 남겨, 같은 업체가 무료체험을 두 번 받지 못하게 합니다.
     if (data.businessNumber !== undefined || data.phone !== undefined) {
-      await context.supabase.rpc("claim_trial_identity", {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.rpc("claim_trial_identity_for", {
+        _user_id: context.userId,
         _business: (data.businessNumber ?? "").trim(),
         _phone: (data.phone ?? "").trim(),
       });
