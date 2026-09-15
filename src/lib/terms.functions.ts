@@ -10,6 +10,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { z } from "zod";
 
 export interface TermsLinkInfo {
@@ -40,7 +41,7 @@ export interface TermsLinkInfo {
 
 /** 업체가 견적서·약관 문자를 보낼 때 기록합니다 */
 export const publishEstimateTerms = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveEntitlement])
   .inputValidator((d: unknown) =>
     z
       .object({

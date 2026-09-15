@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { z } from "zod";
 
 /**
@@ -6,6 +7,7 @@ import { z } from "zod";
  * 브라우저 기본 음성인식보다 한국어 인식률이 훨씬 높습니다.
  */
 export const transcribeAudio = createServerFn({ method: "POST" })
+  .middleware([requireActiveEntitlement])
   .inputValidator((d: unknown) =>
     z
       .object({
