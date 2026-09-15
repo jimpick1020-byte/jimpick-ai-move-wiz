@@ -40,23 +40,40 @@ export const DAILY_BOOKING_LIMIT = 2;
 
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
 
+export interface CalendarBooking {
+  estimateId: string;
+  termsId: string;
+  customerName: string;
+  total: number;
+  sheetNo: string | null;
+}
+
 export function MoveDateCalendar({
   value,
   onSelect,
   counts,
+  bookings,
+  onOpenBooking,
+  onCancelBooking,
 }: {
   /** YYYY-MM-DD (없으면 빈 문자열) */
   value: string;
   onSelect: (date: string) => void;
   /** 날짜별(YYYY-MM-DD) 확정 계약 건수 — 실제 계약 데이터에서 집계해 전달합니다 */
   counts?: Record<string, number>;
+  /** 날짜별 확정 예약 상세 — 누르면 견적서를 열 수 있게 합니다 */
+  bookings?: Record<string, CalendarBooking[]>;
+  onOpenBooking?: (estimateId: string) => void;
+  onCancelBooking?: (termsId: string) => void;
 }) {
   const today = todayYmd();
+  const [openDate, setOpenDate] = useState("");
   const base = useMemo(() => {
     const src = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : today;
     const [y, m] = src.split("-").map(Number);
     return { y, m };
   }, [value, today]);
+
 
   const [view, setView] = useState(base);
 
