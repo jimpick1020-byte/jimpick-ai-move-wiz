@@ -548,7 +548,15 @@ export function SubscriptionScreen() {
                 }`}
                 style={active ? undefined : { background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
               >
-                {active ? "이용 중" : busy === p.id ? "결제 중..." : p.price === 0 ? "무료로 시작" : "구독 결제하기"}
+                {active
+                  ? "이용 중"
+                  : busy === p.id
+                    ? "결제 중..."
+                    : p.price === 0
+                      ? "무료로 시작"
+                      : card?.registered
+                        ? "등록한 카드로 결제하기"
+                        : "카드 등록하고 구독 시작"}
               </button>
             </Card>
           );
