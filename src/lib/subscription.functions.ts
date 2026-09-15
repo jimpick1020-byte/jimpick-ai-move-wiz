@@ -103,13 +103,34 @@ export const subscribePlan = createServerFn({ method: "POST" })
     return { ok: true, plan: plan.id, periodEnd: end.toISOString() };
   });
 
+/**
+ * 구독 해지 예약.
+ * 이미 결제한 이용기간은 그대로 쓰고, 기간이 끝나면 더 이상 결제하지 않습니다.
+ * (상태를 바로 해지로 바꾸지 않으므로 기간 종료일까지 계속 이용할 수 있습니다)
+ */
 export const cancelSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { error } = await context.supabase
+  .handler(async ({ context }): Promise<{ ok: boolean; cancelAt?: string }> => {
+    const { data, error } = await context.supabase
       .from("subscriptions")
       .update({ cancel_at_period_end: true })
+      .eq("user_id", context.userId)
+      .select("current_period_end")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const row = data as { current_period_end: string } | null;
+    return { ok: true, ...(row ? { cancelAt: row.current_period_end } : {}) };
+  });
+
+/** 해지 예약 취소 (계속 이용하기) */
+export const resumeSubscription = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ ok: boolean }> => {
+    const { error } = await context.supabase
+      .from("subscriptions")
+      .update({ cancel_at_period_end: false })
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
