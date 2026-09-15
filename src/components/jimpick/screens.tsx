@@ -834,23 +834,39 @@ export function HomeScreen() {
 
 // ============ Step 1: Customer ============
 export function Step1() {
-  const { draft, updateDraft, setScreen } = useApp();
+  const { draft, updateDraft, setScreen, loadEstimate, estimates } = useApp();
   const [err, setErr] = useState("");
   /** 날짜별 확정 예약 건수 — 실제 예약 데이터(estimate_terms)에서 집계해 달력에 표시 */
   const [bookingCounts, setBookingCounts] = useState<Record<string, number>>({});
-  useEffect(() => {
-    let alive = true;
+  const [bookings, setBookings] = useState<Record<string, CalendarBooking[]>>({});
+  const loadBookings = useCallback(() => {
     getReservationCounts()
       .then((r) => {
-        if (alive && r?.ok) setBookingCounts(r.counts);
+        if (!r?.ok) return;
+        setBookingCounts(r.counts);
+        setBookings(
+          Object.fromEntries(
+            Object.entries(r.reservations ?? {}).map(([d, list]) => [
+              d,
+              list.map((b) => ({
+                estimateId: b.estimateId,
+                termsId: b.termsId,
+                customerName: b.customerName,
+                total: b.total,
+                sheetNo: b.sheetNo,
+              })),
+            ]),
+          ),
+        );
       })
       .catch(() => {
         /* 못 읽으면 표시만 비웁니다(가짜 숫자를 만들지 않습니다) */
       });
-    return () => {
-      alive = false;
-    };
   }, []);
+  useEffect(() => {
+    loadBookings();
+  }, [loadBookings]);
+
   const moveTypes: MoveType[] = ["포장이사", "반포장이사", "일반이사", "보관이사", "사무실이사"];
   const next = () => {
     if (!draft.customerName.trim()) return setErr("고객명을 입력해 주세요.");
