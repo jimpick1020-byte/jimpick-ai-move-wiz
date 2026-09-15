@@ -177,27 +177,17 @@ export const acceptTerms = createServerFn({ method: "POST" })
       })
       .parse(d),
   )
-  .handler(async ({ data }): Promise<{ ok: boolean; acceptedAt?: string; error?: string }> => {
+  .handler(async ({ data }): Promise<{ ok: boolean; acceptedAt?: string; error?: string; full?: boolean }> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("estimate_terms")
-      .select(
-        "id, user_id, estimate_id, sheet_version, terms_name, terms_version, terms_effective_at, sent_at, sent_msg_id",
-      )
+      .select("id")
       .eq("access_token", data.token)
       .maybeSingle();
     if (error || !row) {
       return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
     }
 
-    const { data: already } = await supabaseAdmin
-      .from("terms_acceptances")
-      .select("accepted_at")
-      .eq("estimate_terms_id", row.id)
-      .maybeSingle();
-    if (already) return { ok: true, acceptedAt: already.accepted_at };
-
-    const acceptedAt = new Date().toISOString();
     // 고객이 어떤 기기로 눌렀는지 남깁니다 (접속 정보). 없으면 빈 값으로 둡니다.
     let userAgent = "";
     try {
@@ -206,42 +196,45 @@ export const acceptTerms = createServerFn({ method: "POST" })
     } catch {
       /* 헤더를 못 읽어도 동의 기록은 남깁니다 */
     }
-    /** 어떤 상황에서도 꼭 남겨야 하는 값 */
-    const base = {
-      estimate_terms_id: row.id,
-      user_id: row.user_id,
-      estimate_id: row.estimate_id,
-      sheet_version: row.sheet_version,
-      terms_name: row.terms_name,
-      terms_version: row.terms_version,
-      terms_effective_at: row.terms_effective_at,
-      terms_snapshot: data.termsSnapshot,
-      accepted: true,
-      accepted_at: acceptedAt,
-      accept_method: data.acceptMethod,
-      token_hint: data.token.slice(-6),
-      sent_at: row.sent_at,
-      sent_msg_id: row.sent_msg_id,
-    };
-    /** 새로 늘린 칸 (견적서 스냅샷·접속 정보·예약 상태) */
-    const extra = {
-      estimate_snapshot: data.estimateSnapshot ?? null,
-      user_agent: userAgent || null,
-      reservation_status: "confirmed",
-    };
 
-    let insErr = (await supabaseAdmin.from("terms_acceptances").insert({ ...base, ...extra })).error;
-    // 데이터베이스에 새 칸이 아직 안 만들어졌으면(마이그레이션 전) 기본 값만이라도 남깁니다.
-    // 고객이 동의했는데 기록이 통째로 사라지는 일은 없어야 합니다.
-    if (insErr && /column|schema cache/i.test(insErr.message)) {
-      console.error("[acceptTerms] 새 칸 없음 — 기본 값만 저장합니다:", insErr.message);
-      insErr = (await supabaseAdmin.from("terms_acceptances").insert(base)).error;
-    }
-    if (insErr) {
-      console.error("[acceptTerms]", insErr.message);
+    // 하루 확정 예약 2건 상한은 데이터베이스 함수에서 원자적으로 확인합니다.
+    // (같은 업체·같은 이사 날짜를 잠근 뒤 세고, 2건이면 저장하지 않습니다)
+    const { data: res, error: rpcErr } = await supabaseAdmin.rpc("confirm_reservation_atomic", {
+      _terms_id: (row as { id: string }).id,
+      _terms_snapshot: data.termsSnapshot,
+      _estimate_snapshot: data.estimateSnapshot ?? null,
+      _accept_method: data.acceptMethod,
+      _token_hint: data.token.slice(-6),
+      _user_agent: userAgent || null,
+    } as never);
+    if (rpcErr) {
+      console.error("[acceptTerms]", rpcErr.message);
       return { ok: false, error: "동의 기록을 저장하지 못했습니다." };
     }
-    await supabaseAdmin.from("estimate_terms").update({ viewed_at: acceptedAt }).eq("id", row.id);
+    const out = (res ?? {}) as {
+      ok?: boolean;
+      reason?: string;
+      duplicate?: boolean;
+      accepted_at?: string;
+      move_date?: string;
+    };
+    if (!out.ok) {
+      if (out.reason === "full") {
+        return {
+          ok: false,
+          full: true,
+          error: "해당 날짜는 예약이 마감되었습니다(하루 2건). 업체에 문의해 다른 날짜로 변경해 주세요.",
+        };
+      }
+      return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
+    }
+
+    const acceptedAt = out.accepted_at ?? new Date().toISOString();
+    const rowId = (row as { id: string }).id;
+    await supabaseAdmin.from("estimate_terms").update({ viewed_at: acceptedAt }).eq("id", rowId);
+
+    // 이미 확정된 건을 다시 누른 경우에는 알림·예약을 다시 만들지 않습니다.
+    if (out.duplicate) return { ok: true, acceptedAt };
 
     // 예약 확정 저장이 성공한 뒤에만 사장님에게 알림 문자를 보냅니다.
     // 문자가 실패해도 고객 동의·예약 확정 기록은 그대로 둡니다.
@@ -250,14 +243,14 @@ export const acceptTerms = createServerFn({ method: "POST" })
     // 예약이 확정됐으니, 이사 전날 18시(한국시간)에 보낼 안내 문자를 예약합니다
     try {
       const { syncMoveReminder } = await import("./reminder.server");
-      await syncMoveReminder(row.id);
+      await syncMoveReminder(rowId);
     } catch (e) {
       console.error("[acceptTerms] 안내 문자 예약 실패", e instanceof Error ? e.message : e);
     }
 
-
     return { ok: true, acceptedAt };
   });
+
 
 /**
  * 사장님 예약확정 알림 문자를 요청합니다.
