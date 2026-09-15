@@ -328,6 +328,12 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "로그인이 필요합니다. 다시 로그인한 뒤 시도해 주세요." }, 401);
   }
 
+  // 7일 무료체험이 끝나고 결제하지 않은 업체는 문자 발송을 막습니다 (기존 기록은 그대로 둡니다).
+  if (userId && !isServerCall) {
+    const allow = await canSend(userId, supabaseUrl, serviceKey);
+    if (!allow.ok) return json({ ok: false, error: allow.error }, 403);
+  }
+
   if (missing.length) {
     // 값은 절대 보여 주지 않고, 빠진 이름만 알려 줍니다
     return json(
