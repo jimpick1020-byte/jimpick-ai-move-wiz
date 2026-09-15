@@ -134,6 +134,8 @@ import {
   getReservationCounts,
   cancelReservation,
   getReservationSheet,
+  renameReservationCustomer,
+  getReservationCustomerName,
   getManagerNotices,
   type TermsStatusRow,
   type ManagerNoticeRow,
