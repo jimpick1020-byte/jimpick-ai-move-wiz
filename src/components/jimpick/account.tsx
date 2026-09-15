@@ -534,29 +534,45 @@ export function SubscriptionScreen() {
         <Card className="space-y-1">
           <div className="text-xs text-[#6B7280]">현재 계정</div>
           <div className="font-bold">{account?.profile?.company_name || email || "내 업체"}</div>
-          {current && (
-            <div className="text-sm mt-2 flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-full bg-[#EDF2FB] text-[#0751D8] text-xs font-bold">
-                {PLANS.find((p) => p.id === current.plan)?.name}
-              </span>
-              <span className="text-[#6B7280] text-xs">{blocked ? "체험 종료" : (statusLabel[current.status] ?? current.status)}</span>
-              <span className="text-[#6B7280] text-xs">
-                ~ {new Date(current.current_period_end).toLocaleDateString("ko-KR")}
-              </span>
+          {entitlement?.isSuperAdmin ? (
+            <div className="mt-2 inline-flex items-center rounded-full bg-[#DCFCE7] px-3 py-1 text-xs font-bold text-[#166534]">
+              JIMPICK 서비스 관리자
             </div>
-          )}
-          {entitlement?.state === "trial" && remainingText && (
-            <div className="mt-2 rounded-xl bg-[#EFF6FF] p-2.5 text-xs font-semibold leading-5 text-[#0751D8]">
-              7일 무료체험 중 · {remainingText}
-              {entitlement.trialEndsAt
-                ? ` (종료 ${new Date(entitlement.trialEndsAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })})`
-                : ""}
-            </div>
-          )}
-          {blocked && (
-            <div className="mt-2 rounded-xl bg-[#FEF2F2] p-2.5 text-xs leading-5 text-[#B42318]">
-              {TRIAL_EXPIRED_MESSAGE}
-            </div>
+          ) : (
+            <>
+              {current && (
+                <div className="text-sm mt-2 flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full bg-[#EDF2FB] text-[#0751D8] text-xs font-bold">
+                    {PLANS.find((p) => p.id === current.plan)?.name}
+                  </span>
+                  <span className="text-[#6B7280] text-xs">{blocked ? "체험 종료" : (statusLabel[current.status] ?? current.status)}</span>
+                  <span className="text-[#6B7280] text-xs">
+                    ~ {new Date(current.current_period_end).toLocaleDateString("ko-KR")}
+                  </span>
+                </div>
+              )}
+              {entitlement?.state === "trial" && remainingText && (
+                <div className="mt-2 rounded-xl bg-[#EFF6FF] p-2.5 text-xs font-semibold leading-5 text-[#0751D8]">
+                  7일 무료체험 중 · {remainingText}
+                  {entitlement.trialEndsAt
+                    ? ` (종료 ${new Date(entitlement.trialEndsAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })})`
+                    : ""}
+                </div>
+              )}
+              {entitlement?.state === "active" && entitlement.periodEnd && (
+                <div className="mt-2 rounded-xl bg-[#F0FDF4] p-2.5 text-xs font-semibold leading-5 text-[#166534]">
+                  구독 이용 중 · 다음 결제 예정일{" "}
+                  {new Date(entitlement.periodEnd).toLocaleDateString("ko-KR", {
+                    timeZone: "Asia/Seoul",
+                  })}
+                </div>
+              )}
+              {blocked && (
+                <div className="mt-2 rounded-xl bg-[#FEF2F2] p-2.5 text-xs leading-5 text-[#B42318]">
+                  {TRIAL_EXPIRED_MESSAGE}
+                </div>
+              )}
+            </>
           )}
           {current?.cancel_at_period_end && (
             <div className="mt-2 rounded-xl bg-[#FEF2F2] p-2.5 text-xs leading-5 text-[#B42318]">

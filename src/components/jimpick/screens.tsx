@@ -632,7 +632,12 @@ export function HomeScreen() {
 
 
       <div className="px-5 space-y-4 flex-1 pb-4">
-        {blocked && (
+        {entitlement?.isSuperAdmin && (
+          <div className="inline-flex items-center rounded-full bg-[#DCFCE7] px-3 py-1 text-xs font-bold text-[#166534]">
+            JIMPICK 서비스 관리자
+          </div>
+        )}
+        {!entitlement?.isSuperAdmin && blocked && (
           <div className="rounded-2xl border border-[#FCA5A5] bg-[#FEF2F2] p-4">
             <div className="text-sm font-bold text-[#B91C1C] break-keep">
               {TRIAL_EXPIRED_MESSAGE}
@@ -652,6 +657,14 @@ export function HomeScreen() {
         {!blocked && entitlement?.state === "trial" && remainingText && (
           <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-2.5 text-xs font-semibold text-[#0751D8]">
             7일 무료체험 중 · {remainingText}
+          </div>
+        )}
+        {entitlement?.state === "active" && (
+          <div className="rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] px-4 py-2.5 text-xs font-semibold text-[#166534]">
+            구독 이용 중
+            {entitlement.periodEnd
+              ? ` · 다음 결제 예정일 ${new Date(entitlement.periodEnd).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}`
+              : ""}
           </div>
         )}
         <div
@@ -6145,6 +6158,7 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
 
 export function SettingsScreen() {
   const { logout, setScreen, draft } = useApp();
+  const { entitlement: settingsEnt } = useEntitlement();
   const [pricing, setPricing] = useState<Pricing>(DEFAULT_PRICING);
   useEffect(() => setPricing(getPricing()), []);
   const setP = (patch: Partial<Pricing>) => {
@@ -6156,6 +6170,21 @@ export function SettingsScreen() {
     <MobileShell>
       <TopBar title="설정" onBack={() => setScreen("home")} />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
+        {/* 서비스 최고관리자 전용 메뉴 — 서버에서 확인한 권한만 사용합니다 */}
+        {settingsEnt?.isSuperAdmin && (
+          <button
+            onClick={() => {
+              tap();
+              setScreen("adminAccounts");
+            }}
+            className="w-full rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-left"
+          >
+            <div className="text-base font-bold text-[#166534]">업체 계정 관리</div>
+            <div className="mt-1 text-xs font-medium text-[#15803D]">
+              업체별 가입일 · 무료체험 · 구독 · 결제 · 문자 사용량 확인
+            </div>
+          </button>
+        )}
         <button
           onClick={() => {
             tap();

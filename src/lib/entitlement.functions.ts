@@ -24,6 +24,8 @@ export type EntitlementState = "admin" | "trial" | "active" | "expired";
 export interface Entitlement {
   /** 지금 기능을 쓸 수 있는지 */
   allowed: boolean;
+  /** JIMPICK 서비스 최고관리자 계정인지 (서버에서 확인) */
+  isSuperAdmin: boolean;
   state: EntitlementState;
   /** 체험 종료 일시 */
   trialEndsAt: string | null;
@@ -58,11 +60,19 @@ export function computeEntitlement(
   now: number = Date.now(),
 ): Entitlement {
   if (isAdmin) {
-    return { allowed: true, state: "admin", trialEndsAt: null, periodEnd: null, remainingMs: 0 };
+    return {
+      allowed: true,
+      isSuperAdmin: true,
+      state: "admin",
+      trialEndsAt: null,
+      periodEnd: null,
+      remainingMs: 0,
+    };
   }
   if (!sub) {
     return {
       allowed: false,
+      isSuperAdmin: false,
       state: "expired",
       trialEndsAt: null,
       periodEnd: null,
@@ -76,6 +86,7 @@ export function computeEntitlement(
   if (paid) {
     return {
       allowed: true,
+      isSuperAdmin: false,
       state: "active",
       trialEndsAt: sub.trial_ends_at ?? null,
       periodEnd: sub.current_period_end,
@@ -87,6 +98,7 @@ export function computeEntitlement(
   if (sub.status === "trialing" && end > now) {
     return {
       allowed: true,
+      isSuperAdmin: false,
       state: "trial",
       trialEndsAt: new Date(end).toISOString(),
       periodEnd: sub.current_period_end,
@@ -96,6 +108,7 @@ export function computeEntitlement(
 
   return {
     allowed: false,
+    isSuperAdmin: false,
     state: "expired",
     trialEndsAt: new Date(end).toISOString(),
     periodEnd: sub.current_period_end,
@@ -112,11 +125,12 @@ export async function loadEntitlement(
   supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<Entitlement> {
-  const [subRes, roleRes] = await Promise.all([
+  const [subRes, adminRes] = await Promise.all([
     supabase.from("subscriptions").select(SELECT).eq("user_id", userId).maybeSingle(),
-    supabase.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle(),
+    // 최고관리자 여부는 서버 함수(is_super_admin)로만 확인합니다 — 화면에서 바꿀 수 없습니다.
+    supabase.rpc("is_super_admin", { _user_id: userId }),
   ]);
-  return computeEntitlement((subRes.data as SubRow | null) ?? null, !!roleRes.data);
+  return computeEntitlement((subRes.data as SubRow | null) ?? null, adminRes.data === true);
 }
 
 /**
