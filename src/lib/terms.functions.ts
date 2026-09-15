@@ -102,18 +102,18 @@ export const publishEstimateTerms = createServerFn({ method: "POST" })
         const { syncMoveReminder } = await import("./reminder.server");
         await syncMoveReminder(savedId);
       } catch (e) {
-        console.error("[publishEstimateTerms] 안내 문자 재예약 실패", e instanceof Error ? e.message : e);
+        console.error(
+          "[publishEstimateTerms] 안내 문자 재예약 실패",
+          e instanceof Error ? e.message : e,
+        );
       }
     }
     return { ok: true };
   });
 
-
 /** 고객용 — 보안 토큰으로 약관 정보와 동의 여부를 읽습니다 */
 export const getTermsLink = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) =>
-    z.object({ token: z.string().min(8).max(80) }).parse(d),
-  )
+  .inputValidator((d: unknown) => z.object({ token: z.string().min(8).max(80) }).parse(d))
   .handler(async ({ data }): Promise<TermsLinkInfo> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
@@ -177,80 +177,84 @@ export const acceptTerms = createServerFn({ method: "POST" })
       })
       .parse(d),
   )
-  .handler(async ({ data }): Promise<{ ok: boolean; acceptedAt?: string; error?: string; full?: boolean }> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row, error } = await supabaseAdmin
-      .from("estimate_terms")
-      .select("id")
-      .eq("access_token", data.token)
-      .maybeSingle();
-    if (error || !row) {
-      return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
-    }
-
-    // 고객이 어떤 기기로 눌렀는지 남깁니다 (접속 정보). 없으면 빈 값으로 둡니다.
-    let userAgent = "";
-    try {
-      const { getRequest } = await import("@tanstack/react-start/server");
-      userAgent = (getRequest()?.headers.get("user-agent") ?? "").slice(0, 300);
-    } catch {
-      /* 헤더를 못 읽어도 동의 기록은 남깁니다 */
-    }
-
-    // 하루 확정 예약 2건 상한은 데이터베이스 함수에서 원자적으로 확인합니다.
-    // (같은 업체·같은 이사 날짜를 잠근 뒤 세고, 2건이면 저장하지 않습니다)
-    const { data: res, error: rpcErr } = await supabaseAdmin.rpc("confirm_reservation_atomic", {
-      _terms_id: (row as { id: string }).id,
-      _terms_snapshot: data.termsSnapshot,
-      _estimate_snapshot: data.estimateSnapshot ?? null,
-      _accept_method: data.acceptMethod,
-      _token_hint: data.token.slice(-6),
-      _user_agent: userAgent || null,
-    } as never);
-    if (rpcErr) {
-      console.error("[acceptTerms]", rpcErr.message);
-      return { ok: false, error: "동의 기록을 저장하지 못했습니다." };
-    }
-    const out = (res ?? {}) as {
-      ok?: boolean;
-      reason?: string;
-      duplicate?: boolean;
-      accepted_at?: string;
-      move_date?: string;
-    };
-    if (!out.ok) {
-      if (out.reason === "full") {
-        return {
-          ok: false,
-          full: true,
-          error: "해당 날짜는 예약이 마감되었습니다(하루 2건). 업체에 문의해 다른 날짜로 변경해 주세요.",
-        };
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: boolean; acceptedAt?: string; error?: string; full?: boolean }> => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: row, error } = await supabaseAdmin
+        .from("estimate_terms")
+        .select("id")
+        .eq("access_token", data.token)
+        .maybeSingle();
+      if (error || !row) {
+        return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
       }
-      return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
-    }
 
-    const acceptedAt = out.accepted_at ?? new Date().toISOString();
-    const rowId = (row as { id: string }).id;
-    await supabaseAdmin.from("estimate_terms").update({ viewed_at: acceptedAt }).eq("id", rowId);
+      // 고객이 어떤 기기로 눌렀는지 남깁니다 (접속 정보). 없으면 빈 값으로 둡니다.
+      let userAgent = "";
+      try {
+        const { getRequest } = await import("@tanstack/react-start/server");
+        userAgent = (getRequest()?.headers.get("user-agent") ?? "").slice(0, 300);
+      } catch {
+        /* 헤더를 못 읽어도 동의 기록은 남깁니다 */
+      }
 
-    // 이미 확정된 건을 다시 누른 경우에는 알림·예약을 다시 만들지 않습니다.
-    if (out.duplicate) return { ok: true, acceptedAt };
+      // 하루 확정 예약 2건 상한은 데이터베이스 함수에서 원자적으로 확인합니다.
+      // (같은 업체·같은 이사 날짜를 잠근 뒤 세고, 2건이면 저장하지 않습니다)
+      const { data: res, error: rpcErr } = await supabaseAdmin.rpc("confirm_reservation_atomic", {
+        _terms_id: (row as { id: string }).id,
+        _terms_snapshot: data.termsSnapshot,
+        _estimate_snapshot: data.estimateSnapshot ?? null,
+        _accept_method: data.acceptMethod,
+        _token_hint: data.token.slice(-6),
+        _user_agent: userAgent || null,
+      } as never);
+      if (rpcErr) {
+        console.error("[acceptTerms]", rpcErr.message);
+        return { ok: false, error: "동의 기록을 저장하지 못했습니다." };
+      }
+      const out = (res ?? {}) as {
+        ok?: boolean;
+        reason?: string;
+        duplicate?: boolean;
+        accepted_at?: string;
+        move_date?: string;
+      };
+      if (!out.ok) {
+        if (out.reason === "full") {
+          return {
+            ok: false,
+            full: true,
+            error:
+              "해당 날짜는 예약이 마감되었습니다(하루 2건). 업체에 문의해 다른 날짜로 변경해 주세요.",
+          };
+        }
+        return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
+      }
 
-    // 예약 확정 저장이 성공한 뒤에만 사장님에게 알림 문자를 보냅니다.
-    // 문자가 실패해도 고객 동의·예약 확정 기록은 그대로 둡니다.
-    await notifyManager(data.token);
+      const acceptedAt = out.accepted_at ?? new Date().toISOString();
+      const rowId = (row as { id: string }).id;
+      await supabaseAdmin.from("estimate_terms").update({ viewed_at: acceptedAt }).eq("id", rowId);
 
-    // 예약이 확정됐으니, 이사 전날 18시(한국시간)에 보낼 안내 문자를 예약합니다
-    try {
-      const { syncMoveReminder } = await import("./reminder.server");
-      await syncMoveReminder(rowId);
-    } catch (e) {
-      console.error("[acceptTerms] 안내 문자 예약 실패", e instanceof Error ? e.message : e);
-    }
+      // 이미 확정된 건을 다시 누른 경우에는 알림·예약을 다시 만들지 않습니다.
+      if (out.duplicate) return { ok: true, acceptedAt };
 
-    return { ok: true, acceptedAt };
-  });
+      // 예약 확정 저장이 성공한 뒤에만 사장님에게 알림 문자를 보냅니다.
+      // 문자가 실패해도 고객 동의·예약 확정 기록은 그대로 둡니다.
+      await notifyManager(data.token);
 
+      // 예약이 확정됐으니, 이사 전날 18시(한국시간)에 보낼 안내 문자를 예약합니다
+      try {
+        const { syncMoveReminder } = await import("./reminder.server");
+        await syncMoveReminder(rowId);
+      } catch (e) {
+        console.error("[acceptTerms] 안내 문자 예약 실패", e instanceof Error ? e.message : e);
+      }
+
+      return { ok: true, acceptedAt };
+    },
+  );
 
 /**
  * 사장님 예약확정 알림 문자를 요청합니다.
@@ -301,7 +305,9 @@ export const getManagerNotices = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<{ ok: boolean; rows: ManagerNoticeRow[] }> => {
     const { data, error } = await context.supabase
       .from("estimate_deliveries")
-      .select("estimate_id, status, to_masked, provider_message_id, sent_at, failed_at, error_message")
+      .select(
+        "estimate_id, status, to_masked, provider_message_id, sent_at, failed_at, error_message",
+      )
       .eq("user_id", context.userId)
       .eq("delivery_method", "manager_notification")
       .order("requested_at", { ascending: false })
@@ -398,7 +404,10 @@ export const logCustomerView = createServerFn({ method: "POST" })
             viewed_at: now,
             first_viewed_at: r.first_viewed_at ?? now,
           };
-    const { error } = await supabaseAdmin.from("estimate_terms").update(patch as never).eq("id", r.id);
+    const { error } = await supabaseAdmin
+      .from("estimate_terms")
+      .update(patch as never)
+      .eq("id", r.id);
     if (error) {
       console.error("[logCustomerView]", error.message);
       return { ok: false };
@@ -468,7 +477,6 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
       }),
     };
   });
-
 
 /**
  * 날짜별(YYYY-MM-DD) 확정 예약 건수 — 달력에서 예약 1건/마감 표시에 씁니다.
@@ -596,9 +604,78 @@ export const cancelReservation = createServerFn({ method: "POST" })
     }
     const out = (res ?? {}) as { ok?: boolean; canceled?: number };
     if (!out.ok || Number(out.canceled ?? 0) < 1) {
-      return { ok: false, error: "예약을 취소하지 못했습니다. 화면을 새로 고친 뒤 다시 시도해 주세요." };
+      return {
+        ok: false,
+        error: "예약을 취소하지 못했습니다. 화면을 새로 고친 뒤 다시 시도해 주세요.",
+      };
     }
     return { ok: true };
   });
 
+/**
+ * 계약(확정 예약)의 견적서 원본을 서버에서 불러옵니다.
+ *
+ * 이 기기(localStorage)에 견적이 없어도 달력에서 계약 견적서를 열 수 있게,
+ * 발송 때 저장해 둔 sheet_snapshot(견적서 원본 JSON)과 estimate_terms 의 실제
+ * 고객 이름을 그대로 돌려줍니다. 본인(user_id) 계약만 조회합니다(RLS).
+ * 반환하는 estimate 는 견적서 화면(EstimateSheet)이 그대로 그리는 draft 객체입니다.
+ */
+export const getReservationSheet = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ termsId: z.string().uuid() }).parse(d))
+  .handler(
+    async ({
+      context,
+      data,
+    }): Promise<{ ok: boolean; estimateJson?: string; customerName?: string; error?: string }> => {
+      const { data: row, error } = await context.supabase
+        .from("estimate_terms")
+        .select("estimate_id, customer_name, move_date, total, sheet_no, sheet_snapshot")
+        .eq("id", data.termsId)
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      if (error) {
+        console.error("[getReservationSheet]", error.message);
+        return { ok: false, error: "견적서를 불러오지 못했습니다." };
+      }
+      if (!row) return { ok: false, error: "견적서를 찾을 수 없습니다." };
 
+      const r = row as {
+        estimate_id: string;
+        customer_name: string | null;
+        move_date: string | null;
+        total: number | null;
+        sheet_no: string | null;
+        sheet_snapshot: string | null;
+      };
+      // 계약(estimate_terms)에 저장된 이름이 정답입니다. 스냅샷보다 우선합니다.
+      const customerName = (r.customer_name ?? "").trim();
+
+      // 발송 때 저장한 견적서 원본이 있으면 그대로 씁니다.
+      let draft: Record<string, unknown> | null = null;
+      if (r.sheet_snapshot) {
+        try {
+          const snap = JSON.parse(r.sheet_snapshot) as { draft?: Record<string, unknown> };
+          if (snap?.draft && typeof snap.draft === "object") draft = { ...snap.draft };
+        } catch {
+          /* 스냅샷이 깨졌으면 아래 최소 정보로 대체합니다 */
+        }
+      }
+      if (!draft) {
+        // 스냅샷이 없으면 최소한의 정보라도 채워 견적서 화면이 뜨게 합니다.
+        draft = {
+          id: r.estimate_id,
+          sheetNo: r.sheet_no ?? "",
+          moveDate: r.move_date ?? "",
+          total: Number(r.total ?? 0),
+        };
+      }
+      // 견적번호·고객 이름은 계약 기준으로 항상 올바르게 맞춰 줍니다.
+      draft["id"] = r.estimate_id;
+      draft["customerName"] = customerName;
+      if (r.sheet_no) draft["sheetNo"] = r.sheet_no;
+
+      // 견적서 원본(draft)은 JSON 문자열로 돌려주고 화면에서 파싱합니다(직렬화 안전).
+      return { ok: true, estimateJson: JSON.stringify(draft), customerName };
+    },
+  );

@@ -70,6 +70,7 @@ import {
   DEFAULT_PRICING,
   sideConditionText,
   workConditionSummary,
+  type Estimate,
   type Pricing,
   type MoveType,
   type Room,
@@ -132,6 +133,7 @@ import {
   getTermsStatuses,
   getReservationCounts,
   cancelReservation,
+  getReservationSheet,
   getManagerNotices,
   type TermsStatusRow,
   type ManagerNoticeRow,
@@ -857,7 +859,8 @@ export function HomeScreen() {
 
 // ============ Step 1: Customer ============
 export function Step1() {
-  const { draft, updateDraft, setScreen, loadEstimate, estimates, deleteEstimate } = useApp();
+  const { draft, updateDraft, setScreen, loadEstimate, openEstimate, estimates, deleteEstimate } =
+    useApp();
   const [err, setErr] = useState("");
   /** 날짜별 확정 예약 건수 — 실제 예약 데이터(estimate_terms)에서 집계해 달력에 표시 */
   const [bookingCounts, setBookingCounts] = useState<Record<string, number>>({});
@@ -935,19 +938,31 @@ export function Step1() {
             value={draft.moveDate}
             counts={bookingCounts}
             bookings={bookings}
-            onOpenBooking={(estimateId, customerName) => {
+            onOpenBooking={(estimateId, customerName, termsId) => {
               // 정확히 그 견적번호(estimateId)의 견적만 엽니다 → 다른 고객 견적서가 열리지 않습니다.
+              const confirmedName = customerName.trim();
               const saved = estimates.find((e) => e.id === estimateId);
-              if (!saved) {
-                toast.error("이 기기에 저장된 견적서가 없습니다. 견적 내역에서 확인해 주세요.");
+              if (saved) {
+                loadEstimate(estimateId);
+                // 계약(estimate_terms)에 저장된 실제 고객 이름을 견적서에 그대로 채웁니다.
+                if (confirmedName && saved.customerName?.trim() !== confirmedName)
+                  updateDraft({ customerName: confirmedName });
                 return;
               }
-              loadEstimate(estimateId);
-              // 계약(estimate_terms)에 저장된 실제 고객 이름을 견적서에 그대로 채웁니다.
-              // (로컬 견적에 이름이 비어 있거나 달라 '고객님'만 보이던 문제를 막습니다)
-              const confirmedName = customerName.trim();
-              if (confirmedName && saved.customerName?.trim() !== confirmedName)
-                updateDraft({ customerName: confirmedName });
+              // 이 기기에 없으면 서버(계약 스냅샷)에서 실제 이름과 함께 불러와 엽니다.
+              getReservationSheet({ data: { termsId } })
+                .then((r) => {
+                  if (r?.ok && r.estimateJson) {
+                    try {
+                      openEstimate(JSON.parse(r.estimateJson) as Estimate);
+                    } catch {
+                      toast.error("견적서를 불러오지 못했습니다.");
+                    }
+                  } else {
+                    toast.error(r?.error || "견적서를 불러오지 못했습니다.");
+                  }
+                })
+                .catch(() => toast.error("견적서를 불러오지 못했습니다."));
             }}
             onCancelBooking={(termsId, estimateId) => {
               if (!window.confirm("이 예약을 취소하고 견적서도 지울까요?")) return;
