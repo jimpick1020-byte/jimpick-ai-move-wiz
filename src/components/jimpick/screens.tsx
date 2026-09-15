@@ -3065,6 +3065,7 @@ export function Step6() {
 // ============ AI Recognition ============
 export function AIRecognition() {
   const { draft, updateDraft, setScreen, currentRoomId, setCurrentRoom } = useApp();
+  const { blocked: entBlocked } = useEntitlement();
   const [results, setResults] = useState<DetectedItem[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [photoUrl, setPhotoUrl] = useState<string>("");
@@ -3150,6 +3151,11 @@ export function AIRecognition() {
   };
 
   const analyze = async (images: string[], source: "photo" | "video", keepPrev = false) => {
+    if (entBlocked) {
+      toast.error(TRIAL_EXPIRED_MESSAGE);
+      setScreen("subscription");
+      return;
+    }
     setBusy(true);
     setProgress(5);
     setRetake("");
@@ -4060,6 +4066,7 @@ export function Result() {
    * 이후 각 화면의 뒤로가기가 5→4→3→2→1→홈 순으로 이어집니다.
    */
   const backTo = (resultFrom as Screen) || "history";
+  const { blocked: entBlocked } = useEntitlement();
   /** 「견적 완료 · 처음으로」 진행 중 — 두 번 눌려도 한 번만 실행됩니다 */
   const [finishing, setFinishing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
@@ -4203,6 +4210,10 @@ export function Result() {
    */
   const doSendSms = async (opts?: { resend?: boolean }) => {
     if (sending) return;
+    if (entBlocked) {
+      setSendResult({ ok: false, error: TRIAL_EXPIRED_MESSAGE });
+      return;
+    }
     // 필수 데이터 검사 — 하나라도 비어 있으면 발송하지 않습니다
     const check = checkSendable(draft, total);
     setMissingFields(check.missing);
@@ -4375,6 +4386,10 @@ export function Result() {
       return;
     }
     if (exporting) return;
+    if (entBlocked) {
+      toast.error(TRIAL_EXPIRED_MESSAGE);
+      return;
+    }
     setExporting("pdf");
     try {
       await printSheet(el);
