@@ -143,6 +143,23 @@ export const getTermsLink = createServerFn({ method: "POST" })
       .eq("id", (row as { user_id?: string }).user_id ?? "")
       .maybeSingle();
 
+    // 고객 이름은 계약에 저장된 최신 이름이 정답입니다.
+    // 보낼 때 저장한 견적서 원본(스냅샷)의 이름도 최신 이름으로 맞춰 보여 줍니다.
+    let snapshot = (row as { sheet_snapshot?: string | null }).sheet_snapshot ?? null;
+    const latestName = String(row.customer_name ?? "").trim();
+    if (snapshot && latestName) {
+      try {
+        const snap = JSON.parse(snapshot) as { draft?: Record<string, unknown> };
+        if (snap?.draft && typeof snap.draft === "object") {
+          snap.draft["customerName"] = latestName;
+          snapshot = JSON.stringify(snap);
+        }
+      } catch {
+        /* 스냅샷이 깨졌으면 원본을 그대로 씁니다 */
+      }
+    }
+
+
     return {
       ok: true,
       customerName: row.customer_name,
