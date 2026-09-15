@@ -542,7 +542,11 @@ export function SubscriptionScreen() {
             </div>
           )}
           {current?.cancel_at_period_end && (
-            <div className="text-xs text-[#EF4444] mt-1">기간 종료 후 자동 해지 예정</div>
+            <div className="mt-2 rounded-xl bg-[#FEF2F2] p-2.5 text-xs leading-5 text-[#B42318]">
+              해지 예약일 {new Date(current.current_period_end).toLocaleDateString("ko-KR")}
+              <br />
+              이 날짜까지는 그대로 이용할 수 있고, 이후에는 결제되지 않습니다.
+            </div>
           )}
           {card?.registered && (
             <div className="text-xs text-[#6B7280] mt-2 flex items-center gap-1.5">
@@ -552,6 +556,16 @@ export function SubscriptionScreen() {
               {card.cardNumberMasked ? ` ${card.cardNumberMasked}` : ""}
             </div>
           )}
+          {card && (
+            <div
+              className={`mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                card.mode === "test" ? "bg-[#FEF3C7] text-[#92400E]" : "bg-[#DCFCE7] text-[#166534]"
+              }`}
+            >
+              {card.mode === "test" ? "테스트 결제 모드 (실제 청구 없음)" : "실제 결제 모드"}
+            </div>
+          )}
+
         </Card>
 
 
@@ -609,17 +623,47 @@ export function SubscriptionScreen() {
               <CreditCard className="w-4 h-4" /> 결제 내역
             </div>
             <div className="divide-y divide-[#E7EBF2]">
-              {account.payments.map((pay) => (
-                <div key={pay.id} className="py-2.5 flex items-center justify-between text-sm">
-                  <div>
-                    <div className="font-semibold">{PLANS.find((p) => p.id === pay.plan)?.name}</div>
-                    <div className="text-xs text-[#6B7280]">
-                      {new Date(pay.paid_at).toLocaleDateString("ko-KR")} · {pay.receipt_no}
+              {account.payments.map((pay) => {
+                const paid = pay.status === "paid";
+                return (
+                  <div key={pay.id} className="py-2.5 flex items-start justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <div className="font-semibold flex items-center gap-1.5">
+                        {PLANS.find((p) => p.id === pay.plan)?.name}
+                        <span
+                          className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
+                            paid ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEE2E2] text-[#B42318]"
+                          }`}
+                        >
+                          {paid ? "결제 완료" : "결제 실패"}
+                        </span>
+                        {pay.test_mode && (
+                          <span className="rounded-full bg-[#FEF3C7] px-1.5 py-0.5 text-[11px] font-bold text-[#92400E]">
+                            테스트
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-[#6B7280] break-all">
+                        결제일 {new Date(pay.paid_at).toLocaleString("ko-KR")}
+                      </div>
+                      {pay.order_id && (
+                        <div className="text-xs text-[#6B7280] break-all">결제번호 {pay.order_id}</div>
+                      )}
+                      {paid && pay.next_billing_at && (
+                        <div className="text-xs text-[#6B7280]">
+                          다음 결제 예정일 {new Date(pay.next_billing_at).toLocaleDateString("ko-KR")}
+                        </div>
+                      )}
+                      {!paid && pay.fail_reason && (
+                        <div className="text-xs text-[#B42318] break-words">사유 {pay.fail_reason}</div>
+                      )}
+                    </div>
+                    <div className={`shrink-0 font-bold ${paid ? "" : "text-[#9CA3AF] line-through"}`}>
+                      {won(pay.amount)}
                     </div>
                   </div>
-                  <div className="font-bold">{won(pay.amount)}</div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Card>
         )}
@@ -629,6 +673,13 @@ export function SubscriptionScreen() {
             구독 해지하기
           </button>
         )}
+
+        {current?.cancel_at_period_end && (
+          <button onClick={resume} className="w-full py-3 text-sm font-bold text-[#0751D8]">
+            해지 예약 취소하고 계속 이용하기
+          </button>
+        )}
+
 
         <button
           onClick={async () => {
