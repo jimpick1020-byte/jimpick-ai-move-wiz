@@ -16,7 +16,7 @@ import { PLANS } from "./subscription.functions";
 
 const TOSS_API = "https://api.tosspayments.com/v1";
 
-/** 구독 요금제 (월 22,000원) */
+/** 구독 요금제 (월 33,000원) */
 const proPlan = () => PLANS.find((p) => p.id === "pro") ?? PLANS[PLANS.length - 1];
 
 /** 테스트 결제인지 실제 결제인지 (키 앞머리가 test_ 이면 테스트) */

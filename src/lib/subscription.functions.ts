@@ -17,7 +17,7 @@ export interface Plan {
 export { TRIAL_DAYS } from "@/lib/entitlement.functions";
 import { TRIAL_DAYS } from "@/lib/entitlement.functions";
 
-/** 업체용 월 구독 요금제 (VAT 포함 월 22,000원 단일 요금제) */
+/** 업체용 월 구독 요금제 (VAT 포함 월 33,000원 단일 요금제) */
 export const PLANS: Plan[] = [
   {
     id: "free",
@@ -30,8 +30,8 @@ export const PLANS: Plan[] = [
   {
     id: "pro",
     name: "업체 구독",
-    price: 22000,
-    desc: "월 22,000원 (부가세 포함) · 약정 없음",
+    price: 33000,
+    desc: "월 33,000원 (부가세 포함) · 약정 없음",
     features: [
       "견적 작성 무제한",
       "AI 공간 스캔 무제한",
