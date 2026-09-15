@@ -946,9 +946,16 @@ export function Step1() {
               const saved = estimates.find((e) => e.id === estimateId);
               if (saved) {
                 loadEstimate(estimateId);
-                // 계약(estimate_terms)에 저장된 실제 고객 이름을 견적서에 그대로 채웁니다.
-                if (confirmedName && saved.customerName?.trim() !== confirmedName)
-                  updateDraft({ customerName: confirmedName });
+                // 계약에 저장된 실제 고객 이름을 견적서(작성본 + 저장된 목록)에 반영합니다.
+                if (confirmedName) applyCustomerName(estimateId, confirmedName);
+                // 서버의 최신 이름을 다시 확인합니다(나중에 이름을 바꿔도 최신값 표시).
+                getReservationCustomerName({ data: { estimateId } })
+                  .then((r) => {
+                    if (r?.ok && r.customerName) applyCustomerName(estimateId, r.customerName);
+                  })
+                  .catch(() => {
+                    /* 못 읽으면 저장된 값을 그대로 둡니다(임의로 덮어쓰지 않습니다) */
+                  });
                 return;
               }
               // 이 기기에 없으면 서버(계약 스냅샷)에서 실제 이름과 함께 불러와 엽니다.
