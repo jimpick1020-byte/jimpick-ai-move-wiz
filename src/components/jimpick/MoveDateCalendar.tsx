@@ -172,6 +172,8 @@ export function MoveDateCalendar({
                   type="button"
                   disabled={c.past}
                   onClick={() => {
+                    const list = bookings?.[c.date] ?? [];
+                    if (list.length > 0) setOpenDate((p) => (p === c.date ? "" : c.date));
                     if (full) {
                       tap("soft");
                       toast.error("예약이 마감된 날짜입니다");
@@ -180,6 +182,7 @@ export function MoveDateCalendar({
                     tap("click");
                     onSelect(c.date);
                   }}
+
                   aria-label={`${view.m}월 ${c.d}일${c.son ? " 손없는날" : ""}${
                     full ? " 예약 마감" : ""
                   }`}
