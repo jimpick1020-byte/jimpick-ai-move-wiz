@@ -424,7 +424,14 @@ export function SubscriptionScreen() {
       // 이미 카드가 등록되어 있으면 그 카드로 바로 결제합니다.
       if (card?.registered) {
         const r = await chargeTossBilling({ headers });
-        if (r.ok) {
+        if (r.ok && r.duplicate) {
+          toast.info("이미 결제가 완료된 이용기간입니다", {
+            description: r.nextBillingAt
+              ? `다음 결제 예정일 ${new Date(r.nextBillingAt).toLocaleDateString("ko-KR")}`
+              : undefined,
+          });
+          await refresh();
+        } else if (r.ok) {
           toast.success("결제가 완료되어 구독이 시작되었습니다", {
             description: `${won(r.amount ?? 0)} · 매월 자동 결제`,
           });
@@ -434,6 +441,7 @@ export function SubscriptionScreen() {
         }
         return;
       }
+
 
       const cfg = await getTossBillingConfig({ headers });
       if (!cfg.ok || !cfg.clientKey || !cfg.customerKey) {
@@ -457,14 +465,39 @@ export function SubscriptionScreen() {
       setScreen("signup");
       return;
     }
+    const until = current ? new Date(current.current_period_end).toLocaleDateString("ko-KR") : "";
+    if (!window.confirm(`구독을 해지하시겠어요?\n${until} 까지는 그대로 이용할 수 있고, 이후 결제되지 않습니다.`)) {
+      return;
+    }
     try {
-      await cancelSubscription({ headers });
-      toast.success("이번 결제 주기 종료 후 해지됩니다");
+      const r = await cancelSubscription({ headers });
+      toast.success("해지가 예약되었습니다", {
+        description: r.cancelAt
+          ? `${new Date(r.cancelAt).toLocaleDateString("ko-KR")} 까지 이용 후 해지`
+          : "이번 결제 주기 종료 후 해지",
+      });
       await refresh();
     } catch {
       toast.error("해지 처리에 실패했습니다");
     }
   };
+
+  const resume = async () => {
+    const headers = await authHeader();
+    if (!headers) {
+      toast.error("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+      setScreen("signup");
+      return;
+    }
+    try {
+      await resumeSubscription({ headers });
+      toast.success("해지 예약을 취소했습니다");
+      await refresh();
+    } catch {
+      toast.error("해지 예약 취소에 실패했습니다");
+    }
+  };
+
 
   const current = account?.subscription;
   const statusLabel: Record<string, string> = {
