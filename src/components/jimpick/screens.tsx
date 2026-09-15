@@ -632,7 +632,12 @@ export function HomeScreen() {
 
 
       <div className="px-5 space-y-4 flex-1 pb-4">
-        {blocked && (
+        {entitlement?.isSuperAdmin && (
+          <div className="inline-flex items-center rounded-full bg-[#DCFCE7] px-3 py-1 text-xs font-bold text-[#166534]">
+            JIMPICK 서비스 관리자
+          </div>
+        )}
+        {!entitlement?.isSuperAdmin && blocked && (
           <div className="rounded-2xl border border-[#FCA5A5] bg-[#FEF2F2] p-4">
             <div className="text-sm font-bold text-[#B91C1C] break-keep">
               {TRIAL_EXPIRED_MESSAGE}

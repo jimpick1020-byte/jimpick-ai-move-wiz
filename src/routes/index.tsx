@@ -20,6 +20,7 @@ import {
 } from "@/components/jimpick/screens";
 
 import { SignupScreen, SubscriptionScreen } from "@/components/jimpick/account";
+import { AdminAccountsScreen } from "@/components/jimpick/admin";
 import { ForgotPasswordScreen } from "@/components/jimpick/password";
 import { AuthLoadingScreen } from "@/components/jimpick/AuthUi";
 
@@ -58,6 +59,7 @@ function Router() {
     case "subscription": return <SubscriptionScreen />;
     case "settings": return <SettingsScreen />;
     case "stats": return <StatsScreen />;
+    case "adminAccounts": return <AdminAccountsScreen />;
     default: return <Splash />;
   }
 }
