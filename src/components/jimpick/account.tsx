@@ -503,7 +503,16 @@ export function SubscriptionScreen() {
           {current?.cancel_at_period_end && (
             <div className="text-xs text-[#EF4444] mt-1">기간 종료 후 자동 해지 예정</div>
           )}
+          {card?.registered && (
+            <div className="text-xs text-[#6B7280] mt-2 flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5" />
+              자동결제 카드 등록됨
+              {card.cardCompany ? ` · ${card.cardCompany}` : ""}
+              {card.cardNumberMasked ? ` ${card.cardNumberMasked}` : ""}
+            </div>
+          )}
         </Card>
+
 
         {PLANS.map((p) => {
           const active = current?.plan === p.id;
