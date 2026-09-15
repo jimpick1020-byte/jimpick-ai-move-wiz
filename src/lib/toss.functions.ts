@@ -19,10 +19,25 @@ const TOSS_API = "https://api.tosspayments.com/v1";
 /** 구독 요금제 (월 22,000원) */
 const proPlan = () => PLANS.find((p) => p.id === "pro") ?? PLANS[PLANS.length - 1];
 
+/** 테스트 결제인지 실제 결제인지 (키 앞머리가 test_ 이면 테스트) */
+export type TossMode = "test" | "live";
+function tossMode(): TossMode {
+  const k = process.env["TOSS_CLIENT_KEY"]?.trim() ?? process.env["TOSS_SECRET_KEY"]?.trim() ?? "";
+  return k.startsWith("test_") ? "test" : "live";
+}
+
+/** 한 달에 한 번만 결제되도록 결제 주문번호를 날짜로 정합니다 (중복 방지 값) */
+function monthlyOrderId(userId: string, at: Date) {
+  const kst = new Date(at.getTime() + 9 * 3600000);
+  const ym = `${kst.getUTCFullYear()}${String(kst.getUTCMonth() + 1).padStart(2, "0")}`;
+  return `jimpick_${userId.replace(/-/g, "").slice(0, 12)}_${ym}`;
+}
+
 /** 사용자마다 고정된 토스 고객 식별값 (개인정보를 담지 않습니다) */
 function customerKeyOf(userId: string) {
   return `jimpick_${userId.replace(/-/g, "")}`;
 }
+
 
 function basicAuth(secretKey: string) {
   // 비밀 키는 Basic 인증의 아이디 자리에 넣습니다 (비밀번호는 빈 값).
