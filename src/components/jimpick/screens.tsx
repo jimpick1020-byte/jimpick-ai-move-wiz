@@ -861,8 +861,16 @@ export function HomeScreen() {
 
 // ============ Step 1: Customer ============
 export function Step1() {
-  const { draft, updateDraft, setScreen, loadEstimate, openEstimate, estimates, deleteEstimate } =
-    useApp();
+  const {
+    draft,
+    updateDraft,
+    setScreen,
+    loadEstimate,
+    openEstimate,
+    estimates,
+    deleteEstimate,
+    applyCustomerName,
+  } = useApp();
   const [err, setErr] = useState("");
   /** 날짜별 확정 예약 건수 — 실제 예약 데이터(estimate_terms)에서 집계해 달력에 표시 */
   const [bookingCounts, setBookingCounts] = useState<Record<string, number>>({});
