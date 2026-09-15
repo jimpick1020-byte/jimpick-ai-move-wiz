@@ -6158,6 +6158,7 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
 
 export function SettingsScreen() {
   const { logout, setScreen, draft } = useApp();
+  const { entitlement: settingsEnt } = useEntitlement();
   const [pricing, setPricing] = useState<Pricing>(DEFAULT_PRICING);
   useEffect(() => setPricing(getPricing()), []);
   const setP = (patch: Partial<Pricing>) => {
@@ -6169,6 +6170,21 @@ export function SettingsScreen() {
     <MobileShell>
       <TopBar title="설정" onBack={() => setScreen("home")} />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
+        {/* 서비스 최고관리자 전용 메뉴 — 서버에서 확인한 권한만 사용합니다 */}
+        {settingsEnt?.isSuperAdmin && (
+          <button
+            onClick={() => {
+              tap();
+              setScreen("adminAccounts");
+            }}
+            className="w-full rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-left"
+          >
+            <div className="text-base font-bold text-[#166534]">업체 계정 관리</div>
+            <div className="mt-1 text-xs font-medium text-[#15803D]">
+              업체별 가입일 · 무료체험 · 구독 · 결제 · 문자 사용량 확인
+            </div>
+          </button>
+        )}
         <button
           onClick={() => {
             tap();
