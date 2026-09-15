@@ -63,7 +63,7 @@ export function MoveDateCalendar({
   counts?: Record<string, number>;
   /** 날짜별 확정 예약 상세 — 누르면 견적서를 열 수 있게 합니다 */
   bookings?: Record<string, CalendarBooking[]>;
-  onOpenBooking?: (estimateId: string) => void;
+  onOpenBooking?: (estimateId: string, customerName: string) => void;
   onCancelBooking?: (termsId: string, estimateId: string) => void;
 
 }) {
@@ -266,7 +266,7 @@ export function MoveDateCalendar({
                     type="button"
                     onClick={() => {
                       tap("click");
-                      onOpenBooking?.(b.estimateId);
+                      onOpenBooking?.(b.estimateId, b.customerName);
                     }}
                     className="shrink-0 rounded-lg bg-[#0864DC] px-3 py-2 text-[13px] font-bold text-white active:translate-y-[1px]"
                   >

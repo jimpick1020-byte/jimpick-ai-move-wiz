@@ -915,10 +915,18 @@ export function Step1() {
             value={draft.moveDate}
             counts={bookingCounts}
             bookings={bookings}
-            onOpenBooking={(estimateId) => {
-              if (estimates.some((e) => e.id === estimateId)) loadEstimate(estimateId);
-              else toast.error("이 기기에 저장된 견적서가 없습니다.");
+            onOpenBooking={(estimateId, customerName) => {
+              const saved = estimates.find((e) => e.id === estimateId);
+              if (!saved) {
+                toast.error("이 기기에 저장된 견적서가 없습니다.");
+                return;
+              }
+              loadEstimate(estimateId);
+              // 예약 확정 때 저장된 고객명이 견적서에 비어 있으면 그 이름을 채워 줍니다.
+              if (!saved.customerName?.trim() && customerName.trim())
+                updateDraft({ customerName: customerName.trim() });
             }}
+
             onCancelBooking={(termsId, estimateId) => {
               if (!window.confirm("이 예약을 취소하고 견적서도 지울까요?")) return;
               // 화면에서 먼저 지워 달력에 바로 반영합니다(서버 실패 시 되돌립니다).
