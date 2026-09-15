@@ -321,10 +321,16 @@ export function SharePage() {
         },
       });
       if (!r.ok) {
-        setSaveError(r.error ?? "동의 기록을 저장하지 못했습니다. 다시 시도해 주세요.");
+        setSaveError(
+          r.error ??
+            (r.full
+              ? "해당 날짜는 예약이 마감되었습니다(하루 2건)."
+              : "동의 기록을 저장하지 못했습니다. 다시 시도해 주세요."),
+        );
         setSaving(false);
         return;
       }
+
       if (r.acceptedAt) rec.acceptedAt = new Date(r.acceptedAt).getTime();
     } catch {
       setSaveError("네트워크 문제로 동의 기록을 저장하지 못했습니다. 다시 시도해 주세요.");
