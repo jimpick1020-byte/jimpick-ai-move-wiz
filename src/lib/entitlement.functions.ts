@@ -108,6 +108,7 @@ export function computeEntitlement(
 
   return {
     allowed: false,
+    isSuperAdmin: false,
     state: "expired",
     trialEndsAt: new Date(end).toISOString(),
     periodEnd: sub.current_period_end,
