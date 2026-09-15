@@ -86,6 +86,7 @@ export function computeEntitlement(
   if (paid) {
     return {
       allowed: true,
+      isSuperAdmin: false,
       state: "active",
       trialEndsAt: sub.trial_ends_at ?? null,
       periodEnd: sub.current_period_end,
