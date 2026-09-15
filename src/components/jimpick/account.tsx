@@ -6,6 +6,12 @@ import { lovable } from "@/integrations/lovable/index";
 import { useApp, won } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card, Field, TextInput, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
 import { PLANS, getMyAccount, subscribePlan, cancelSubscription, type PlanId } from "@/lib/subscription.functions";
+import {
+  getTossBillingConfig,
+  getTossBilling,
+  chargeTossBilling,
+  type BillingCardInfo,
+} from "@/lib/toss.functions";
 import { tap } from "@/lib/feedback";
 import { Check, Crown, CreditCard, LogOut } from "lucide-react";
 import { Eye, EyeOff } from "lucide-react";
