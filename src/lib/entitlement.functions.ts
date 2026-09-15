@@ -7,7 +7,9 @@
  * - 서비스 소유자·관리자 계정은 기간 제한 없이 씁니다. 관리자 여부는 서버에서 확인합니다.
  */
 import { createServerFn, createMiddleware } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 
 /** 무료체험 기간 (일) */
 export const TRIAL_DAYS = 7;
@@ -105,26 +107,9 @@ export function computeEntitlement(
 const SELECT =
   "plan, status, trial_started_at, trial_ends_at, current_period_start, current_period_end, created_at";
 
-type AuthedSupabase = Parameters<typeof loadEntitlement>[0];
-
 /** 지금 로그인한 계정의 이용 권한을 서버에서 읽습니다 */
 export async function loadEntitlement(
-  supabase: {
-    from: (table: string) => {
-      select: (columns: string) => {
-        eq: (
-          column: string,
-          value: string,
-        ) => {
-          eq: (
-            column: string,
-            value: string,
-          ) => { maybeSingle: () => Promise<{ data: unknown }> };
-          maybeSingle: () => Promise<{ data: unknown }>;
-        };
-      };
-    };
-  },
+  supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<Entitlement> {
   const [subRes, roleRes] = await Promise.all([
@@ -142,7 +127,7 @@ export const requireActiveEntitlement = createMiddleware({ type: "function" })
   .middleware([requireSupabaseAuth])
   .server(async ({ next, context }) => {
     const ent = await loadEntitlement(
-      context.supabase as unknown as AuthedSupabase,
+      context.supabase,
       context.userId,
     );
     if (!ent.allowed) throw new Error(ent.message ?? TRIAL_EXPIRED_MESSAGE);
@@ -153,5 +138,5 @@ export const requireActiveEntitlement = createMiddleware({ type: "function" })
 export const getMyEntitlement = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<Entitlement> =>
-    loadEntitlement(context.supabase as unknown as AuthedSupabase, context.userId),
+    loadEntitlement(context.supabase, context.userId),
   );
