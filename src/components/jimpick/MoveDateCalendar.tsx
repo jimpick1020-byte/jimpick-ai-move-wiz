@@ -64,7 +64,8 @@ export function MoveDateCalendar({
   /** 날짜별 확정 예약 상세 — 누르면 견적서를 열 수 있게 합니다 */
   bookings?: Record<string, CalendarBooking[]>;
   onOpenBooking?: (estimateId: string) => void;
-  onCancelBooking?: (termsId: string) => void;
+  onCancelBooking?: (termsId: string, estimateId: string) => void;
+
 }) {
   const today = todayYmd();
   const [openDate, setOpenDate] = useState("");
@@ -277,7 +278,7 @@ export function MoveDateCalendar({
                     type="button"
                     onClick={() => {
                       tap("soft");
-                      onCancelBooking(b.termsId);
+                      onCancelBooking(b.termsId, b.estimateId);
                     }}
                     className="mt-2 w-full rounded-lg border border-[#F0D3D3] bg-white py-2 text-[12.5px] font-bold text-[#DC2626] active:translate-y-[1px]"
                   >

@@ -837,7 +837,7 @@ export function HomeScreen() {
 
 // ============ Step 1: Customer ============
 export function Step1() {
-  const { draft, updateDraft, setScreen, loadEstimate, estimates } = useApp();
+  const { draft, updateDraft, setScreen, loadEstimate, estimates, deleteEstimate } = useApp();
   const [err, setErr] = useState("");
   /** 날짜별 확정 예약 건수 — 실제 예약 데이터(estimate_terms)에서 집계해 달력에 표시 */
   const [bookingCounts, setBookingCounts] = useState<Record<string, number>>({});
@@ -919,17 +919,42 @@ export function Step1() {
               if (estimates.some((e) => e.id === estimateId)) loadEstimate(estimateId);
               else toast.error("이 기기에 저장된 견적서가 없습니다.");
             }}
-            onCancelBooking={(termsId) => {
-              if (!window.confirm("이 예약을 취소할까요? 달력의 예약 건수에서 빠집니다.")) return;
+            onCancelBooking={(termsId, estimateId) => {
+              if (!window.confirm("이 예약을 취소하고 견적서도 지울까요?")) return;
+              // 화면에서 먼저 지워 달력에 바로 반영합니다(서버 실패 시 되돌립니다).
+              const prevBookings = bookings;
+              const prevCounts = bookingCounts;
+              const nextBookings: Record<string, CalendarBooking[]> = {};
+              const nextCounts: Record<string, number> = {};
+              for (const [d, list] of Object.entries(bookings)) {
+                const kept = list.filter((b) => b.termsId !== termsId);
+                if (kept.length) nextBookings[d] = kept;
+                nextCounts[d] = kept.length;
+              }
+              for (const [d, n] of Object.entries(bookingCounts)) {
+                if (nextCounts[d] === undefined) nextCounts[d] = n;
+              }
+              setBookings(nextBookings);
+              setBookingCounts(nextCounts);
               cancelReservation({ data: { termsId } })
                 .then((r) => {
                   if (r?.ok) {
-                    toast.success("예약을 취소했습니다.");
+                    deleteEstimate(estimateId);
+                    toast.success("예약을 취소하고 견적서를 지웠습니다.");
                     loadBookings();
-                  } else toast.error(r?.error || "예약을 취소하지 못했습니다.");
+                  } else {
+                    setBookings(prevBookings);
+                    setBookingCounts(prevCounts);
+                    toast.error(r?.error || "예약을 취소하지 못했습니다.");
+                  }
                 })
-                .catch(() => toast.error("예약을 취소하지 못했습니다."));
+                .catch(() => {
+                  setBookings(prevBookings);
+                  setBookingCounts(prevCounts);
+                  toast.error("예약을 취소하지 못했습니다.");
+                });
             }}
+
             onSelect={(date) =>
               updateDraft({
                 moveDate: date,

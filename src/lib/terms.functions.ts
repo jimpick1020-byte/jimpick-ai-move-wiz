@@ -574,15 +574,37 @@ export const getReservationCounts = createServerFn({ method: "POST" })
     },
   );
 
-/** 확정 예약 취소 — 업체 본인 예약만. 취소하면 달력 카운트에서 빠집니다. */
+/**
+ * 확정 예약 취소 — 업체 본인 예약만.
+ * 같은 견적번호를 여러 차수(수정본)로 보낸 경우 모든 차수의 동의 기록을 함께 취소해야
+ * 달력에서 즉시 빠집니다. (한 차수만 취소하면 이전 차수가 남아 계속 마감으로 보였습니다)
+ */
 export const cancelReservation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ termsId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }): Promise<{ ok: boolean; error?: string }> => {
+    // 취소할 예약이 속한 견적번호를 찾습니다.
+    const { data: base } = await context.supabase
+      .from("estimate_terms")
+      .select("estimate_id")
+      .eq("id", data.termsId)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    let ids: string[] = [data.termsId];
+    if (base?.estimate_id) {
+      const { data: all } = await context.supabase
+        .from("estimate_terms")
+        .select("id")
+        .eq("user_id", context.userId)
+        .eq("estimate_id", base.estimate_id);
+      if (all?.length) ids = all.map((r) => String(r.id));
+    }
+
     const { error } = await context.supabase
       .from("terms_acceptances")
       .update({ reservation_status: "canceled" })
-      .eq("estimate_terms_id", data.termsId)
+      .in("estimate_terms_id", ids)
       .eq("user_id", context.userId);
     if (error) {
       console.error("[cancelReservation]", error.message);
@@ -590,4 +612,5 @@ export const cancelReservation = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
 
