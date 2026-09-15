@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShareIdRouteImport } from './routes/share.$id'
+import { Route as BillingCallbackRouteImport } from './routes/billing.callback'
 import { Route as StaffEstimateTokenRouteImport } from './routes/staff.estimate.$token'
 import { Route as ApiPublicItemIconFileRouteImport } from './routes/api/public/item-icon.$file'
 import { Route as ApiPublicHooksSendMoveRemindersRouteImport } from './routes/api/public/hooks/send-move-reminders'
@@ -29,6 +30,11 @@ const IndexRoute = IndexRouteImport.update({
 const ShareIdRoute = ShareIdRouteImport.update({
   id: '/share/$id',
   path: '/share/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BillingCallbackRoute = BillingCallbackRouteImport.update({
+  id: '/billing/callback',
+  path: '/billing/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StaffEstimateTokenRoute = StaffEstimateTokenRouteImport.update({
@@ -51,6 +57,7 @@ const ApiPublicHooksSendMoveRemindersRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/billing/callback': typeof BillingCallbackRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
   '/api/public/hooks/send-move-reminders': typeof ApiPublicHooksSendMoveRemindersRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/billing/callback': typeof BillingCallbackRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
   '/api/public/hooks/send-move-reminders': typeof ApiPublicHooksSendMoveRemindersRoute
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/billing/callback': typeof BillingCallbackRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
   '/api/public/hooks/send-move-reminders': typeof ApiPublicHooksSendMoveRemindersRoute
@@ -78,6 +87,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/reset-password'
+    | '/billing/callback'
     | '/share/$id'
     | '/staff/estimate/$token'
     | '/api/public/hooks/send-move-reminders'
@@ -86,6 +96,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/reset-password'
+    | '/billing/callback'
     | '/share/$id'
     | '/staff/estimate/$token'
     | '/api/public/hooks/send-move-reminders'
@@ -94,6 +105,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/reset-password'
+    | '/billing/callback'
     | '/share/$id'
     | '/staff/estimate/$token'
     | '/api/public/hooks/send-move-reminders'
@@ -103,6 +115,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  BillingCallbackRoute: typeof BillingCallbackRoute
   ShareIdRoute: typeof ShareIdRoute
   StaffEstimateTokenRoute: typeof StaffEstimateTokenRoute
   ApiPublicHooksSendMoveRemindersRoute: typeof ApiPublicHooksSendMoveRemindersRoute
@@ -132,6 +145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShareIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/billing/callback': {
+      id: '/billing/callback'
+      path: '/billing/callback'
+      fullPath: '/billing/callback'
+      preLoaderRoute: typeof BillingCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/staff/estimate/$token': {
       id: '/staff/estimate/$token'
       path: '/staff/estimate/$token'
@@ -159,6 +179,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  BillingCallbackRoute: BillingCallbackRoute,
   ShareIdRoute: ShareIdRoute,
   StaffEstimateTokenRoute: StaffEstimateTokenRoute,
   ApiPublicHooksSendMoveRemindersRoute: ApiPublicHooksSendMoveRemindersRoute,

@@ -6,6 +6,12 @@ import { lovable } from "@/integrations/lovable/index";
 import { useApp, won } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card, Field, TextInput, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
 import { PLANS, getMyAccount, subscribePlan, cancelSubscription, type PlanId } from "@/lib/subscription.functions";
+import {
+  getTossBillingConfig,
+  getTossBilling,
+  chargeTossBilling,
+  type BillingCardInfo,
+} from "@/lib/toss.functions";
 import { tap } from "@/lib/feedback";
 import { Check, Crown, CreditCard, LogOut } from "lucide-react";
 import { Eye, EyeOff } from "lucide-react";
@@ -364,6 +370,7 @@ export function SubscriptionScreen() {
   const { userId, email, loading } = useSession();
   const [account, setAccount] = useState<Account | null>(null);
   const [busy, setBusy] = useState<PlanId | null>(null);
+  const [card, setCard] = useState<BillingCardInfo | null>(null);
 
   const refresh = async () => {
     if (!userId) return;
@@ -374,6 +381,11 @@ export function SubscriptionScreen() {
       setAccount(await getMyAccount({ headers }));
     } catch {
       /* 세션 준비 전 */
+    }
+    try {
+      setCard(await getTossBilling({ headers }));
+    } catch {
+      /* 카드 정보는 없어도 화면은 그대로 보여 줍니다 */
     }
   };
 
@@ -393,16 +405,36 @@ export function SubscriptionScreen() {
     setBusy(plan);
     tap("success");
     try {
-      await subscribePlan({ data: { plan, method: "card" }, headers });
       if (plan === "free") {
+        await subscribePlan({ data: { plan, method: "card" }, headers });
         toast.success("무료 체험이 시작되었습니다 (3일)");
-      } else {
-        toast.success("구독이 활성화되었습니다", {
-          description: "실제 카드 결제는 시스템 연결 준비 중이며, 현재는 테스트 결제로 기록됩니다.",
-        });
+        await refresh();
+        return;
       }
 
-      await refresh();
+      // 유료 구독은 토스페이먼츠 자동결제(빌링)로 실제 결제합니다.
+      // 이미 카드가 등록되어 있으면 그 카드로 바로 결제합니다.
+      if (card?.registered) {
+        const r = await chargeTossBilling({ headers });
+        if (r.ok) {
+          toast.success("결제가 완료되어 구독이 시작되었습니다", {
+            description: `${won(r.amount ?? 0)} · 매월 자동 결제`,
+          });
+          await refresh();
+        } else {
+          toast.error("결제에 실패했습니다", { description: r.error ?? "카드사 응답을 확인해 주세요" });
+        }
+        return;
+      }
+
+      const cfg = await getTossBillingConfig({ headers });
+      if (!cfg.ok || !cfg.clientKey || !cfg.customerKey) {
+        toast.error("결제 준비에 실패했습니다", { description: cfg.error ?? "잠시 후 다시 시도해 주세요" });
+        return;
+      }
+      const { openTossCardRegister } = await import("@/lib/toss");
+      await openTossCardRegister(cfg.clientKey, cfg.customerKey);
+      // 카드 등록창으로 이동합니다. 등록을 마치면 /billing/callback 에서 결제가 진행됩니다.
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "결제에 실패했습니다");
     } finally {
@@ -471,7 +503,16 @@ export function SubscriptionScreen() {
           {current?.cancel_at_period_end && (
             <div className="text-xs text-[#EF4444] mt-1">기간 종료 후 자동 해지 예정</div>
           )}
+          {card?.registered && (
+            <div className="text-xs text-[#6B7280] mt-2 flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5" />
+              자동결제 카드 등록됨
+              {card.cardCompany ? ` · ${card.cardCompany}` : ""}
+              {card.cardNumberMasked ? ` ${card.cardNumberMasked}` : ""}
+            </div>
+          )}
         </Card>
+
 
         {PLANS.map((p) => {
           const active = current?.plan === p.id;
@@ -507,7 +548,15 @@ export function SubscriptionScreen() {
                 }`}
                 style={active ? undefined : { background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
               >
-                {active ? "이용 중" : busy === p.id ? "결제 중..." : p.price === 0 ? "무료로 시작" : "구독 결제하기"}
+                {active
+                  ? "이용 중"
+                  : busy === p.id
+                    ? "결제 중..."
+                    : p.price === 0
+                      ? "무료로 시작"
+                      : card?.registered
+                        ? "등록한 카드로 결제하기"
+                        : "카드 등록하고 구독 시작"}
               </button>
             </Card>
           );
