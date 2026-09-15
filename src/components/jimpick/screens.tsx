@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-
   useMemo,
   useRef,
   useState,
@@ -71,7 +70,6 @@ import {
   DEFAULT_PRICING,
   sideConditionText,
   workConditionSummary,
-
   type Pricing,
   type MoveType,
   type Room,
@@ -120,7 +118,6 @@ import { DepositPanel } from "./DepositPanel";
 import { PaymentPanel } from "./PaymentPanel";
 import { ReminderPanel } from "./ReminderPanel";
 
-
 import {
   TERMS_VERSION,
   TERMS_NAME,
@@ -141,7 +138,11 @@ import {
 } from "@/lib/terms.functions";
 import { getCompanyDefaults, saveCompanyDefaults } from "@/lib/company-defaults.functions";
 import { saveEstimateDraft } from "@/lib/draft-sync.functions";
-import { getFavoriteItems, saveFavoriteItems, FAVORITE_LIMIT } from "@/lib/favorite-items.functions";
+import {
+  getFavoriteItems,
+  saveFavoriteItems,
+  FAVORITE_LIMIT,
+} from "@/lib/favorite-items.functions";
 import {
   uploadCert,
   certSignedUrl,
@@ -254,7 +255,10 @@ const ITEM_FAMILY_ORDER: [RegExp, string][] = [
   [/에어컨|공기청정기|제습기|가습기|선풍기|히터|실링팬|오일히터/, "52"],
   [/tv|티비|모니터|스피커|서브우퍼|오디오|프로젝터|피아노|오르간|게임|노래방/i, "53"],
   [/청소기/, "54"],
-  [/전자레인지|오븐|에어프라이어|가스레인지|인덕션|밥솥|커피|믹서|토스터|전기포트|식기세척기|정수기|냉온수기|제빙기|렌지후드|음식물/, "55"],
+  [
+    /전자레인지|오븐|에어프라이어|가스레인지|인덕션|밥솥|커피|믹서|토스터|전기포트|식기세척기|정수기|냉온수기|제빙기|렌지후드|음식물/,
+    "55",
+  ],
 ];
 function familyKey(name: string): string {
   for (const [re, k] of ITEM_FAMILY_ORDER) if (re.test(name)) return k + name;
@@ -336,7 +340,8 @@ export function Splash() {
               onKeyDown={
                 onClick
                   ? (e) => {
-                      if (e.key === "Enter" || e.key === " ") onClick?.(e as unknown as ReactMouseEvent);
+                      if (e.key === "Enter" || e.key === " ")
+                        onClick?.(e as unknown as ReactMouseEvent);
                     }
                   : undefined
               }
@@ -383,7 +388,6 @@ export function Splash() {
           </div>
         </div>
 
-
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -417,7 +421,12 @@ export function Login() {
   const [showSignup, setShowSignup] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const emailError = id.length === 0 ? "" : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id.trim()) ? "" : "이메일 주소를 정확히 입력해 주세요.";
+  const emailError =
+    id.length === 0
+      ? ""
+      : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id.trim())
+        ? ""
+        : "이메일 주소를 정확히 입력해 주세요.";
 
   /**
    * 실제 계정으로 로그인합니다.
@@ -538,11 +547,19 @@ export function Login() {
         <p className="-mt-3 text-sm text-auth-muted">
           공용 컴퓨터에서는 로그인 상태 유지를 해제해 주세요.
         </p>
-        {err && <div role="alert" aria-live="assertive" className="rounded-md bg-auth-soft p-3 text-sm font-semibold text-auth-error">{err}</div>}
+        {err && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="rounded-md bg-auth-soft p-3 text-sm font-semibold text-auth-error"
+          >
+            {err}
+          </div>
+        )}
         {showSignup && (
           <div className="rounded-md bg-auth-soft p-3 text-sm text-auth-muted">
-            처음이시면 아래 「업체 회원가입」으로 계정을 먼저 만들어 주세요.
-            계정이 있어야 견적서 문자발송이 됩니다.
+            처음이시면 아래 「업체 회원가입」으로 계정을 먼저 만들어 주세요. 계정이 있어야 견적서
+            문자발송이 됩니다.
           </div>
         )}
         <AuthPrimaryButton type="submit" busy={busy}>
@@ -556,7 +573,9 @@ export function Login() {
         >
           업체 회원가입
         </Button>
-        <p className="-mt-3 text-center text-sm text-auth-muted">가입 후 7일 동안 모든 기능을 무료로 체험할 수 있습니다.</p>
+        <p className="-mt-3 text-center text-sm text-auth-muted">
+          가입 후 7일 동안 모든 기능을 무료로 체험할 수 있습니다.
+        </p>
         <Button
           type="button"
           variant="ghost"
@@ -565,7 +584,9 @@ export function Login() {
         >
           아이디 · 비밀번호 찾기
         </Button>
-        <div className="mt-auto pt-4 text-center text-xs text-auth-muted">© JIMPICK · Ver 7.0.0</div>
+        <div className="mt-auto pt-4 text-center text-xs text-auth-muted">
+          © JIMPICK · Ver 7.0.0
+        </div>
       </form>
     </AuthShell>
   );
@@ -604,9 +625,8 @@ export function HomeScreen() {
   // 아래 숫자는 모두 저장된 견적에서 바로 계산합니다 (예시 숫자를 쓰지 않습니다)
   const phoneKey = (e: (typeof estimates)[number]) =>
     (e.phone || "").replace(/[^0-9]/g, "") || `이름:${e.customerName || ""}`;
-  const customerCount = new Set(
-    estimates.filter((e) => e.customerName || e.phone).map(phoneKey),
-  ).size;
+  const customerCount = new Set(estimates.filter((e) => e.customerName || e.phone).map(phoneKey))
+    .size;
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
@@ -633,7 +653,6 @@ export function HomeScreen() {
         </div>
         <Bell className="w-6 h-6 shrink-0 text-[#111827]" />
       </div>
-
 
       <div className="px-5 space-y-4 flex-1 pb-4">
         {entitlement?.isSuperAdmin && (
@@ -662,7 +681,8 @@ export function HomeScreen() {
           <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-2.5 text-xs font-semibold text-[#0751D8] break-keep">
             7일 무료체험 · 문자 {entitlement.freeSmsUsed}/{entitlement.freeSmsLimit}건 사용
             <div className="mt-0.5 font-medium text-[#1D4ED8]">
-              무료체험 {entitlement.trialDaysLeft}일 남음 · 문자 {entitlement.freeSmsRemaining}건 남음
+              무료체험 {entitlement.trialDaysLeft}일 남음 · 문자 {entitlement.freeSmsRemaining}건
+              남음
             </div>
           </div>
         )}
@@ -916,17 +936,19 @@ export function Step1() {
             counts={bookingCounts}
             bookings={bookings}
             onOpenBooking={(estimateId, customerName) => {
+              // 정확히 그 견적번호(estimateId)의 견적만 엽니다 → 다른 고객 견적서가 열리지 않습니다.
               const saved = estimates.find((e) => e.id === estimateId);
               if (!saved) {
-                toast.error("이 기기에 저장된 견적서가 없습니다.");
+                toast.error("이 기기에 저장된 견적서가 없습니다. 견적 내역에서 확인해 주세요.");
                 return;
               }
               loadEstimate(estimateId);
-              // 예약 확정 때 저장된 고객명이 견적서에 비어 있으면 그 이름을 채워 줍니다.
-              if (!saved.customerName?.trim() && customerName.trim())
-                updateDraft({ customerName: customerName.trim() });
+              // 계약(estimate_terms)에 저장된 실제 고객 이름을 견적서에 그대로 채웁니다.
+              // (로컬 견적에 이름이 비어 있거나 달라 '고객님'만 보이던 문제를 막습니다)
+              const confirmedName = customerName.trim();
+              if (confirmedName && saved.customerName?.trim() !== confirmedName)
+                updateDraft({ customerName: confirmedName });
             }}
-
             onCancelBooking={(termsId, estimateId) => {
               if (!window.confirm("이 예약을 취소하고 견적서도 지울까요?")) return;
               // 화면에서 먼저 지워 달력에 바로 반영합니다(서버 실패 시 되돌립니다).
@@ -962,7 +984,6 @@ export function Step1() {
                   toast.error("예약을 취소하지 못했습니다.");
                 });
             }}
-
             onSelect={(date) =>
               updateDraft({
                 moveDate: date,
@@ -973,7 +994,6 @@ export function Step1() {
               })
             }
           />
-
         </Field>
 
         <Field label="시작 시간">
@@ -1472,7 +1492,10 @@ export function Step3() {
       });
     }
   };
-  const swipe = useSwipeNav(() => setScreen("step2"), () => setScreen("step4"));
+  const swipe = useSwipeNav(
+    () => setScreen("step2"),
+    () => setScreen("step4"),
+  );
   return (
     <MobileShell>
       <TopBar title="3단계. 작업 조건" onBack={() => setScreen("step2")} />
@@ -1778,7 +1801,6 @@ export const ROOM_TINT: Record<string, string> = {
   서재: "from-[#94A3B8] to-[#475569]",
 };
 
-
 /** 번호 마지막 4자리 (발송 결과에 가려서 보여 줍니다) */
 function digitsTail(phone: string): string {
   const n = (phone || "").replace(/[^0-9]/g, "");
@@ -1796,8 +1818,15 @@ function iconChoices(name: string): string[] {
 }
 
 export function Step6() {
-  const { draft, updateDraft, setScreen, setCurrentRoom, estimates, catalogHidden, hideCatalogItem } =
-    useApp();
+  const {
+    draft,
+    updateDraft,
+    setScreen,
+    setCurrentRoom,
+    estimates,
+    catalogHidden,
+    hideCatalogItem,
+  } = useApp();
   const [size, setSize] = useState<string>(() => {
     if (draft.sizeTab) return draft.sizeTab;
     const n = draft.rooms.length;
@@ -1828,9 +1857,7 @@ export function Step6() {
           extra: c.extra,
         })),
       ].filter(
-        (i) =>
-          !(draft.hiddenItems || []).includes(i.id) &&
-          !(catalogHidden || []).includes(i.id),
+        (i) => !(draft.hiddenItems || []).includes(i.id) && !(catalogHidden || []).includes(i.id),
       ),
     [draft.customItems, draft.hiddenItems, catalogHidden],
   );
@@ -1865,8 +1892,6 @@ export function Step6() {
       }
     },
   );
-
-
 
   /** 평수를 고르면 없는 방만 새로 만들고, 기존 방 품목은 그대로 유지합니다 */
   const pickSize = (key: string) => {
@@ -1903,7 +1928,8 @@ export function Step6() {
     let target = room;
     if (!target) {
       if (qty <= 0) return;
-      const name = itemName || catalog.find((c) => c.id === itemId)?.name || itemNameById(itemId) || "";
+      const name =
+        itemName || catalog.find((c) => c.id === itemId)?.name || itemNameById(itemId) || "";
       const pick = suggestRoomName(name, sizeRooms) || sizeRooms[0];
       if (!pick) return;
       if (!rooms.some((r) => r.name === pick))
@@ -2004,7 +2030,10 @@ export function Step6() {
     let rooms = draft.rooms;
     if (!rooms.some((r) => r.name === roomName)) {
       if (!roomName) return "담을 공간을 고르지 못했습니다. 공간을 다시 선택해 주세요.";
-      rooms = [...rooms, { id: `r_${roomName}`, name: roomName, items: {} as Record<string, number> }];
+      rooms = [
+        ...rooms,
+        { id: `r_${roomName}`, name: roomName, items: {} as Record<string, number> },
+      ];
     }
     const target = rooms.find((r) => r.name === roomName);
     if (!target) return "담을 공간을 찾지 못했습니다. 공간을 다시 선택해 주세요.";
@@ -2272,7 +2301,6 @@ export function Step6() {
       setFavSaving(false);
     }
   };
-
 
   return (
     <MobileShell>
@@ -2671,7 +2699,9 @@ export function Step6() {
                   {/* 검색 결과에 없는 품목 — 깨진 그림·박스 대신 안내와 만들기 버튼을 보여 줍니다 */}
                   {noResult && (
                     <div className="rounded-2xl border border-[#DCE8FA] bg-white p-4 text-center shadow-[inset_0_1px_0_#fff]">
-                      <p className="text-[14px] font-black text-[#0F172A]">등록된 품목이 없습니다</p>
+                      <p className="text-[14px] font-black text-[#0F172A]">
+                        등록된 품목이 없습니다
+                      </p>
                       <p className="mt-1 break-words text-[13px] font-bold text-[#0751D8]">
                         「{q.trim()}」
                       </p>
@@ -2683,7 +2713,11 @@ export function Step6() {
                           }}
                           className="mx-auto mt-3 flex items-center gap-2 rounded-2xl border border-[#287BFF] bg-[#F2F7FF] px-3 py-2 text-[13px] font-black text-[#0751D8] active:translate-y-[1px]"
                         >
-                          <Icon3D src={savedIcon.iconUrl} alt={savedIcon.name || "아이콘"} size={36} />
+                          <Icon3D
+                            src={savedIcon.iconUrl}
+                            alt={savedIcon.name || "아이콘"}
+                            size={36}
+                          />
                           전에 만든 아이콘으로 담기
                         </button>
                       )}
@@ -2985,9 +3019,11 @@ export function Step6() {
                 />
                 <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 text-center shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
                   <div className="text-[16px] font-black leading-snug text-[#0F172A]">
-                    「{catalog.find((c) => c.id === confirmCatalogDel)?.name ||
+                    「
+                    {catalog.find((c) => c.id === confirmCatalogDel)?.name ||
                       itemNameById(confirmCatalogDel) ||
-                      "이 품목"}」을(를)
+                      "이 품목"}
+                    」을(를)
                     <br />
                     품목 목록에서 삭제하시겠습니까?
                   </div>
@@ -3207,8 +3243,7 @@ export function AIRecognition() {
    * 비동기 AI 분석이 끝난 뒤 화면에서 방을 바꿔도, 이 사진의 품목은 촬영 당시 고른 방에 저장됩니다.
    */
   const [capturedRoomId, setCapturedRoomId] = useState<string>("");
-  const capturedRoom =
-    draft.rooms.find((r) => r.id === capturedRoomId) || targetRoom;
+  const capturedRoom = draft.rooms.find((r) => r.id === capturedRoomId) || targetRoom;
   /** AI가 추정한 공간 이름(참고용). 저장 위치를 자동으로 바꾸지 않습니다. */
   const [roomGuessName, setRoomGuessName] = useState<string>("");
 
@@ -3395,7 +3430,6 @@ export function AIRecognition() {
     void analyze(lastBatch.images, lastBatch.source, false);
   };
 
-
   /**
    * 품목을 공간에 더합니다.
    * auto 가 true 면 품목마다 어울리는 공간으로 자동 배정하고,
@@ -3413,7 +3447,8 @@ export function AIRecognition() {
     const used: string[] = [];
     for (const a of add) {
       const pick = auto ? suggestRoomName(a.name, names) : undefined;
-      const target = (pick && rooms.find((r) => r.name === pick)) || rooms.find((r) => r.id === base.id);
+      const target =
+        (pick && rooms.find((r) => r.name === pick)) || rooms.find((r) => r.id === base.id);
       if (!target) continue;
       target.items[a.id] = (target.items[a.id] || 0) + a.qty;
       if (!used.includes(target.name)) used.push(target.name);
@@ -3429,8 +3464,7 @@ export function AIRecognition() {
    * roomIdOverride 가 있으면(사용자가 "…으로 변경"을 직접 누른 경우) 그 방으로 담습니다.
    */
   const apply = (roomIdOverride?: string) => {
-    const dest =
-      draft.rooms.find((r) => r.id === (roomIdOverride || capturedRoomId)) || targetRoom;
+    const dest = draft.rooms.find((r) => r.id === (roomIdOverride || capturedRoomId)) || targetRoom;
     if (!dest) return;
     // auto=false → 품목 이름으로 다른 방에 흩어 담지 않고, 고른 방 하나에만 담습니다.
     const name = addToRoom(shown, dest.id, false);
@@ -3441,9 +3475,7 @@ export function AIRecognition() {
   };
 
   /** AI가 추정한 공간(있으면)과 촬영 당시 고른 방이 다른지 — 다르면 확인만 받고 자동 이동하지 않습니다. */
-  const guessedRoom = roomGuessName
-    ? draft.rooms.find((r) => r.name === roomGuessName)
-    : undefined;
+  const guessedRoom = roomGuessName ? draft.rooms.find((r) => r.name === roomGuessName) : undefined;
   const roomMismatch = !!guessedRoom && !!capturedRoom && guessedRoom.id !== capturedRoom.id;
 
   // ---- 음성으로 바로 담기 (대화 없이, 말하는 즉시 들어갑니다) ----
@@ -3496,7 +3528,9 @@ export function AIRecognition() {
         const name = addToRoom(res.items, finalId, !spoken);
         if (name) {
           tap("success");
-          setVoiceHint(`「${name}」 · ${res.items.map((i) => `${i.name} ${i.qty}${i.unit}`).join(", ")}`);
+          setVoiceHint(
+            `「${name}」 · ${res.items.map((i) => `${i.name} ${i.qty}${i.unit}`).join(", ")}`,
+          );
         }
       } else if (!res.needConfirm.length && !res.extraWork.length && !res.truck) {
         setVoiceHint(`“${res.transcript}” 에서 품목을 찾지 못했습니다. 다시 말씀해 주세요.`);
@@ -3555,7 +3589,9 @@ export function AIRecognition() {
     const SR = recognitionCtor();
     if (!SR) {
       // 안 되는 기기에서 되는 척하지 않습니다
-      fail("이 브라우저는 음성 인식을 지원하지 않습니다. 갤럭시는 크롬, 아이폰은 사파리로 열어 주세요.");
+      fail(
+        "이 브라우저는 음성 인식을 지원하지 않습니다. 갤럭시는 크롬, 아이폰은 사파리로 열어 주세요.",
+      );
       return;
     }
     if (!isSecureForMic()) {
@@ -3655,8 +3691,6 @@ export function AIRecognition() {
     }
   };
 
-
-
   // 화면을 벗어나면 마이크를 끕니다
   useEffect(() => {
     return () => {
@@ -3751,37 +3785,37 @@ export function AIRecognition() {
 
         {/* 지금 무슨 상태인지 캐릭터가 알려 줍니다 (누르기 전에도 보입니다) */}
         <Card className="flex items-start gap-3 rounded-[14px]">
-            <JimpickCharacter
-              state={
-                voiceBusy
-                  ? "processing"
-                  : listening
-                    ? "listening"
-                    : voiceError
-                      ? "error"
-                      : lastHeard
-                        ? "done"
-                        : "idle"
-              }
-              size={64}
-              className="shrink-0"
-            />
-            <div className="min-w-0 flex-1">
-              <div
-                className={`text-[16px] font-bold ${voiceError ? "text-[#DC2626]" : "text-[#0864DC]"}`}
-              >
-                {voiceBusy
-                  ? "담는 중이에요"
-                  : heard
-                    ? `“${heard}”`
-                    : voiceHint || "말씀하세요 — 예) 냉장고 하나, 침대 두 개"}
-              </div>
-              {lastHeard && !heard && (
-                <div className="mt-1 break-words text-[15px] text-[#6B7280]">
-                  들은 말: “{lastHeard}”
-                </div>
-              )}
+          <JimpickCharacter
+            state={
+              voiceBusy
+                ? "processing"
+                : listening
+                  ? "listening"
+                  : voiceError
+                    ? "error"
+                    : lastHeard
+                      ? "done"
+                      : "idle"
+            }
+            size={64}
+            className="shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <div
+              className={`text-[16px] font-bold ${voiceError ? "text-[#DC2626]" : "text-[#0864DC]"}`}
+            >
+              {voiceBusy
+                ? "담는 중이에요"
+                : heard
+                  ? `“${heard}”`
+                  : voiceHint || "말씀하세요 — 예) 냉장고 하나, 침대 두 개"}
             </div>
+            {lastHeard && !heard && (
+              <div className="mt-1 break-words text-[15px] text-[#6B7280]">
+                들은 말: “{lastHeard}”
+              </div>
+            )}
+          </div>
         </Card>
 
         {/* 헷갈리는 말은 담지 않고 먼저 확인합니다 */}
@@ -3822,11 +3856,7 @@ export function AIRecognition() {
 
         {/* 음성이 안 될 때를 위한 글 입력 — 같은 방식으로 담깁니다 */}
         <div className="flex gap-2">
-          <TextInput
-            value={typed}
-            placeholder=""
-            onChange={(e) => setTyped(e.target.value)}
-          />
+          <TextInput value={typed} placeholder="" onChange={(e) => setTyped(e.target.value)} />
           <button
             onClick={() => {
               const t = typed.trim();
@@ -3950,7 +3980,6 @@ export function AIRecognition() {
           </Card>
         )}
 
-
         <div className="text-xs text-[#6B7280] bg-[#F5F7FB] rounded-xl px-3 py-2">
           💡 밝고 선명하게, 물건 전체가 나오도록 촬영할수록 인식률이 높아집니다.
         </div>
@@ -4014,7 +4043,8 @@ export function AIRecognition() {
         <div className="space-y-2">
           {results.length > 0 && roomMismatch && (
             <div className="rounded-2xl border border-[#FED7AA] bg-[#FFF7ED] px-3 py-2 text-[13px] font-semibold text-[#9A3412]">
-              AI는 이 사진을 「{guessedRoom!.name}」으로 판단했습니다. 선택하신 「{capturedRoom!.name}」에 저장할까요?
+              AI는 이 사진을 「{guessedRoom!.name}」으로 판단했습니다. 선택하신 「
+              {capturedRoom!.name}」에 저장할까요?
             </div>
           )}
           {results.length > 0 &&
@@ -4047,7 +4077,11 @@ export function AIRecognition() {
                 >
                   다시 촬영
                 </button>
-                <PrimaryButton onClick={() => apply()} className="flex-1" disabled={shown.length === 0}>
+                <PrimaryButton
+                  onClick={() => apply()}
+                  className="flex-1"
+                  disabled={shown.length === 0}
+                >
                   {capturedRoom ? `「${capturedRoom.name}」에 담기` : "담고 다음으로"}
                 </PrimaryButton>
               </div>
@@ -4313,7 +4347,9 @@ export function Result() {
         },
       });
       if (!r.ok) {
-        toast.error("업체 정보를 저장하지 못했습니다", { description: r.error ?? "알 수 없는 오류" });
+        toast.error("업체 정보를 저장하지 못했습니다", {
+          description: r.error ?? "알 수 없는 오류",
+        });
         return;
       }
       toast.success("담당자·계좌 정보를 기본값으로 저장했습니다");
@@ -4326,8 +4362,6 @@ export function Result() {
       setSavingDefaults(false);
     }
   };
-
-
 
   /** 캡처할 견적서 영역 */
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -4533,9 +4567,7 @@ export function Result() {
       setSheetOpen(false);
       finishToHome();
     } catch (e) {
-      setFinishError(
-        e instanceof Error ? e.message : "서버 저장 상태를 확인하지 못했습니다.",
-      );
+      setFinishError(e instanceof Error ? e.message : "서버 저장 상태를 확인하지 못했습니다.");
     } finally {
       setFinishing(false);
     }
@@ -4839,7 +4871,6 @@ export function Result() {
       memo: draft.memo ?? "",
       url,
     });
-
 
   /** 직원용 보안 링크를 만들고 카카오톡 공유창을 엽니다 */
   const doStaffShare = async () => {
@@ -5226,9 +5257,7 @@ export function Result() {
                     {line}
                   </div>
                 ))}
-                <div className="text-[#6B7280]">
-                  상세보기 링크는 공유할 때 새로 만들어집니다
-                </div>
+                <div className="text-[#6B7280]">상세보기 링크는 공유할 때 새로 만들어집니다</div>
                 <div className="text-[#6B7280]">
                   링크 만료{" "}
                   {staffExpires
@@ -5256,7 +5285,6 @@ export function Result() {
           </div>
         )}
 
-
         {backTo !== "options" && (
           <button
             onClick={() => {
@@ -5282,7 +5310,6 @@ export function Result() {
       {/* 종이 견적서 */}
       {sheetOpen && (
         <div className="fixed inset-0 z-50 flex flex-col bg-[#E9EFF8]">
-
           <div className="flex items-center gap-2 border-b border-[#DCE8FA] bg-white px-4 py-3">
             <button
               onClick={() => {
@@ -5403,8 +5430,8 @@ export function Result() {
                   />
                 </Field>
                 <p className="text-[12.5px] font-semibold leading-relaxed text-[#6B7280]">
-                  품목과 수량은 5단계 「공간별 품목」에서, 차량·옵션은 앞 단계에서 고치면
-                  견적서에 바로 반영됩니다. 고객이 처음 넣은 신청 정보는 그대로 남습니다.
+                  품목과 수량은 5단계 「공간별 품목」에서, 차량·옵션은 앞 단계에서 고치면 견적서에
+                  바로 반영됩니다. 고객이 처음 넣은 신청 정보는 그대로 남습니다.
                 </p>
               </div>
             ) : (
@@ -5490,7 +5517,8 @@ export function Result() {
                 </button>
                 {sendEnt?.freeSmsLimited && (
                   <div className="mt-2 text-center text-[12px] font-bold text-[#475569] break-keep">
-                    무료 문자 {sendEnt.freeSmsUsed}/{sendEnt.freeSmsLimit}건 사용 · {sendEnt.freeSmsRemaining}건 남음
+                    무료 문자 {sendEnt.freeSmsUsed}/{sendEnt.freeSmsLimit}건 사용 ·{" "}
+                    {sendEnt.freeSmsRemaining}건 남음
                   </div>
                 )}
               </>
@@ -5603,14 +5631,11 @@ export function Result() {
                   </div>
                 )}
 
-
                 {/* 발송 결과 */}
                 {sendResult && (
                   <div
                     className={`mt-3 rounded-2xl px-3 py-2.5 text-left text-[12.5px] font-bold leading-relaxed ${
-                      sendResult.ok
-                        ? "bg-[#DCFCE7] text-[#15803D]"
-                        : "bg-[#FEE2E2] text-[#B91C1C]"
+                      sendResult.ok ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#FEE2E2] text-[#B91C1C]"
                     }`}
                   >
                     {sendResult.ok ? (
@@ -5716,8 +5741,7 @@ export function Result() {
                 <div className="min-w-0">
                   <div className="text-[14px] font-black text-[#0F172A]">고객 화면 미리보기</div>
                   <div className="text-[12px] text-[#6B7280]">
-                    {draft.sheetNo || draft.id} · {draft.sheetVersion ?? 1}차 · 약관{" "}
-                    {TERMS_VERSION}
+                    {draft.sheetNo || draft.id} · {draft.sheetVersion ?? 1}차 · 약관 {TERMS_VERSION}
                   </div>
                 </div>
                 <button
@@ -5746,7 +5770,6 @@ export function Result() {
           )}
         </div>
       )}
-
     </MobileShell>
   );
 }
@@ -5816,7 +5839,12 @@ export function History() {
   /** 약관 진행 상태 — 발송 성공과 고객 열람·동의는 서로 다른 상태로 표시합니다 */
   const termsState = (id: string) => {
     const r = termsRows.find((t) => t.estimateId === id);
-    if (!r) return { text: "약관 미발송", tone: "bg-[#F3F4F6] text-[#6B7280]", row: null as TermsStatusRow | null };
+    if (!r)
+      return {
+        text: "약관 미발송",
+        tone: "bg-[#F3F4F6] text-[#6B7280]",
+        row: null as TermsStatusRow | null,
+      };
     if (r.acceptedAt)
       return { text: "고객 동의 완료 · 예약 확정", tone: "bg-[#DCFCE7] text-[#15803D]", row: r };
     if (r.termsViewedAt)
@@ -5830,7 +5858,6 @@ export function History() {
     <MobileShell>
       <TopBar title="견적 내역" onBack={() => setScreen("home")} />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
-
         <TextInput
           placeholder="고객명·연락처·날짜 검색"
           value={q}
@@ -5842,179 +5869,200 @@ export function History() {
         {list.map((e) => {
           const ts = termsState(e.id);
           return (
-          <Card key={e.id}>
-            {(() => {
-              const open = !!openCard[e.id];
-              return (
-            <>
-            <button
-              type="button"
-              onClick={() => toggleCard(e.id)}
-              className="w-full text-left"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="font-bold">{e.customerName || "이름 없음"}</div>
-                  <div className="text-xs text-[#6B7280]">{e.phone}</div>
-                </div>
-                <span className="text-xs px-2 py-1 rounded-full bg-[#EEF4FF] text-[#0751D8] font-semibold">
-                  {e.status}
-                </span>
-              </div>
-              <div className="text-sm text-[#6B7280] mt-2">
-                {e.moveDate || "-"} · {e.fromAddress || "?"} → {e.toAddress || "?"}
-              </div>
-              <div className="mt-1 flex items-center justify-between">
-                <span className="text-lg font-black text-[#0751D8]">{won(e.total)}</span>
-                <span className="text-[13px] font-bold text-[#94A3B8]">
-                  {open ? "닫기 ▲" : "자세히 ▾"}
-                </span>
-              </div>
-            </button>
-            {open && (
-            <>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className={`text-[13px] px-2 py-1 rounded-full font-semibold ${ts.tone}`}>
-                {ts.text}
-              </span>
-              {ts.row && (
-                <span className="text-xs text-[#6B7280]">
-                  약관 {ts.row.termsVersion}
-                  {ts.row.acceptedAt
-                    ? ` · 동의 ${new Date(ts.row.acceptedAt).toLocaleString("ko-KR")}`
-                    : ""}
-                </span>
-              )}
-            </div>
-            {ts.row &&
-              (() => {
-                const n = noticeOf(e.id);
-                const sent = n?.status === "sent" || n?.status === "success";
-                const open = !!openLog[e.id];
-                const summary = [
-                  ts.row.viewCount
-                    ? `열람 ${ts.row.viewCount}회`
-                    : ts.row.firstViewedAt
-                      ? "열람함"
-                      : "미열람",
-                  ts.row.acceptedAt ? "예약 확정" : null,
-                  ts.row.acceptedAt ? (sent ? "알림 발송" : n ? "알림 실패" : null) : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ");
+            <Card key={e.id}>
+              {(() => {
+                const open = !!openCard[e.id];
                 return (
-                  <div className="mt-2">
+                  <>
                     <button
-                      onClick={() => toggleLog(e.id)}
-                      className="flex w-full items-center justify-between rounded-xl bg-[#F7F9FC] px-3 py-2 text-[12.5px] font-bold text-[#334155]"
+                      type="button"
+                      onClick={() => toggleCard(e.id)}
+                      className="w-full text-left"
                     >
-                      <span className="truncate">{summary}</span>
-                      <span className="ml-2 shrink-0 text-[#6B7280]">
-                        {open ? "닫기" : "기록 보기"}
-                      </span>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-bold">{e.customerName || "이름 없음"}</div>
+                          <div className="text-xs text-[#6B7280]">{e.phone}</div>
+                        </div>
+                        <span className="text-xs px-2 py-1 rounded-full bg-[#EEF4FF] text-[#0751D8] font-semibold">
+                          {e.status}
+                        </span>
+                      </div>
+                      <div className="text-sm text-[#6B7280] mt-2">
+                        {e.moveDate || "-"} · {e.fromAddress || "?"} → {e.toAddress || "?"}
+                      </div>
+                      <div className="mt-1 flex items-center justify-between">
+                        <span className="text-lg font-black text-[#0751D8]">{won(e.total)}</span>
+                        <span className="text-[13px] font-bold text-[#94A3B8]">
+                          {open ? "닫기 ▲" : "자세히 ▾"}
+                        </span>
+                      </div>
                     </button>
                     {open && (
-                      <div className="mt-2 space-y-2">
-                        {ts.row.acceptedAt && (
-                          <div className="rounded-xl bg-[#F7F9FC] p-2.5">
-                            <div className="text-[12.5px] font-bold text-[#334155]">
-                              사장님 알림 문자{" "}
-                              {sent ? (
-                                <span className="text-[#15803D]">
-                                  발송 완료 {n?.toMasked ? `(${n.toMasked})` : ""}
-                                  {n?.sentAt
-                                    ? ` · ${new Date(n.sentAt).toLocaleString("ko-KR")}`
-                                    : ""}
-                                </span>
-                              ) : n ? (
-                                <span className="text-[#B91C1C]">발송 실패</span>
-                              ) : (
-                                <span className="text-[#6B7280]">기록 없음</span>
-                              )}
-                            </div>
-                            {!sent && n?.errorMessage && (
-                              <div className="mt-1 text-[12px] font-semibold text-[#B91C1C]">
-                                {n.errorMessage}
-                              </div>
-                            )}
-                            {!sent && (
-                              <button
-                                onClick={() => doResend(e.id)}
-                                disabled={resending === e.id}
-                                className="mt-2 w-full rounded-xl bg-[#EEF4FF] py-2 text-[13px] font-bold text-[#0751D8] disabled:opacity-50"
-                              >
-                                {resending === e.id ? "발송 중…" : "사장님 알림 다시 보내기"}
-                              </button>
-                            )}
-                          </div>
-                        )}
-                        <div className="rounded-xl bg-[#F7F9FC] p-2.5 text-[12.5px] text-[#334155]">
-                          <div className="font-bold">고객 열람 기록</div>
-                          <div className="mt-0.5 text-[#6B7280]">
-                            {ts.row.firstViewedAt
-                              ? `최초 열람 ${new Date(ts.row.firstViewedAt).toLocaleString("ko-KR")}`
-                              : "아직 열지 않았습니다"}
-                          </div>
-                          {ts.row.lastViewedAt && (
-                            <div className="text-[#6B7280]">
-                              최근 열람 {new Date(ts.row.lastViewedAt).toLocaleString("ko-KR")} · 열람{" "}
-                              {ts.row.viewCount}회
-                            </div>
-                          )}
-                          {ts.row.termsViewedAt && (
-                            <div className="text-[#6B7280]">
-                              약관 확인 {new Date(ts.row.termsViewedAt).toLocaleString("ko-KR")}
-                            </div>
-                          )}
-                          {ts.row.acceptedAt && (
-                            <div className="font-semibold text-[#15803D]">
-                              예약 확정 {new Date(ts.row.acceptedAt).toLocaleString("ko-KR")}
-                            </div>
+                      <>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span
+                            className={`text-[13px] px-2 py-1 rounded-full font-semibold ${ts.tone}`}
+                          >
+                            {ts.text}
+                          </span>
+                          {ts.row && (
+                            <span className="text-xs text-[#6B7280]">
+                              약관 {ts.row.termsVersion}
+                              {ts.row.acceptedAt
+                                ? ` · 동의 ${new Date(ts.row.acceptedAt).toLocaleString("ko-KR")}`
+                                : ""}
+                            </span>
                           )}
                         </div>
-                      </div>
+                        {ts.row &&
+                          (() => {
+                            const n = noticeOf(e.id);
+                            const sent = n?.status === "sent" || n?.status === "success";
+                            const open = !!openLog[e.id];
+                            const summary = [
+                              ts.row.viewCount
+                                ? `열람 ${ts.row.viewCount}회`
+                                : ts.row.firstViewedAt
+                                  ? "열람함"
+                                  : "미열람",
+                              ts.row.acceptedAt ? "예약 확정" : null,
+                              ts.row.acceptedAt
+                                ? sent
+                                  ? "알림 발송"
+                                  : n
+                                    ? "알림 실패"
+                                    : null
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ");
+                            return (
+                              <div className="mt-2">
+                                <button
+                                  onClick={() => toggleLog(e.id)}
+                                  className="flex w-full items-center justify-between rounded-xl bg-[#F7F9FC] px-3 py-2 text-[12.5px] font-bold text-[#334155]"
+                                >
+                                  <span className="truncate">{summary}</span>
+                                  <span className="ml-2 shrink-0 text-[#6B7280]">
+                                    {open ? "닫기" : "기록 보기"}
+                                  </span>
+                                </button>
+                                {open && (
+                                  <div className="mt-2 space-y-2">
+                                    {ts.row.acceptedAt && (
+                                      <div className="rounded-xl bg-[#F7F9FC] p-2.5">
+                                        <div className="text-[12.5px] font-bold text-[#334155]">
+                                          사장님 알림 문자{" "}
+                                          {sent ? (
+                                            <span className="text-[#15803D]">
+                                              발송 완료 {n?.toMasked ? `(${n.toMasked})` : ""}
+                                              {n?.sentAt
+                                                ? ` · ${new Date(n.sentAt).toLocaleString("ko-KR")}`
+                                                : ""}
+                                            </span>
+                                          ) : n ? (
+                                            <span className="text-[#B91C1C]">발송 실패</span>
+                                          ) : (
+                                            <span className="text-[#6B7280]">기록 없음</span>
+                                          )}
+                                        </div>
+                                        {!sent && n?.errorMessage && (
+                                          <div className="mt-1 text-[12px] font-semibold text-[#B91C1C]">
+                                            {n.errorMessage}
+                                          </div>
+                                        )}
+                                        {!sent && (
+                                          <button
+                                            onClick={() => doResend(e.id)}
+                                            disabled={resending === e.id}
+                                            className="mt-2 w-full rounded-xl bg-[#EEF4FF] py-2 text-[13px] font-bold text-[#0751D8] disabled:opacity-50"
+                                          >
+                                            {resending === e.id
+                                              ? "발송 중…"
+                                              : "사장님 알림 다시 보내기"}
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                    <div className="rounded-xl bg-[#F7F9FC] p-2.5 text-[12.5px] text-[#334155]">
+                                      <div className="font-bold">고객 열람 기록</div>
+                                      <div className="mt-0.5 text-[#6B7280]">
+                                        {ts.row.firstViewedAt
+                                          ? `최초 열람 ${new Date(ts.row.firstViewedAt).toLocaleString("ko-KR")}`
+                                          : "아직 열지 않았습니다"}
+                                      </div>
+                                      {ts.row.lastViewedAt && (
+                                        <div className="text-[#6B7280]">
+                                          최근 열람{" "}
+                                          {new Date(ts.row.lastViewedAt).toLocaleString("ko-KR")} ·
+                                          열람 {ts.row.viewCount}회
+                                        </div>
+                                      )}
+                                      {ts.row.termsViewedAt && (
+                                        <div className="text-[#6B7280]">
+                                          약관 확인{" "}
+                                          {new Date(ts.row.termsViewedAt).toLocaleString("ko-KR")}
+                                        </div>
+                                      )}
+                                      {ts.row.acceptedAt && (
+                                        <div className="font-semibold text-[#15803D]">
+                                          예약 확정{" "}
+                                          {new Date(ts.row.acceptedAt).toLocaleString("ko-KR")}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        {ts.row && (
+                          <DepositPanel
+                            estimateId={e.id}
+                            customerName={e.customerName}
+                            total={e.total}
+                          />
+                        )}
+                        {ts.row && (
+                          <PaymentPanel
+                            estimateId={e.id}
+                            total={e.total}
+                            row={ts.row}
+                            onSaved={loadTerms}
+                          />
+                        )}
+                        {ts.row && <ReminderPanel estimateId={e.id} />}
+
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => loadEstimate(e.id)}
+                            className="flex-1 py-2 rounded-xl bg-[#EEF4FF] text-[#0751D8] text-sm font-semibold"
+                          >
+                            상세 보기
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm("삭제하시겠습니까?")) deleteEstimate(e.id);
+                            }}
+                            className="px-3 py-2 rounded-xl bg-[#FEE2E2] text-[#EF4444]"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleCard(e.id)}
+                          className="mt-2 w-full py-2 text-[13px] font-bold text-[#94A3B8]"
+                        >
+                          닫기 ▲
+                        </button>
+                      </>
                     )}
-                  </div>
+                  </>
                 );
               })()}
-            {ts.row && (
-              <DepositPanel estimateId={e.id} customerName={e.customerName} total={e.total} />
-            )}
-            {ts.row && (
-              <PaymentPanel estimateId={e.id} total={e.total} row={ts.row} onSaved={loadTerms} />
-            )}
-            {ts.row && <ReminderPanel estimateId={e.id} />}
-
-
-            <div className="flex gap-2 mt-3">
-              <button
-                onClick={() => loadEstimate(e.id)}
-                className="flex-1 py-2 rounded-xl bg-[#EEF4FF] text-[#0751D8] text-sm font-semibold"
-              >
-                상세 보기
-              </button>
-              <button
-                onClick={() => {
-                  if (confirm("삭제하시겠습니까?")) deleteEstimate(e.id);
-                }}
-                className="px-3 py-2 rounded-xl bg-[#FEE2E2] text-[#EF4444]"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => toggleCard(e.id)}
-              className="mt-2 w-full py-2 text-[13px] font-bold text-[#94A3B8]"
-            >
-              닫기 ▲
-            </button>
-            </>
-            )}
-            </>
-              );
-            })()}
-          </Card>
+            </Card>
           );
         })}
       </div>
@@ -6221,7 +6269,9 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
         },
       });
       if (!r.ok) {
-        toast.error("사업자 정보를 저장하지 못했습니다", { description: r.error ?? "알 수 없는 오류" });
+        toast.error("사업자 정보를 저장하지 못했습니다", {
+          description: r.error ?? "알 수 없는 오류",
+        });
         return;
       }
 
@@ -6287,7 +6337,11 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
             placeholder="숫자 10자리 (예: 1234567890)"
           />
         ) : (
-          <TextInput value={bizNo ? formatBusinessNumber(bizNo) : ""} disabled placeholder="미입력" />
+          <TextInput
+            value={bizNo ? formatBusinessNumber(bizNo) : ""}
+            disabled
+            placeholder="미입력"
+          />
         )}
       </Field>
 
@@ -6310,9 +6364,7 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
               className="block w-full text-sm text-[#374151] file:mr-3 file:rounded-lg file:border-0 file:bg-[#EEF4FF] file:px-3 file:py-2 file:text-[#0751D8] file:font-bold"
             />
             <div className="text-xs text-[#9AA3AF]">JPG · PNG · PDF, 10MB 이하 · 비공개 저장</div>
-            {pickedFile && (
-              <div className="text-xs text-[#16A34A]">선택됨: {pickedFile.name}</div>
-            )}
+            {pickedFile && <div className="text-xs text-[#16A34A]">선택됨: {pickedFile.name}</div>}
             {fileError && <div className="text-xs font-bold text-[#EF4444]">{fileError}</div>}
           </>
         )}
