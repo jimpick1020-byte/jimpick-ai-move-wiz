@@ -1799,6 +1799,17 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
         return e ? { ...s, draft: { ...e }, screen: "result", resultFrom: s.screen } : s;
       });
     },
+    applyCustomerName: (estimateId, name) => {
+      const clean = (name ?? "").trim();
+      if (!estimateId || !clean) return; // 빈 값으로는 절대 덮어쓰지 않습니다
+      setState((s) => ({
+        ...s,
+        draft: s.draft.id === estimateId ? { ...s.draft, customerName: clean } : s.draft,
+        estimates: s.estimates.map((e) =>
+          e.id === estimateId ? { ...e, customerName: clean } : e,
+        ),
+      }));
+    },
     openEstimate: (e) => {
       // 서버에서 불러온 계약 견적서를 상세(result)로 엽니다. 뒤로가기 기록도 loadEstimate 와 동일하게 쌓습니다.
       if (typeof window !== "undefined") {
