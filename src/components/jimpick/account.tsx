@@ -650,7 +650,11 @@ export function SubscriptionScreen() {
           );
         })}
 
-        {account && account.payments.length > 0 && (
+        {/* 관리자(서비스 소유자)에게는 결제 내역을 표시하지 않습니다. */}
+        {!entitlement?.isSuperAdmin &&
+          entitlement?.state !== "admin" &&
+          account &&
+          account.payments.length > 0 && (
           <Card>
             <div className="font-bold mb-2 flex items-center gap-2">
               <CreditCard className="w-4 h-4" /> 결제 내역
