@@ -24,6 +24,8 @@ export type EntitlementState = "admin" | "trial" | "active" | "expired";
 export interface Entitlement {
   /** 지금 기능을 쓸 수 있는지 */
   allowed: boolean;
+  /** JIMPICK 서비스 최고관리자 계정인지 (서버에서 확인) */
+  isSuperAdmin: boolean;
   state: EntitlementState;
   /** 체험 종료 일시 */
   trialEndsAt: string | null;
