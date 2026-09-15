@@ -370,6 +370,7 @@ export function SubscriptionScreen() {
   const { userId, email, loading } = useSession();
   const [account, setAccount] = useState<Account | null>(null);
   const [busy, setBusy] = useState<PlanId | null>(null);
+  const [card, setCard] = useState<BillingCardInfo | null>(null);
 
   const refresh = async () => {
     if (!userId) return;
@@ -380,6 +381,11 @@ export function SubscriptionScreen() {
       setAccount(await getMyAccount({ headers }));
     } catch {
       /* 세션 준비 전 */
+    }
+    try {
+      setCard(await getTossBilling({ headers }));
+    } catch {
+      /* 카드 정보는 없어도 화면은 그대로 보여 줍니다 */
     }
   };
 
