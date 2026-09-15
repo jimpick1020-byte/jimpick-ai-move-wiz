@@ -1,5 +1,7 @@
 import {
+  useCallback,
   useEffect,
+
   useMemo,
   useRef,
   useState,
@@ -89,7 +91,7 @@ import {
   Field,
   TextInput,
 } from "./ui";
-import { MoveDateCalendar } from "./MoveDateCalendar";
+import { MoveDateCalendar, type CalendarBooking } from "./MoveDateCalendar";
 
 import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
@@ -132,6 +134,7 @@ import {
   publishEstimateTerms,
   getTermsStatuses,
   getReservationCounts,
+  cancelReservation,
   getManagerNotices,
   type TermsStatusRow,
   type ManagerNoticeRow,
@@ -834,23 +837,39 @@ export function HomeScreen() {
 
 // ============ Step 1: Customer ============
 export function Step1() {
-  const { draft, updateDraft, setScreen } = useApp();
+  const { draft, updateDraft, setScreen, loadEstimate, estimates } = useApp();
   const [err, setErr] = useState("");
   /** 날짜별 확정 예약 건수 — 실제 예약 데이터(estimate_terms)에서 집계해 달력에 표시 */
   const [bookingCounts, setBookingCounts] = useState<Record<string, number>>({});
-  useEffect(() => {
-    let alive = true;
+  const [bookings, setBookings] = useState<Record<string, CalendarBooking[]>>({});
+  const loadBookings = useCallback(() => {
     getReservationCounts()
       .then((r) => {
-        if (alive && r?.ok) setBookingCounts(r.counts);
+        if (!r?.ok) return;
+        setBookingCounts(r.counts);
+        setBookings(
+          Object.fromEntries(
+            Object.entries(r.reservations ?? {}).map(([d, list]) => [
+              d,
+              list.map((b) => ({
+                estimateId: b.estimateId,
+                termsId: b.termsId,
+                customerName: b.customerName,
+                total: b.total,
+                sheetNo: b.sheetNo,
+              })),
+            ]),
+          ),
+        );
       })
       .catch(() => {
         /* 못 읽으면 표시만 비웁니다(가짜 숫자를 만들지 않습니다) */
       });
-    return () => {
-      alive = false;
-    };
   }, []);
+  useEffect(() => {
+    loadBookings();
+  }, [loadBookings]);
+
   const moveTypes: MoveType[] = ["포장이사", "반포장이사", "일반이사", "보관이사", "사무실이사"];
   const next = () => {
     if (!draft.customerName.trim()) return setErr("고객명을 입력해 주세요.");
@@ -895,6 +914,22 @@ export function Step1() {
           <MoveDateCalendar
             value={draft.moveDate}
             counts={bookingCounts}
+            bookings={bookings}
+            onOpenBooking={(estimateId) => {
+              if (estimates.some((e) => e.id === estimateId)) loadEstimate(estimateId);
+              else toast.error("이 기기에 저장된 견적서가 없습니다.");
+            }}
+            onCancelBooking={(termsId) => {
+              if (!window.confirm("이 예약을 취소할까요? 달력의 예약 건수에서 빠집니다.")) return;
+              cancelReservation({ data: { termsId } })
+                .then((r) => {
+                  if (r?.ok) {
+                    toast.success("예약을 취소했습니다.");
+                    loadBookings();
+                  } else toast.error(r?.error || "예약을 취소하지 못했습니다.");
+                })
+                .catch(() => toast.error("예약을 취소하지 못했습니다."));
+            }}
             onSelect={(date) =>
               updateDraft({
                 moveDate: date,
@@ -905,6 +940,7 @@ export function Step1() {
               })
             }
           />
+
         </Field>
 
         <Field label="시작 시간">
