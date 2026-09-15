@@ -554,6 +554,7 @@ export type Database = {
           fail_reason: string | null
           id: string
           method: string
+          next_billing_at: string | null
           order_id: string | null
           paid_at: string
           payment_key: string | null
@@ -561,6 +562,7 @@ export type Database = {
           provider: string | null
           receipt_no: string | null
           status: string
+          test_mode: boolean
           user_id: string
         }
         Insert: {
@@ -570,6 +572,7 @@ export type Database = {
           fail_reason?: string | null
           id?: string
           method?: string
+          next_billing_at?: string | null
           order_id?: string | null
           paid_at?: string
           payment_key?: string | null
@@ -577,6 +580,7 @@ export type Database = {
           provider?: string | null
           receipt_no?: string | null
           status?: string
+          test_mode?: boolean
           user_id: string
         }
         Update: {
@@ -586,6 +590,7 @@ export type Database = {
           fail_reason?: string | null
           id?: string
           method?: string
+          next_billing_at?: string | null
           order_id?: string | null
           paid_at?: string
           payment_key?: string | null
@@ -593,6 +598,7 @@ export type Database = {
           provider?: string | null
           receipt_no?: string | null
           status?: string
+          test_mode?: boolean
           user_id?: string
         }
         Relationships: []
