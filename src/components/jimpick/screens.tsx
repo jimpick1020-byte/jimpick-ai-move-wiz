@@ -134,6 +134,8 @@ import {
   getReservationCounts,
   cancelReservation,
   getReservationSheet,
+  renameReservationCustomer,
+  getReservationCustomerName,
   getManagerNotices,
   type TermsStatusRow,
   type ManagerNoticeRow,
@@ -857,10 +859,30 @@ export function HomeScreen() {
   );
 }
 
+/**
+ * 고객 이름을 입력·수정했을 때, 그 견적번호로 저장된 계약·입금·안내문자 기록의
+ * 고객 이름도 서버에서 같이 맞춰 줍니다. 계약이 없으면 아무 일도 하지 않습니다.
+ */
+function syncContractName(estimateId: string, name: string) {
+  const clean = (name ?? "").trim();
+  if (!estimateId || !clean) return;
+  void renameReservationCustomer({ data: { estimateId, customerName: clean } }).catch(() => {
+    /* 저장에 실패하면 화면 값은 그대로 두고 다음 저장 때 다시 시도합니다 */
+  });
+}
+
 // ============ Step 1: Customer ============
 export function Step1() {
-  const { draft, updateDraft, setScreen, loadEstimate, openEstimate, estimates, deleteEstimate } =
-    useApp();
+  const {
+    draft,
+    updateDraft,
+    setScreen,
+    loadEstimate,
+    openEstimate,
+    estimates,
+    deleteEstimate,
+    applyCustomerName,
+  } = useApp();
   const [err, setErr] = useState("");
   /** 날짜별 확정 예약 건수 — 실제 예약 데이터(estimate_terms)에서 집계해 달력에 표시 */
   const [bookingCounts, setBookingCounts] = useState<Record<string, number>>({});
@@ -909,6 +931,7 @@ export function Step1() {
             placeholder="홍길동"
             value={draft.customerName}
             onChange={(e) => updateDraft({ customerName: e.target.value })}
+            onBlur={(e) => syncContractName(draft.id, e.target.value)}
           />
         </Field>
         <Field label="연락처">
@@ -944,9 +967,16 @@ export function Step1() {
               const saved = estimates.find((e) => e.id === estimateId);
               if (saved) {
                 loadEstimate(estimateId);
-                // 계약(estimate_terms)에 저장된 실제 고객 이름을 견적서에 그대로 채웁니다.
-                if (confirmedName && saved.customerName?.trim() !== confirmedName)
-                  updateDraft({ customerName: confirmedName });
+                // 계약에 저장된 실제 고객 이름을 견적서(작성본 + 저장된 목록)에 반영합니다.
+                if (confirmedName) applyCustomerName(estimateId, confirmedName);
+                // 서버의 최신 이름을 다시 확인합니다(나중에 이름을 바꿔도 최신값 표시).
+                getReservationCustomerName({ data: { estimateId } })
+                  .then((r) => {
+                    if (r?.ok && r.customerName) applyCustomerName(estimateId, r.customerName);
+                  })
+                  .catch(() => {
+                    /* 못 읽으면 저장된 값을 그대로 둡니다(임의로 덮어쓰지 않습니다) */
+                  });
                 return;
               }
               // 이 기기에 없으면 서버(계약 스냅샷)에서 실제 이름과 함께 불러와 엽니다.
@@ -5126,6 +5156,7 @@ export function Result() {
                 <TextInput
                   value={draft.customerName}
                   onChange={(e) => updateDraft({ customerName: e.target.value })}
+                  onBlur={(e) => syncContractName(draft.id, e.target.value)}
                 />
               </Field>
               <Field label="연락처">
@@ -5360,6 +5391,7 @@ export function Result() {
                   <TextInput
                     value={draft.customerName}
                     onChange={(e) => updateDraft({ customerName: e.target.value })}
+                    onBlur={(e) => syncContractName(draft.id, e.target.value)}
                   />
                 </Field>
                 <Field label="이사 날짜">

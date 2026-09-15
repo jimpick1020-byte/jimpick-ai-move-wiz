@@ -143,6 +143,23 @@ export const getTermsLink = createServerFn({ method: "POST" })
       .eq("id", (row as { user_id?: string }).user_id ?? "")
       .maybeSingle();
 
+    // 고객 이름은 계약에 저장된 최신 이름이 정답입니다.
+    // 보낼 때 저장한 견적서 원본(스냅샷)의 이름도 최신 이름으로 맞춰 보여 줍니다.
+    let snapshot = (row as { sheet_snapshot?: string | null }).sheet_snapshot ?? null;
+    const latestName = String(row.customer_name ?? "").trim();
+    if (snapshot && latestName) {
+      try {
+        const snap = JSON.parse(snapshot) as { draft?: Record<string, unknown> };
+        if (snap?.draft && typeof snap.draft === "object") {
+          snap.draft["customerName"] = latestName;
+          snapshot = JSON.stringify(snap);
+        }
+      } catch {
+        /* 스냅샷이 깨졌으면 원본을 그대로 씁니다 */
+      }
+    }
+
+
     return {
       ok: true,
       customerName: row.customer_name,
@@ -158,7 +175,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
       sentAt: row.sent_at,
       acceptedAt: acc?.accepted_at ?? null,
       acceptMethod: acc?.accept_method ?? null,
-      sheetSnapshot: (row as { sheet_snapshot?: string | null }).sheet_snapshot ?? null,
+      sheetSnapshot: snapshot,
       depositPaid: Number((row as { deposit_paid?: number | null }).deposit_paid ?? 0) || 0,
       depositPaidAt: (row as { deposit_paid_at?: string | null }).deposit_paid_at ?? null,
     };
@@ -733,6 +750,28 @@ export const renameReservationCustomer = createServerFn({ method: "POST" })
         .eq("user_id", context.userId)
         .eq("estimate_id", data.estimateId)
         .is("sent_at", null);
+      // 작성 중 임시저장본(새로고침 복구용)의 이름도 맞춰, 되살릴 때 옛 이름으로 돌아가지 않게 합니다.
+      const { data: drafts } = await supabaseAdmin
+        .from("estimate_drafts")
+        .select("id, payload, revision")
+        .eq("user_id", context.userId)
+        .eq("estimate_id", data.estimateId);
+      for (const d of (drafts ?? []) as {
+        id: string;
+        payload: Record<string, unknown> | null;
+        revision: number | null;
+      }[]) {
+        if (!d.payload || typeof d.payload !== "object") continue;
+        if (String(d.payload["customerName"] ?? "").trim() === name) continue;
+        await supabaseAdmin
+          .from("estimate_drafts")
+          .update({
+            payload: { ...d.payload, customerName: name },
+            revision: Number(d.revision ?? 0) + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", d.id);
+      }
       return { ok: true, updated: rows?.length ?? 0 };
     },
   );
