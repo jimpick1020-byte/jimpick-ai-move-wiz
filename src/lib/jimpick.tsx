@@ -1229,7 +1229,8 @@ export type Screen =
   | "forgot"
   | "subscription"
   | "settings"
-  | "stats";
+  | "stats"
+  | "adminAccounts";
 
 interface AppState {
   loggedIn: boolean;
