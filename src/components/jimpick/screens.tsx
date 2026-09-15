@@ -859,6 +859,18 @@ export function HomeScreen() {
   );
 }
 
+/**
+ * 고객 이름을 입력·수정했을 때, 그 견적번호로 저장된 계약·입금·안내문자 기록의
+ * 고객 이름도 서버에서 같이 맞춰 줍니다. 계약이 없으면 아무 일도 하지 않습니다.
+ */
+function syncContractName(estimateId: string, name: string) {
+  const clean = (name ?? "").trim();
+  if (!estimateId || !clean) return;
+  void renameReservationCustomer({ data: { estimateId, customerName: clean } }).catch(() => {
+    /* 저장에 실패하면 화면 값은 그대로 두고 다음 저장 때 다시 시도합니다 */
+  });
+}
+
 // ============ Step 1: Customer ============
 export function Step1() {
   const {
