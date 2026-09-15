@@ -118,7 +118,7 @@ async function canSend(
   const EXPIRED = "7일 무료체험이 종료되었습니다. 구독 후 계속 사용할 수 있습니다";
   try {
     const roleRes = await db(
-      `user_roles?select=role&user_id=eq.${userId}&role=eq.admin&limit=1`,
+      `user_roles?select=role&user_id=eq.${userId}&role=in.(super_admin,admin)&limit=1`,
       { supabaseUrl, serviceKey },
     );
     const roles = (await roleRes.json().catch(() => [])) as unknown[];
