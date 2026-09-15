@@ -23,7 +23,7 @@ export const Route = createFileRoute("/billing/callback")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: BillingCallbackPage;
+  component: BillingCallbackPage,
 });
 
 const won = (n: number) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
