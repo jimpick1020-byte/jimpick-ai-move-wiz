@@ -60,11 +60,19 @@ export function computeEntitlement(
   now: number = Date.now(),
 ): Entitlement {
   if (isAdmin) {
-    return { allowed: true, state: "admin", trialEndsAt: null, periodEnd: null, remainingMs: 0 };
+    return {
+      allowed: true,
+      isSuperAdmin: true,
+      state: "admin",
+      trialEndsAt: null,
+      periodEnd: null,
+      remainingMs: 0,
+    };
   }
   if (!sub) {
     return {
       allowed: false,
+      isSuperAdmin: false,
       state: "expired",
       trialEndsAt: null,
       periodEnd: null,
