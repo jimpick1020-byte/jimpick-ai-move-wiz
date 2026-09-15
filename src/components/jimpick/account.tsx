@@ -552,11 +552,19 @@ export function SubscriptionScreen() {
                 </div>
               )}
               {entitlement?.state === "trial" && remainingText && (
-                <div className="mt-2 rounded-xl bg-[#EFF6FF] p-2.5 text-xs font-semibold leading-5 text-[#0751D8]">
-                  7일 무료체험 중 · {remainingText}
+                <div className="mt-2 rounded-xl bg-[#EFF6FF] p-2.5 text-xs font-semibold leading-5 text-[#0751D8] break-keep">
+                  7일 무료체험 · 문자 {entitlement.freeSmsUsed}/{entitlement.freeSmsLimit}건 사용
+                  <br />
+                  무료체험 {entitlement.trialDaysLeft}일 남음 · 문자 {entitlement.freeSmsRemaining}건
+                  남음
                   {entitlement.trialEndsAt
                     ? ` (종료 ${new Date(entitlement.trialEndsAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })})`
                     : ""}
+                </div>
+              )}
+              {entitlement?.state === "trial" && entitlement.canSendSms === false && (
+                <div className="mt-2 rounded-xl bg-[#FEF2F2] p-2.5 text-xs font-bold leading-5 text-[#B42318] break-keep">
+                  {entitlement.smsMessage}
                 </div>
               )}
               {entitlement?.state === "active" && entitlement.periodEnd && (
