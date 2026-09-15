@@ -125,11 +125,12 @@ export async function loadEntitlement(
   supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<Entitlement> {
-  const [subRes, roleRes] = await Promise.all([
+  const [subRes, adminRes] = await Promise.all([
     supabase.from("subscriptions").select(SELECT).eq("user_id", userId).maybeSingle(),
-    supabase.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle(),
+    // 최고관리자 여부는 서버 함수(is_super_admin)로만 확인합니다 — 화면에서 바꿀 수 없습니다.
+    supabase.rpc("is_super_admin", { _user_id: userId }),
   ]);
-  return computeEntitlement((subRes.data as SubRow | null) ?? null, !!roleRes.data);
+  return computeEntitlement((subRes.data as SubRow | null) ?? null, adminRes.data === true);
 }
 
 /**
