@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { toast } from "sonner";
 import KoreanLunarCalendar from "korean-lunar-calendar";
 import { tap } from "@/lib/feedback";
 
@@ -63,9 +62,8 @@ export function MoveDateCalendar({
   counts?: Record<string, number>;
   /** 날짜별 확정 예약 상세 — 누르면 견적서를 열 수 있게 합니다 */
   bookings?: Record<string, CalendarBooking[]>;
-  onOpenBooking?: (estimateId: string, customerName: string) => void;
+  onOpenBooking?: (estimateId: string, customerName: string, termsId: string) => void;
   onCancelBooking?: (termsId: string, estimateId: string) => void;
-
 }) {
   const today = todayYmd();
   const [openDate, setOpenDate] = useState("");
@@ -74,7 +72,6 @@ export function MoveDateCalendar({
     const [y, m] = src.split("-").map(Number);
     return { y, m };
   }, [value, today]);
-
 
   const [view, setView] = useState(base);
 
@@ -157,66 +154,68 @@ export function MoveDateCalendar({
           ) : (
             (() => {
               const cnt = counts?.[c.date] ?? 0;
-              const full = cnt >= DAILY_BOOKING_LIMIT;
-              const one = cnt === 1;
+              const hasContract = cnt >= 1; // 계약 있는 날
+              const many = cnt >= 2; // 계약 2건 이상 → 주황
               const selected = value === c.date;
-              // 칸 배경·테두리: 마감 > 손없는날 > 기본. 선택은 파란 링으로 덧입힘.
-              const box = full
-                ? "bg-[#FDECEC] border-[#F7C9C9]"
-                : c.son
-                  ? "bg-[#FDF6E3] border-[#F3D98A]"
-                  : "border-[#EEF1F5] bg-white";
-              const ring = selected ? " ring-2 ring-[#0864DC] border-[#0864DC]" : "";
+              // 칸 배경·테두리: 계약(2건+ 주황 / 1건 초록) > 손없는날 > 기본.
+              const box = many
+                ? "bg-[#FFF4E5] border-[#F59E0B]"
+                : cnt === 1
+                  ? "bg-[#E9F9EF] border-[#22C55E]"
+                  : c.son
+                    ? "bg-[#FDF6E3] border-[#F3D98A]"
+                    : "border-[#EEF1F5] bg-white";
+              const ring = selected ? " ring-2 ring-[#0864DC]" : "";
               return (
                 <button
                   key={c.date}
                   type="button"
                   disabled={c.past}
                   onClick={() => {
-                    const list = bookings?.[c.date] ?? [];
-                    if (list.length > 0) setOpenDate((p) => (p === c.date ? "" : c.date));
-                    if (full) {
-                      tap("soft");
-                      toast.error("예약이 마감된 날짜입니다");
+                    // 계약 있는 날: 견적서 열기 흐름(1건 바로 열기 / 2건+ 고객 목록).
+                    if (hasContract) {
+                      tap("click");
+                      const list = bookings?.[c.date] ?? [];
+                      if (list.length === 1 && onOpenBooking) {
+                        onOpenBooking(list[0].estimateId, list[0].customerName, list[0].termsId);
+                        setOpenDate("");
+                      } else {
+                        setOpenDate((p) => (p === c.date ? "" : c.date));
+                      }
                       return;
                     }
+                    // 계약 없는 날: 새 견적의 이사 날짜로 선택.
                     tap("click");
                     onSelect(c.date);
                   }}
-
                   aria-label={`${view.m}월 ${c.d}일${c.son ? " 손없는날" : ""}${
-                    full ? " 예약 마감" : ""
+                    hasContract ? ` 계약완료 ${cnt}건` : ""
                   }`}
                   aria-pressed={selected}
                   aria-disabled={c.past}
-                  className={`relative flex min-h-[56px] flex-col items-center justify-start gap-[3px] rounded-xl border px-0.5 pt-1.5 pb-1 ${box}${ring} ${
+                  className={`relative flex min-h-[56px] flex-col items-center justify-start gap-[2px] rounded-xl border px-0.5 pt-1.5 pb-1 ${box}${ring} ${
                     c.past ? "opacity-45" : ""
                   }`}
                 >
-                  <span
-                    className={`text-[15px] font-bold tabular-nums ${
-                      selected ? "text-[#0864DC]" : dowColor(c.dow, c.past)
-                    }`}
-                  >
+                  <span className={`text-[15px] font-bold tabular-nums ${dowColor(c.dow, c.past)}`}>
                     {c.d}
                   </span>
-                  {/* 상태 표시 — 마감 > 손없는날 배지 / 예약 1건 파란 점 */}
-                  {full ? (
-                    <span className="rounded-full bg-[#EF4444] px-1.5 py-[1px] text-[9.5px] font-bold text-white">
-                      마감
+                  {/* 상태 표시 — 계약완료(초록/주황) + 건수 > 손없는날 배지 */}
+                  {hasContract ? (
+                    <span
+                      className={`flex flex-col items-center leading-none ${
+                        many ? "text-[#B45309]" : "text-[#15803D]"
+                      }`}
+                    >
+                      <span className="text-[8.5px] font-bold">계약완료</span>
+                      <span className="mt-[1px] text-[10px] font-black tabular-nums">{cnt}건</span>
                     </span>
                   ) : c.son ? (
                     <span className="rounded-full bg-[#FBE7B8] px-1 py-[1px] text-[9px] font-bold text-[#8A6D1B]">
                       손없는날
                     </span>
-                  ) : one ? (
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#0864DC]" aria-hidden />
                   ) : (
                     <span className="h-1.5 w-1.5" aria-hidden />
-                  )}
-                  {/* 손없는날이면서 예약 1건이면 파란 점도 함께 (배지 아래) */}
-                  {!full && c.son && one && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#0864DC]" aria-hidden />
                   )}
                 </button>
               );
@@ -229,13 +228,12 @@ export function MoveDateCalendar({
       <div className="mt-3 border-t border-[#EEF1F5] pt-3">
         <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[12.5px] font-semibold text-[#6B7280]">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0864DC]" />
-            예약 1건
+            <span className="inline-block h-4 w-4 rounded-md border border-[#22C55E] bg-[#E9F9EF]" />
+            계약 1건
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="rounded-full bg-[#EF4444] px-1.5 py-[1px] text-[10px] font-bold text-white">
-              마감
-            </span>
+            <span className="inline-block h-4 w-4 rounded-md border border-[#F59E0B] bg-[#FFF4E5]" />
+            계약 2건 이상
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-4 w-4 rounded-md border border-[#F3D98A] bg-[#FDF6E3]" />
@@ -248,7 +246,7 @@ export function MoveDateCalendar({
       {openDate && (bookings?.[openDate]?.length ?? 0) > 0 && (
         <div className="mt-3 rounded-xl border border-[#DCE8FA] bg-[#F7FAFF] p-3">
           <div className="mb-2 text-[13px] font-bold text-[#0864DC]">
-            {openDate} 확정 계약 {bookings?.[openDate]?.length ?? 0}건
+            {openDate} 계약 {bookings?.[openDate]?.length ?? 0}건 · 고객을 선택하세요
           </div>
           <div className="space-y-2">
             {(bookings?.[openDate] ?? []).map((b) => (
@@ -266,7 +264,7 @@ export function MoveDateCalendar({
                     type="button"
                     onClick={() => {
                       tap("click");
-                      onOpenBooking?.(b.estimateId, b.customerName);
+                      onOpenBooking?.(b.estimateId, b.customerName, b.termsId);
                     }}
                     className="shrink-0 rounded-lg bg-[#0864DC] px-3 py-2 text-[13px] font-bold text-white active:translate-y-[1px]"
                   >
@@ -296,7 +294,6 @@ export function MoveDateCalendar({
           선택한 이사 날짜 · {value}
         </div>
       )}
-
     </div>
   );
 }

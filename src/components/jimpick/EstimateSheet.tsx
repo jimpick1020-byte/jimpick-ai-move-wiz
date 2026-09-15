@@ -74,9 +74,7 @@ function AddressRow({ label, value, sub }: { label: string; value: string; sub?:
       <span className="w-[52px] shrink-0 text-[16px] font-bold text-[#0864DC]">{label}</span>
       <span className="min-w-0">
         <span className="block break-words text-[16px] font-medium text-[#111827]">{value}</span>
-        {sub?.trim() && (
-          <span className="mt-0.5 block text-[15px] text-[#6B7280]">{sub}</span>
-        )}
+        {sub?.trim() && <span className="mt-0.5 block text-[15px] text-[#6B7280]">{sub}</span>}
       </span>
     </div>
   );
@@ -169,7 +167,6 @@ export interface EstimateSheetProps {
   /** 고객이 약관을 펼쳐 볼 때 한 번 알려 줍니다 (열람 기록용) */
   onTermsOpen?: () => void;
 }
-
 
 export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(function EstimateSheet(
   {
@@ -264,17 +261,26 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             </div>
           </div>
           {version > 1 && (
-            <div className="mt-1.5 text-[15px] font-bold text-[#B45309]">{version}차 수정 견적서</div>
+            <div className="mt-1.5 text-[15px] font-bold text-[#B45309]">
+              {version}차 수정 견적서
+            </div>
           )}
 
           {/* 고객 · 이사일 */}
           <div className="mt-3 space-y-2 border-t border-[#EDF0F5] pt-3">
             <div className="flex min-w-0 items-center gap-2">
               <User className="h-[19px] w-[19px] shrink-0 text-[#0864DC]" strokeWidth={2} />
-              <span className="min-w-0 truncate text-[17px] font-bold text-[#111827]">
-                {draft.customerName || "고객"}
-                <span className="ml-1 font-medium text-[#6B7280]">고객님</span>
-              </span>
+              {draft.customerName?.trim() ? (
+                <span className="min-w-0 truncate text-[17px] font-bold text-[#111827]">
+                  {draft.customerName.trim()}
+                  <span className="ml-1 font-medium text-[#6B7280]">고객님</span>
+                </span>
+              ) : (
+                // 이름이 없다고 "고객님"으로 임의 대체하지 않고, 불러오지 못했음을 그대로 알립니다.
+                <span className="min-w-0 truncate text-[16px] font-bold text-[#DC2626]">
+                  고객 이름을 불러올 수 없습니다
+                </span>
+              )}
             </div>
             {draft.phone?.trim() && (
               <div className="flex min-w-0 items-center gap-2">
@@ -490,10 +496,15 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           <div className="space-y-2">
             <div className="rounded-[14px] border border-[#DCE8FA] bg-white px-3.5 py-3.5">
               <div className="flex items-start gap-2.5">
-                <FileText className="mt-0.5 h-[20px] w-[20px] shrink-0 text-[#0864DC]" strokeWidth={2} />
+                <FileText
+                  className="mt-0.5 h-[20px] w-[20px] shrink-0 text-[#0864DC]"
+                  strokeWidth={2}
+                />
                 <div className="min-w-0 flex-1">
                   <div className="text-[16px] font-bold text-[#0864DC]">{TERMS_NAME}</div>
-                  <div className="mt-0.5 break-words text-[15px] text-[#6B7280]">{TERMS_SOURCE}</div>
+                  <div className="mt-0.5 break-words text-[15px] text-[#6B7280]">
+                    {TERMS_SOURCE}
+                  </div>
                 </div>
                 <span className="shrink-0 whitespace-nowrap rounded-full border border-[#DCE8FA] px-2 py-0.5 text-[15px] font-bold text-[#0864DC]">
                   {TERMS_VERSION}
@@ -523,7 +534,6 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                 >
                   {fullOpen ? "전체 접기" : "약관 전체보기"}
                 </button>
-
               </div>
 
               {termsOpen && (
@@ -560,7 +570,10 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             {/* 고객 동의 상태 — 고객이 직접 동의해야만 바뀝니다 */}
             <div className="rounded-[14px] border border-[#DCE8FA] bg-white px-3.5 py-3.5">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-[20px] w-[20px] shrink-0 text-[#0864DC]" strokeWidth={2} />
+                <ShieldCheck
+                  className="h-[20px] w-[20px] shrink-0 text-[#0864DC]"
+                  strokeWidth={2}
+                />
                 <span className="text-[16px] font-bold text-[#0864DC]">고객 동의 상태</span>
                 <span
                   className={`ml-auto shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[15px] font-bold ${
@@ -582,7 +595,9 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                 <div className="flex items-start justify-between gap-3">
                   <span className="shrink-0 text-[15px] text-[#6B7280]">동의한 견적서 버전</span>
                   <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
-                    {acceptedSheetVersion ? `${acceptedSheetVersion}차 견적서` : `${version}차 (발송본)`}
+                    {acceptedSheetVersion
+                      ? `${acceptedSheetVersion}차 견적서`
+                      : `${version}차 (발송본)`}
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
@@ -604,7 +619,6 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         {draft.sheetNote?.trim() && (
           <p className="px-1 text-[16px] font-medium text-[#374151]">{draft.sheetNote.trim()}</p>
         )}
-
       </div>
     </div>
   );
