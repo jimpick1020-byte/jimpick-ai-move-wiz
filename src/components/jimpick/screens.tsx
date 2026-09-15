@@ -5391,6 +5391,7 @@ export function Result() {
                   <TextInput
                     value={draft.customerName}
                     onChange={(e) => updateDraft({ customerName: e.target.value })}
+                    onBlur={(e) => syncContractName(draft.id, e.target.value)}
                   />
                 </Field>
                 <Field label="이사 날짜">
