@@ -956,6 +956,7 @@ export type Database = {
     }
     Functions: {
       cancel_reservation: { Args: { _terms_id: string }; Returns: boolean }
+      cancel_reservation_all: { Args: { _terms_id: string }; Returns: Json }
       claim_move_reminders: {
         Args: { _limit?: number }
         Returns: {
