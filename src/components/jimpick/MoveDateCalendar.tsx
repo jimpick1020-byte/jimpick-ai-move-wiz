@@ -187,7 +187,7 @@ export function MoveDateCalendar({
                     full ? " 예약 마감" : ""
                   }`}
                   aria-pressed={selected}
-                  aria-disabled={c.past || full}
+                  aria-disabled={c.past}
                   className={`relative flex min-h-[56px] flex-col items-center justify-start gap-[3px] rounded-xl border px-0.5 pt-1.5 pb-1 ${box}${ring} ${
                     c.past ? "opacity-45" : ""
                   }`}
