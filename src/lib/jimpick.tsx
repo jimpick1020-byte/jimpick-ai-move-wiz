@@ -1487,6 +1487,8 @@ interface Ctx extends AppState {
   saveDraft: () => void;
   deleteEstimate: (id: string) => void;
   loadEstimate: (id: string) => void;
+  /** 그 견적번호의 고객 이름을 최신 이름으로 맞춥니다(작성 중 견적 + 저장된 견적 목록) */
+  applyCustomerName: (estimateId: string, name: string) => void;
   /** 서버에서 불러온 견적서(이 기기에 없는 계약)를 상세 화면으로 바로 엽니다 */
   openEstimate: (e: Estimate) => void;
   /** 견적 결과 화면의 뒤로가기 목적지를 지정합니다 */
