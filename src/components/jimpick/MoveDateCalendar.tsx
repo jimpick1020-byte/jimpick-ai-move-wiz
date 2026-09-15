@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Moon } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import KoreanLunarCalendar from "korean-lunar-calendar";
 import { tap } from "@/lib/feedback";
@@ -35,7 +35,7 @@ export function isSonEomneunDay(y: number, m: number, d: number) {
   return last === 9 || last === 0;
 }
 
-/** 하루에 받을 수 있는 확정 예약 최대 건수 (넘으면 마감) */
+/** 하루에 받을 수 있는 확정 계약 최대 건수 (넘으면 마감) */
 export const DAILY_BOOKING_LIMIT = 2;
 
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
@@ -48,7 +48,7 @@ export function MoveDateCalendar({
   /** YYYY-MM-DD (없으면 빈 문자열) */
   value: string;
   onSelect: (date: string) => void;
-  /** 날짜별(YYYY-MM-DD) 확정 예약 건수 — 실제 예약 데이터에서 집계해 전달합니다 */
+  /** 날짜별(YYYY-MM-DD) 확정 계약 건수 — 실제 계약 데이터에서 집계해 전달합니다 */
   counts?: Record<string, number>;
 }) {
   const today = todayYmd();
@@ -98,16 +98,16 @@ export function MoveDateCalendar({
   };
 
   return (
-    <div className="bg-white">
-      {/* 연·월 + 얇은 선 화살표 */}
-      <div className="flex items-center justify-between px-1">
+    <div className="rounded-2xl border border-[#E7EBF2] bg-white p-3">
+      {/* 연·월 + 파란 화살표 버튼 */}
+      <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={() => move(-1)}
           aria-label="이전 달"
-          className="flex h-9 w-9 items-center justify-center text-[#6B7280] active:translate-y-[1px]"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#DCE8FA] bg-[#F1F6FF] text-[#0864DC] active:translate-y-[1px]"
         >
-          <ChevronLeft className="h-6 w-6" strokeWidth={1.8} />
+          <ChevronLeft className="h-5 w-5" strokeWidth={2.2} />
         </button>
         <div className="text-[18px] font-black text-[#111827] tabular-nums">
           {view.y}년 {view.m}월
@@ -116,9 +116,9 @@ export function MoveDateCalendar({
           type="button"
           onClick={() => move(1)}
           aria-label="다음 달"
-          className="flex h-9 w-9 items-center justify-center text-[#6B7280] active:translate-y-[1px]"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#DCE8FA] bg-[#F1F6FF] text-[#0864DC] active:translate-y-[1px]"
         >
-          <ChevronRight className="h-6 w-6" strokeWidth={1.8} />
+          <ChevronRight className="h-5 w-5" strokeWidth={2.2} />
         </button>
       </div>
 
@@ -131,18 +131,24 @@ export function MoveDateCalendar({
         ))}
       </div>
 
-      {/* 날짜 — 테두리·배경·그림자 없이 평면 */}
-      <div className="mt-1 grid grid-cols-7">
+      {/* 날짜 — 둥근 사각형 칸 */}
+      <div className="mt-1.5 grid grid-cols-7 gap-1">
         {cells.map((c, i) =>
           !c ? (
-            <div key={`e${i}`} className="min-h-[58px]" />
+            <div key={`e${i}`} className="min-h-[56px]" />
           ) : (
             (() => {
               const cnt = counts?.[c.date] ?? 0;
               const full = cnt >= DAILY_BOOKING_LIMIT;
               const one = cnt === 1;
               const selected = value === c.date;
-              const disabled = c.past || full;
+              // 칸 배경·테두리: 마감 > 손없는날 > 기본. 선택은 파란 링으로 덧입힘.
+              const box = full
+                ? "bg-[#FDECEC] border-[#F7C9C9]"
+                : c.son
+                  ? "bg-[#FDF6E3] border-[#F3D98A]"
+                  : "border-[#EEF1F5] bg-white";
+              const ring = selected ? " ring-2 ring-[#0864DC] border-[#0864DC]" : "";
               return (
                 <button
                   key={c.date}
@@ -161,40 +167,36 @@ export function MoveDateCalendar({
                     full ? " 예약 마감" : ""
                   }`}
                   aria-pressed={selected}
-                  aria-disabled={disabled}
-                  className="relative flex min-h-[58px] flex-col items-center justify-start gap-[2px] pt-1.5"
+                  aria-disabled={c.past || full}
+                  className={`relative flex min-h-[56px] flex-col items-center justify-start gap-[3px] rounded-xl border px-0.5 pt-1.5 pb-1 ${box}${ring} ${
+                    c.past ? "opacity-45" : ""
+                  }`}
                 >
-                  {/* 손없는날 — 오른쪽 위 작은 금색 초승달 */}
-                  {c.son && (
-                    <Moon
-                      className="absolute right-1 top-0.5 h-3.5 w-3.5 text-[#F59E0B]"
-                      fill="#F59E0B"
-                      strokeWidth={0}
-                    />
-                  )}
-                  {/* 숫자 (마감이면 아주 연한 빨강 원 배경, 선택이면 파란 원 배경) */}
                   <span
-                    className={`relative flex h-8 w-8 items-center justify-center rounded-full text-[16px] font-bold tabular-nums ${
-                      full
-                        ? "bg-[#FDECEC]"
-                        : selected
-                          ? "bg-[#0864DC] text-white"
-                          : ""
-                    } ${full ? dowColor(c.dow, false) : selected ? "text-white" : dowColor(c.dow, c.past)}`}
+                    className={`text-[15px] font-bold tabular-nums ${
+                      selected ? "text-[#0864DC]" : dowColor(c.dow, c.past)
+                    }`}
                   >
                     {c.d}
                   </span>
-                  {/* 아래 상태 표시 — 마감 > 예약 1건 점 / 손없는날 텍스트 */}
+                  {/* 상태 표시 — 마감 > 손없는날 배지 / 예약 1건 파란 점 */}
                   {full ? (
-                    <span className="text-[10px] font-bold text-[#EF4444]">마감</span>
+                    <span className="rounded-full bg-[#EF4444] px-1.5 py-[1px] text-[9.5px] font-bold text-white">
+                      마감
+                    </span>
+                  ) : c.son ? (
+                    <span className="rounded-full bg-[#FBE7B8] px-1 py-[1px] text-[9px] font-bold text-[#8A6D1B]">
+                      손없는날
+                    </span>
                   ) : one ? (
                     <span className="h-1.5 w-1.5 rounded-full bg-[#0864DC]" aria-hidden />
-                  ) : c.son ? (
-                    <span className="text-[10px] font-semibold text-[#D97706]">손없는날</span>
                   ) : (
                     <span className="h-1.5 w-1.5" aria-hidden />
                   )}
-                  {/* 마감이면서 손없는날이어도 초승달은 위에 이미 작게 유지됩니다 */}
+                  {/* 손없는날이면서 예약 1건이면 파란 점도 함께 (배지 아래) */}
+                  {!full && c.son && one && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#0864DC]" aria-hidden />
+                  )}
                 </button>
               );
             })()
@@ -210,11 +212,12 @@ export function MoveDateCalendar({
             예약 1건
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-4 w-4 rounded-full bg-[#FDECEC]" />
-            마감
+            <span className="rounded-full bg-[#EF4444] px-1.5 py-[1px] text-[10px] font-bold text-white">
+              마감
+            </span>
           </span>
           <span className="flex items-center gap-1.5">
-            <Moon className="h-4 w-4 text-[#F59E0B]" fill="#F59E0B" strokeWidth={0} />
+            <span className="inline-block h-4 w-4 rounded-md border border-[#F3D98A] bg-[#FDF6E3]" />
             손없는날
           </span>
         </div>
