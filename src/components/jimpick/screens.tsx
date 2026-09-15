@@ -656,8 +656,24 @@ export function HomeScreen() {
           </div>
         )}
         {!blocked && entitlement?.state === "trial" && remainingText && (
-          <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-2.5 text-xs font-semibold text-[#0751D8]">
-            7일 무료체험 중 · {remainingText}
+          <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-2.5 text-xs font-semibold text-[#0751D8] break-keep">
+            7일 무료체험 · 문자 {entitlement.freeSmsUsed}/{entitlement.freeSmsLimit}건 사용
+            <div className="mt-0.5 font-medium text-[#1D4ED8]">
+              무료체험 {entitlement.trialDaysLeft}일 남음 · 문자 {entitlement.freeSmsRemaining}건 남음
+            </div>
+          </div>
+        )}
+        {!blocked && entitlement?.state === "trial" && entitlement.canSendSms === false && (
+          <div className="rounded-2xl border border-[#FCA5A5] bg-[#FEF2F2] p-4">
+            <div className="text-sm font-bold text-[#B91C1C] break-keep">
+              {entitlement.smsMessage}
+            </div>
+            <button
+              onClick={() => setScreen("subscription")}
+              className="mt-3 w-full rounded-xl bg-[#0751D8] py-2.5 text-sm font-bold text-white"
+            >
+              구독하기
+            </button>
           </div>
         )}
         {entitlement?.state === "active" && (
@@ -4152,7 +4168,10 @@ export function Result() {
    * 이후 각 화면의 뒤로가기가 5→4→3→2→1→홈 순으로 이어집니다.
    */
   const backTo = (resultFrom as Screen) || "history";
-  const { blocked: entBlocked } = useEntitlement();
+  const { blocked: entBlocked, entitlement: sendEnt, refresh: refreshEnt } = useEntitlement();
+  /** 서버가 알려 준 실제 값으로만 판단합니다 (남은 무료 문자 · 체험 기간) */
+  const smsBlocked = entBlocked || sendEnt?.canSendSms === false;
+  const smsBlockMessage = sendEnt?.smsMessage ?? TRIAL_EXPIRED_MESSAGE;
   /** 「견적 완료 · 처음으로」 진행 중 — 두 번 눌려도 한 번만 실행됩니다 */
   const [finishing, setFinishing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
@@ -4296,8 +4315,8 @@ export function Result() {
    */
   const doSendSms = async (opts?: { resend?: boolean }) => {
     if (sending) return;
-    if (entBlocked) {
-      setSendResult({ ok: false, error: TRIAL_EXPIRED_MESSAGE });
+    if (smsBlocked) {
+      setSendResult({ ok: false, error: smsBlockMessage });
       return;
     }
     // 필수 데이터 검사 — 하나라도 비어 있으면 발송하지 않습니다
@@ -4415,6 +4434,8 @@ export function Result() {
     } finally {
       setSending(false);
       (window as unknown as { __jimpickBusy?: boolean }).__jimpickBusy = false;
+      // 서버에 기록된 실제 사용 건수를 다시 읽어 화면 숫자를 맞춥니다.
+      void refreshEnt();
     }
   };
 
@@ -5372,18 +5393,39 @@ export function Result() {
                 {exporting ? "여는 중…" : "A4 인쇄 · PDF 저장"}
               </button>
             </div>
-            <button
-              onClick={() => {
-                tap("soft");
-                setConfirmSheet(true);
-              }}
-              disabled={!!exporting}
-              className="mt-2 w-full rounded-2xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] py-4 text-[15px] font-black text-white shadow-[0_4px_0_#0640A8] disabled:opacity-50"
-            >
-              <span className="inline-flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" /> 견적서 문자발송
-              </span>
-            </button>
+            {smsBlocked ? (
+              <div className="mt-2 rounded-2xl border border-[#FCA5A5] bg-[#FEF2F2] p-4">
+                <div className="text-[13px] font-black text-[#B91C1C] break-keep">
+                  {smsBlockMessage}
+                </div>
+                <button
+                  onClick={() => setScreen("subscription")}
+                  className="mt-3 w-full rounded-xl bg-[#0751D8] py-3 text-[14px] font-black text-white"
+                >
+                  구독하기
+                </button>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    tap("soft");
+                    setConfirmSheet(true);
+                  }}
+                  disabled={!!exporting}
+                  className="mt-2 w-full rounded-2xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] py-4 text-[15px] font-black text-white shadow-[0_4px_0_#0640A8] disabled:opacity-50"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" /> 견적서 문자발송
+                  </span>
+                </button>
+                {sendEnt?.freeSmsLimited && (
+                  <div className="mt-2 text-center text-[12px] font-bold text-[#475569] break-keep">
+                    무료 문자 {sendEnt.freeSmsUsed}/{sendEnt.freeSmsLimit}건 사용 · {sendEnt.freeSmsRemaining}건 남음
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* 발송 전 확인 */}

@@ -17,7 +17,13 @@ export const TRIAL_DAYS = 7;
 export const TRIAL_HOURS = TRIAL_DAYS * 24;
 
 export const TRIAL_EXPIRED_MESSAGE =
-  "7일 무료체험이 종료되었습니다. 구독 후 계속 사용할 수 있습니다";
+  "7일 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
+
+/** 무료로 보낼 수 있는 문자 건수 (서버에서도 같은 값으로 강제합니다) */
+export const FREE_SMS_LIMIT = 20;
+
+export const SMS_LIMIT_MESSAGE =
+  "무료 문자 20건을 모두 사용했습니다. 계속 이용하려면 구독해 주세요.";
 
 export type EntitlementState = "admin" | "trial" | "active" | "expired";
 
@@ -33,6 +39,20 @@ export interface Entitlement {
   periodEnd: string | null;
   /** 종료까지 남은 시간(밀리초) — 지났으면 0 */
   remainingMs: number;
+  /** 체험 종료까지 남은 날 수 (올림) */
+  trialDaysLeft: number;
+  /** 서버에 기록된 무료 문자 사용 건수 */
+  freeSmsUsed: number;
+  /** 무료 문자 상한 (20) */
+  freeSmsLimit: number;
+  /** 남은 무료 문자 건수 */
+  freeSmsRemaining: number;
+  /** 무료 문자 상한을 적용받는 계정인지 (관리자·유료 구독은 false) */
+  freeSmsLimited: boolean;
+  /** 지금 문자를 보낼 수 있는지 */
+  canSendSms: boolean;
+  /** 문자를 보낼 수 없을 때 보여 줄 안내 */
+  smsMessage?: string;
   /** 막혔을 때 보여 줄 안내 */
   message?: string;
 }
@@ -47,6 +67,14 @@ interface SubRow {
   created_at: string;
 }
 
+/** 무료 문자 사용량 (서버가 준 실제 값) */
+export interface SmsQuota {
+  used: number;
+  limit: number;
+  remaining: number;
+  limited: boolean;
+}
+
 /** 체험 종료 일시 — 저장된 값이 없으면 시작 시각 + 7일로 계산합니다 */
 function trialEnd(sub: SubRow): number {
   if (sub.trial_ends_at) return new Date(sub.trial_ends_at).getTime();
@@ -54,11 +82,23 @@ function trialEnd(sub: SubRow): number {
   return new Date(start).getTime() + TRIAL_HOURS * 3600_000;
 }
 
+/** 남은 날 수 (올림) */
+function daysLeft(ms: number): number {
+  return ms <= 0 ? 0 : Math.ceil(ms / 86_400_000);
+}
+
 export function computeEntitlement(
   sub: SubRow | null,
   isAdmin: boolean,
   now: number = Date.now(),
+  quota: SmsQuota = { used: 0, limit: FREE_SMS_LIMIT, remaining: FREE_SMS_LIMIT, limited: true },
 ): Entitlement {
+  const sms = {
+    freeSmsUsed: quota.used,
+    freeSmsLimit: quota.limit,
+    freeSmsRemaining: quota.remaining,
+    freeSmsLimited: quota.limited,
+  };
   if (isAdmin) {
     return {
       allowed: true,
@@ -67,6 +107,10 @@ export function computeEntitlement(
       trialEndsAt: null,
       periodEnd: null,
       remainingMs: 0,
+      trialDaysLeft: 0,
+      ...sms,
+      freeSmsLimited: false,
+      canSendSms: true,
     };
   }
   if (!sub) {
@@ -77,6 +121,10 @@ export function computeEntitlement(
       trialEndsAt: null,
       periodEnd: null,
       remainingMs: 0,
+      trialDaysLeft: 0,
+      ...sms,
+      canSendSms: false,
+      smsMessage: TRIAL_EXPIRED_MESSAGE,
       message: TRIAL_EXPIRED_MESSAGE,
     };
   }
@@ -91,11 +139,16 @@ export function computeEntitlement(
       trialEndsAt: sub.trial_ends_at ?? null,
       periodEnd: sub.current_period_end,
       remainingMs: Math.max(0, periodEnd - now),
+      trialDaysLeft: 0,
+      ...sms,
+      freeSmsLimited: false,
+      canSendSms: true,
     };
   }
 
   const end = trialEnd(sub);
   if (sub.status === "trialing" && end > now) {
+    const outOfSms = quota.limited && quota.remaining <= 0;
     return {
       allowed: true,
       isSuperAdmin: false,
@@ -103,6 +156,10 @@ export function computeEntitlement(
       trialEndsAt: new Date(end).toISOString(),
       periodEnd: sub.current_period_end,
       remainingMs: end - now,
+      trialDaysLeft: daysLeft(end - now),
+      ...sms,
+      canSendSms: !outOfSms,
+      ...(outOfSms ? { smsMessage: SMS_LIMIT_MESSAGE } : {}),
     };
   }
 
@@ -113,6 +170,10 @@ export function computeEntitlement(
     trialEndsAt: new Date(end).toISOString(),
     periodEnd: sub.current_period_end,
     remainingMs: 0,
+    trialDaysLeft: 0,
+    ...sms,
+    canSendSms: false,
+    smsMessage: TRIAL_EXPIRED_MESSAGE,
     message: TRIAL_EXPIRED_MESSAGE,
   };
 }
@@ -120,17 +181,33 @@ export function computeEntitlement(
 const SELECT =
   "plan, status, trial_started_at, trial_ends_at, current_period_start, current_period_end, created_at";
 
-/** 지금 로그인한 계정의 이용 권한을 서버에서 읽습니다 */
+/** 지금 로그인한 계정의 이용 권한과 무료 문자 사용량을 서버에서 읽습니다 */
 export async function loadEntitlement(
   supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<Entitlement> {
-  const [subRes, adminRes] = await Promise.all([
+  const [subRes, adminRes, quotaRes] = await Promise.all([
     supabase.from("subscriptions").select(SELECT).eq("user_id", userId).maybeSingle(),
     // 최고관리자 여부는 서버 함수(is_super_admin)로만 확인합니다 — 화면에서 바꿀 수 없습니다.
     supabase.rpc("is_super_admin", { _user_id: userId }),
+    // 무료 문자 사용량도 서버 함수가 준 실제 값만 씁니다.
+    supabase.rpc("sms_quota", { _user_id: userId }),
   ]);
-  return computeEntitlement((subRes.data as SubRow | null) ?? null, adminRes.data === true);
+  const q = (quotaRes.data ?? null) as Record<string, unknown> | null;
+  const used = Number(q?.["free_sms_used"] ?? 0);
+  const limit = Number(q?.["free_sms_limit"] ?? FREE_SMS_LIMIT);
+  const quota: SmsQuota = {
+    used,
+    limit,
+    remaining: Math.max(0, limit - used),
+    limited: q?.["limited"] !== false,
+  };
+  return computeEntitlement(
+    (subRes.data as SubRow | null) ?? null,
+    adminRes.data === true,
+    Date.now(),
+    quota,
+  );
 }
 
 /**

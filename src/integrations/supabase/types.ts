@@ -669,6 +669,54 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_usage: {
+        Row: {
+          created_at: string
+          free_used: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          free_used?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          free_used?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sms_usage_events: {
+        Row: {
+          created_at: string
+          idempotency_key: string
+          recipients: number
+          state: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          idempotency_key: string
+          recipients?: number
+          state?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          idempotency_key?: string
+          recipients?: number
+          state?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean
@@ -827,6 +875,57 @@ export type Database = {
         }
         Relationships: []
       }
+      trial_identities: {
+        Row: {
+          created_at: string
+          first_user_id: string
+          identity_hash: string
+          kind: string
+        }
+        Insert: {
+          created_at?: string
+          first_user_id: string
+          identity_hash: string
+          kind: string
+        }
+        Update: {
+          created_at?: string
+          first_user_id?: string
+          identity_hash?: string
+          kind?: string
+        }
+        Relationships: []
+      }
+      trial_reviews: {
+        Row: {
+          created_at: string
+          id: string
+          identity_hash: string | null
+          reason: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          identity_hash?: string | null
+          reason: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          identity_hash?: string | null
+          reason?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -887,6 +986,18 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_trial_identity: {
+        Args: { _business: string; _phone: string }
+        Returns: Json
+      }
+      claim_trial_identity_for: {
+        Args: { _business: string; _phone: string; _user_id: string }
+        Returns: Json
+      }
+      confirm_free_sms: {
+        Args: { _key: string; _user_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -895,6 +1006,16 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
+      release_free_sms: {
+        Args: { _key: string; _user_id: string }
+        Returns: Json
+      }
+      reserve_free_sms: {
+        Args: { _count?: number; _key: string; _user_id: string }
+        Returns: Json
+      }
+      sms_free_limit: { Args: never; Returns: number }
+      sms_quota: { Args: { _user_id?: string }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "user" | "super_admin" | "subscriber"

@@ -115,5 +115,13 @@ export const saveCompanyDefaults = createServerFn({ method: "POST" })
 
     const { error } = await context.supabase.from("profiles").upsert(row, { onConflict: "id" });
     if (error) return { ok: false, error: error.message };
+
+    // 사업자등록번호·휴대전화번호는 해시로만 남겨, 같은 업체가 무료체험을 두 번 받지 못하게 합니다.
+    if (data.businessNumber !== undefined || data.phone !== undefined) {
+      await context.supabase.rpc("claim_trial_identity", {
+        _business: (data.businessNumber ?? "").trim(),
+        _phone: (data.phone ?? "").trim(),
+      });
+    }
     return { ok: true };
   });

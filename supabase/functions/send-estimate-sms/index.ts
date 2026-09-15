@@ -115,7 +115,7 @@ async function canSend(
   supabaseUrl: string,
   serviceKey: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const EXPIRED = "7일 무료체험이 종료되었습니다. 구독 후 계속 사용할 수 있습니다";
+  const EXPIRED = "7일 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
   try {
     const roleRes = await db(
       `user_roles?select=role&user_id=eq.${userId}&role=in.(super_admin,admin)&limit=1`,
@@ -153,6 +153,85 @@ async function canSend(
   } catch {
     // 확인에 실패하면 발송을 막지 않습니다 (기존 동작 유지)
     return { ok: true };
+  }
+}
+
+/** 무료 문자 상한·체험 종료 안내 */
+const SMS_LIMIT_MESSAGE = "무료 문자 20건을 모두 사용했습니다. 계속 이용하려면 구독해 주세요.";
+const TRIAL_OVER_MESSAGE = "7일 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
+
+/** 데이터베이스 함수를 부릅니다 */
+async function rpc(
+  name: string,
+  args: Record<string, unknown>,
+  supabaseUrl: string,
+  serviceKey: string,
+): Promise<unknown> {
+  const r = await db(`rpc/${name}`, {
+    supabaseUrl,
+    serviceKey,
+    method: "POST",
+    body: JSON.stringify(args),
+  });
+  return await r.json().catch(() => null);
+}
+
+/**
+ * 발송 직전에 무료 문자를 원자적으로 예약합니다 (수신번호 1개당 1건).
+ *
+ * - 20건을 넘길 수 있는 요청은 데이터베이스에서 거절되므로 절대 초과되지 않습니다.
+ * - 같은 발송 열쇠(idempotency_key)로 두 번 예약되지 않습니다.
+ * - 관리자·유료 구독은 상한이 없지만 사용량은 그대로 기록합니다.
+ */
+async function reserveSms(v: {
+  userId: string;
+  key: string;
+  count?: number;
+  supabaseUrl: string;
+  serviceKey: string;
+}): Promise<{ ok: boolean; hold?: string; duplicate?: boolean; error?: string }> {
+  if (!v.userId) return { ok: true }; // 우리 서버가 직접 부른 경우
+  const res = (await rpc(
+    "reserve_free_sms",
+    { _user_id: v.userId, _key: v.key, _count: Math.max(1, v.count ?? 1) },
+    v.supabaseUrl,
+    v.serviceKey,
+  )) as { allowed?: boolean; reason?: string; key?: string; duplicate?: boolean } | null;
+  if (!res || typeof res !== "object") {
+    return { ok: false, error: "문자 사용량을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요." };
+  }
+  if (res.allowed) return { ok: true, hold: res.key ?? v.key };
+  if (res.duplicate) return { ok: false, duplicate: true };
+  return { ok: false, error: res.reason === "limit" ? SMS_LIMIT_MESSAGE : TRIAL_OVER_MESSAGE };
+}
+
+/** 실제로 발송에 실패했으면 예약을 되돌립니다 (실패는 차감하지 않습니다) */
+async function releaseSms(
+  userId: string,
+  hold: string | undefined,
+  supabaseUrl: string,
+  serviceKey: string,
+): Promise<void> {
+  if (!userId || !hold) return;
+  try {
+    await rpc("release_free_sms", { _user_id: userId, _key: hold }, supabaseUrl, serviceKey);
+  } catch (e) {
+    console.error("[sms-usage] 예약 되돌리기 실패", e instanceof Error ? e.message : e);
+  }
+}
+
+/** 알리고가 접수한 발송만 사용 건수로 확정합니다 */
+async function confirmSms(
+  userId: string,
+  hold: string | undefined,
+  supabaseUrl: string,
+  serviceKey: string,
+): Promise<void> {
+  if (!userId || !hold) return;
+  try {
+    await rpc("confirm_free_sms", { _user_id: userId, _key: hold }, supabaseUrl, serviceKey);
+  } catch (e) {
+    console.error("[sms-usage] 사용 확정 기록 실패", e instanceof Error ? e.message : e);
   }
 }
 
@@ -420,6 +499,19 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: "받는 번호 형식이 올바르지 않습니다." }, 400);
     }
     const testText = "[JIMPICK 짐픽]\n문자발송 연결 테스트입니다.";
+    // 시험 문자도 실제로 요금이 나가므로 무료 문자 사용량에 넣습니다.
+    const holdT = await reserveSms({
+      userId,
+      key: String(body.idempotency_key ?? "").trim() || `test:${userId}:${Date.now()}`,
+      supabaseUrl,
+      serviceKey,
+    });
+    if (!holdT.ok) {
+      if (holdT.duplicate) {
+        return json({ ok: true, alreadySent: true, message: "이미 처리된 발송 요청입니다." });
+      }
+      return json({ ok: false, error: holdT.error, status: "blocked" }, 403);
+    }
     const sent = await sendViaAligo({
       to,
       text: testText,
@@ -463,8 +555,10 @@ Deno.serve(async (req) => {
       console.error("[send-estimate-sms] 시험 발송 기록 실패", e instanceof Error ? e.message : e);
     }
     if (!sent.ok) {
+      await releaseSms(userId, holdT.hold, supabaseUrl, serviceKey);
       return json({ ok: false, error: sent.error ?? "문자 발송에 실패했습니다.", status: "failed" }, 502);
     }
+    await confirmSms(userId, holdT.hold, supabaseUrl, serviceKey);
     return json({
       ok: true,
       msgId: sent.msgId ?? null,
@@ -652,6 +746,18 @@ Deno.serve(async (req) => {
     // 글자 길이에 따라 SMS · LMS 로 나갑니다
     const msgTypeM = new TextEncoder().encode(textM).length <= 90 ? "SMS" : "LMS";
 
+    const holdM = await reserveSms({
+      userId: ownerId,
+      key: `usage:${idemKey}`,
+      supabaseUrl,
+      serviceKey,
+    });
+    if (!holdM.ok) {
+      if (holdM.duplicate) {
+        return json({ ok: true, alreadySent: true, message: "이미 보낸 알림입니다." });
+      }
+      return json({ ok: false, error: holdM.error, status: "blocked" }, 403);
+    }
     const sentM = await sendViaAligo({
       to: managerPhone,
       text: textM,
@@ -679,6 +785,7 @@ Deno.serve(async (req) => {
       provider_result: sentM.raw ?? null,
     });
     if (!sentM.ok) {
+      await releaseSms(ownerId, holdM.hold, supabaseUrl, serviceKey);
       return json(
         {
           ok: false,
@@ -689,6 +796,7 @@ Deno.serve(async (req) => {
         502,
       );
     }
+    await confirmSms(ownerId, holdM.hold, supabaseUrl, serviceKey);
     return json({
       ok: true,
       status: "sent",
@@ -769,6 +877,18 @@ Deno.serve(async (req) => {
       ...(companyPhoneD ? ["", `문의: ${companyPhoneD}`] : []),
     ].join("\n");
     const typeD = new TextEncoder().encode(textD).length <= 90 ? "SMS" : "LMS";
+    const holdD = await reserveSms({
+      userId: ownerD,
+      key: `usage:${idemD}`,
+      supabaseUrl,
+      serviceKey,
+    });
+    if (!holdD.ok) {
+      if (holdD.duplicate) {
+        return json({ ok: true, alreadySent: true, message: "이미 보낸 문자입니다." });
+      }
+      return json({ ok: false, error: holdD.error, status: "blocked" }, 403);
+    }
     const sentD = await sendViaAligo({
       to: custPhoneD,
       text: textD,
@@ -814,11 +934,13 @@ Deno.serve(async (req) => {
       console.error("[deposit_notify] 기록 실패", e instanceof Error ? e.message : e);
     }
     if (!sentD.ok) {
+      await releaseSms(ownerD, holdD.hold, supabaseUrl, serviceKey);
       return json(
         { ok: false, status: "failed", error: sentD.error ?? "입금 확인 문자 발송에 실패했습니다." },
         502,
       );
     }
+    await confirmSms(ownerD, holdD.hold, supabaseUrl, serviceKey);
     return json({
       ok: true,
       status: "sent",
@@ -965,7 +1087,25 @@ Deno.serve(async (req) => {
 
   const requestedAt = new Date().toISOString();
 
-  // ── 5. 알리고에 실제로 보냅니다 (시험 모드 아님) ──
+  // ── 5. 무료 문자 20건 상한을 서버에서 확인·예약합니다 ──
+  // 사장님이 「다시 발송」을 직접 누른 경우에는 새 1건으로 셉니다(1분 안 중복 클릭은 한 번만).
+  const usageKey = wantResend
+    ? `usage:${estimateId}:v${version}:${last4(phone)}:resend:${Math.floor(Date.now() / 60000)}`
+    : `usage:${idem || `${estimateId}:v${version}:${last4(phone)}`}`;
+  const hold = await reserveSms({ userId, key: usageKey, supabaseUrl, serviceKey });
+  if (!hold.ok) {
+    if (hold.duplicate) {
+      return json({
+        ok: true,
+        alreadySent: true,
+        recipientLast4: last4(phone),
+        message: "이미 처리된 발송 요청입니다. 다시 보내지 않았습니다.",
+      });
+    }
+    return json({ ok: false, error: hold.error, status: "blocked" }, 403);
+  }
+
+  // ── 6. 알리고에 실제로 보냅니다 (시험 모드 아님) ──
   const result = await sendViaAligo({
     to: phone,
     text,
@@ -980,7 +1120,7 @@ Deno.serve(async (req) => {
     userId,
   });
 
-  // ── 6. 실제 시도를 그대로 기록합니다 (번호는 뒤 4자리만) ──
+  // ── 7. 실제 시도를 그대로 기록합니다 (번호는 뒤 4자리만) ──
   const now = new Date().toISOString();
   try {
     await db("estimate_deliveries", {
@@ -1014,6 +1154,8 @@ Deno.serve(async (req) => {
   }
 
   if (!result.ok) {
+    // 실패는 무료 문자에서 차감하지 않습니다.
+    await releaseSms(userId, hold.hold, supabaseUrl, serviceKey);
     return json(
       {
         ok: false,
@@ -1026,6 +1168,7 @@ Deno.serve(async (req) => {
     );
   }
 
+  await confirmSms(userId, hold.hold, supabaseUrl, serviceKey);
   return json({
     ok: true,
     msgId: result.msgId ?? null,

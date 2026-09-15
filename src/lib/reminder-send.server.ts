@@ -13,6 +13,7 @@ const SENDER = "01075662542";
 interface Reminder {
   id: string;
   estimate_id: string;
+  user_id: string;
   customer_name: string;
   customer_phone: string;
   move_date: string;
@@ -219,6 +220,40 @@ export async function runDueMoveReminders(limit = 20): Promise<RunResult> {
     // 90바이트를 넘으면 자동으로 장문(LMS)으로 보냅니다
     const msgType = new TextEncoder().encode(text).length > 90 ? "LMS" : "SMS";
 
+    // 무료 문자 20건 상한을 서버에서 먼저 예약합니다 (초과·기간 만료면 보내지 않습니다).
+    const usageKey = `usage:move-reminder:${row.id}`;
+    const { data: reserved } = (await (
+      supabaseAdmin as unknown as {
+        rpc: (
+          n: string,
+          a: Record<string, unknown>,
+        ) => Promise<{ data: Record<string, unknown> | null }>;
+      }
+    ).rpc("reserve_free_sms", {
+      _user_id: row.user_id,
+      _key: usageKey,
+      _count: 1,
+    })) ?? { data: null };
+    const allowed = reserved?.["allowed"] === true;
+    if (!allowed) {
+      failed++;
+      const reason =
+        reserved?.["reason"] === "limit"
+          ? "무료 문자 20건을 모두 사용했습니다. 구독 후 다시 발송할 수 있습니다."
+          : reserved?.["reason"] === "duplicate"
+            ? "이미 처리된 발송 요청입니다."
+            : "무료체험이 종료되었습니다. 구독 후 다시 발송할 수 있습니다.";
+      await supabaseAdmin
+        .from("move_reminders")
+        .update({
+          status: "failed",
+          error_reason: reason,
+          retry_count: Number(row.retry_count ?? 0) + 1,
+        } as never)
+        .eq("id", row.id);
+      continue;
+    }
+
     const out = await sendViaAligo({
       to,
       text,
@@ -229,6 +264,17 @@ export async function runDueMoveReminders(limit = 20): Promise<RunResult> {
       proxyUrl,
       proxySecret,
     });
+
+    // 실패는 무료 문자에서 차감하지 않습니다.
+    const usageRpc = supabaseAdmin as unknown as {
+      rpc: (n: string, a: Record<string, unknown>) => Promise<unknown>;
+    };
+    await usageRpc
+      .rpc(out.ok ? "confirm_free_sms" : "release_free_sms", {
+        _user_id: row.user_id,
+        _key: usageKey,
+      })
+      .catch(() => undefined);
 
     if (out.ok) sent++;
     else failed++;
