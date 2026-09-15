@@ -911,6 +911,22 @@ export function Step1() {
           <MoveDateCalendar
             value={draft.moveDate}
             counts={bookingCounts}
+            bookings={bookings}
+            onOpenBooking={(estimateId) => {
+              if (estimates.some((e) => e.id === estimateId)) loadEstimate(estimateId);
+              else toast.error("이 기기에 저장된 견적서가 없습니다.");
+            }}
+            onCancelBooking={(termsId) => {
+              if (!window.confirm("이 예약을 취소할까요? 달력의 예약 건수에서 빠집니다.")) return;
+              cancelReservation({ data: { termsId } })
+                .then((r) => {
+                  if (r?.ok) {
+                    toast.success("예약을 취소했습니다.");
+                    loadBookings();
+                  } else toast.error(r?.error || "예약을 취소하지 못했습니다.");
+                })
+                .catch(() => toast.error("예약을 취소하지 못했습니다."));
+            }}
             onSelect={(date) =>
               updateDraft({
                 moveDate: date,
@@ -921,6 +937,7 @@ export function Step1() {
               })
             }
           />
+
         </Field>
 
         <Field label="시작 시간">
