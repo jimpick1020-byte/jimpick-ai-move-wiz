@@ -456,13 +456,19 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
       if (error) console.error("[getTermsStatuses]", error.message);
       return { ok: false, rows: [] };
     }
-    const { data: accs } = await context.supabase
-      .from("terms_acceptances")
-      .select(
-        "estimate_terms_id, accepted_at, accept_method, sheet_version, terms_version, reservation_status",
-      )
-      .eq("user_id", context.userId);
+    // 동의 기록은 「내 견적서 id」로 맞춥니다.
+    // (동의는 고객이 남기므로 기록에 업체 id가 비어 있을 수 있어, 업체 id로 거르면 확정 건이 빠집니다)
+    const ids = rows.map((r) => String((r as Record<string, unknown>)["id"]));
+    const { data: accs } = ids.length
+      ? await context.supabase
+          .from("terms_acceptances")
+          .select(
+            "estimate_terms_id, accepted_at, accept_method, sheet_version, terms_version, reservation_status",
+          )
+          .in("estimate_terms_id", ids)
+      : { data: [] as never[] };
     const byId = new Map((accs ?? []).map((a) => [a.estimate_terms_id, a]));
+
     return {
       ok: true,
       rows: rows.map((raw) => {
@@ -534,10 +540,16 @@ export const getReservationCounts = createServerFn({ method: "POST" })
         if (error) console.error("[getReservationCounts]", error.message);
         return { ok: false, counts: {}, reservations: {} };
       }
-      const { data: accs } = await context.supabase
-        .from("terms_acceptances")
-        .select("estimate_terms_id, accepted_at, reservation_status")
-        .eq("user_id", context.userId);
+      // 동의 기록은 「내 견적서 id」로 맞춥니다. 동의는 고객이 남기기 때문에 기록에 업체 id가
+      // 비어 있을 수 있고, 업체 id로 거르면 실제 확정 계약이 달력에서 빠집니다.
+      const termIds = (terms as { id: string }[]).map((r) => String(r.id));
+      const { data: accs } = termIds.length
+        ? await context.supabase
+            .from("terms_acceptances")
+            .select("estimate_terms_id, accepted_at, reservation_status")
+            .in("estimate_terms_id", termIds)
+        : { data: [] as never[] };
+
       // 확정(동의 O · 취소 X)된 약관 id → 동의 일시
       const confirmed = new Map<string, string | null>();
       for (const a of (accs ?? []) as {
