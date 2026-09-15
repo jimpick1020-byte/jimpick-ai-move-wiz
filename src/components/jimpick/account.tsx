@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useEntitlement, TRIAL_EXPIRED_MESSAGE } from "@/lib/use-entitlement";
 import { supabase } from "@/integrations/supabase/client";
 import { authErrorMessage, authHeader } from "@/lib/auth";
 import { lovable } from "@/integrations/lovable/index";
@@ -154,7 +155,7 @@ export function SignupScreen() {
         }
 
         // 이메일 확인이 꺼져 있어 바로 세션이 생긴 경우만 로그인 처리합니다.
-        toast.success("가입 완료! 3일 무료 체험이 시작되었습니다");
+        toast.success("가입 완료! 7일 무료 체험이 시작되었습니다");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
         if (error) {
@@ -330,7 +331,7 @@ export function SignupScreen() {
         )}
 
         <div className="text-sm leading-relaxed text-auth-muted">
-          가입 즉시 <b>3일 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능을 쓸 수 있습니다.
+          가입 즉시 <b>7일 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능을 쓸 수 있습니다.
         </div>
         {formError && <div role="alert" aria-live="assertive" className="rounded-md bg-auth-soft p-3 text-sm font-semibold text-auth-error">{formError}</div>}
         <div className="sticky bottom-0 -mx-4 mt-auto border-t border-auth-border bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:-mx-8 sm:px-8">
@@ -379,6 +380,7 @@ export function SubscriptionScreen() {
   const [account, setAccount] = useState<Account | null>(null);
   const [busy, setBusy] = useState<PlanId | null>(null);
   const [card, setCard] = useState<BillingCardInfo | null>(null);
+  const { entitlement, blocked, remainingText, refresh: refreshEnt } = useEntitlement();
 
   const refresh = async () => {
     if (!userId) return;
@@ -390,6 +392,8 @@ export function SubscriptionScreen() {
     } catch {
       /* 세션 준비 전 */
     }
+    // 결제·해지 후 이용 권한(체험/구독)을 다시 읽어 화면과 서버를 맞춥니다
+    await refreshEnt();
     try {
       setCard(await getTossBilling({ headers }));
     } catch {
@@ -415,7 +419,7 @@ export function SubscriptionScreen() {
     try {
       if (plan === "free") {
         await subscribePlan({ data: { plan, method: "card" }, headers });
-        toast.success("무료 체험이 시작되었습니다 (3일)");
+        toast.success("무료 체험이 시작되었습니다 (7일)");
         await refresh();
         return;
       }
@@ -514,7 +518,7 @@ export function SubscriptionScreen() {
         <div className="p-5 flex-1 flex flex-col items-center justify-center gap-4 text-center">
           <Crown className="w-12 h-12 text-[#0751D8]" />
           <div className="font-bold text-lg">업체 계정이 필요합니다</div>
-          <div className="text-sm text-[#6B7280]">가입하면 3일 무료 체험이 바로 시작됩니다.</div>
+          <div className="text-sm text-[#6B7280]">가입하면 7일 무료 체험이 바로 시작됩니다.</div>
         </div>
         <BottomButtonBar>
           <PrimaryButton onClick={() => setScreen("signup")}>업체 회원가입 / 로그인</PrimaryButton>
@@ -539,6 +543,19 @@ export function SubscriptionScreen() {
               <span className="text-[#6B7280] text-xs">
                 ~ {new Date(current.current_period_end).toLocaleDateString("ko-KR")}
               </span>
+            </div>
+          )}
+          {entitlement?.state === "trial" && remainingText && (
+            <div className="mt-2 rounded-xl bg-[#EFF6FF] p-2.5 text-xs font-semibold leading-5 text-[#0751D8]">
+              7일 무료체험 중 · {remainingText}
+              {entitlement.trialEndsAt
+                ? ` (종료 ${new Date(entitlement.trialEndsAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })})`
+                : ""}
+            </div>
+          )}
+          {blocked && (
+            <div className="mt-2 rounded-xl bg-[#FEF2F2] p-2.5 text-xs leading-5 text-[#B42318]">
+              {TRIAL_EXPIRED_MESSAGE}
             </div>
           )}
           {current?.cancel_at_period_end && (
