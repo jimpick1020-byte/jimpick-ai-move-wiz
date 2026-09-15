@@ -393,16 +393,36 @@ export function SubscriptionScreen() {
     setBusy(plan);
     tap("success");
     try {
-      await subscribePlan({ data: { plan, method: "card" }, headers });
       if (plan === "free") {
+        await subscribePlan({ data: { plan, method: "card" }, headers });
         toast.success("무료 체험이 시작되었습니다 (3일)");
-      } else {
-        toast.success("구독이 활성화되었습니다", {
-          description: "실제 카드 결제는 시스템 연결 준비 중이며, 현재는 테스트 결제로 기록됩니다.",
-        });
+        await refresh();
+        return;
       }
 
-      await refresh();
+      // 유료 구독은 토스페이먼츠 자동결제(빌링)로 실제 결제합니다.
+      // 이미 카드가 등록되어 있으면 그 카드로 바로 결제합니다.
+      if (card?.registered) {
+        const r = await chargeTossBilling({ headers });
+        if (r.ok) {
+          toast.success("결제가 완료되어 구독이 시작되었습니다", {
+            description: `${won(r.amount ?? 0)} · 매월 자동 결제`,
+          });
+          await refresh();
+        } else {
+          toast.error("결제에 실패했습니다", { description: r.error ?? "카드사 응답을 확인해 주세요" });
+        }
+        return;
+      }
+
+      const cfg = await getTossBillingConfig({ headers });
+      if (!cfg.ok || !cfg.clientKey || !cfg.customerKey) {
+        toast.error("결제 준비에 실패했습니다", { description: cfg.error ?? "잠시 후 다시 시도해 주세요" });
+        return;
+      }
+      const { openTossCardRegister } = await import("@/lib/toss");
+      await openTossCardRegister(cfg.clientKey, cfg.customerKey);
+      // 카드 등록창으로 이동합니다. 등록을 마치면 /billing/callback 에서 결제가 진행됩니다.
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "결제에 실패했습니다");
     } finally {
