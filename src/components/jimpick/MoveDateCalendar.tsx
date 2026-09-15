@@ -243,11 +243,59 @@ export function MoveDateCalendar({
         </div>
       </div>
 
+      {/* 예약된 날짜를 누르면 그 날짜의 확정 계약을 보여 줍니다 */}
+      {openDate && (bookings?.[openDate]?.length ?? 0) > 0 && (
+        <div className="mt-3 rounded-xl border border-[#DCE8FA] bg-[#F7FAFF] p-3">
+          <div className="mb-2 text-[13px] font-bold text-[#0864DC]">
+            {openDate} 확정 계약 {bookings?.[openDate]?.length ?? 0}건
+          </div>
+          <div className="space-y-2">
+            {(bookings?.[openDate] ?? []).map((b) => (
+              <div key={b.termsId} className="rounded-xl border border-[#E7EBF2] bg-white p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-[14px] font-bold text-[#111827]">
+                      {b.customerName || "이름 없음"}
+                    </div>
+                    <div className="text-[12.5px] font-semibold text-[#6B7280] tabular-nums">
+                      {b.total.toLocaleString()}원
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      tap("click");
+                      onOpenBooking?.(b.estimateId);
+                    }}
+                    className="shrink-0 rounded-lg bg-[#0864DC] px-3 py-2 text-[13px] font-bold text-white active:translate-y-[1px]"
+                  >
+                    견적서 보기
+                  </button>
+                </div>
+                {onCancelBooking && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      tap("soft");
+                      onCancelBooking(b.termsId);
+                    }}
+                    className="mt-2 w-full rounded-lg border border-[#F0D3D3] bg-white py-2 text-[12.5px] font-bold text-[#DC2626] active:translate-y-[1px]"
+                  >
+                    이 예약 취소
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {value && (
         <div className="mt-3 rounded-xl bg-[#F5F7FB] px-3 py-2 text-center text-[13px] font-semibold text-[#111827]">
           선택한 이사 날짜 · {value}
         </div>
       )}
+
     </div>
   );
 }
