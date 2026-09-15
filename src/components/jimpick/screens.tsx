@@ -131,6 +131,7 @@ import {
 import {
   publishEstimateTerms,
   getTermsStatuses,
+  getReservationCounts,
   getManagerNotices,
   type TermsStatusRow,
   type ManagerNoticeRow,
@@ -819,6 +820,21 @@ export function HomeScreen() {
 export function Step1() {
   const { draft, updateDraft, setScreen } = useApp();
   const [err, setErr] = useState("");
+  /** 날짜별 확정 예약 건수 — 실제 예약 데이터(estimate_terms)에서 집계해 달력에 표시 */
+  const [bookingCounts, setBookingCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let alive = true;
+    getReservationCounts()
+      .then((r) => {
+        if (alive && r?.ok) setBookingCounts(r.counts);
+      })
+      .catch(() => {
+        /* 못 읽으면 표시만 비웁니다(가짜 숫자를 만들지 않습니다) */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
   const moveTypes: MoveType[] = ["포장이사", "반포장이사", "일반이사", "보관이사", "사무실이사"];
   const next = () => {
     if (!draft.customerName.trim()) return setErr("고객명을 입력해 주세요.");
@@ -862,6 +878,7 @@ export function Step1() {
         <Field label="이사 날짜">
           <MoveDateCalendar
             value={draft.moveDate}
+            counts={bookingCounts}
             onSelect={(date) =>
               updateDraft({
                 moveDate: date,

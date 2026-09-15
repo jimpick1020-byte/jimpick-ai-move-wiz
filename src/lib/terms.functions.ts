@@ -476,3 +476,49 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
     };
   });
 
+
+/**
+ * 날짜별(YYYY-MM-DD) 확정 예약 건수 — 달력에서 예약 1건/마감 표시에 씁니다.
+ *
+ *  · 로그인한 업체(user_id)의 예약만 셉니다 (RLS + user_id 필터 → 다른 업체와 섞이지 않음).
+ *  · 확정 예약 = terms_acceptances 에 동의(accepted_at)가 있고 reservation_status 가
+ *    'canceled' 가 아닌 건. (임시 견적·문자만 보낸 상태·취소 건은 제외)
+ *  · 화면 표시용 집계입니다. 실제 3번째 예약 차단은 예약 확정 시 서버에서 원자적으로 막아야 합니다.
+ */
+export const getReservationCounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ ok: boolean; counts: Record<string, number> }> => {
+    const { data: terms, error } = await context.supabase
+      .from("estimate_terms")
+      .select("id, move_date")
+      .eq("user_id", context.userId)
+      .not("move_date", "is", null)
+      .limit(2000);
+    if (error || !terms) {
+      if (error) console.error("[getReservationCounts]", error.message);
+      return { ok: false, counts: {} };
+    }
+    const { data: accs } = await context.supabase
+      .from("terms_acceptances")
+      .select("estimate_terms_id, accepted_at, reservation_status")
+      .eq("user_id", context.userId);
+    // 확정(동의 O · 취소 X)된 견적서 id 집합
+    const confirmedIds = new Set(
+      (accs ?? [])
+        .filter(
+          (a) =>
+            !!(a as { accepted_at?: string | null }).accepted_at &&
+            String((a as { reservation_status?: string | null }).reservation_status ?? "confirmed") !==
+              "canceled",
+        )
+        .map((a) => String((a as { estimate_terms_id?: string }).estimate_terms_id ?? "")),
+    );
+    const counts: Record<string, number> = {};
+    for (const row of terms as { id: string; move_date: string | null }[]) {
+      if (!row.move_date) continue;
+      if (!confirmedIds.has(String(row.id))) continue;
+      const key = String(row.move_date).slice(0, 10);
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return { ok: true, counts };
+  });
