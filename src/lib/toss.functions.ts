@@ -19,10 +19,25 @@ const TOSS_API = "https://api.tosspayments.com/v1";
 /** 구독 요금제 (월 22,000원) */
 const proPlan = () => PLANS.find((p) => p.id === "pro") ?? PLANS[PLANS.length - 1];
 
+/** 테스트 결제인지 실제 결제인지 (키 앞머리가 test_ 이면 테스트) */
+export type TossMode = "test" | "live";
+function tossMode(): TossMode {
+  const k = process.env["TOSS_CLIENT_KEY"]?.trim() ?? process.env["TOSS_SECRET_KEY"]?.trim() ?? "";
+  return k.startsWith("test_") ? "test" : "live";
+}
+
+/** 한 달에 한 번만 결제되도록 결제 주문번호를 날짜로 정합니다 (중복 방지 값) */
+function monthlyOrderId(userId: string, at: Date) {
+  const kst = new Date(at.getTime() + 9 * 3600000);
+  const ym = `${kst.getUTCFullYear()}${String(kst.getUTCMonth() + 1).padStart(2, "0")}`;
+  return `jimpick_${userId.replace(/-/g, "").slice(0, 12)}_${ym}`;
+}
+
 /** 사용자마다 고정된 토스 고객 식별값 (개인정보를 담지 않습니다) */
 function customerKeyOf(userId: string) {
   return `jimpick_${userId.replace(/-/g, "")}`;
 }
+
 
 function basicAuth(secretKey: string) {
   // 비밀 키는 Basic 인증의 아이디 자리에 넣습니다 (비밀번호는 빈 값).
@@ -77,35 +92,43 @@ async function tossFetch(
 /** 카드 등록창에 필요한 값 (클라이언트 키는 공개용 키입니다) */
 export const getTossBillingConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ ok: boolean; clientKey?: string; customerKey?: string; error?: string }> => {
-    const clientKey = process.env["TOSS_CLIENT_KEY"]?.trim();
-    if (!clientKey) return { ok: false, error: "결제 설정이 준비되지 않았습니다." };
-    return { ok: true, clientKey, customerKey: customerKeyOf(context.userId) };
-  });
+  .handler(
+    async ({
+      context,
+    }): Promise<{ ok: boolean; clientKey?: string; customerKey?: string; mode?: TossMode; error?: string }> => {
+      const clientKey = process.env["TOSS_CLIENT_KEY"]?.trim();
+      if (!clientKey) return { ok: false, error: "결제 설정이 준비되지 않았습니다." };
+      return { ok: true, clientKey, customerKey: customerKeyOf(context.userId), mode: tossMode() };
+    },
+  );
 
 export interface BillingCardInfo {
   registered: boolean;
   cardCompany?: string | null;
   cardNumberMasked?: string | null
   registeredAt?: string | null;
+  /** 테스트 결제 / 실제 결제 구분 */
+  mode: TossMode;
 }
 
 /** 등록된 카드 정보 */
 export const getTossBilling = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<BillingCardInfo> => {
+    const mode = tossMode();
     const { data } = await context.supabase
       .from("billing_keys")
       .select("card_company, card_number_masked, created_at")
       .eq("user_id", context.userId)
       .maybeSingle();
-    if (!data) return { registered: false };
+    if (!data) return { registered: false, mode };
     const row = data as { card_company: string | null; card_number_masked: string | null; created_at: string };
     return {
       registered: true,
       cardCompany: row.card_company,
       cardNumberMasked: row.card_number_masked,
       registeredAt: row.created_at,
+      mode,
     };
   });
 
@@ -116,6 +139,10 @@ interface ChargeResult {
   amount?: number;
   approvedAt?: string | null;
   receiptNo?: string | null;
+  /** 이미 결제된 요청이라 다시 결제하지 않았다는 뜻 */
+  duplicate?: boolean;
+  nextBillingAt?: string | null;
+  mode?: TossMode;
 }
 
 /** 저장된 빌링키로 실제 결제하고, 성공·실패를 그대로 기록합니다 */
@@ -126,8 +153,50 @@ async function chargeWithBillingKey(args: {
   reason: string;
 }): Promise<ChargeResult> {
   const plan = proPlan();
-  const orderId = `jimpick_${args.userId.slice(0, 8)}_${Date.now()}`;
+  const mode = tossMode();
+  const startedAt = new Date();
+  // 같은 달에는 같은 주문번호를 씁니다. 카드 등록 직후 화면이 두 번 열리거나
+  // 버튼이 두 번 눌려도 결제가 두 번 되지 않습니다.
+  const orderId = monthlyOrderId(args.userId, startedAt);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  // 1) 이미 같은 주문번호로 결제가 끝났으면 결제사에 다시 요청하지 않습니다.
+  const { data: dup } = await supabaseAdmin
+    .from("payments")
+    .select("amount, paid_at, next_billing_at")
+    .eq("order_id", orderId)
+    .eq("status", "paid")
+    .maybeSingle();
+  if (dup) {
+    const row = dup as { amount: number; paid_at: string; next_billing_at: string | null };
+    return {
+      ok: true,
+      duplicate: true,
+      orderId,
+      amount: row.amount,
+      approvedAt: row.paid_at,
+      nextBillingAt: row.next_billing_at,
+      mode,
+    };
+  }
+
+  // 2) 이미 결제한 이용기간이 남아 있으면 중복 결제를 막습니다.
+  const { data: sub } = await supabaseAdmin
+    .from("subscriptions")
+    .select("status, current_period_end")
+    .eq("user_id", args.userId)
+    .maybeSingle();
+  const subRow = sub as { status: string; current_period_end: string } | null;
+  if (subRow && subRow.status === "active" && new Date(subRow.current_period_end).getTime() > Date.now()) {
+    return {
+      ok: true,
+      duplicate: true,
+      orderId,
+      amount: plan.price,
+      nextBillingAt: subRow.current_period_end,
+      mode,
+    };
+  }
 
   let res: Awaited<ReturnType<typeof tossFetch>>;
   try {
@@ -149,10 +218,10 @@ async function chargeWithBillingKey(args: {
       method: "card",
       status: "failed",
       provider: "toss",
-      order_id: orderId,
+      test_mode: mode === "test",
       fail_reason: reason,
     } as never);
-    return { ok: false, error: reason };
+    return { ok: false, error: reason, mode };
   }
 
   const body = res.json ?? {};
@@ -161,6 +230,7 @@ async function chargeWithBillingKey(args: {
   if (!res.ok || status !== "DONE") {
     const reason = tossErrorText(body as TossError, res.status);
     console.error("[toss] 결제 실패", status || res.status, (body as TossError).code ?? "");
+    // 실패 기록은 주문번호 없이 남깁니다(주문번호는 성공 결제 1건에만 씁니다).
     await supabaseAdmin.from("payments").insert({
       user_id: args.userId,
       plan: "pro",
@@ -168,11 +238,11 @@ async function chargeWithBillingKey(args: {
       method: "card",
       status: "failed",
       provider: "toss",
-      order_id: orderId,
+      test_mode: mode === "test",
       fail_reason: reason,
     } as never);
     await supabaseAdmin.from("subscriptions").update({ status: "past_due" }).eq("user_id", args.userId);
-    return { ok: false, error: reason };
+    return { ok: false, error: reason, mode };
   }
 
   const approvedAt = typeof body["approvedAt"] === "string" ? (body["approvedAt"] as string) : null;
@@ -183,7 +253,7 @@ async function chargeWithBillingKey(args: {
   const now = approvedAt ? new Date(approvedAt) : new Date();
   const end = new Date(now.getTime() + 30 * 86400000);
 
-  await supabaseAdmin.from("payments").insert({
+  const { error: payErr } = await supabaseAdmin.from("payments").insert({
     user_id: args.userId,
     plan: "pro",
     amount: approvedAmount,
@@ -193,8 +263,14 @@ async function chargeWithBillingKey(args: {
     order_id: orderId,
     payment_key: paymentKey,
     paid_at: now.toISOString(),
+    next_billing_at: end.toISOString(),
+    test_mode: mode === "test",
     receipt_no: orderId,
   } as never);
+  // 중복 방지 값(주문번호)에 걸린 경우: 이미 같은 결제가 기록되어 있다는 뜻입니다.
+  if (payErr && !payErr.message.includes("payments_order_id_key")) {
+    console.error("[toss] 결제 기록 저장 실패", payErr.message);
+  }
 
   const { error: subErr } = await supabaseAdmin.from("subscriptions").upsert(
     {
@@ -217,8 +293,11 @@ async function chargeWithBillingKey(args: {
     amount: approvedAmount,
     approvedAt,
     receiptNo: receipt?.url ?? null,
+    nextBillingAt: end.toISOString(),
+    mode,
   };
 }
+
 
 /** 카드 등록(authKey) → 빌링키 발급 → 첫 달 결제 */
 export const registerTossBilling = createServerFn({ method: "POST" })
