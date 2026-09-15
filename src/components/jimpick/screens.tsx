@@ -89,7 +89,7 @@ import {
   Field,
   TextInput,
 } from "./ui";
-import { MoveDateCalendar } from "./MoveDateCalendar";
+import { MoveDateCalendar, type CalendarBooking } from "./MoveDateCalendar";
 
 import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
@@ -132,6 +132,7 @@ import {
   publishEstimateTerms,
   getTermsStatuses,
   getReservationCounts,
+  cancelReservation,
   getManagerNotices,
   type TermsStatusRow,
   type ManagerNoticeRow,
