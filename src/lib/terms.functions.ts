@@ -583,32 +583,18 @@ export const cancelReservation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ termsId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }): Promise<{ ok: boolean; error?: string }> => {
-    // 취소할 예약이 속한 견적번호를 찾습니다.
-    const { data: base } = await context.supabase
-      .from("estimate_terms")
-      .select("estimate_id")
-      .eq("id", data.termsId)
-      .eq("user_id", context.userId)
-      .maybeSingle();
-
-    let ids: string[] = [data.termsId];
-    if (base?.estimate_id) {
-      const { data: all } = await context.supabase
-        .from("estimate_terms")
-        .select("id")
-        .eq("user_id", context.userId)
-        .eq("estimate_id", base.estimate_id);
-      if (all?.length) ids = all.map((r) => String(r.id));
-    }
-
-    const { error } = await context.supabase
-      .from("terms_acceptances")
-      .update({ reservation_status: "canceled" })
-      .in("estimate_terms_id", ids)
-      .eq("user_id", context.userId);
+    // 동의 기록은 직접 수정할 수 없으므로(보안 규칙) 서버 전용 취소 기능으로 처리합니다.
+    // 같은 견적의 모든 차수를 함께 취소해 달력에서 다시 살아나지 않게 합니다.
+    const { data: res, error } = await context.supabase.rpc("cancel_reservation_all", {
+      _terms_id: data.termsId,
+    });
     if (error) {
       console.error("[cancelReservation]", error.message);
       return { ok: false, error: "예약을 취소하지 못했습니다. 잠시 후 다시 시도해 주세요." };
+    }
+    const out = (res ?? {}) as { ok?: boolean; canceled?: number };
+    if (!out.ok || Number(out.canceled ?? 0) < 1) {
+      return { ok: false, error: "예약을 취소하지 못했습니다. 화면을 새로 고친 뒤 다시 시도해 주세요." };
     }
     return { ok: true };
   });
