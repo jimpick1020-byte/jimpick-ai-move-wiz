@@ -70,7 +70,7 @@ export const subscribePlan = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const now = new Date();
-    // 무료 체험은 7일(168시간), 유료 구독은 30일 주기
+    // 무료 체험은 30일(한 달), 유료 구독은 30일 주기
     const end = new Date(now.getTime() + (plan.price === 0 ? TRIAL_DAYS : 30) * 86400000);
 
 

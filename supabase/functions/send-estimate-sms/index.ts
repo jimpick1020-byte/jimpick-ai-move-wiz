@@ -108,14 +108,14 @@ async function db(
 }
 
 /**
- * 이용 권한 확인 — 7일 무료체험 중이거나 유료 구독 중이거나 관리자여야 문자를 보낼 수 있습니다.
+ * 이용 권한 확인 — 한 달 무료체험 중이거나 유료 구독 중이거나 관리자여야 문자를 보낼 수 있습니다.
  */
 async function canSend(
   userId: string,
   supabaseUrl: string,
   serviceKey: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const EXPIRED = "7일 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
+  const EXPIRED = "한 달 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
   try {
     const roleRes = await db(
       `user_roles?select=role&user_id=eq.${userId}&role=in.(super_admin,admin)&limit=1`,
@@ -146,7 +146,7 @@ async function canSend(
     const trialEnd = sub.trial_ends_at
       ? new Date(sub.trial_ends_at).getTime()
       : startStr
-        ? new Date(startStr).getTime() + 7 * 24 * 3600_000
+        ? new Date(startStr).getTime() + 30 * 24 * 3600_000
         : 0;
     if (sub.status === "trialing" && trialEnd > now) return { ok: true };
     return { ok: false, error: EXPIRED };
@@ -157,8 +157,8 @@ async function canSend(
 }
 
 /** 무료 문자 상한·체험 종료 안내 */
-const SMS_LIMIT_MESSAGE = "무료 문자 20건을 모두 사용했습니다. 계속 이용하려면 구독해 주세요.";
-const TRIAL_OVER_MESSAGE = "7일 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
+const SMS_LIMIT_MESSAGE = "무료 문자 사용량을 확인해 주세요. 계속 이용하려면 구독해 주세요.";
+const TRIAL_OVER_MESSAGE = "한 달 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
 
 /** 데이터베이스 함수를 부릅니다 */
 async function rpc(
@@ -460,7 +460,7 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "로그인이 필요합니다. 다시 로그인한 뒤 시도해 주세요." }, 401);
   }
 
-  // 7일 무료체험이 끝나고 결제하지 않은 업체는 문자 발송을 막습니다 (기존 기록은 그대로 둡니다).
+  // 한 달 무료체험이 끝나고 결제하지 않은 업체는 문자 발송을 막습니다 (기존 기록은 그대로 둡니다).
   if (userId && !isServerCall) {
     const allow = await canSend(userId, supabaseUrl, serviceKey);
     if (!allow.ok) return json({ ok: false, error: allow.error }, 403);
