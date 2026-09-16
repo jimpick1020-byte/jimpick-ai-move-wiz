@@ -1,9 +1,10 @@
 /**
  * 이용 권한(무료체험 · 유료구독) 검사.
  *
- * - 신규 가입자는 가입 시각부터 정확히 168시간(7일) 동안 모든 기능을 씁니다.
- * - 7일이 지나고 결제하지 않으면 「읽기 전용」이 됩니다.
+ * - 신규 가입자는 가입 시각부터 정확히 30일(한 달) 동안 모든 기능을 씁니다.
+ * - 한 달이 지나고 결제하지 않으면 「읽기 전용」이 됩니다.
  *   (기존 고객·견적·문자·결제 기록은 그대로 두고, 새로 만들거나 보내는 것만 막습니다)
+ * - 체험 기간에는 문자를 건수 제한 없이 보낼 수 있습니다 (사용량은 기록합니다).
  * - 서비스 소유자·관리자 계정은 기간 제한 없이 씁니다. 관리자 여부는 서버에서 확인합니다.
  */
 import { createServerFn, createMiddleware } from "@tanstack/react-start";
@@ -12,18 +13,18 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 
 /** 무료체험 기간 (일) */
-export const TRIAL_DAYS = 7;
+export const TRIAL_DAYS = 30;
 /** 무료체험 기간 (시간) */
 export const TRIAL_HOURS = TRIAL_DAYS * 24;
 
 export const TRIAL_EXPIRED_MESSAGE =
-  "7일 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
+  "한 달 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
 
-/** 무료로 보낼 수 있는 문자 건수 (서버에서도 같은 값으로 강제합니다) */
+/** 무료 문자 사용량 표시용 참고 값 (체험 중에는 건수 제한이 없습니다) */
 export const FREE_SMS_LIMIT = 20;
 
 export const SMS_LIMIT_MESSAGE =
-  "무료 문자 20건을 모두 사용했습니다. 계속 이용하려면 구독해 주세요.";
+  "무료 문자 사용량을 확인해 주세요. 계속 이용하려면 구독해 주세요.";
 
 export type EntitlementState = "admin" | "trial" | "active" | "expired";
 
