@@ -172,16 +172,10 @@ export function MoveDateCalendar({
                   type="button"
                   disabled={c.past}
                   onClick={() => {
-                    // 계약 있는 날: 견적서 열기 흐름(1건 바로 열기 / 2건+ 고객 목록).
+                    // 계약 있는 날: 계약 목록 패널을 열어 견적서 보기/예약 취소를 선택하게 함.
                     if (hasContract) {
                       tap("click");
-                      const list = bookings?.[c.date] ?? [];
-                      if (list.length === 1 && onOpenBooking) {
-                        onOpenBooking(list[0].estimateId, list[0].customerName, list[0].termsId);
-                        setOpenDate("");
-                      } else {
-                        setOpenDate((p) => (p === c.date ? "" : c.date));
-                      }
+                      setOpenDate((p) => (p === c.date ? "" : c.date));
                       return;
                     }
                     // 계약 없는 날: 새 견적의 이사 날짜로 선택.
