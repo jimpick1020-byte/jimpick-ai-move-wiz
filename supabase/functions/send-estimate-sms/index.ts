@@ -179,7 +179,7 @@ async function rpc(
 /**
  * 발송 직전에 무료 문자를 원자적으로 예약합니다 (수신번호 1개당 1건).
  *
- * - 20건을 넘길 수 있는 요청은 데이터베이스에서 거절되므로 절대 초과되지 않습니다.
+ * - 체험이 끝난 업체의 요청은 데이터베이스에서 거절됩니다. (체험 중에는 건수 제한 없음)
  * - 같은 발송 열쇠(idempotency_key)로 두 번 예약되지 않습니다.
  * - 관리자·유료 구독은 상한이 없지만 사용량은 그대로 기록합니다.
  */
@@ -1091,7 +1091,7 @@ Deno.serve(async (req) => {
 
   const requestedAt = new Date().toISOString();
 
-  // ── 5. 무료 문자 20건 상한을 서버에서 확인·예약합니다 ──
+  // ── 5. 문자 사용량을 서버에서 확인·예약합니다 ──
   // 사장님이 「다시 발송」을 직접 누른 경우에는 새 1건으로 셉니다(1분 안 중복 클릭은 한 번만).
   const usageKey = wantResend
     ? `usage:${estimateId}:v${version}:${last4(phone)}:resend:${Math.floor(Date.now() / 60000)}`

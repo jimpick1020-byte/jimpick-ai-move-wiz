@@ -76,7 +76,7 @@ export interface SmsQuota {
   limited: boolean;
 }
 
-/** 체험 종료 일시 — 저장된 값이 없으면 시작 시각 + 7일로 계산합니다 */
+/** 체험 종료 일시 — 저장된 값이 없으면 시작 시각 + 30일로 계산합니다 */
 function trialEnd(sub: SubRow): number {
   if (sub.trial_ends_at) return new Date(sub.trial_ends_at).getTime();
   const start = sub.trial_started_at ?? sub.current_period_start ?? sub.created_at;
