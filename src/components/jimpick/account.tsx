@@ -155,7 +155,7 @@ export function SignupScreen() {
         }
 
         // 이메일 확인이 꺼져 있어 바로 세션이 생긴 경우만 로그인 처리합니다.
-        toast.success("가입 완료! 7일 무료 체험이 시작되었습니다");
+        toast.success("가입 완료! 한 달 무료 체험이 시작되었습니다");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
         if (error) {
@@ -331,7 +331,7 @@ export function SignupScreen() {
         )}
 
         <div className="text-sm leading-relaxed text-auth-muted">
-          가입 즉시 <b>7일 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능을 쓸 수 있습니다.
+          가입 즉시 <b>한 달 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능과 문자를 무제한으로 쓸 수 있습니다.
         </div>
         {formError && <div role="alert" aria-live="assertive" className="rounded-md bg-auth-soft p-3 text-sm font-semibold text-auth-error">{formError}</div>}
         <div className="sticky bottom-0 -mx-4 mt-auto border-t border-auth-border bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:-mx-8 sm:px-8">
@@ -419,7 +419,7 @@ export function SubscriptionScreen() {
     try {
       if (plan === "free") {
         await subscribePlan({ data: { plan, method: "card" }, headers });
-        toast.success("무료 체험이 시작되었습니다 (7일)");
+        toast.success("무료 체험이 시작되었습니다 (한 달)");
         await refresh();
         return;
       }
@@ -518,7 +518,7 @@ export function SubscriptionScreen() {
         <div className="p-5 flex-1 flex flex-col items-center justify-center gap-4 text-center">
           <Crown className="w-12 h-12 text-[#0751D8]" />
           <div className="font-bold text-lg">업체 계정이 필요합니다</div>
-          <div className="text-sm text-[#6B7280]">가입하면 7일 무료 체험이 바로 시작됩니다.</div>
+          <div className="text-sm text-[#6B7280]">가입하면 한 달 무료 체험이 바로 시작됩니다.</div>
         </div>
         <BottomButtonBar>
           <PrimaryButton onClick={() => setScreen("signup")}>업체 회원가입 / 로그인</PrimaryButton>
@@ -553,10 +553,9 @@ export function SubscriptionScreen() {
               )}
               {entitlement?.state === "trial" && remainingText && (
                 <div className="mt-2 rounded-xl bg-[#EFF6FF] p-2.5 text-xs font-semibold leading-5 text-[#0751D8] break-keep">
-                  7일 무료체험 · 문자 {entitlement.freeSmsUsed}/{entitlement.freeSmsLimit}건 사용
+                  한 달 무료체험 · 문자 무제한 ({entitlement.freeSmsUsed}건 사용)
                   <br />
-                  무료체험 {entitlement.trialDaysLeft}일 남음 · 문자 {entitlement.freeSmsRemaining}건
-                  남음
+                  무료체험 {entitlement.trialDaysLeft}일 남음 · 문자는 체험 기간 동안 무제한
                   {entitlement.trialEndsAt
                     ? ` (종료 ${new Date(entitlement.trialEndsAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })})`
                     : ""}
