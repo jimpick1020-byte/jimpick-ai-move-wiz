@@ -578,7 +578,7 @@ export function Login() {
           업체 회원가입
         </Button>
         <p className="-mt-3 text-center text-sm text-auth-muted">
-          가입 후 7일 동안 모든 기능을 무료로 체험할 수 있습니다.
+          가입 후 한 달 동안 모든 기능을 무료로 체험할 수 있습니다.
         </p>
         <Button
           type="button"
@@ -683,10 +683,9 @@ export function HomeScreen() {
         )}
         {!blocked && entitlement?.state === "trial" && remainingText && (
           <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-2.5 text-xs font-semibold text-[#0751D8] break-keep">
-            7일 무료체험 · 문자 {entitlement.freeSmsUsed}/{entitlement.freeSmsLimit}건 사용
+            한 달 무료체험 · 문자 무제한 ({entitlement.freeSmsUsed}건 사용)
             <div className="mt-0.5 font-medium text-[#1D4ED8]">
-              무료체험 {entitlement.trialDaysLeft}일 남음 · 문자 {entitlement.freeSmsRemaining}건
-              남음
+              무료체험 {entitlement.trialDaysLeft}일 남음 · 문자는 체험 기간 동안 무제한
             </div>
           </div>
         )}
@@ -6530,7 +6529,7 @@ export function SettingsScreen() {
         </Card>
         <Card className="space-y-2 text-sm">
           <div className="font-bold text-base">구독 안내</div>
-          <div>· 무료 체험 7일</div>
+          <div>· 무료 체험 한 달</div>
           <div>· 이후 월 33,000원 (부가세 포함)</div>
           <div>· 약정 없이 언제든 해지 가능</div>
           <div>· 재구독 시 기존 데이터 복원</div>

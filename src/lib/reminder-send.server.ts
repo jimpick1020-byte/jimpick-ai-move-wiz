@@ -220,7 +220,7 @@ export async function runDueMoveReminders(limit = 20): Promise<RunResult> {
     // 90바이트를 넘으면 자동으로 장문(LMS)으로 보냅니다
     const msgType = new TextEncoder().encode(text).length > 90 ? "LMS" : "SMS";
 
-    // 무료 문자 20건 상한을 서버에서 먼저 예약합니다 (초과·기간 만료면 보내지 않습니다).
+    // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).
     const usageKey = `usage:move-reminder:${row.id}`;
     const { data: reserved } = (await (
       supabaseAdmin as unknown as {
@@ -239,7 +239,7 @@ export async function runDueMoveReminders(limit = 20): Promise<RunResult> {
       failed++;
       const reason =
         reserved?.["reason"] === "limit"
-          ? "무료 문자 20건을 모두 사용했습니다. 구독 후 다시 발송할 수 있습니다."
+          ? "무료체험이 종료되었습니다. 구독 후 다시 발송할 수 있습니다."
           : reserved?.["reason"] === "duplicate"
             ? "이미 처리된 발송 요청입니다."
             : "무료체험이 종료되었습니다. 구독 후 다시 발송할 수 있습니다.";

@@ -108,14 +108,14 @@ async function db(
 }
 
 /**
- * 이용 권한 확인 — 7일 무료체험 중이거나 유료 구독 중이거나 관리자여야 문자를 보낼 수 있습니다.
+ * 이용 권한 확인 — 한 달 무료체험 중이거나 유료 구독 중이거나 관리자여야 문자를 보낼 수 있습니다.
  */
 async function canSend(
   userId: string,
   supabaseUrl: string,
   serviceKey: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const EXPIRED = "7일 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
+  const EXPIRED = "한 달 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
   try {
     const roleRes = await db(
       `user_roles?select=role&user_id=eq.${userId}&role=in.(super_admin,admin)&limit=1`,
@@ -146,7 +146,7 @@ async function canSend(
     const trialEnd = sub.trial_ends_at
       ? new Date(sub.trial_ends_at).getTime()
       : startStr
-        ? new Date(startStr).getTime() + 7 * 24 * 3600_000
+        ? new Date(startStr).getTime() + 30 * 24 * 3600_000
         : 0;
     if (sub.status === "trialing" && trialEnd > now) return { ok: true };
     return { ok: false, error: EXPIRED };
@@ -157,8 +157,8 @@ async function canSend(
 }
 
 /** 무료 문자 상한·체험 종료 안내 */
-const SMS_LIMIT_MESSAGE = "무료 문자 20건을 모두 사용했습니다. 계속 이용하려면 구독해 주세요.";
-const TRIAL_OVER_MESSAGE = "7일 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
+const SMS_LIMIT_MESSAGE = "무료 문자 사용량을 확인해 주세요. 계속 이용하려면 구독해 주세요.";
+const TRIAL_OVER_MESSAGE = "한 달 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
 
 /** 데이터베이스 함수를 부릅니다 */
 async function rpc(
@@ -179,7 +179,7 @@ async function rpc(
 /**
  * 발송 직전에 무료 문자를 원자적으로 예약합니다 (수신번호 1개당 1건).
  *
- * - 20건을 넘길 수 있는 요청은 데이터베이스에서 거절되므로 절대 초과되지 않습니다.
+ * - 체험이 끝난 업체의 요청은 데이터베이스에서 거절됩니다. (체험 중에는 건수 제한 없음)
  * - 같은 발송 열쇠(idempotency_key)로 두 번 예약되지 않습니다.
  * - 관리자·유료 구독은 상한이 없지만 사용량은 그대로 기록합니다.
  */
@@ -460,7 +460,7 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "로그인이 필요합니다. 다시 로그인한 뒤 시도해 주세요." }, 401);
   }
 
-  // 7일 무료체험이 끝나고 결제하지 않은 업체는 문자 발송을 막습니다 (기존 기록은 그대로 둡니다).
+  // 한 달 무료체험이 끝나고 결제하지 않은 업체는 문자 발송을 막습니다 (기존 기록은 그대로 둡니다).
   if (userId && !isServerCall) {
     const allow = await canSend(userId, supabaseUrl, serviceKey);
     if (!allow.ok) return json({ ok: false, error: allow.error }, 403);
@@ -1091,7 +1091,7 @@ Deno.serve(async (req) => {
 
   const requestedAt = new Date().toISOString();
 
-  // ── 5. 무료 문자 20건 상한을 서버에서 확인·예약합니다 ──
+  // ── 5. 문자 사용량을 서버에서 확인·예약합니다 ──
   // 사장님이 「다시 발송」을 직접 누른 경우에는 새 1건으로 셉니다(1분 안 중복 클릭은 한 번만).
   const usageKey = wantResend
     ? `usage:${estimateId}:v${version}:${last4(phone)}:resend:${Math.floor(Date.now() / 60000)}`
