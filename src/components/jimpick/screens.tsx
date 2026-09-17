@@ -6516,6 +6516,18 @@ export function SettingsScreen() {
           <div className="text-base">구독 · 결제 관리</div>
           <div className="text-xs font-medium opacity-90 mt-1">요금제 변경, 결제 내역 확인</div>
         </button>
+        <button
+          onClick={() => {
+            tap();
+            setScreen("errorLogs");
+          }}
+          className="w-full rounded-2xl border border-[#FECACA] bg-white p-4 text-left"
+        >
+          <div className="text-base font-bold text-[#B42318]">오류 관리</div>
+          <div className="mt-1 text-xs font-medium text-[#6B7280]">
+            오류가 난 화면 · 발생시각 · 오류 내용 · 복구 결과 확인
+          </div>
+        </button>
         <BusinessInfoCard onNeedLogin={() => setScreen("login")} />
         {/* 문자발송 연결 확인·시험 — 받는 번호는 코드에 고정하지 않습니다 */}
         <SmsConnectionCard
