@@ -63,7 +63,6 @@ export function DraftSaveBadge() {
   );
 }
 
-
 export function MobileShell({
   children,
   bg = "bg-[#F5F7FB]",
@@ -76,7 +75,9 @@ export function MobileShell({
   // jp-shell-* 클래스는 홈 화면에서 앱처럼 실행할 때(standalone)
   // 시안용 폰 테두리를 걷어내기 위한 것입니다. (styles.css 참고)
   return (
-    <div className={`jp-shell-outer min-h-[100dvh] w-full flex justify-center bg-slate-200 ${className}`}>
+    <div
+      className={`jp-shell-outer min-h-[100dvh] w-full flex justify-center bg-slate-200 ${className}`}
+    >
       <div className="jp-shell-frame relative w-full max-w-md p-[3px]">
         {/* 정적 네온 테두리 */}
         <div
@@ -90,7 +91,6 @@ export function MobileShell({
           <StatusBar />
           <DraftSaveBadge />
           {children}
-
         </div>
       </div>
     </div>
@@ -489,10 +489,23 @@ export function Card({
   );
 }
 
-export function Field({ label, children }: { label: string; children: ReactNode }) {
+export function Field({
+  label,
+  children,
+  labelClassName,
+}: {
+  label: string;
+  children: ReactNode;
+  /** 항목명 색을 바꿀 때 (없으면 기본 파란색) */
+  labelClassName?: string;
+}) {
   return (
     <div className="space-y-2">
-      <label className="jp-field-label text-[17px] font-black text-[#0864DC]">{label}</label>
+      <label
+        className={`jp-field-label text-[17px] font-black ${labelClassName ?? "text-[#0864DC]"}`}
+      >
+        {label}
+      </label>
       {children}
     </div>
   );

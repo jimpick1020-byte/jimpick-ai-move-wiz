@@ -926,7 +926,7 @@ export function Step1() {
     <MobileShell className="jp-estimate-flow jp-tone-1">
       <TopBar title="1단계. 고객 정보 입력" onBack={() => setScreen("home")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
-        <Field label="고객명">
+        <Field label="고객명" labelClassName="text-[#2DD4BF]">
           <TextInput
             placeholder="홍길동"
             value={draft.customerName}
@@ -934,7 +934,7 @@ export function Step1() {
             onBlur={(e) => syncContractName(draft.id, e.target.value)}
           />
         </Field>
-        <Field label="연락처">
+        <Field label="연락처" labelClassName="text-[#2DD4BF]">
           <TextInput
             placeholder="010-0000-0000"
             value={draft.phone}
@@ -942,21 +942,45 @@ export function Step1() {
             inputMode="numeric"
           />
         </Field>
-        <Field label="이사 종류">
+        <Field label="이사 종류" labelClassName="text-[#2DD4BF]">
           <div className="grid grid-cols-2 gap-2">
-            {moveTypes.map((t) => (
-              <Card
-                key={t}
-                selected={draft.moveType === t}
-                onClick={() => updateDraft({ moveType: t })}
-                className="text-center py-3"
-              >
-                <div className="text-[17px] font-black text-[#0864DC]">{t}</div>
-              </Card>
-            ))}
+            {moveTypes.map((t) => {
+              // 보관이사는 다른 이사 종류와 '함께' 선택되는 보관 서비스 토글입니다.
+              const isStorage = t === "보관이사";
+              const selected = isStorage ? usesStorage(draft) : draft.moveType === t;
+              return (
+                <Card
+                  key={t}
+                  selected={selected}
+                  onClick={() => {
+                    if (isStorage) {
+                      // 켜고 끄기 — moveType 자체가 보관이사면 끌 때 기본 종류로 되돌립니다.
+                      if (usesStorage(draft)) {
+                        updateDraft(
+                          draft.moveType === "보관이사"
+                            ? { storageEnabled: false, moveType: "일반이사" }
+                            : { storageEnabled: false },
+                        );
+                      } else {
+                        updateDraft({ storageEnabled: true });
+                      }
+                    } else {
+                      // 기본 이사 종류 선택 — 기존에 보관이사였으면 보관 서비스는 유지합니다.
+                      updateDraft({
+                        moveType: t,
+                        storageEnabled: draft.storageEnabled || draft.moveType === "보관이사",
+                      });
+                    }
+                  }}
+                  className="text-center py-3"
+                >
+                  <div className="text-[17px] font-black text-[#0864DC]">{t}</div>
+                </Card>
+              );
+            })}
           </div>
         </Field>
-        <Field label="이사 날짜">
+        <Field label="이사 날짜" labelClassName="text-[#2DD4BF]">
           <MoveDateCalendar
             value={draft.moveDate}
             counts={bookingCounts}
@@ -1041,7 +1065,7 @@ export function Step1() {
           />
         </Field>
 
-        <Field label="시작 시간">
+        <Field label="시작 시간" labelClassName="text-[#2DD4BF]">
           <div className="grid grid-cols-2 gap-2">
             <select
               value={draft.moveTime.split(" ")[0]}
@@ -1072,7 +1096,7 @@ export function Step1() {
             </select>
           </div>
         </Field>
-        <Field label="고객 메모">
+        <Field label="고객 메모" labelClassName="text-[#2DD4BF]">
           <textarea
             value={draft.memo}
             onChange={(e) => updateDraft({ memo: e.target.value })}
@@ -1170,7 +1194,9 @@ function AddressSearch({
                 className="w-full text-left px-4 py-3 hover:bg-[#F5F7FB] text-sm border-b last:border-b-0 border-[#E7EBF2]"
               >
                 <div className="text-[17px] font-black text-[#0F172A]">{a.name}</div>
-                <div className="mt-0.5 text-[15px] font-semibold text-[#526174]">{a.roadAddress || a.address}</div>
+                <div className="mt-0.5 text-[15px] font-semibold text-[#526174]">
+                  {a.roadAddress || a.address}
+                </div>
               </button>
             ))}
         </div>
@@ -1188,7 +1214,11 @@ function AddressSearch({
           검색이 안 되면: 입력한 주소 그대로 사용
         </button>
       )}
-      {value && <div className="rounded-xl bg-[#EAF2FF] p-3 text-[17px] font-bold text-[#0751D8]">{value}</div>}
+      {value && (
+        <div className="rounded-xl bg-[#EAF2FF] p-3 text-[17px] font-bold text-[#0751D8]">
+          {value}
+        </div>
+      )}
       <TextInput
         placeholder="상세주소 (예: 101동 1203호)"
         value={detail}
@@ -1557,63 +1587,67 @@ export function Step3() {
               className={isFrom ? "" : "mt-7 border-t-2 border-dashed border-[#D7DEEB] pt-7"}
             >
               <Field label={`${place} 작업 조건`}>
-              <div className="grid grid-cols-2 gap-3">
-                <Card
-                  selected={env === "계단"}
-                  onClick={() => setSideEnv(side, "계단")}
-                  className="text-center py-5"
-                >
-                  <Art3D src={ENV_IMG["계단"]} alt="계단" size={56} className="mx-auto mb-2" />
-                  <div className="text-[17px] font-black text-[#0864DC]">계단 (수작업)</div>
-                </Card>
-                <Card
-                  selected={env === "엘리베이터"}
-                  onClick={() => setSideEnv(side, "엘리베이터")}
-                  className="text-center py-5"
-                >
-                  <Art3D
-                    src={ENV_IMG["엘리베이터"]}
-                    alt="엘리베이터"
-                    size={56}
-                    className="mx-auto mb-2"
-                  />
-                  <div className="text-[17px] font-black text-[#0864DC]">엘리베이터</div>
-                </Card>
-              </div>
-              {!env && !ladderOn && (
-                <div className="mt-2 text-[13px] font-semibold text-[#DC2626]">
-                  {place} 작업 방식을 선택해 주세요 (계단 / 엘리베이터)
-                </div>
-              )}
-              <div className="h-3" />
-              <Card selected={ladderOn} onClick={() => toggleSideLadder(side)}>
-                <div className="flex items-center gap-3">
-                  <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={48} />
-                  <div className="flex-1">
-                    <div className="text-[17px] font-black text-[#0864DC]">{place} 사다리차 사용</div>
-                    <div className="text-[14px] font-semibold text-[#526174]">필요하면 눌러서 선택하세요</div>
-                  </div>
-                  <div
-                    className={`w-7 h-7 rounded-full flex items-center justify-center ${
-                      ladderOn ? "bg-[#0751D8] text-white" : "border-2 border-[#DFE6F2]"
-                    }`}
+                <div className="grid grid-cols-2 gap-3">
+                  <Card
+                    selected={env === "계단"}
+                    onClick={() => setSideEnv(side, "계단")}
+                    className="text-center py-5"
                   >
-                    {ladderOn && <Check className="w-4 h-4" />}
+                    <Art3D src={ENV_IMG["계단"]} alt="계단" size={56} className="mx-auto mb-2" />
+                    <div className="text-[17px] font-black text-[#0864DC]">계단 (수작업)</div>
+                  </Card>
+                  <Card
+                    selected={env === "엘리베이터"}
+                    onClick={() => setSideEnv(side, "엘리베이터")}
+                    className="text-center py-5"
+                  >
+                    <Art3D
+                      src={ENV_IMG["엘리베이터"]}
+                      alt="엘리베이터"
+                      size={56}
+                      className="mx-auto mb-2"
+                    />
+                    <div className="text-[17px] font-black text-[#0864DC]">엘리베이터</div>
+                  </Card>
+                </div>
+                {!env && !ladderOn && (
+                  <div className="mt-2 text-[13px] font-semibold text-[#DC2626]">
+                    {place} 작업 방식을 선택해 주세요 (계단 / 엘리베이터)
                   </div>
-                </div>
-              </Card>
-              <div className="h-3" />
-              <Card>
-                <div className="flex items-center justify-between">
-                  <div className="text-[17px] font-black text-[#0864DC]">{place} 층수</div>
-                  <FloorStepper
-                    value={floor}
-                    onChange={(n) => setSideFloor(side, n)}
-                    label={`${place} 층수`}
-                  />
-                </div>
-              </Card>
-            </Field>
+                )}
+                <div className="h-3" />
+                <Card selected={ladderOn} onClick={() => toggleSideLadder(side)}>
+                  <div className="flex items-center gap-3">
+                    <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={48} />
+                    <div className="flex-1">
+                      <div className="text-[17px] font-black text-[#0864DC]">
+                        {place} 사다리차 사용
+                      </div>
+                      <div className="text-[14px] font-semibold text-[#526174]">
+                        필요하면 눌러서 선택하세요
+                      </div>
+                    </div>
+                    <div
+                      className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                        ladderOn ? "bg-[#0751D8] text-white" : "border-2 border-[#DFE6F2]"
+                      }`}
+                    >
+                      {ladderOn && <Check className="w-4 h-4" />}
+                    </div>
+                  </div>
+                </Card>
+                <div className="h-3" />
+                <Card>
+                  <div className="flex items-center justify-between">
+                    <div className="text-[17px] font-black text-[#0864DC]">{place} 층수</div>
+                    <FloorStepper
+                      value={floor}
+                      onChange={(n) => setSideFloor(side, n)}
+                      label={`${place} 층수`}
+                    />
+                  </div>
+                </Card>
+              </Field>
             </div>
           );
         })}
@@ -3572,8 +3606,9 @@ export function AIRecognition() {
       if (res.needConfirm.length) setPending(res.needConfirm);
 
       if (res.items.length) {
-        // 공간을 직접 말했으면 그 공간에, 아니면 품목마다 어울리는 공간으로 자동 배정합니다
-        const name = addToRoom(res.items, finalId, !spoken);
+        // 항상 지금 고른 공간(또는 사용자가 직접 말한 공간)에만 담습니다.
+        // AI 추정 공간으로 흩어 담지 않습니다 — 고른 방과 다른 방에 들어가던 문제 방지.
+        const name = addToRoom(res.items, finalId, false);
         if (name) {
           tap("success");
           setVoiceHint(
