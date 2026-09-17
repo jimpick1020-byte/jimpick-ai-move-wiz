@@ -161,6 +161,44 @@ export function AdminAccountsScreen() {
                 해지 예약됨 · {day(r.periodEnd)} 이후 결제되지 않습니다
               </div>
             )}
+            {canDelete(r) && confirmingId !== r.userId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmingId(r.userId);
+                  setDeleteError("");
+                }}
+                className="w-full rounded-xl border border-[#FECACA] py-2 text-xs font-bold text-[#B42318]"
+              >
+                업체 삭제
+              </button>
+            )}
+            {canDelete(r) && confirmingId === r.userId && (
+              <div className="space-y-2 rounded-xl bg-[#FEF2F2] px-2.5 py-2">
+                <p className="text-[11px] leading-5 text-[#B42318] break-keep">
+                  정말 삭제할까요? {r.companyName || "이 업체"}의 로그인 계정과 서버에
+                  저장된 데이터가 모두 삭제되며 되돌릴 수 없습니다.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingId(null)}
+                    disabled={deletingId === r.userId}
+                    className="flex-1 rounded-xl bg-white py-2 text-xs font-bold text-[#374151]"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void onDelete(r)}
+                    disabled={deletingId === r.userId}
+                    className="flex-1 rounded-xl bg-[#B42318] py-2 text-xs font-bold text-white disabled:opacity-50"
+                  >
+                    {deletingId === r.userId ? "삭제 중…" : "삭제합니다"}
+                  </button>
+                </div>
+              </div>
+            )}
           </Card>
         ))}
       </div>
