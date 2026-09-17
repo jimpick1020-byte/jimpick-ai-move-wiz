@@ -28,6 +28,11 @@ const STATUS_STYLE: Record<string, string> = {
 const day = (v: string | null) =>
   v ? new Date(v).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" }) : "-";
 
+/** 최근 3일 안에 가입한 업체는 "신규" 표시를 붙입니다 */
+const NEW_SIGNUP_MS = 3 * 24 * 3600_000;
+const isNewSignup = (v: string | null) =>
+  v !== null && Date.now() - new Date(v).getTime() < NEW_SIGNUP_MS;
+
 export function AdminAccountsScreen() {
   const { setScreen } = useApp();
   const [rows, setRows] = useState<CompanyAccount[] | null>(null);
