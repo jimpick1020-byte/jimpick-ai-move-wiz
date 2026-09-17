@@ -131,3 +131,61 @@ export const listCompanyAccounts = createServerFn({ method: "GET" })
       };
     });
   });
+
+/**
+ * 업체 계정 삭제 — 최고관리자만 사용할 수 있습니다.
+ * - 구독 이용 중(active/past_due)인 업체는 삭제하지 않습니다.
+ * - 최고관리자 계정은 삭제하지 않습니다.
+ * - 서버에 남은 해당 업체 데이터와 로그인 계정이 함께 삭제됩니다.
+ */
+export const deleteCompanyAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    (d as { userId?: string })?.userId
+      ? (d as { userId: string })
+      : (() => {
+          throw new Error("userId가 필요합니다");
+        })(),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: boolean }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: isAdmin } = await supabaseAdmin.rpc("is_super_admin", {
+      _user_id: context.userId,
+    });
+    if (isAdmin !== true) throw new Error("Forbidden: 관리자만 사용할 수 있습니다");
+
+    const targetId = data.userId;
+    if (targetId === context.userId) {
+      throw new Error("내 계정은 여기서 삭제할 수 없습니다");
+    }
+
+    // 최고관리자 계정은 삭제 금지
+    const { data: targetIsAdmin } = await supabaseAdmin.rpc("is_super_admin", {
+      _user_id: targetId,
+    });
+    if (targetIsAdmin === true) {
+      throw new Error("관리자 계정은 삭제할 수 없습니다");
+    }
+
+    // 구독으로 이용 중인 업체는 삭제 금지 (체험 중이거나 체험이 끝난 업체만 삭제 가능)
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("status")
+      .eq("user_id", targetId)
+      .maybeSingle();
+    if (sub && (sub.status === "active" || sub.status === "past_due")) {
+      throw new Error("구독 이용 중인 업체는 삭제할 수 없습니다. 먼저 구독이 해지되어야 합니다.");
+    }
+
+    // 문자 발송 기록은 계정 삭제를 막지 않도록 먼저 정리합니다.
+    const { error: delErr } = await supabaseAdmin
+      .from("estimate_deliveries")
+      .delete()
+      .eq("user_id", targetId);
+    if (delErr) throw new Error(delErr.message);
+
+    // 로그인 계정을 삭제하면 나머지 데이터(프로필·구독·견적·결제 등)도 함께 삭제됩니다.
+    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(targetId);
+    if (authErr) throw new Error(authErr.message);
+    return { ok: true };
+  });
