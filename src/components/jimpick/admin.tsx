@@ -37,6 +37,30 @@ export function AdminAccountsScreen() {
   const { setScreen } = useApp();
   const [rows, setRows] = useState<CompanyAccount[] | null>(null);
   const [error, setError] = useState("");
+  // 삭제 확인을 기다리는 업체(한 번 더 물어보기)와 삭제 진행 중인 업체
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+
+  /** 구독으로 이용 중인 업체는 삭제 버튼을 보여주지 않습니다 */
+  const canDelete = (r: CompanyAccount) =>
+    r.role !== "super_admin" &&
+    r.subscriptionStatus !== "active" &&
+    r.subscriptionStatus !== "past_due";
+
+  const onDelete = async (r: CompanyAccount) => {
+    setDeletingId(r.userId);
+    setDeleteError("");
+    try {
+      await deleteCompanyAccount({ data: { userId: r.userId } });
+      setRows((prev) => (prev ? prev.filter((x) => x.userId !== r.userId) : prev));
+      setConfirmingId(null);
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "삭제하지 못했습니다");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
