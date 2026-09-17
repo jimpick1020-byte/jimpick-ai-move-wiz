@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { JimpickProvider, useApp } from "@/lib/jimpick";
@@ -23,6 +24,9 @@ import { SignupScreen, SubscriptionScreen } from "@/components/jimpick/account";
 import { AdminAccountsScreen } from "@/components/jimpick/admin";
 import { ForgotPasswordScreen } from "@/components/jimpick/password";
 import { AuthLoadingScreen } from "@/components/jimpick/AuthUi";
+import { ErrorLogScreen } from "@/components/jimpick/errors";
+import { JimpickErrorBoundary } from "@/components/jimpick/ErrorBoundary";
+import { logAppError } from "@/lib/error-log.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
