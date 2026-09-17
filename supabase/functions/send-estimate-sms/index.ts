@@ -356,7 +356,12 @@ async function sendViaAligo(v: {
   }
 }
 
-Deno.serve(async (req) => {
+/**
+ * 실제 처리 본문.
+ * 아래 Deno.serve 에서 감싸므로, 여기서 예상 못 한 오류가 나도
+ * 워커가 죽지 않고 안내 문구가 사장님에게 전달됩니다.
+ */
+const handle = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ ok: false, error: "POST 로 불러 주세요." }, 405);
 
@@ -1184,4 +1189,21 @@ Deno.serve(async (req) => {
     requestedAt,
     sentAt: now,
   });
+};
+
+Deno.serve(async (req) => {
+  try {
+    return await handle(req);
+  } catch (e) {
+    // 예상하지 못한 오류도 워커를 죽이지 않고, 사장님이 읽을 수 있는 문구로 답합니다.
+    console.error("[send-estimate-sms] 처리 중 오류", e instanceof Error ? e.stack : e);
+    return json(
+      {
+        ok: false,
+        error: "문자 발송 중 오류가 났습니다. 잠시 후 다시 시도해 주세요.",
+        status: "failed",
+      },
+      500,
+    );
+  }
 });
