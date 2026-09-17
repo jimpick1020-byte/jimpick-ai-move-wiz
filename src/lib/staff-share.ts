@@ -214,6 +214,27 @@ export async function shareToKakao(
   const full = `[짐픽 이사정보]\n\n${lines.join("\n")}`;
   const tooLongForKakao = full.length > 190;
 
+  /** 준비된 SDK는 사용자 클릭 순간 동기적으로 호출해야 모바일 브라우저가 공유창을 막지 않습니다. */
+  const openKakao = (): { ok: boolean; method: ShareMethod } | null => {
+    if (!window.Kakao?.isInitialized?.() || !window.Kakao?.Share?.sendDefault) return null;
+    try {
+      window.Kakao.Share.sendDefault({
+        objectType: "text",
+        text: tooLongForKakao ? `${full.slice(0, 187)}…` : full,
+        link: { mobileWebUrl: card.url, webUrl: card.url },
+        buttonTitle: "직원용 견적서 확인",
+      });
+      return { ok: true, method: "kakao" };
+    } catch (err) {
+      console.error("[staff-share] 카카오톡 공유 실패:", err);
+      return null;
+    }
+  };
+
+  // 모달을 여는 동안 미리 준비된 경우, 첫 await 전에 바로 실행합니다.
+  const openedImmediately = openKakao();
+  if (openedImmediately) return openedImmediately;
+
   /** 시스템 공유 시트 — 카카오톡을 골라 직원을 선택할 수 있고 본문이 잘리지 않습니다 */
   const viaWebShare = async (): Promise<{ ok: boolean; method: ShareMethod; error?: string } | null> => {
     if (typeof navigator === "undefined" || !navigator.share) return null;
@@ -227,32 +248,14 @@ export async function shareToKakao(
     }
   };
 
-  // 카카오톡 텍스트 템플릿은 200자까지만 받습니다.
-  // 내용이 길면 먼저 휴대폰 공유 시트(카카오톡 선택)로 전체 내용을 보냅니다.
-  if (tooLongForKakao) {
-    const r = await viaWebShare();
-    if (r) return r;
-  }
-
   const ready = await loadKakaoShareSdk();
   if (ready) {
-    try {
-      window.Kakao.Share.sendDefault({
-        objectType: "text",
-        text: tooLongForKakao ? `${full.slice(0, 187)}…` : full,
-        link: { mobileWebUrl: card.url, webUrl: card.url },
-        buttonTitle: "직원용 견적서 확인",
-      });
-      return { ok: true, method: "kakao" };
-    } catch (err) {
-      console.error("[staff-share] 카카오톡 공유 실패:", err);
-    }
+    const opened = openKakao();
+    if (opened) return opened;
   }
 
-  if (!tooLongForKakao) {
-    const r = await viaWebShare();
-    if (r) return r;
-  }
+  const r = await viaWebShare();
+  if (r) return r;
 
 
   try {

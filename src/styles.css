@@ -218,11 +218,30 @@
   --jp-tone: #4f46e5; /* 6단계 옵션·보관료 · 남색 */
 }
 
-/* 강조 텍스트(항목명·선택 이름 등)는 단계 색을 따릅니다 */
-.jp-estimate-flow .text-\[\#0864DC\],
-.jp-estimate-flow .text-\[\#0751D8\] {
+/* 고객명·연락처·작업 조건처럼 Field로 지정한 항목명만 단계 색을 따릅니다. */
+.jp-estimate-flow .jp-field-label {
   color: var(--jp-tone, #0864dc);
 }
+
+/* 품목 대분류는 서로 다른 색으로만 구분하고, 나머지 글자색에는 영향을 주지 않습니다. */
+.jp-category-tab {
+  color: var(--jp-category-color);
+  border: 1px solid color-mix(in srgb, var(--jp-category-color) 28%, white);
+  background: color-mix(in srgb, var(--jp-category-color) 7%, white);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--jp-category-color) 14%, white);
+}
+.jp-category-tab[data-selected="true"] {
+  color: white;
+  border-color: var(--jp-category-color);
+  background: var(--jp-category-color);
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--jp-category-color) 72%, black);
+}
+.jp-category-tab[data-category="가전"] { --jp-category-color: #2563eb; }
+.jp-category-tab[data-category="가구"] { --jp-category-color: #7c3aed; }
+.jp-category-tab[data-category="주방"] { --jp-category-color: #c2410c; }
+.jp-category-tab[data-category="생활용품"] { --jp-category-color: #059669; }
+.jp-category-tab[data-category="운동·레저용품"] { --jp-category-color: #0891b2; }
+.jp-category-tab[data-category="기타"] { --jp-category-color: #475569; }
 
 /* 3·4단계: 항목명과 선택 이름을 조금 더 크게 */
 .jp-tone-3 .jp-field-label,

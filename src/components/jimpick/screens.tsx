@@ -108,6 +108,7 @@ import { Button } from "@/components/ui/button";
 import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functions";
 import {
   shareToKakao,
+  loadKakaoShareSdk,
   maskName,
   areaOf,
   buildStaffKakaoLines,
@@ -2631,16 +2632,14 @@ export function Step6() {
                   {visibleCats.map((c) => (
                     <button
                       key={c}
+                      data-category={c}
+                      data-selected={!q && c === tab}
                       onClick={() => {
                         tap("soft");
                         setTab(c);
                         setQ("");
                       }}
-                      className={`shrink-0 px-4 py-2.5 rounded-2xl text-[14px] font-black whitespace-nowrap transition-all active:translate-y-[2px] ${
-                        !q && c === tab
-                          ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0B5FE0] shadow-[0_4px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.45)]"
-                          : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F1F6FF] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff]"
-                      }`}
+                      className="jp-category-tab shrink-0 rounded-2xl px-4 py-2.5 text-[14px] font-black whitespace-nowrap transition-all active:translate-y-[2px]"
                     >
                       {c}
                     </button>
@@ -4342,6 +4341,8 @@ export function Result() {
   const [staffShareOpen, setStaffShareOpen] = useState(false);
   const [staffSharing, setStaffSharing] = useState(false);
   const [staffExpires, setStaffExpires] = useState<string | null>(null);
+  const [staffPreparedUrl, setStaffPreparedUrl] = useState<string | null>(null);
+  const [staffPrepareError, setStaffPrepareError] = useState<string | null>(null);
   /** 기본 업체 정보 저장 중 */
   const [savingDefaults, setSavingDefaults] = useState(false);
   /** 설정에 저장한 상호명 — 견적서 머리글 업체명으로 씁니다(과거 확정 견적은 건드리지 않음) */
@@ -4921,25 +4922,45 @@ export function Result() {
       url,
     });
 
-  /** 직원용 보안 링크를 만들고 카카오톡 공유창을 엽니다 */
-  const doStaffShare = async () => {
+  /** 확인창을 보는 동안 보안 링크와 카카오 SDK를 준비합니다. */
+  const prepareStaffShare = async () => {
     setStaffSharing(true);
+    setStaffPreparedUrl(null);
+    setStaffPrepareError(null);
     try {
-      const made = await createStaffShare({
-        data: {
-          estimateId: draft.id,
-          staffName: draft.staffName || undefined,
-          moveDate: draft.moveDate || undefined,
-          shareMethod: "kakao",
-          snapshot: JSON.stringify(staffSnapshot()),
-        },
-      });
+      const [made] = await Promise.all([
+        createStaffShare({
+          data: {
+            estimateId: draft.id,
+            staffName: draft.staffName || undefined,
+            moveDate: draft.moveDate || undefined,
+            shareMethod: "kakao",
+            snapshot: JSON.stringify(staffSnapshot()),
+          },
+        }),
+        loadKakaoShareSdk(),
+      ]);
       if (!made.ok || !made.token) {
-        toast.error(made.error ?? "직원용 링크를 만들지 못했습니다");
+        const message = made.error ?? "직원용 링크를 만들지 못했습니다";
+        setStaffPrepareError(message);
+        toast.error(message);
         return;
       }
       setStaffExpires(made.expiresAt ?? null);
-      const url = `${window.location.origin}/staff/estimate/${made.token}`;
+      setStaffPreparedUrl(`${window.location.origin}/staff/estimate/${made.token}`);
+    } catch (err) {
+      console.error("[staffSharePrepare]", err);
+      setStaffPrepareError("카카오톡 공유를 준비하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setStaffSharing(false);
+    }
+  };
+
+  /** 준비된 링크로 사용자 클릭 순간 카카오톡 공유창을 엽니다. */
+  const doStaffShare = async () => {
+    if (!staffPreparedUrl || staffSharing) return;
+    setStaffSharing(true);
+    try {
       const r = await shareToKakao({
         sheetNo: draft.sheetNo ?? "",
         moveDate: draft.moveDate ?? "",
@@ -4949,8 +4970,8 @@ export function Result() {
         truckText: staffSnapshot().truckText,
         moveType: String(draft.moveType ?? ""),
         staffName: draft.staffName ?? "",
-        url,
-        lines: staffKakaoLines(url),
+        url: staffPreparedUrl,
+        lines: staffKakaoLines(staffPreparedUrl),
       });
       if (!r.ok) {
         toast.error(r.error ?? "공유하지 못했습니다");
@@ -5280,7 +5301,10 @@ export function Result() {
             tap("soft");
             saveDraft();
             setStaffExpires(null);
+            setStaffPreparedUrl(null);
+            setStaffPrepareError(null);
             setStaffShareOpen(true);
+            void prepareStaffShare();
           }}
           className="w-full min-h-[56px] py-4 rounded-2xl bg-[#FEE500] text-[#191600] font-black flex items-center justify-center gap-2 shadow-[0_4px_0_#E3CE00] active:translate-y-[2px] active:shadow-[0_2px_0_#E3CE00]"
         >
@@ -5318,11 +5342,20 @@ export function Result() {
               <div className="mt-4 space-y-2">
                 <button
                   onClick={() => void doStaffShare()}
-                  disabled={staffSharing}
+                  disabled={staffSharing || !staffPreparedUrl}
                   className="w-full min-h-[56px] rounded-2xl bg-[#FEE500] text-[15px] font-black text-[#191600] shadow-[0_4px_0_#E3CE00] disabled:opacity-50"
                 >
-                  {staffSharing ? "준비 중…" : "카카오톡 열기"}
+                  {staffSharing || !staffPreparedUrl ? "준비 중…" : "카카오톡 열기"}
                 </button>
+                {staffPrepareError && (
+                  <button
+                    onClick={() => void prepareStaffShare()}
+                    disabled={staffSharing}
+                    className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3 text-[13px] font-black text-[#0751D8]"
+                  >
+                    다시 준비하기
+                  </button>
+                )}
                 <button
                   onClick={() => setStaffShareOpen(false)}
                   disabled={staffSharing}
