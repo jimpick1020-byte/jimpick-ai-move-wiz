@@ -137,6 +137,51 @@ export type Database = {
         }
         Relationships: []
       }
+      error_logs: {
+        Row: {
+          attempts: number
+          created_at: string
+          detail: string | null
+          id: string
+          kind: string
+          message: string
+          occurred_at: string
+          recovery: string
+          resolved: boolean
+          resolved_at: string | null
+          screen: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind?: string
+          message: string
+          occurred_at?: string
+          recovery?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          screen: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind?: string
+          message?: string
+          occurred_at?: string
+          recovery?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          screen?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       estimate_deliveries: {
         Row: {
           company_id: string | null
