@@ -87,6 +87,9 @@ export function AdminAccountsScreen() {
             <div className="mt-1 text-xs text-[#6B7280] break-all">{error}</div>
           </Card>
         )}
+        {deleteError && (
+          <Card className="text-xs text-[#B42318] break-keep">{deleteError}</Card>
+        )}
         {!error && rows === null && (
           <div className="py-10 text-center text-sm text-[#6B7280]">불러오는 중…</div>
         )}
