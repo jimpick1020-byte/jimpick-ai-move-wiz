@@ -1160,7 +1160,7 @@ function AddressSearch({
 
   return (
     <Card className="space-y-3">
-      <div className="text-[18px] font-black text-[#0864DC]">{label}</div>
+      <div className="text-[18px] font-black text-[#16A34A]">{label}</div>
       <div className="flex gap-2">
         <TextInput
           placeholder="도로명·지번·건물명 검색"
@@ -1815,6 +1815,8 @@ export function Step4() {
             </div>
           </div>
         </Card>
+        {/* 사다리차와 작업 인원 사이 간격 넓히기 */}
+        <div aria-hidden className="h-6" />
         <Field label="작업 인원">
           <Card>
             <div className="flex items-center justify-between">
