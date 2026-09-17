@@ -91,7 +91,10 @@ export const listCompanyAccounts = createServerFn({ method: "GET" })
     }
 
     const now = Date.now();
-    const users = usersRes.data?.users ?? [];
+    // 최근 가입 업체가 먼저 보이도록 가입일 내림차순으로 정렬합니다.
+    const users = (usersRes.data?.users ?? [])
+      .slice()
+      .sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime());
 
     return users.map((u) => {
       const profile = profiles.get(u.id);
