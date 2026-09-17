@@ -66,6 +66,14 @@ export function AdminAccountsScreen() {
         {!error && rows === null && (
           <div className="py-10 text-center text-sm text-[#6B7280]">불러오는 중…</div>
         )}
+        {rows && rows.length > 0 && (
+          <Card className="flex items-center justify-between gap-2">
+            <div className="text-sm font-bold text-[#111827]">최근 가입 업체</div>
+            <div className="text-xs text-[#6B7280]">
+              3일 안에 가입한 업체 {rows.filter((r) => isNewSignup(r.joinedAt)).length}곳 · 최근 가입 순으로 표시
+            </div>
+          </Card>
+        )}
         {rows?.length === 0 && (
           <div className="py-10 text-center text-sm text-[#6B7280]">등록된 업체 계정이 없습니다.</div>
         )}
