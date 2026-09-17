@@ -81,8 +81,15 @@ export function AdminAccountsScreen() {
           <Card key={r.userId} className="space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="truncate text-[15px] font-bold">
-                  {r.companyName || "업체명 미입력"}
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-[15px] font-bold">
+                    {r.companyName || "업체명 미입력"}
+                  </span>
+                  {isNewSignup(r.joinedAt) && (
+                    <span className="shrink-0 rounded-full bg-[#DCFCE7] px-1.5 py-0.5 text-[10px] font-bold text-[#166534]">
+                      신규
+                    </span>
+                  )}
                 </div>
                 <div className="truncate text-xs text-[#6B7280]">
                   {r.ownerName || "대표자 미입력"}
