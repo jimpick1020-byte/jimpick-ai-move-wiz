@@ -169,6 +169,32 @@
   }
 }
 
+/* 견적 작성 1~6단계: 휴대폰 현장에서 읽기 쉬운 큰 글씨와 선명한 색상 */
+.jp-estimate-flow .jp-shell-inner {
+  color: #0f172a;
+}
+
+.jp-estimate-flow button,
+.jp-estimate-flow select,
+.jp-estimate-flow textarea {
+  letter-spacing: 0;
+}
+
+.jp-estimate-flow button:not([aria-label]),
+.jp-estimate-flow label {
+  font-weight: 800;
+}
+
+.jp-estimate-flow .text-xs {
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
+}
+
+.jp-estimate-flow .text-sm {
+  font-size: 1rem !important;
+  line-height: 1.5rem !important;
+}
+
 /* ===== JIMPICK 네온 프레임 / 캐릭터 애니메이션 ===== */
 @property --jp-angle {
   syntax: "<angle>";

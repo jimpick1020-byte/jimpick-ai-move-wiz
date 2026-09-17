@@ -138,7 +138,7 @@ export function MoveDateCalendar({
       </div>
 
       {/* 요일 */}
-      <div className="mt-3 grid grid-cols-7 text-center text-[13px] font-bold">
+      <div className="mt-3 grid grid-cols-7 text-center text-[15px] font-black">
         {WEEK.map((w, i) => (
           <div key={w} className={dowColor(i, false)}>
             {w}
@@ -191,7 +191,7 @@ export function MoveDateCalendar({
                     c.past ? "opacity-45" : ""
                   }`}
                 >
-                  <span className={`text-[15px] font-bold tabular-nums ${dowColor(c.dow, c.past)}`}>
+                  <span className={`text-[17px] font-black tabular-nums ${dowColor(c.dow, c.past)}`}>
                     {c.d}
                   </span>
                   {/* 상태 표시 — 계약완료(초록/주황) + 건수 > 손없는날 배지 */}
@@ -201,11 +201,11 @@ export function MoveDateCalendar({
                         many ? "text-[#B45309]" : "text-[#15803D]"
                       }`}
                     >
-                      <span className="text-[8.5px] font-bold">계약완료</span>
-                      <span className="mt-[1px] text-[10px] font-black tabular-nums">{cnt}건</span>
+                      <span className="text-[10px] font-black">계약완료</span>
+                      <span className="mt-[1px] text-[11px] font-black tabular-nums">{cnt}건</span>
                     </span>
                   ) : c.son ? (
-                    <span className="rounded-full bg-[#FBE7B8] px-1 py-[1px] text-[9px] font-bold text-[#8A6D1B]">
+                    <span className="rounded-full bg-[#FBE7B8] px-1 py-[1px] text-[10px] font-black text-[#8A6D1B]">
                       손없는날
                     </span>
                   ) : (

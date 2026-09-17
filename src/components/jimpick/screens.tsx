@@ -922,7 +922,7 @@ export function Step1() {
   };
   const swipe = useSwipeNav(() => setScreen("home"), next);
   return (
-    <MobileShell>
+    <MobileShell className="jp-estimate-flow">
       <TopBar title="1단계. 고객 정보 입력" onBack={() => setScreen("home")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
         <Field label="고객명">
@@ -950,7 +950,7 @@ export function Step1() {
                 onClick={() => updateDraft({ moveType: t })}
                 className="text-center py-3"
               >
-                <div className="font-semibold">{t}</div>
+                <div className="text-[17px] font-black text-[#0864DC]">{t}</div>
               </Card>
             ))}
           </div>
@@ -1049,7 +1049,7 @@ export function Step1() {
                   moveTime: `${e.target.value} ${draft.moveTime.split(" ")[1] || "09:00"}`,
                 })
               }
-              className="px-4 py-3 rounded-xl border border-[#E7EBF2] bg-white text-base"
+              className="px-4 py-3 rounded-xl border border-[#BFD4F5] bg-white text-[18px] font-bold text-[#0F172A]"
             >
               <option>오전</option>
               <option>오후</option>
@@ -1061,7 +1061,7 @@ export function Step1() {
                   moveTime: `${draft.moveTime.split(" ")[0] || "오전"} ${e.target.value}`,
                 })
               }
-              className="px-4 py-3 rounded-xl border border-[#E7EBF2] bg-white text-base"
+              className="px-4 py-3 rounded-xl border border-[#BFD4F5] bg-white text-[18px] font-bold text-[#0F172A]"
             >
               {Array.from({ length: 12 }, (_, i) => `${String(i + 1).padStart(2, "0")}:00`).map(
                 (h) => (
@@ -1077,7 +1077,7 @@ export function Step1() {
             onChange={(e) => updateDraft({ memo: e.target.value })}
             placeholder="예) 엘리베이터 예약 필요, 반려동물 있음, 오전 도착 희망 등"
             rows={3}
-            className="w-full px-4 py-3 rounded-xl border border-[#DFE6F2] bg-gradient-to-b from-[#F8FAFD] to-white text-base shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] resize-none"
+            className="w-full px-4 py-3 rounded-xl border border-[#BFD4F5] bg-gradient-to-b from-[#F8FAFD] to-white text-[18px] font-semibold text-[#0F172A] placeholder:text-[#7C899D] shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] resize-none"
           />
         </Field>
         {err && <div className="text-sm text-[#EF4444]">{err}</div>}
@@ -1135,7 +1135,7 @@ function AddressSearch({
 
   return (
     <Card className="space-y-3">
-      <div className="font-bold">{label}</div>
+      <div className="text-[18px] font-black text-[#0864DC]">{label}</div>
       <div className="flex gap-2">
         <TextInput
           placeholder="도로명·지번·건물명 검색"
@@ -1168,8 +1168,8 @@ function AddressSearch({
                 }}
                 className="w-full text-left px-4 py-3 hover:bg-[#F5F7FB] text-sm border-b last:border-b-0 border-[#E7EBF2]"
               >
-                <div className="font-semibold">{a.name}</div>
-                <div className="text-xs text-[#6B7280]">{a.roadAddress || a.address}</div>
+                <div className="text-[17px] font-black text-[#0F172A]">{a.name}</div>
+                <div className="mt-0.5 text-[15px] font-semibold text-[#526174]">{a.roadAddress || a.address}</div>
               </button>
             ))}
         </div>
@@ -1187,7 +1187,7 @@ function AddressSearch({
           검색이 안 되면: 입력한 주소 그대로 사용
         </button>
       )}
-      {value && <div className="text-sm bg-[#F5F7FB] rounded-xl p-3 font-medium">{value}</div>}
+      {value && <div className="rounded-xl bg-[#EAF2FF] p-3 text-[17px] font-bold text-[#0751D8]">{value}</div>}
       <TextInput
         placeholder="상세주소 (예: 101동 1203호)"
         value={detail}
@@ -1260,7 +1260,7 @@ export function Step2() {
     hasBoth ? () => setScreen("step3") : undefined,
   );
   return (
-    <MobileShell>
+    <MobileShell className="jp-estimate-flow">
       <TopBar title="2단계. 주소 검색" onBack={() => setScreen("step1")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
         <AddressSearch
@@ -1541,7 +1541,7 @@ export function Step3() {
     () => setScreen("step4"),
   );
   return (
-    <MobileShell>
+    <MobileShell className="jp-estimate-flow">
       <TopBar title="3단계. 작업 조건" onBack={() => setScreen("step2")} />
       <div className="p-5 space-y-5 flex-1 overflow-auto pb-24" {...swipe}>
         {(["from", "to"] as const).map((side) => {
@@ -1559,7 +1559,7 @@ export function Step3() {
                   className="text-center py-5"
                 >
                   <Art3D src={ENV_IMG["계단"]} alt="계단" size={56} className="mx-auto mb-2" />
-                  <div className="font-bold">계단 (수작업)</div>
+                  <div className="text-[17px] font-black text-[#0864DC]">계단 (수작업)</div>
                 </Card>
                 <Card
                   selected={env === "엘리베이터"}
@@ -1572,7 +1572,7 @@ export function Step3() {
                     size={56}
                     className="mx-auto mb-2"
                   />
-                  <div className="font-bold">엘리베이터</div>
+                  <div className="text-[17px] font-black text-[#0864DC]">엘리베이터</div>
                 </Card>
               </div>
               {!env && !ladderOn && (
@@ -1585,8 +1585,8 @@ export function Step3() {
                 <div className="flex items-center gap-3">
                   <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={48} />
                   <div className="flex-1">
-                    <div className="font-semibold">{place} 사다리차 사용</div>
-                    <div className="text-xs text-[#6B7280]">필요하면 눌러서 선택하세요</div>
+                    <div className="text-[17px] font-black text-[#0864DC]">{place} 사다리차 사용</div>
+                    <div className="text-[14px] font-semibold text-[#526174]">필요하면 눌러서 선택하세요</div>
                   </div>
                   <div
                     className={`w-7 h-7 rounded-full flex items-center justify-center ${
@@ -1600,7 +1600,7 @@ export function Step3() {
               <div className="h-3" />
               <Card>
                 <div className="flex items-center justify-between">
-                  <div className="font-semibold">{place} 층수</div>
+                  <div className="text-[17px] font-black text-[#0864DC]">{place} 층수</div>
                   <FloorStepper
                     value={floor}
                     onChange={(n) => setSideFloor(side, n)}
@@ -1647,7 +1647,7 @@ export function Step4() {
   ];
   const swipe = useSwipeNav(() => setScreen("step3"), goNext);
   return (
-    <MobileShell>
+    <MobileShell className="jp-estimate-flow">
       <TopBar title="4단계. 차량 선택" onBack={() => setScreen("step3")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
         {vehicles.map((v) => (
@@ -1657,8 +1657,8 @@ export function Step4() {
                 <Art3D src={v.img} alt={v.name} size={72} />
 
                 <div>
-                  <div className="font-bold text-lg">{v.name}</div>
-                  <div className="text-xs text-[#6B7280]">최대 {v.max}대</div>
+                  <div className="text-[19px] font-black text-[#0864DC]">{v.name}</div>
+                  <div className="text-[14px] font-bold text-[#526174]">최대 {v.max}대</div>
                 </div>
               </div>
               <Counter
@@ -1674,8 +1674,8 @@ export function Step4() {
           <div className="flex items-center gap-3 mb-3">
             <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={56} />
             <div>
-              <div className="font-bold text-lg">사다리차 사용 위치</div>
-              <div className="text-xs text-[#6B7280]">출발지·도착지를 선택하세요</div>
+              <div className="text-[19px] font-black text-[#0864DC]">사다리차 사용 위치</div>
+              <div className="text-[14px] font-bold text-[#526174]">출발지·도착지를 선택하세요</div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -1781,8 +1781,8 @@ export function Step4() {
               <div className="flex items-center gap-3">
                 <Art3D src={CHAR_IMG.male} alt="남자 작업자" size={56} />
                 <div>
-                  <div className="font-semibold">남자 작업자</div>
-                  <div className="text-xs text-[#6B7280]">0~10명</div>
+                  <div className="text-[17px] font-black text-[#0864DC]">남자 작업자</div>
+                  <div className="text-[14px] font-bold text-[#526174]">0~10명</div>
                 </div>
               </div>
               <Counter
@@ -1799,8 +1799,8 @@ export function Step4() {
               <div className="flex items-center gap-3">
                 <Art3D src={CHAR_IMG.female} alt="주방 이모" size={56} />
                 <div>
-                  <div className="font-semibold">주방 이모</div>
-                  <div className="text-xs text-[#6B7280]">0~5명</div>
+                  <div className="text-[17px] font-black text-[#0864DC]">주방 이모</div>
+                  <div className="text-[14px] font-bold text-[#526174]">0~5명</div>
                 </div>
               </div>
               <Counter
@@ -2347,7 +2347,7 @@ export function Step6() {
   };
 
   return (
-    <MobileShell>
+    <MobileShell className="jp-estimate-flow">
       {/* 헤더 */}
       <div className="px-4 pt-2 pb-3 bg-white border-b border-[#E7EBF2]">
         <div className="flex items-center gap-2">
@@ -2605,7 +2605,7 @@ export function Step6() {
                         >
                           <ItemArt id={it.id} name={it.name} size={36} />
                           <span
-                            className="w-full truncate text-center text-[11.5px] font-black leading-tight"
+                            className="w-full text-center text-[14px] font-black leading-tight line-clamp-2"
                             style={{ color: qty > 0 ? "#0751D8" : "#475569" }}
                             title={it.name}
                           >
@@ -2704,7 +2704,7 @@ export function Step6() {
                                   className="w-full flex flex-col items-center gap-1 active:translate-y-[2px] transition-transform"
                                 >
                                   <ItemArt id={it.id} name={it.name} size={62} />
-                                  <span className="text-[12px] font-extrabold text-[#0F172A] text-center leading-tight line-clamp-2">
+                                  <span className="text-center text-[15px] font-black leading-tight text-[#0864DC] line-clamp-2">
                                     {it.name}
                                   </span>
                                 </button>
@@ -3754,7 +3754,7 @@ export function AIRecognition() {
   }, []);
 
   return (
-    <MobileShell>
+    <MobileShell className="jp-estimate-flow">
       <TopBar title="AI 집 안 스캔" onBack={() => setScreen("step4")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         {/* 마스코트가 직접 촬영해 주는 히어로 영역 */}
@@ -4046,7 +4046,7 @@ export function AIRecognition() {
                 <div className="flex items-start gap-3">
                   <ItemArt id={r.id} name={r.name} size={48} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[15px] font-black text-[#0F172A]">{r.name}</div>
+                    <div className="truncate text-[18px] font-black text-[#0864DC]">{r.name}</div>
                     <div className="mt-0.5 text-[12px] font-semibold leading-snug text-[#6B7280]">
                       정확도 {Math.round(r.confidence * 100)}%
                       {r.note ? <span className="block">{r.note}</span> : null}
@@ -4156,7 +4156,7 @@ export function OptionsScreen() {
   const storageOn = usesStorage(draft);
 
   return (
-    <MobileShell>
+    <MobileShell className="jp-estimate-flow">
       <TopBar title="6단계. 옵션·보관료" onBack={() => setScreen("step6")} />
       <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
         {draft.options.length === 0 && (
@@ -4167,7 +4167,7 @@ export function OptionsScreen() {
         {draft.options.map((o, i) => (
           <Card key={o.id}>
             <div className="flex items-center justify-between gap-2">
-              <label className="flex items-center gap-3 font-semibold flex-1">
+              <label className="flex flex-1 items-center gap-3 text-[17px] font-black text-[#0864DC]">
                 <input
                   type="checkbox"
                   checked={o.enabled}
@@ -4995,7 +4995,7 @@ export function Result() {
   };
 
   return (
-    <MobileShell>
+    <MobileShell className="jp-estimate-flow">
       <TopBar
         title={backTo === "options" ? "견적 결과" : "견적 상세"}
         onBack={() => {

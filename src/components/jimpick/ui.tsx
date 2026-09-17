@@ -67,14 +67,16 @@ export function DraftSaveBadge() {
 export function MobileShell({
   children,
   bg = "bg-[#F5F7FB]",
+  className = "",
 }: {
   children: ReactNode;
   bg?: string;
+  className?: string;
 }) {
   // jp-shell-* 클래스는 홈 화면에서 앱처럼 실행할 때(standalone)
   // 시안용 폰 테두리를 걷어내기 위한 것입니다. (styles.css 참고)
   return (
-    <div className="jp-shell-outer min-h-[100dvh] w-full flex justify-center bg-slate-200">
+    <div className={`jp-shell-outer min-h-[100dvh] w-full flex justify-center bg-slate-200 ${className}`}>
       <div className="jp-shell-frame relative w-full max-w-md p-[3px]">
         {/* 정적 네온 테두리 */}
         <div
@@ -120,7 +122,7 @@ export function TopBar({
           <ChevronLeft className="h-[24px] w-[24px]" strokeWidth={2.2} />
         </button>
       )}
-      <h1 className="min-w-0 flex-1 truncate text-center text-lg font-bold text-[#111827]">
+      <h1 className="min-w-0 flex-1 truncate text-center text-[20px] font-black text-[#0864DC]">
         {title}
       </h1>
       {/* 제목이 가운데 오도록 뒤로가기 버튼과 같은 너비를 비워 둡니다 */}
@@ -490,7 +492,7 @@ export function Card({
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-semibold text-[#111827]">{label}</label>
+      <label className="text-[17px] font-black text-[#0864DC]">{label}</label>
       {children}
     </div>
   );
@@ -500,7 +502,7 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full px-4 py-3 rounded-xl border border-[#DFE6F2] bg-gradient-to-b from-[#F8FAFD] to-white text-base shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] focus:shadow-[inset_0_2px_4px_rgba(15,23,42,0.06),0_0_0_3px_rgba(40,123,255,0.15)] ${props.className ?? ""}`}
+      className={`w-full px-4 py-3 rounded-xl border border-[#BFD4F5] bg-gradient-to-b from-[#F8FAFD] to-white text-[18px] font-bold text-[#0F172A] placeholder:text-[#7C899D] shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] focus:shadow-[inset_0_2px_4px_rgba(15,23,42,0.06),0_0_0_3px_rgba(40,123,255,0.15)] ${props.className ?? ""}`}
     />
   );
 }
