@@ -356,7 +356,12 @@ async function sendViaAligo(v: {
   }
 }
 
-Deno.serve(async (req) => {
+/**
+ * 실제 처리 본문.
+ * 아래 Deno.serve 에서 감싸므로, 여기서 예상 못 한 오류가 나도
+ * 워커가 죽지 않고 안내 문구가 사장님에게 전달됩니다.
+ */
+const handle = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ ok: false, error: "POST 로 불러 주세요." }, 405);
 
