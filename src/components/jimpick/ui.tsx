@@ -492,7 +492,7 @@ export function Card({
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-2">
-      <label className="text-[17px] font-black text-[#0864DC]">{label}</label>
+      <label className="jp-field-label text-[17px] font-black text-[#0864DC]">{label}</label>
       {children}
     </div>
   );

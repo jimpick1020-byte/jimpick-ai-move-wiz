@@ -922,7 +922,7 @@ export function Step1() {
   };
   const swipe = useSwipeNav(() => setScreen("home"), next);
   return (
-    <MobileShell className="jp-estimate-flow">
+    <MobileShell className="jp-estimate-flow jp-tone-1">
       <TopBar title="1단계. 고객 정보 입력" onBack={() => setScreen("home")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
         <Field label="고객명">
@@ -1260,7 +1260,7 @@ export function Step2() {
     hasBoth ? () => setScreen("step3") : undefined,
   );
   return (
-    <MobileShell className="jp-estimate-flow">
+    <MobileShell className="jp-estimate-flow jp-tone-2">
       <TopBar title="2단계. 주소 검색" onBack={() => setScreen("step1")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
         <AddressSearch
@@ -1541,7 +1541,7 @@ export function Step3() {
     () => setScreen("step4"),
   );
   return (
-    <MobileShell className="jp-estimate-flow">
+    <MobileShell className="jp-estimate-flow jp-tone-3">
       <TopBar title="3단계. 작업 조건" onBack={() => setScreen("step2")} />
       <div className="p-5 space-y-5 flex-1 overflow-auto pb-24" {...swipe}>
         {(["from", "to"] as const).map((side) => {
@@ -1647,7 +1647,7 @@ export function Step4() {
   ];
   const swipe = useSwipeNav(() => setScreen("step3"), goNext);
   return (
-    <MobileShell className="jp-estimate-flow">
+    <MobileShell className="jp-estimate-flow jp-tone-4">
       <TopBar title="4단계. 차량 선택" onBack={() => setScreen("step3")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
         {vehicles.map((v) => (
@@ -2347,7 +2347,7 @@ export function Step6() {
   };
 
   return (
-    <MobileShell className="jp-estimate-flow">
+    <MobileShell className="jp-estimate-flow jp-tone-5">
       {/* 헤더 */}
       <div className="px-4 pt-2 pb-3 bg-white border-b border-[#E7EBF2]">
         <div className="flex items-center gap-2">
@@ -3754,7 +3754,7 @@ export function AIRecognition() {
   }, []);
 
   return (
-    <MobileShell className="jp-estimate-flow">
+    <MobileShell className="jp-estimate-flow jp-tone-ai">
       <TopBar title="AI 집 안 스캔" onBack={() => setScreen("step4")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         {/* 마스코트가 직접 촬영해 주는 히어로 영역 */}
@@ -4156,7 +4156,7 @@ export function OptionsScreen() {
   const storageOn = usesStorage(draft);
 
   return (
-    <MobileShell className="jp-estimate-flow">
+    <MobileShell className="jp-estimate-flow jp-tone-6">
       <TopBar title="6단계. 옵션·보관료" onBack={() => setScreen("step6")} />
       <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
         {draft.options.length === 0 && (
