@@ -70,10 +70,7 @@ export function AuthField({
   );
 }
 
-export function AuthInput({
-  className = "",
-  ...props
-}: InputHTMLAttributes<HTMLInputElement>) {
+export function AuthInput({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
@@ -112,14 +109,24 @@ export function AuthLoadingScreen({ onRetry }: { onRetry: () => void }) {
     <main className="flex min-h-[100dvh] w-full items-center justify-center overflow-hidden bg-auth-canvas px-4">
       <div className="flex max-w-sm flex-col items-center text-center" aria-live="polite">
         <img src={logoImg} alt="JIMPICK" className="size-16 object-contain" />
-        <div className="mt-6 size-7 animate-spin rounded-full border-[3px] border-auth-border border-t-auth-primary" aria-hidden />
-        <p className="mt-4 text-base font-semibold text-auth-text">로그인 상태를 확인하고 있습니다.</p>
+        <div
+          className="mt-6 size-7 animate-spin rounded-full border-[3px] border-auth-border border-t-auth-primary"
+          aria-hidden
+        />
+        <p className="mt-4 text-base font-semibold text-auth-text">
+          로그인 상태를 확인하고 있습니다.
+        </p>
         {slow && (
           <div className="mt-5 space-y-3">
             <p role="alert" className="text-sm leading-5 text-auth-muted">
               확인이 평소보다 오래 걸리고 있습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.
             </p>
-            <Button type="button" variant="outline" onClick={onRetry} className="h-11 border-auth-border px-5 text-auth-primary">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onRetry}
+              className="h-11 border-auth-border px-5 text-auth-primary"
+            >
               다시 시도
             </Button>
           </div>

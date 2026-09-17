@@ -5,7 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { authErrorMessage, authHeader } from "@/lib/auth";
 import { lovable } from "@/integrations/lovable/index";
 import { useApp, won } from "@/lib/jimpick";
-import { MobileShell, TopBar, Card, Field, TextInput, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
+import {
+  MobileShell,
+  TopBar,
+  Card,
+  Field,
+  TextInput,
+  PrimaryButton,
+  BottomButtonBar,
+} from "@/components/jimpick/ui";
 import {
   PLANS,
   getMyAccount,
@@ -86,8 +94,16 @@ export function SignupScreen() {
   const passwordValid = hasLength && hasLetter && hasNumber && !commonPassword;
   const phoneDigits = phone.replace(/\D/g, "");
   const phoneValid = /^01[016789]\d{7,8}$/.test(phoneDigits);
-  const requiredComplete = emailValid && passwordValid && company.trim().length > 0 && owner.trim().length > 0 && phoneValid;
-  const canSubmit = mode === "signin" ? emailValid && password.length > 0 : requiredComplete && termsAccepted && privacyAccepted;
+  const requiredComplete =
+    emailValid &&
+    passwordValid &&
+    company.trim().length > 0 &&
+    owner.trim().length > 0 &&
+    phoneValid;
+  const canSubmit =
+    mode === "signin"
+      ? emailValid && password.length > 0
+      : requiredComplete && termsAccepted && privacyAccepted;
 
   const formatSignupPhone = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -157,7 +173,10 @@ export function SignupScreen() {
         // 이메일 확인이 꺼져 있어 바로 세션이 생긴 경우만 로그인 처리합니다.
         toast.success("가입 완료! 한 달 무료 체험이 시작되었습니다");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
         if (error) {
           // 인증이 끝나지 않은 계정이면 '인증메일 다시 보내기' 안내를 띄웁니다.
           if (/email not confirmed|not confirmed/i.test(error.message)) {
@@ -192,7 +211,9 @@ export function SignupScreen() {
       if (error) throw error;
       toast.success("인증 메일을 다시 보냈습니다. 메일함과 스팸함을 확인해 주세요.");
     } catch (e) {
-      toast.error(authErrorMessage(e instanceof Error ? e.message : "") || "재발송에 실패했습니다.");
+      toast.error(
+        authErrorMessage(e instanceof Error ? e.message : "") || "재발송에 실패했습니다.",
+      );
     } finally {
       setResendBusy(false);
     }
@@ -207,13 +228,16 @@ export function SignupScreen() {
     setBusy(true);
     try {
       if (mode === "signup") {
-        localStorage.setItem("jimpick_pending_oauth_consent", JSON.stringify({
-          termsAccepted,
-          privacyAccepted,
-          marketingAccepted,
-          acceptedAt: new Date().toISOString(),
-          version: "2026-09-13",
-        }));
+        localStorage.setItem(
+          "jimpick_pending_oauth_consent",
+          JSON.stringify({
+            termsAccepted,
+            privacyAccepted,
+            marketingAccepted,
+            acceptedAt: new Date().toISOString(),
+            version: "2026-09-13",
+          }),
+        );
       }
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin,
@@ -237,15 +261,28 @@ export function SignupScreen() {
 
   return (
     <AuthShell>
-      <AuthTopBar title={mode === "signup" ? "업체 회원가입" : "업체 로그인"} onBack={() => setScreen("login")} />
-      <form className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-6 sm:px-8" onSubmit={(event) => { event.preventDefault(); void submit(); }} noValidate>
+      <AuthTopBar
+        title={mode === "signup" ? "업체 회원가입" : "업체 로그인"}
+        onBack={() => setScreen("login")}
+      />
+      <form
+        className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-6 sm:px-8"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+        noValidate
+      >
         <div className="grid grid-cols-2 gap-1 rounded-md bg-auth-soft p-1">
           {(["signup", "signin"] as const).map((m) => (
             <Button
               type="button"
               variant="ghost"
               key={m}
-              onClick={() => { setMode(m); setFormError(""); }}
+              onClick={() => {
+                setMode(m);
+                setFormError("");
+              }}
               className={`h-11 rounded-md text-base font-bold ${mode === m ? "bg-background text-auth-primary shadow-sm" : "text-auth-muted"}`}
             >
               {m === "signup" ? "회원가입" : "로그인"}
@@ -254,51 +291,130 @@ export function SignupScreen() {
         </div>
 
         <div className="space-y-4">
-          <AuthField id="signup-email" label="이메일" error={email && !emailValid ? "이메일 주소를 정확히 입력해 주세요." : ""}>
-            <AuthInput id="signup-email" name="email" type="email" inputMode="email" autoComplete="email" placeholder="company@email.com" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!email && !emailValid} aria-describedby={email && !emailValid ? "signup-email-error" : undefined} />
-          </AuthField>
-          <AuthField id="signup-password" label="비밀번호" hint={mode === "signup" ? (
-            <ul className="grid gap-1" aria-live="polite">
-              <li className={hasLength ? "text-auth-primary" : ""}>• 8자 이상</li>
-              <li className={hasLetter ? "text-auth-primary" : ""}>• 영문 포함</li>
-              <li className={hasNumber ? "text-auth-primary" : ""}>• 숫자 포함</li>
-              {commonPassword && <li className="font-semibold text-auth-error">• 널리 알려진 비밀번호는 사용할 수 없습니다.</li>}
-            </ul>
-          ) : undefined}>
-            <div className="relative">
+          <AuthField
+            id="signup-email"
+            label="이메일"
+            error={email && !emailValid ? "이메일 주소를 정확히 입력해 주세요." : ""}
+          >
             <AuthInput
-              id="signup-password"
-              name="password"
-              type={showPassword ? "text" : "password"}
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              placeholder="영문·숫자를 섞어 8자 이상"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              aria-invalid={mode === "signup" && !!password && !passwordValid}
-              aria-describedby={mode === "signup" ? "signup-password-hint" : undefined}
-              className="pr-13"
+              id="signup-email"
+              name="email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder="company@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={!!email && !emailValid}
+              aria-describedby={email && !emailValid ? "signup-email-error" : undefined}
             />
-            <Button type="button" variant="ghost" size="icon" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"} className="absolute right-1 top-1/2 size-11 -translate-y-1/2 text-auth-muted">
-              {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-            </Button>
+          </AuthField>
+          <AuthField
+            id="signup-password"
+            label="비밀번호"
+            hint={
+              mode === "signup" ? (
+                <ul className="grid gap-1" aria-live="polite">
+                  <li className={hasLength ? "text-auth-primary" : ""}>• 8자 이상</li>
+                  <li className={hasLetter ? "text-auth-primary" : ""}>• 영문 포함</li>
+                  <li className={hasNumber ? "text-auth-primary" : ""}>• 숫자 포함</li>
+                  {commonPassword && (
+                    <li className="font-semibold text-auth-error">
+                      • 널리 알려진 비밀번호는 사용할 수 없습니다.
+                    </li>
+                  )}
+                </ul>
+              ) : undefined
+            }
+          >
+            <div className="relative">
+              <AuthInput
+                id="signup-password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                placeholder="영문·숫자를 섞어 8자 이상"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                aria-invalid={mode === "signup" && !!password && !passwordValid}
+                aria-describedby={mode === "signup" ? "signup-password-hint" : undefined}
+                className="pr-13"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+                className="absolute right-1 top-1/2 size-11 -translate-y-1/2 text-auth-muted"
+              >
+                {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+              </Button>
             </div>
           </AuthField>
           {mode === "signup" && (
             <>
               <AuthField id="signup-company" label="업체명">
-                <AuthInput id="signup-company" name="organization" autoComplete="organization" placeholder="업체명을 입력해 주세요" value={company} onChange={(e) => setCompany(e.target.value)} aria-invalid={false} aria-describedby={undefined} />
+                <AuthInput
+                  id="signup-company"
+                  name="organization"
+                  autoComplete="organization"
+                  placeholder="업체명을 입력해 주세요"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  aria-invalid={false}
+                  aria-describedby={undefined}
+                />
               </AuthField>
               <AuthField id="signup-owner" label="담당자명">
-                <AuthInput id="signup-owner" name="name" autoComplete="name" placeholder="담당자명을 입력해 주세요" value={owner} onChange={(e) => setOwner(e.target.value)} aria-invalid={false} aria-describedby={undefined} />
+                <AuthInput
+                  id="signup-owner"
+                  name="name"
+                  autoComplete="name"
+                  placeholder="담당자명을 입력해 주세요"
+                  value={owner}
+                  onChange={(e) => setOwner(e.target.value)}
+                  aria-invalid={false}
+                  aria-describedby={undefined}
+                />
               </AuthField>
-              <AuthField id="signup-phone" label="연락처" error={phone && !phoneValid ? "010으로 시작하는 휴대전화 번호를 정확히 입력해 주세요." : ""}>
-                <AuthInput id="signup-phone" name="tel" type="tel" inputMode="numeric" autoComplete="tel" placeholder="010-0000-0000" value={phone} onChange={(e) => setPhone(formatSignupPhone(e.target.value))} maxLength={13} aria-invalid={!!phone && !phoneValid} aria-describedby={phone && !phoneValid ? "signup-phone-error" : undefined} />
+              <AuthField
+                id="signup-phone"
+                label="연락처"
+                error={
+                  phone && !phoneValid
+                    ? "010으로 시작하는 휴대전화 번호를 정확히 입력해 주세요."
+                    : ""
+                }
+              >
+                <AuthInput
+                  id="signup-phone"
+                  name="tel"
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  placeholder="010-0000-0000"
+                  value={phone}
+                  onChange={(e) => setPhone(formatSignupPhone(e.target.value))}
+                  maxLength={13}
+                  aria-invalid={!!phone && !phoneValid}
+                  aria-describedby={phone && !phoneValid ? "signup-phone-error" : undefined}
+                />
               </AuthField>
             </>
           )}
         </div>
 
-        {mode === "signup" && <ConsentSection termsAccepted={termsAccepted} privacyAccepted={privacyAccepted} marketingAccepted={marketingAccepted} onTerms={setTermsAccepted} onPrivacy={setPrivacyAccepted} onMarketing={setMarketingAccepted} />}
+        {mode === "signup" && (
+          <ConsentSection
+            termsAccepted={termsAccepted}
+            privacyAccepted={privacyAccepted}
+            marketingAccepted={marketingAccepted}
+            onTerms={setTermsAccepted}
+            onPrivacy={setPrivacyAccepted}
+            onMarketing={setMarketingAccepted}
+          />
+        )}
 
         <Button
           type="button"
@@ -313,17 +429,16 @@ export function SignupScreen() {
         </Button>
 
         {pendingEmail && (
-          <Card className="space-y-2 border border-[#0751D8]/20 bg-[#F5F8FF]">
-            <div className="text-sm font-bold text-[#0751D8]">인증 메일을 확인해 주세요</div>
-            <div className="text-[13px] leading-relaxed text-[#4B5563]">
-              <b>{pendingEmail}</b> 로 인증 메일을 보냈습니다. 메일의 링크를 누르면 인증이
-              완료되고, 이 앱으로 돌아와 로그인할 수 있습니다. 메일이 안 보이면{" "}
-              <b>스팸함</b>도 확인해 주세요.
+          <Card className="space-y-2 border border-[#3578C8]/20 bg-[#F5F8FF]">
+            <div className="text-sm font-bold text-[#25282D]">인증 메일을 확인해 주세요</div>
+            <div className="text-[13px] leading-relaxed text-[#6B7280]">
+              <b>{pendingEmail}</b> 로 인증 메일을 보냈습니다. 메일의 링크를 누르면 인증이 완료되고,
+              이 앱으로 돌아와 로그인할 수 있습니다. 메일이 안 보이면 <b>스팸함</b>도 확인해 주세요.
             </div>
             <button
               onClick={resendVerification}
               disabled={resendBusy}
-              className="w-full py-2.5 rounded-xl bg-white border border-[#0751D8] text-[#0751D8] text-sm font-bold disabled:opacity-60"
+              className="w-full py-2.5 rounded-xl bg-white border border-[#3578C8] text-[#25282D] text-sm font-bold disabled:opacity-60"
             >
               {resendBusy ? "다시 보내는 중…" : "인증메일 다시 보내기"}
             </button>
@@ -331,12 +446,27 @@ export function SignupScreen() {
         )}
 
         <div className="text-sm leading-relaxed text-auth-muted">
-          가입 즉시 <b>한 달 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능과 문자를 무제한으로 쓸 수 있습니다.
+          가입 즉시 <b>한 달 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능과 문자를 무제한으로
+          쓸 수 있습니다.
         </div>
-        {formError && <div role="alert" aria-live="assertive" className="rounded-md bg-auth-soft p-3 text-sm font-semibold text-auth-error">{formError}</div>}
+        {formError && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="rounded-md bg-auth-soft p-3 text-sm font-semibold text-auth-error"
+          >
+            {formError}
+          </div>
+        )}
         <div className="sticky bottom-0 -mx-4 mt-auto border-t border-auth-border bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:-mx-8 sm:px-8">
           <AuthPrimaryButton type="submit" busy={busy} disabled={!canSubmit}>
-            {busy ? (mode === "signup" ? "가입 처리 중…" : "로그인 중…") : mode === "signup" ? "가입하고 시작하기" : "로그인"}
+            {busy
+              ? mode === "signup"
+                ? "가입 처리 중…"
+                : "로그인 중…"
+              : mode === "signup"
+                ? "가입하고 시작하기"
+                : "로그인"}
           </AuthPrimaryButton>
         </div>
       </form>
@@ -345,27 +475,120 @@ export function SignupScreen() {
 }
 
 function GoogleIcon() {
-  return <svg aria-hidden viewBox="0 0 24 24" className="size-5"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.4a4.6 4.6 0 0 1-2 3v2.5h3.3c1.9-1.8 2.9-4.4 2.9-7.4Z"/><path fill="#34A853" d="M12 22c2.7 0 5-.9 6.7-2.4l-3.3-2.5c-.9.6-2.1 1-3.4 1-2.6 0-4.8-1.8-5.6-4.2H3v2.6A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.9a6 6 0 0 1 0-3.8V7.5H3a10 10 0 0 0 0 9l3.4-2.6Z"/><path fill="#EA4335" d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.9-2.8A9.7 9.7 0 0 0 3 7.5l3.4 2.6C7.2 7.7 9.4 5.9 12 5.9Z"/></svg>;
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className="size-5">
+      <path
+        fill="#4285F4"
+        d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.4a4.6 4.6 0 0 1-2 3v2.5h3.3c1.9-1.8 2.9-4.4 2.9-7.4Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 22c2.7 0 5-.9 6.7-2.4l-3.3-2.5c-.9.6-2.1 1-3.4 1-2.6 0-4.8-1.8-5.6-4.2H3v2.6A10 10 0 0 0 12 22Z"
+      />
+      <path fill="#FBBC05" d="M6.4 13.9a6 6 0 0 1 0-3.8V7.5H3a10 10 0 0 0 0 9l3.4-2.6Z" />
+      <path
+        fill="#EA4335"
+        d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.9-2.8A9.7 9.7 0 0 0 3 7.5l3.4 2.6C7.2 7.7 9.4 5.9 12 5.9Z"
+      />
+    </svg>
+  );
 }
 
-function ConsentSection({ termsAccepted, privacyAccepted, marketingAccepted, onTerms, onPrivacy, onMarketing }: { termsAccepted: boolean; privacyAccepted: boolean; marketingAccepted: boolean; onTerms: (value: boolean) => void; onPrivacy: (value: boolean) => void; onMarketing: (value: boolean) => void }) {
-  return <fieldset className="space-y-1 rounded-md border border-auth-border bg-auth-soft p-3">
-    <legend className="px-1 text-[15px] font-bold text-auth-text">약관 동의</legend>
-    <ConsentRow checked={termsAccepted} onChange={onTerms} label="이용약관에 동의합니다." required document="terms" />
-    <ConsentRow checked={privacyAccepted} onChange={onPrivacy} label="개인정보 처리방침에 동의합니다." required document="privacy" />
-    <ConsentRow checked={marketingAccepted} onChange={onMarketing} label="서비스 및 이벤트 안내 수신에 동의합니다." />
-  </fieldset>;
+function ConsentSection({
+  termsAccepted,
+  privacyAccepted,
+  marketingAccepted,
+  onTerms,
+  onPrivacy,
+  onMarketing,
+}: {
+  termsAccepted: boolean;
+  privacyAccepted: boolean;
+  marketingAccepted: boolean;
+  onTerms: (value: boolean) => void;
+  onPrivacy: (value: boolean) => void;
+  onMarketing: (value: boolean) => void;
+}) {
+  return (
+    <fieldset className="space-y-1 rounded-md border border-auth-border bg-auth-soft p-3">
+      <legend className="px-1 text-[15px] font-bold text-auth-text">약관 동의</legend>
+      <ConsentRow
+        checked={termsAccepted}
+        onChange={onTerms}
+        label="이용약관에 동의합니다."
+        required
+        document="terms"
+      />
+      <ConsentRow
+        checked={privacyAccepted}
+        onChange={onPrivacy}
+        label="개인정보 처리방침에 동의합니다."
+        required
+        document="privacy"
+      />
+      <ConsentRow
+        checked={marketingAccepted}
+        onChange={onMarketing}
+        label="서비스 및 이벤트 안내 수신에 동의합니다."
+      />
+    </fieldset>
+  );
 }
 
-function ConsentRow({ checked, onChange, label, required = false, document }: { checked: boolean; onChange: (value: boolean) => void; label: string; required?: boolean; document?: "terms" | "privacy" }) {
+function ConsentRow({
+  checked,
+  onChange,
+  label,
+  required = false,
+  document,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  label: string;
+  required?: boolean;
+  document?: "terms" | "privacy";
+}) {
   const content = document === "terms" ? TERMS_DRAFT : PRIVACY_DRAFT;
-  return <div className="flex min-h-11 items-center gap-2">
-    <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 text-sm text-auth-text">
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="size-6 shrink-0 accent-auth-primary" />
-      <span><b className={required ? "text-auth-primary" : "text-auth-muted"}>[{required ? "필수" : "선택"}]</b> {label}</span>
-    </label>
-    {document && <Dialog><DialogTrigger asChild><Button type="button" variant="ghost" className="h-11 px-2 text-sm font-bold text-auth-primary underline">보기</Button></DialogTrigger><DialogContent className="max-h-[80dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-lg border-auth-border p-5"><DialogHeader><DialogTitle>{document === "terms" ? "JIMPICK 이용약관" : "JIMPICK 개인정보 처리방침"}</DialogTitle><DialogDescription>시행일 2026년 9월 13일</DialogDescription></DialogHeader><div className="whitespace-pre-line text-sm leading-6 text-auth-text">{content}</div></DialogContent></Dialog>}
-  </div>;
+  return (
+    <div className="flex min-h-11 items-center gap-2">
+      <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 text-sm text-auth-text">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+          className="size-6 shrink-0 accent-auth-primary"
+        />
+        <span>
+          <b className={required ? "text-auth-primary" : "text-auth-muted"}>
+            [{required ? "필수" : "선택"}]
+          </b>{" "}
+          {label}
+        </span>
+      </label>
+      {document && (
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 px-2 text-sm font-bold text-auth-primary underline"
+            >
+              보기
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[80dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-lg border-auth-border p-5">
+            <DialogHeader>
+              <DialogTitle>
+                {document === "terms" ? "JIMPICK 이용약관" : "JIMPICK 개인정보 처리방침"}
+              </DialogTitle>
+              <DialogDescription>시행일 2026년 9월 13일</DialogDescription>
+            </DialogHeader>
+            <div className="whitespace-pre-line text-sm leading-6 text-auth-text">{content}</div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
 }
 
 const TERMS_DRAFT = `제1조 목적\n본 약관은 JIMPICK이 제공하는 AI 이사 견적 작성·관리 서비스의 이용 조건을 정합니다.\n\n제2조 계정\n이용자는 정확한 업체 정보를 제공하고 계정 정보를 안전하게 관리해야 합니다.\n\n제3조 서비스 이용\n견적 결과는 입력 정보와 설정 단가를 기준으로 계산되며, 이용자는 고객에게 발송하기 전에 내용을 확인해야 합니다.\n\n제4조 금지행위\n타인의 계정 사용, 허위 정보 입력, 서비스 방해 및 관련 법령 위반 행위를 금지합니다.\n\n제5조 책임\n회사는 안정적인 서비스 제공을 위해 노력하며, 천재지변이나 외부 통신 장애 등 합리적으로 통제하기 어려운 사유에는 제한된 책임을 집니다.`;
@@ -441,15 +664,18 @@ export function SubscriptionScreen() {
           });
           await refresh();
         } else {
-          toast.error("결제에 실패했습니다", { description: r.error ?? "카드사 응답을 확인해 주세요" });
+          toast.error("결제에 실패했습니다", {
+            description: r.error ?? "카드사 응답을 확인해 주세요",
+          });
         }
         return;
       }
 
-
       const cfg = await getTossBillingConfig({ headers });
       if (!cfg.ok || !cfg.clientKey || !cfg.customerKey) {
-        toast.error("결제 준비에 실패했습니다", { description: cfg.error ?? "잠시 후 다시 시도해 주세요" });
+        toast.error("결제 준비에 실패했습니다", {
+          description: cfg.error ?? "잠시 후 다시 시도해 주세요",
+        });
         return;
       }
       const { openTossCardRegister } = await import("@/lib/toss");
@@ -470,7 +696,11 @@ export function SubscriptionScreen() {
       return;
     }
     const until = current ? new Date(current.current_period_end).toLocaleDateString("ko-KR") : "";
-    if (!window.confirm(`구독을 해지하시겠어요?\n${until} 까지는 그대로 이용할 수 있고, 이후 결제되지 않습니다.`)) {
+    if (
+      !window.confirm(
+        `구독을 해지하시겠어요?\n${until} 까지는 그대로 이용할 수 있고, 이후 결제되지 않습니다.`,
+      )
+    ) {
       return;
     }
     try {
@@ -502,7 +732,6 @@ export function SubscriptionScreen() {
     }
   };
 
-
   const current = account?.subscription;
   const statusLabel: Record<string, string> = {
     trialing: "무료 체험 중",
@@ -516,7 +745,7 @@ export function SubscriptionScreen() {
       <MobileShell>
         <TopBar title="구독 · 결제" onBack={() => setScreen("home")} />
         <div className="p-5 flex-1 flex flex-col items-center justify-center gap-4 text-center">
-          <Crown className="w-12 h-12 text-[#0751D8]" />
+          <Crown className="w-12 h-12 text-[#25282D]" />
           <div className="font-bold text-lg">업체 계정이 필요합니다</div>
           <div className="text-sm text-[#6B7280]">가입하면 한 달 무료 체험이 바로 시작됩니다.</div>
         </div>
@@ -535,24 +764,26 @@ export function SubscriptionScreen() {
           <div className="text-xs text-[#6B7280]">현재 계정</div>
           <div className="font-bold">{account?.profile?.company_name || email || "내 업체"}</div>
           {entitlement?.isSuperAdmin ? (
-            <div className="mt-2 inline-flex items-center rounded-full bg-[#DCFCE7] px-3 py-1 text-xs font-bold text-[#166534]">
+            <div className="mt-2 inline-flex items-center rounded-full bg-[#E7F3EE] px-3 py-1 text-xs font-bold text-[#3E9B78]">
               JIMPICK 서비스 관리자
             </div>
           ) : (
             <>
               {current && (
                 <div className="text-sm mt-2 flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full bg-[#EDF2FB] text-[#0751D8] text-xs font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-[#F7F8F5] text-[#25282D] text-xs font-bold">
                     {PLANS.find((p) => p.id === current.plan)?.name}
                   </span>
-                  <span className="text-[#6B7280] text-xs">{blocked ? "체험 종료" : (statusLabel[current.status] ?? current.status)}</span>
+                  <span className="text-[#6B7280] text-xs">
+                    {blocked ? "체험 종료" : (statusLabel[current.status] ?? current.status)}
+                  </span>
                   <span className="text-[#6B7280] text-xs">
                     ~ {new Date(current.current_period_end).toLocaleDateString("ko-KR")}
                   </span>
                 </div>
               )}
               {entitlement?.state === "trial" && remainingText && (
-                <div className="mt-2 rounded-xl bg-[#EFF6FF] p-2.5 text-xs font-semibold leading-5 text-[#0751D8] break-keep">
+                <div className="mt-2 rounded-xl bg-[#EFF6FF] p-2.5 text-xs font-semibold leading-5 text-[#25282D] break-keep">
                   한 달 무료체험 · 문자 무제한 ({entitlement.freeSmsUsed}건 사용)
                   <br />
                   무료체험 {entitlement.trialDaysLeft}일 남음 · 문자는 체험 기간 동안 무제한
@@ -562,12 +793,12 @@ export function SubscriptionScreen() {
                 </div>
               )}
               {entitlement?.state === "trial" && entitlement.canSendSms === false && (
-                <div className="mt-2 rounded-xl bg-[#FEF2F2] p-2.5 text-xs font-bold leading-5 text-[#B42318] break-keep">
+                <div className="mt-2 rounded-xl bg-[#FBEAEA] p-2.5 text-xs font-bold leading-5 text-[#D95C5C] break-keep">
                   {entitlement.smsMessage}
                 </div>
               )}
               {entitlement?.state === "active" && entitlement.periodEnd && (
-                <div className="mt-2 rounded-xl bg-[#F0FDF4] p-2.5 text-xs font-semibold leading-5 text-[#166534]">
+                <div className="mt-2 rounded-xl bg-[#E7F3EE] p-2.5 text-xs font-semibold leading-5 text-[#3E9B78]">
                   구독 이용 중 · 다음 결제 예정일{" "}
                   {new Date(entitlement.periodEnd).toLocaleDateString("ko-KR", {
                     timeZone: "Asia/Seoul",
@@ -575,17 +806,16 @@ export function SubscriptionScreen() {
                 </div>
               )}
               {blocked && (
-                <div className="mt-2 rounded-xl bg-[#FEF2F2] p-2.5 text-xs leading-5 text-[#B42318]">
+                <div className="mt-2 rounded-xl bg-[#FBEAEA] p-2.5 text-xs leading-5 text-[#D95C5C]">
                   {TRIAL_EXPIRED_MESSAGE}
                 </div>
               )}
             </>
           )}
           {current?.cancel_at_period_end && (
-            <div className="mt-2 rounded-xl bg-[#FEF2F2] p-2.5 text-xs leading-5 text-[#B42318]">
+            <div className="mt-2 rounded-xl bg-[#FBEAEA] p-2.5 text-xs leading-5 text-[#D95C5C]">
               해지 예약일 {new Date(current.current_period_end).toLocaleDateString("ko-KR")}
-              <br />
-              이 날짜까지는 그대로 이용할 수 있고, 이후에는 결제되지 않습니다.
+              <br />이 날짜까지는 그대로 이용할 수 있고, 이후에는 결제되지 않습니다.
             </div>
           )}
           {card?.registered && (
@@ -599,20 +829,18 @@ export function SubscriptionScreen() {
           {card && (
             <div
               className={`mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                card.mode === "test" ? "bg-[#FEF3C7] text-[#92400E]" : "bg-[#DCFCE7] text-[#166534]"
+                card.mode === "test" ? "bg-[#FEF3C7] text-[#92400E]" : "bg-[#E7F3EE] text-[#3E9B78]"
               }`}
             >
               {card.mode === "test" ? "테스트 결제 모드 (실제 청구 없음)" : "실제 결제 모드"}
             </div>
           )}
-
         </Card>
-
 
         {PLANS.map((p) => {
           const active = current?.plan === p.id;
           return (
-            <Card key={p.id} className={active ? "border-2 border-[#0751D8]" : ""}>
+            <Card key={p.id} className={active ? "border-2 border-[#3578C8]" : ""}>
               <div className="flex items-start justify-between">
                 <div>
                   <div className="font-bold text-lg flex items-center gap-2">
@@ -622,14 +850,16 @@ export function SubscriptionScreen() {
                   <div className="text-xs text-[#6B7280]">{p.desc}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-extrabold text-[#0751D8]">{p.price === 0 ? "무료" : won(p.price)}</div>
+                  <div className="font-extrabold text-[#25282D]">
+                    {p.price === 0 ? "무료" : won(p.price)}
+                  </div>
                   {p.price > 0 && <div className="text-xs text-[#6B7280]">/ 월</div>}
                 </div>
               </div>
               <ul className="mt-3 space-y-1.5">
                 {p.features.map((f) => (
                   <li key={f} className="text-sm flex items-center gap-2">
-                    <Check className="w-4 h-4 text-[#22C55E]" /> {f}
+                    <Check className="w-4 h-4 text-[#3E9B78]" /> {f}
                   </li>
                 ))}
               </ul>
@@ -637,11 +867,13 @@ export function SubscriptionScreen() {
                 disabled={active || busy !== null}
                 onClick={() => buy(p.id)}
                 className={`w-full mt-4 py-3 rounded-2xl font-bold ${
-                  active
-                    ? "bg-[#EDF2FB] text-[#6B7280]"
-                    : "text-white shadow-[0_4px_0_#0645B0]"
+                  active ? "bg-[#F7F8F5] text-[#6B7280]" : "text-white shadow-[0_4px_0_#285C99]"
                 }`}
-                style={active ? undefined : { background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
+                style={
+                  active
+                    ? undefined
+                    : { background: "linear-gradient(180deg, #5B93D6 0%, #3578C8 100%)" }
+                }
               >
                 {active
                   ? "이용 중"
@@ -662,55 +894,65 @@ export function SubscriptionScreen() {
           entitlement?.state !== "admin" &&
           account &&
           account.payments.length > 0 && (
-          <Card>
-            <div className="font-bold mb-2 flex items-center gap-2">
-              <CreditCard className="w-4 h-4" /> 결제 내역
-            </div>
-            <div className="divide-y divide-[#E7EBF2]">
-              {account.payments.map((pay) => {
-                const paid = pay.status === "paid";
-                return (
-                  <div key={pay.id} className="py-2.5 flex items-start justify-between gap-3 text-sm">
-                    <div className="min-w-0">
-                      <div className="font-semibold flex items-center gap-1.5">
-                        {PLANS.find((p) => p.id === pay.plan)?.name}
-                        <span
-                          className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
-                            paid ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEE2E2] text-[#B42318]"
-                          }`}
-                        >
-                          {paid ? "결제 완료" : "결제 실패"}
-                        </span>
-                        {pay.test_mode && (
-                          <span className="rounded-full bg-[#FEF3C7] px-1.5 py-0.5 text-[11px] font-bold text-[#92400E]">
-                            테스트
+            <Card>
+              <div className="font-bold mb-2 flex items-center gap-2">
+                <CreditCard className="w-4 h-4" /> 결제 내역
+              </div>
+              <div className="divide-y divide-[#E5E7EB]">
+                {account.payments.map((pay) => {
+                  const paid = pay.status === "paid";
+                  return (
+                    <div
+                      key={pay.id}
+                      className="py-2.5 flex items-start justify-between gap-3 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-semibold flex items-center gap-1.5">
+                          {PLANS.find((p) => p.id === pay.plan)?.name}
+                          <span
+                            className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
+                              paid ? "bg-[#E7F3EE] text-[#3E9B78]" : "bg-[#FBEAEA] text-[#D95C5C]"
+                            }`}
+                          >
+                            {paid ? "결제 완료" : "결제 실패"}
                           </span>
+                          {pay.test_mode && (
+                            <span className="rounded-full bg-[#FEF3C7] px-1.5 py-0.5 text-[11px] font-bold text-[#92400E]">
+                              테스트
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-[#6B7280] break-all">
+                          결제일 {new Date(pay.paid_at).toLocaleString("ko-KR")}
+                        </div>
+                        {pay.order_id && (
+                          <div className="text-xs text-[#6B7280] break-all">
+                            결제번호 {pay.order_id}
+                          </div>
+                        )}
+                        {paid && pay.next_billing_at && (
+                          <div className="text-xs text-[#6B7280]">
+                            다음 결제 예정일{" "}
+                            {new Date(pay.next_billing_at).toLocaleDateString("ko-KR")}
+                          </div>
+                        )}
+                        {!paid && pay.fail_reason && (
+                          <div className="text-xs text-[#D95C5C] break-words">
+                            사유 {pay.fail_reason}
+                          </div>
                         )}
                       </div>
-                      <div className="text-xs text-[#6B7280] break-all">
-                        결제일 {new Date(pay.paid_at).toLocaleString("ko-KR")}
+                      <div
+                        className={`shrink-0 font-bold ${paid ? "" : "text-[#9CA3AF] line-through"}`}
+                      >
+                        {won(pay.amount)}
                       </div>
-                      {pay.order_id && (
-                        <div className="text-xs text-[#6B7280] break-all">결제번호 {pay.order_id}</div>
-                      )}
-                      {paid && pay.next_billing_at && (
-                        <div className="text-xs text-[#6B7280]">
-                          다음 결제 예정일 {new Date(pay.next_billing_at).toLocaleDateString("ko-KR")}
-                        </div>
-                      )}
-                      {!paid && pay.fail_reason && (
-                        <div className="text-xs text-[#B42318] break-words">사유 {pay.fail_reason}</div>
-                      )}
                     </div>
-                    <div className={`shrink-0 font-bold ${paid ? "" : "text-[#9CA3AF] line-through"}`}>
-                      {won(pay.amount)}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        )}
+                  );
+                })}
+              </div>
+            </Card>
+          )}
 
         {current && current.plan !== "free" && !current.cancel_at_period_end && (
           <button onClick={cancel} className="w-full py-3 text-sm text-[#6B7280] font-semibold">
@@ -719,11 +961,10 @@ export function SubscriptionScreen() {
         )}
 
         {current?.cancel_at_period_end && (
-          <button onClick={resume} className="w-full py-3 text-sm font-bold text-[#0751D8]">
+          <button onClick={resume} className="w-full py-3 text-sm font-bold text-[#25282D]">
             해지 예약 취소하고 계속 이용하기
           </button>
         )}
-
 
         <button
           onClick={async () => {
@@ -731,7 +972,7 @@ export function SubscriptionScreen() {
             toast.success("로그아웃되었습니다");
             setScreen("home");
           }}
-          className="w-full py-3 rounded-2xl bg-white border border-[#E7EBF2] font-semibold flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-2xl bg-white border border-[#E5E7EB] font-semibold flex items-center justify-center gap-2"
         >
           <LogOut className="w-4 h-4" /> 계정 로그아웃
         </button>

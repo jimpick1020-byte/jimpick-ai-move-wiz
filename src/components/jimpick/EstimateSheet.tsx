@@ -54,10 +54,10 @@ export interface SheetRoom {
 function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-3">
-      <span className="shrink-0 text-[#0864DC]">{icon}</span>
+      <span className="shrink-0 text-[#25282D]">{icon}</span>
       <span className="min-w-0">
         <span className="block break-keep text-[15px] leading-tight text-[#6B7280]">{label}</span>
-        <span className="mt-0.5 block break-keep text-[16px] font-bold leading-tight text-[#111827]">
+        <span className="mt-0.5 block break-keep text-[16px] font-bold leading-tight text-[#25282D]">
           {value}
         </span>
       </span>
@@ -70,10 +70,10 @@ function AddressRow({ label, value, sub }: { label: string; value: string; sub?:
   if (!value.trim()) return null;
   return (
     <div className="flex items-start gap-2.5 px-3.5 py-3">
-      <MapPin className="mt-0.5 h-[19px] w-[19px] shrink-0 text-[#0864DC]" strokeWidth={2} />
-      <span className="w-[52px] shrink-0 text-[16px] font-bold text-[#0864DC]">{label}</span>
+      <MapPin className="mt-0.5 h-[19px] w-[19px] shrink-0 text-[#25282D]" strokeWidth={2} />
+      <span className="w-[52px] shrink-0 text-[16px] font-bold text-[#25282D]">{label}</span>
       <span className="min-w-0">
-        <span className="block break-words text-[16px] font-medium text-[#111827]">{value}</span>
+        <span className="block break-words text-[16px] font-medium text-[#25282D]">{value}</span>
         {sub?.trim() && <span className="mt-0.5 block text-[15px] text-[#6B7280]">{sub}</span>}
       </span>
     </div>
@@ -94,13 +94,13 @@ function MoneyRow({
   return (
     <div className="flex items-center justify-between gap-3 py-1.5">
       <span
-        className={`shrink-0 text-[16px] ${tone === "minus" ? "text-[#0864DC]" : "text-[#374151]"}`}
+        className={`shrink-0 text-[16px] ${tone === "minus" ? "text-[#25282D]" : "text-[#6B7280]"}`}
       >
         {label}
       </span>
       <span
         className={`min-w-0 text-right text-[16px] font-bold tabular-nums ${
-          tone === "minus" ? "text-[#0864DC]" : "text-[#111827]"
+          tone === "minus" ? "text-[#25282D]" : "text-[#25282D]"
         }`}
       >
         {tone === "minus" ? "-" : ""}
@@ -128,7 +128,7 @@ function LinkRow({
     <>
       <span className="mt-0.5 shrink-0">{icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[16px] font-bold text-[#0864DC]">{title}</span>
+        <span className="block text-[16px] font-bold text-[#25282D]">{title}</span>
         <span className="mt-0.5 block break-words text-[15px] text-[#6B7280]">{desc}</span>
       </span>
       {badge}
@@ -136,7 +136,7 @@ function LinkRow({
     </>
   );
   const cls =
-    "flex w-full items-start gap-2.5 rounded-[14px] border border-[#DCE8FA] bg-white px-3.5 py-3.5 text-left";
+    "flex w-full items-start gap-2.5 rounded-[14px] border border-[#E5E7EB] bg-white px-3.5 py-3.5 text-left";
   return onClick ? (
     <button onClick={onClick} className={`${cls} active:translate-y-[1px]`}>
       {inner}
@@ -225,9 +225,9 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
       .join(" · ") || "미정";
 
   return (
-    <div ref={ref} className="bg-[#F2F5FA] pb-4">
+    <div ref={ref} className="bg-[#F7F8F5] pb-4">
       {/* 파란 머리띠 */}
-      <div className="flex items-center gap-1.5 bg-[#0864DC] px-4 py-3.5">
+      <div className="flex items-center gap-1.5 bg-[#3578C8] px-4 py-3.5">
         <span className="text-[22px] font-black tracking-tight text-white">JIMPICK</span>
         {companyName.trim() && (
           <span className="text-[17px] font-bold text-white/90">{companyName.trim()}</span>
@@ -244,14 +244,14 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             </div>
           )}
           <div className="flex items-center justify-between gap-3">
-            <h1 className="shrink-0 whitespace-nowrap text-[24px] font-black leading-tight text-[#111827]">
+            <h1 className="shrink-0 whitespace-nowrap text-[24px] font-black leading-tight text-[#25282D]">
               {companyName.trim() ? `${companyName.trim()} 이사 견적서` : "이사 견적서"}
             </h1>
             <div className="shrink-0 text-right">
               <div
                 className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-[15px] font-bold ${
                   confirmed
-                    ? "border-[#BBF7D0] bg-[#F0FDF4] text-[#15803D]"
+                    ? "border-[#BFE3D3] bg-[#E7F3EE] text-[#3E9B78]"
                     : "border-[#FDE68A] bg-[#FFFBEB] text-[#B45309]"
                 }`}
               >
@@ -267,34 +267,34 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           )}
 
           {/* 고객 · 이사일 */}
-          <div className="mt-3 space-y-2 border-t border-[#EDF0F5] pt-3">
+          <div className="mt-3 space-y-2 border-t border-[#E5E7EB] pt-3">
             <div className="flex min-w-0 items-center gap-2">
-              <User className="h-[19px] w-[19px] shrink-0 text-[#0864DC]" strokeWidth={2} />
+              <User className="h-[19px] w-[19px] shrink-0 text-[#25282D]" strokeWidth={2} />
               {draft.customerName?.trim() ? (
-                <span className="min-w-0 truncate text-[17px] font-bold text-[#111827]">
+                <span className="min-w-0 truncate text-[17px] font-bold text-[#25282D]">
                   {draft.customerName.trim()}
                   <span className="ml-1 font-medium text-[#6B7280]">고객님</span>
                 </span>
               ) : (
                 // 이름이 없다고 "고객님"으로 임의 대체하지 않고, 불러오지 못했음을 그대로 알립니다.
-                <span className="min-w-0 truncate text-[16px] font-bold text-[#DC2626]">
+                <span className="min-w-0 truncate text-[16px] font-bold text-[#D95C5C]">
                   고객 이름을 불러올 수 없습니다
                 </span>
               )}
             </div>
             {draft.phone?.trim() && (
               <div className="flex min-w-0 items-center gap-2">
-                <Phone className="h-[19px] w-[19px] shrink-0 text-[#0864DC]" strokeWidth={2} />
+                <Phone className="h-[19px] w-[19px] shrink-0 text-[#25282D]" strokeWidth={2} />
                 <span className="min-w-0 truncate text-[16px] text-[#6B7280]">
-                  연락처 <span className="font-bold text-[#111827]">{draft.phone.trim()}</span>
+                  연락처 <span className="font-bold text-[#25282D]">{draft.phone.trim()}</span>
                 </span>
               </div>
             )}
             <div className="flex min-w-0 items-center gap-2">
-              <CalendarDays className="h-[19px] w-[19px] shrink-0 text-[#0864DC]" strokeWidth={2} />
+              <CalendarDays className="h-[19px] w-[19px] shrink-0 text-[#25282D]" strokeWidth={2} />
               <span className="min-w-0 truncate text-[16px] text-[#6B7280]">
                 이사일{" "}
-                <span className="font-bold text-[#111827]">
+                <span className="font-bold text-[#25282D]">
                   {draft.moveDate ? ymd(draft.moveDate) : "미정"}
                 </span>
               </span>
@@ -303,7 +303,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         </div>
 
         {/* 시작 시간 · 이동 거리 · 예상 이동시간 */}
-        <div className="flex divide-x divide-[#EDF0F5] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+        <div className="flex divide-x divide-[#E5E7EB] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
           <Stat
             icon={<Clock className="h-[19px] w-[19px]" strokeWidth={2} />}
             label="시작 시간"
@@ -322,7 +322,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         </div>
 
         {/* 출발지 · 도착지 */}
-        <div className="divide-y divide-[#EDF0F5] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+        <div className="divide-y divide-[#E5E7EB] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
           <AddressRow
             label="출발지"
             value={`${draft.fromAddress} ${draft.fromDetail || ""}`.trim()}
@@ -338,8 +338,8 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         {/* 고객 메모 — 입력한 내용이 있을 때만 */}
         {draft.memo?.trim() && (
           <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
-            <div className="mb-1.5 text-[17px] font-black text-[#0864DC]">고객 메모</div>
-            <p className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[#374151]">
+            <div className="mb-1.5 text-[17px] font-black text-[#25282D]">고객 메모</div>
+            <p className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[#6B7280]">
               {draft.memo.trim()}
             </p>
           </div>
@@ -348,15 +348,15 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         {/* 특약사항 — 입력한 내용이 있을 때만 */}
         {draft.specialTerms?.trim() && (
           <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
-            <div className="mb-1.5 text-[17px] font-black text-[#0864DC]">특약사항</div>
-            <p className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[#374151]">
+            <div className="mb-1.5 text-[17px] font-black text-[#25282D]">특약사항</div>
+            <p className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[#6B7280]">
               {draft.specialTerms.trim()}
             </p>
           </div>
         )}
 
         {/* 차량 · 이사 유형 */}
-        <div className="flex divide-x divide-[#EDF0F5] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+        <div className="flex divide-x divide-[#E5E7EB] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
           <Stat
             icon={<Truck className="h-[19px] w-[19px]" strokeWidth={2} />}
             label="차량"
@@ -372,7 +372,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         {/* 공간별 품목 */}
         {rooms.length > 0 && (
           <div>
-            <div className="mb-2 px-1 text-[17px] font-black text-[#0864DC]">공간별 품목</div>
+            <div className="mb-2 px-1 text-[17px] font-black text-[#25282D]">공간별 품목</div>
             <div className="space-y-2">
               {rooms.map((r) => (
                 <div
@@ -380,19 +380,19 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                   className="jp-avoid-break flex items-stretch gap-2 rounded-[14px] bg-white p-2.5 shadow-[0_2px_10px_rgba(17,24,39,0.06)]"
                 >
                   <div className="flex w-[64px] shrink-0 items-center justify-center">
-                    <span className="text-[17px] font-black text-[#111827]">{r.name}</span>
+                    <span className="text-[17px] font-black text-[#25282D]">{r.name}</span>
                   </div>
-                  <div className="flex min-w-0 flex-1 flex-wrap gap-x-3 gap-y-2 border-l border-[#EDF0F5] pl-2.5">
+                  <div className="flex min-w-0 flex-1 flex-wrap gap-x-3 gap-y-2 border-l border-[#E5E7EB] pl-2.5">
                     {r.items.map((it) => (
                       <div key={it.id} className="flex min-w-0 items-center gap-1.5">
-                        <span className="flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#EDF0F5] bg-[#F7F9FC]">
+                        <span className="flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-[#F7F8F5]">
                           <ItemArt id={it.id} name={it.name} size={40} />
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate text-[16px] font-medium text-[#111827]">
+                          <span className="block truncate text-[16px] font-medium text-[#25282D]">
                             {it.name}
                           </span>
-                          <span className="block text-[16px] font-bold text-[#111827]">
+                          <span className="block text-[16px] font-bold text-[#25282D]">
                             {it.qty}
                           </span>
                         </span>
@@ -408,11 +408,11 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         {/* 추가 작업 — 고른 것만 적습니다 */}
         {addedWork.length > 0 && (
           <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
-            <div className="mb-1.5 text-[17px] font-black text-[#0864DC]">추가 작업</div>
+            <div className="mb-1.5 text-[17px] font-black text-[#25282D]">추가 작업</div>
             {addedWork.map((o) => (
               <div key={o.id} className="flex items-start justify-between gap-3 py-1.5">
-                <span className="min-w-0 break-words text-[16px] text-[#111827]">{o.name}</span>
-                <span className="shrink-0 text-right text-[16px] font-bold tabular-nums text-[#111827]">
+                <span className="min-w-0 break-words text-[16px] text-[#25282D]">{o.name}</span>
+                <span className="shrink-0 text-right text-[16px] font-bold tabular-nums text-[#25282D]">
                   {o.separate ? "별도" : won(o.price)}
                 </span>
               </div>
@@ -423,24 +423,24 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         {/* 비용 상세 */}
         <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
           <div className="mb-1.5 flex items-center gap-1.5">
-            <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#0864DC] text-[13px] font-black text-white">
+            <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#3578C8] text-[13px] font-black text-white">
               ₩
             </span>
-            <span className="text-[17px] font-black text-[#0864DC]">비용 상세</span>
+            <span className="text-[17px] font-black text-[#25282D]">비용 상세</span>
           </div>
           <MoneyRow label="기본 운송비" amount={transport} />
           <MoneyRow label="사다리차 비용" amount={ladderCost} />
           <MoneyRow label="추가 작업비" amount={extraWork} />
           <MoneyRow label="할인금액" amount={discount} tone="minus" />
           {(deposit > 0 || discount > 0) && (
-            <div className="my-1.5 border-t border-dashed border-[#DCE8FA]" />
+            <div className="my-1.5 border-t border-dashed border-[#E5E7EB]" />
           )}
           <MoneyRow label={paid > 0 ? "예약금 (입금완료)" : "예약금"} amount={deposit} />
           <MoneyRow label="잔금" amount={deposit ? balance : 0} />
 
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-[12px] border border-[#DCE8FA] bg-[#F5F9FF] px-3.5 py-3">
-            <span className="shrink-0 text-[18px] font-black text-[#111827]">총 견적금액</span>
-            <span className="min-w-0 text-right text-[26px] font-black leading-none tabular-nums text-[#0864DC]">
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-[12px] border border-[#E5E7EB] bg-[#F7F8F5] px-3.5 py-3">
+            <span className="shrink-0 text-[18px] font-black text-[#25282D]">총 견적금액</span>
+            <span className="min-w-0 text-right text-[26px] font-black leading-none tabular-nums text-[#25282D]">
               {won(total)}
             </span>
           </div>
@@ -449,11 +449,11 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         {/* 입금 계좌 — 입력한 것만 적습니다 */}
         {hasBank && (
           <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
-            <div className="mb-1.5 text-[17px] font-black text-[#0864DC]">입금 계좌</div>
+            <div className="mb-1.5 text-[17px] font-black text-[#25282D]">입금 계좌</div>
             {bank.name && (
               <div className="flex items-start justify-between gap-3 py-1">
                 <span className="shrink-0 text-[16px] text-[#6B7280]">은행</span>
-                <span className="min-w-0 break-words text-right text-[16px] font-bold text-[#111827]">
+                <span className="min-w-0 break-words text-right text-[16px] font-bold text-[#25282D]">
                   {bank.name}
                 </span>
               </div>
@@ -461,7 +461,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             {bank.account && (
               <div className="flex items-start justify-between gap-3 py-1">
                 <span className="shrink-0 text-[16px] text-[#6B7280]">계좌번호</span>
-                <span className="min-w-0 break-words text-right text-[16px] font-bold tabular-nums text-[#111827]">
+                <span className="min-w-0 break-words text-right text-[16px] font-bold tabular-nums text-[#25282D]">
                   {bank.account}
                 </span>
               </div>
@@ -469,7 +469,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             {bank.holder && (
               <div className="flex items-start justify-between gap-3 py-1">
                 <span className="shrink-0 text-[16px] text-[#6B7280]">예금주</span>
-                <span className="min-w-0 break-words text-right text-[16px] font-bold text-[#111827]">
+                <span className="min-w-0 break-words text-right text-[16px] font-bold text-[#25282D]">
                   {bank.holder}
                 </span>
               </div>
@@ -478,7 +478,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         )}
 
         {/* 담당자 · 연락처 */}
-        <div className="flex divide-x divide-[#EDF0F5] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+        <div className="flex divide-x divide-[#E5E7EB] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
           <Stat
             icon={<User className="h-[19px] w-[19px]" strokeWidth={2} />}
             label="담당자"
@@ -494,19 +494,19 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         {/* 이사화물 표준약관 · 고객 동의 — 별도 화면 없이 여기서 모두 봅니다 */}
         {showTerms && (
           <div className="space-y-2">
-            <div className="rounded-[14px] border border-[#DCE8FA] bg-white px-3.5 py-3.5">
+            <div className="rounded-[14px] border border-[#E5E7EB] bg-white px-3.5 py-3.5">
               <div className="flex items-start gap-2.5">
                 <FileText
-                  className="mt-0.5 h-[20px] w-[20px] shrink-0 text-[#0864DC]"
+                  className="mt-0.5 h-[20px] w-[20px] shrink-0 text-[#25282D]"
                   strokeWidth={2}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="text-[16px] font-bold text-[#0864DC]">{TERMS_NAME}</div>
+                  <div className="text-[16px] font-bold text-[#25282D]">{TERMS_NAME}</div>
                   <div className="mt-0.5 break-words text-[15px] text-[#6B7280]">
                     {TERMS_SOURCE}
                   </div>
                 </div>
-                <span className="shrink-0 whitespace-nowrap rounded-full border border-[#DCE8FA] px-2 py-0.5 text-[15px] font-bold text-[#0864DC]">
+                <span className="shrink-0 whitespace-nowrap rounded-full border border-[#E5E7EB] px-2 py-0.5 text-[15px] font-bold text-[#25282D]">
                   {TERMS_VERSION}
                 </span>
               </div>
@@ -519,7 +519,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                       return !v;
                     });
                   }}
-                  className="rounded-[12px] border border-[#0864DC] bg-white py-2.5 text-[16px] font-bold text-[#0864DC] active:translate-y-[1px]"
+                  className="rounded-[12px] border border-[#3578C8] bg-white py-2.5 text-[16px] font-bold text-[#25282D] active:translate-y-[1px]"
                 >
                   {termsOpen ? "약관 접기" : "약관 보기"}
                 </button>
@@ -530,18 +530,18 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                       return !v;
                     });
                   }}
-                  className="rounded-[12px] border border-[#0864DC] bg-white py-2.5 text-[16px] font-bold text-[#0864DC] active:translate-y-[1px]"
+                  className="rounded-[12px] border border-[#3578C8] bg-white py-2.5 text-[16px] font-bold text-[#25282D] active:translate-y-[1px]"
                 >
                   {fullOpen ? "전체 접기" : "약관 전체보기"}
                 </button>
               </div>
 
               {termsOpen && (
-                <div className="mt-2.5 rounded-[12px] bg-[#F7F9FC] p-3">
+                <div className="mt-2.5 rounded-[12px] bg-[#F7F8F5] p-3">
                   {TERMS_SUMMARY.map((t, i) => (
                     <div key={t.title} className={i > 0 ? "mt-2.5" : ""}>
-                      <div className="text-[16px] font-bold text-[#111827]">{t.title}</div>
-                      <div className="mt-0.5 break-words text-[15px] leading-relaxed text-[#4B5563]">
+                      <div className="text-[16px] font-bold text-[#25282D]">{t.title}</div>
+                      <div className="mt-0.5 break-words text-[15px] leading-relaxed text-[#6B7280]">
                         {t.body}
                       </div>
                     </div>
@@ -549,13 +549,13 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                 </div>
               )}
               {fullOpen && (
-                <div className="mt-2.5 space-y-3 rounded-[12px] bg-[#F7F9FC] p-3">
+                <div className="mt-2.5 space-y-3 rounded-[12px] bg-[#F7F8F5] p-3">
                   {TERMS_FULL.map((t) => (
                     <div key={t.article} className="break-inside-avoid">
-                      <div className="text-[16px] font-black text-[#111827]">
+                      <div className="text-[16px] font-black text-[#25282D]">
                         {t.article} ({t.title})
                       </div>
-                      <div className="mt-0.5 whitespace-pre-line break-words text-[15px] leading-relaxed text-[#4B5563]">
+                      <div className="mt-0.5 whitespace-pre-line break-words text-[15px] leading-relaxed text-[#6B7280]">
                         {t.body}
                       </div>
                     </div>
@@ -568,16 +568,16 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             </div>
 
             {/* 고객 동의 상태 — 고객이 직접 동의해야만 바뀝니다 */}
-            <div className="rounded-[14px] border border-[#DCE8FA] bg-white px-3.5 py-3.5">
+            <div className="rounded-[14px] border border-[#E5E7EB] bg-white px-3.5 py-3.5">
               <div className="flex items-center gap-2">
                 <ShieldCheck
-                  className="h-[20px] w-[20px] shrink-0 text-[#0864DC]"
+                  className="h-[20px] w-[20px] shrink-0 text-[#25282D]"
                   strokeWidth={2}
                 />
-                <span className="text-[16px] font-bold text-[#0864DC]">고객 동의 상태</span>
+                <span className="text-[16px] font-bold text-[#25282D]">고객 동의 상태</span>
                 <span
                   className={`ml-auto shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[15px] font-bold ${
-                    acceptedAt ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#FEF3C7] text-[#B45309]"
+                    acceptedAt ? "bg-[#E7F3EE] text-[#3E9B78]" : "bg-[#FEF3C7] text-[#B45309]"
                   }`}
                 >
                   {acceptedAt ? "동의 완료" : "동의 대기"}
@@ -586,7 +586,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
               <div className="mt-2 space-y-1">
                 <div className="flex items-start justify-between gap-3">
                   <span className="shrink-0 text-[15px] text-[#6B7280]">동의 일시</span>
-                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
+                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#25282D]">
                     {acceptedAt
                       ? new Date(acceptedAt).toLocaleString("ko-KR")
                       : "아직 동의하지 않음"}
@@ -594,7 +594,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="shrink-0 text-[15px] text-[#6B7280]">동의한 견적서 버전</span>
-                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
+                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#25282D]">
                     {acceptedSheetVersion
                       ? `${acceptedSheetVersion}차 견적서`
                       : `${version}차 (발송본)`}
@@ -602,7 +602,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="shrink-0 text-[15px] text-[#6B7280]">동의한 약관 버전</span>
-                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#111827]">
+                  <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#25282D]">
                     {acceptedTermsVersion ?? `${TERMS_VERSION} (발송본)`}
                   </span>
                 </div>
@@ -617,7 +617,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         )}
 
         {draft.sheetNote?.trim() && (
-          <p className="px-1 text-[16px] font-medium text-[#374151]">{draft.sheetNote.trim()}</p>
+          <p className="px-1 text-[16px] font-medium text-[#6B7280]">{draft.sheetNote.trim()}</p>
         )}
       </div>
     </div>

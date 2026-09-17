@@ -3,7 +3,15 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { authErrorMessage } from "@/lib/auth";
 import { useApp } from "@/lib/jimpick";
-import { MobileShell, TopBar, Card, Field, TextInput, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
+import {
+  MobileShell,
+  TopBar,
+  Card,
+  Field,
+  TextInput,
+  PrimaryButton,
+  BottomButtonBar,
+} from "@/components/jimpick/ui";
 import { AuthField, AuthInput, AuthPrimaryButton, AuthShell, AuthTopBar } from "./AuthUi";
 
 /** 비밀번호 재설정 메일이 돌아올 화면 주소 (공개 앱 주소로 고정) */
@@ -55,7 +63,14 @@ export function ForgotPasswordScreen() {
   return (
     <AuthShell>
       <AuthTopBar title="아이디 · 비밀번호 찾기" onBack={() => setScreen("login")} />
-      <form className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-6 sm:px-8" onSubmit={(event) => { event.preventDefault(); void send(); }} noValidate>
+      <form
+        className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-6 sm:px-8"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void send();
+        }}
+        noValidate
+      >
         <section className="space-y-5 rounded-lg border border-auth-border bg-background p-4 shadow-sm">
           <div className="text-sm leading-relaxed text-auth-muted">
             가입할 때 쓴 <b>이메일 주소</b>가 곧 아이디입니다. 아래에 적어 주시면 그 주소로
@@ -70,7 +85,10 @@ export function ForgotPasswordScreen() {
               autoComplete="email"
               placeholder="jimpick@example.com"
               value={email}
-              onChange={(e) => { setEmail(e.target.value); setEmailError(validateEmail(e.target.value)); }}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailError(validateEmail(e.target.value));
+              }}
               aria-invalid={!!emailError}
               aria-describedby={emailError ? "forgot-email-error" : undefined}
             />
@@ -78,13 +96,20 @@ export function ForgotPasswordScreen() {
         </section>
 
         {sentTo && (
-          <div role="status" className="space-y-1 rounded-lg border border-auth-border bg-auth-soft p-4">
+          <div
+            role="status"
+            className="space-y-1 rounded-lg border border-auth-border bg-auth-soft p-4"
+          >
             <div className="text-sm font-bold text-auth-primary">메일을 확인해 주세요</div>
-            <div className="text-sm leading-relaxed text-auth-muted">입력하신 이메일로 비밀번호 재설정 안내를 보냈습니다. 메일함을 확인해 주세요.</div>
+            <div className="text-sm leading-relaxed text-auth-muted">
+              입력하신 이메일로 비밀번호 재설정 안내를 보냈습니다. 메일함을 확인해 주세요.
+            </div>
           </div>
         )}
         <div className="sticky bottom-0 -mx-4 mt-auto border-t border-auth-border bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:-mx-8 sm:px-8">
-          <AuthPrimaryButton type="submit" busy={busy}>{busy ? "전송 중…" : "재설정 메일 보내기"}</AuthPrimaryButton>
+          <AuthPrimaryButton type="submit" busy={busy}>
+            {busy ? "전송 중…" : "재설정 메일 보내기"}
+          </AuthPrimaryButton>
         </div>
       </form>
     </AuthShell>
@@ -108,7 +133,9 @@ export function ResetPasswordScreen() {
         const url = new URL(window.location.href);
         const code = url.searchParams.get("code");
         if (code) await supabase.auth.exchangeCodeForSession(code);
-        const errDesc = url.searchParams.get("error_description") ?? new URLSearchParams(url.hash.slice(1)).get("error_description");
+        const errDesc =
+          url.searchParams.get("error_description") ??
+          new URLSearchParams(url.hash.slice(1)).get("error_description");
         const { data } = await supabase.auth.getSession();
         if (!alive) return;
         if (data.session) setReady(true);
@@ -119,7 +146,12 @@ export function ResetPasswordScreen() {
               : "링크가 만료되었거나 올바르지 않습니다. 로그인 화면에서 재설정 메일을 다시 받아 주세요.",
           );
       } catch (e) {
-        if (alive) setLinkError(e instanceof Error ? authErrorMessage(e.message) || e.message : "링크를 확인하지 못했습니다.");
+        if (alive)
+          setLinkError(
+            e instanceof Error
+              ? authErrorMessage(e.message) || e.message
+              : "링크를 확인하지 못했습니다.",
+          );
       }
     })();
     return () => {
@@ -161,9 +193,9 @@ export function ResetPasswordScreen() {
       <TopBar title="새 비밀번호 설정" />
       <div className="p-5 space-y-4 flex-1 overflow-auto">
         {linkError && (
-          <Card className="space-y-1 border border-[#EF4444]/30 bg-[#FEF2F2]">
-            <div className="text-sm font-bold text-[#EF4444]">링크를 사용할 수 없습니다</div>
-            <div className="text-[13px] leading-relaxed text-[#4B5563]">{linkError}</div>
+          <Card className="space-y-1 border border-[#D95C5C]/30 bg-[#FBEAEA]">
+            <div className="text-sm font-bold text-[#D95C5C]">링크를 사용할 수 없습니다</div>
+            <div className="text-[13px] leading-relaxed text-[#6B7280]">{linkError}</div>
           </Card>
         )}
         {!linkError && !ready && <Card>확인 중입니다…</Card>}
@@ -193,9 +225,11 @@ export function ResetPasswordScreen() {
           </Card>
         )}
         {done && (
-          <Card className="space-y-1 border border-[#0751D8]/20 bg-[#F5F8FF]">
-            <div className="text-sm font-bold text-[#0751D8]">변경 완료</div>
-            <div className="text-[13px] leading-relaxed text-[#4B5563]">새 비밀번호로 로그인해 주세요.</div>
+          <Card className="space-y-1 border border-[#3578C8]/20 bg-[#F5F8FF]">
+            <div className="text-sm font-bold text-[#25282D]">변경 완료</div>
+            <div className="text-[13px] leading-relaxed text-[#6B7280]">
+              새 비밀번호로 로그인해 주세요.
+            </div>
           </Card>
         )}
       </div>

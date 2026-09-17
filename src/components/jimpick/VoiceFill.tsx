@@ -62,7 +62,9 @@ export function VoiceFill() {
   const start = () => {
     const SR = recognitionCtor();
     if (!SR) {
-      fail("이 기기는 음성 인식을 지원하지 않습니다. 갤럭시는 크롬, 아이폰은 사파리로 열어 주세요.");
+      fail(
+        "이 기기는 음성 인식을 지원하지 않습니다. 갤럭시는 크롬, 아이폰은 사파리로 열어 주세요.",
+      );
       return;
     }
     if (!isSecureForMic()) {
@@ -163,7 +165,9 @@ export function VoiceFill() {
       const found = parseEstimateVoice(all);
       if (found.length === 0) {
         setStatus("error");
-        setHint("말씀에서 넣을 내용을 찾지 못했습니다. 이름·연락처·날짜·주소를 또박또박 말씀해 주세요.");
+        setHint(
+          "말씀에서 넣을 내용을 찾지 못했습니다. 이름·연락처·날짜·주소를 또박또박 말씀해 주세요.",
+        );
         return;
       }
       setFields(found);
@@ -221,14 +225,14 @@ export function VoiceFill() {
         {status === "listening" ? (
           <button
             onClick={stop}
-            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-b from-[#FF6B6B] to-[#DC2626] py-3.5 text-[15px] font-black text-white shadow-[0_4px_0_#991B1B] active:translate-y-[2px] active:shadow-none"
+            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-b from-[#D95C5C] to-[#D95C5C] py-3.5 text-[15px] font-black text-white shadow-[0_4px_0_#991B1B] active:translate-y-[2px] active:shadow-none"
           >
             <Square className="h-5 w-5" /> 종료하고 확인하기
           </button>
         ) : (
           <button
             onClick={start}
-            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] py-3.5 text-[15px] font-black text-white shadow-[0_4px_0_#0640A8] active:translate-y-[2px] active:shadow-none"
+            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-3.5 text-[15px] font-black text-white shadow-[0_4px_0_#285C99] active:translate-y-[2px] active:shadow-none"
           >
             {status === "error" ? <RotateCcw className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             {status === "error" ? "다시 시도" : "말로 고객 정보 입력"}
@@ -241,13 +245,13 @@ export function VoiceFill() {
           <span
             className={`rounded-full px-2.5 py-1 text-[11.5px] font-black ${
               status === "listening"
-                ? "bg-[#DBEAFE] text-[#0751D8]"
+                ? "bg-[#DBEAFE] text-[#25282D]"
                 : status === "parsing"
                   ? "bg-[#FEF3C7] text-[#B45309]"
                   : status === "done"
-                    ? "bg-[#DCFCE7] text-[#15803D]"
+                    ? "bg-[#E7F3EE] text-[#3E9B78]"
                     : status === "error"
-                      ? "bg-[#FEE2E2] text-[#B91C1C]"
+                      ? "bg-[#FBEAEA] text-[#D95C5C]"
                       : "bg-[#EEF2F7] text-[#6B7280]"
             }`}
           >
@@ -261,7 +265,7 @@ export function VoiceFill() {
         </div>
         {hint && <div className="mt-1.5 text-[13px] font-semibold text-[#6B7280]">{hint}</div>}
         {(text || interim) && (
-          <div className="mt-1.5 whitespace-pre-wrap break-words text-[14px] text-[#111827]">
+          <div className="mt-1.5 whitespace-pre-wrap break-words text-[14px] text-[#25282D]">
             {text}
             {interim && <span className="text-[#9AA4B2]"> {interim}</span>}
           </div>
@@ -271,7 +275,7 @@ export function VoiceFill() {
       {/* 넣기 전에 한 번에 확인·수정 */}
       {fields && (
         <Card className="rounded-[14px]">
-          <div className="text-[14px] font-black text-[#0F172A]">
+          <div className="text-[14px] font-black text-[#25282D]">
             이렇게 들었어요. 맞는지 확인해 주세요.
           </div>
           <div className="mt-2 space-y-2">
@@ -280,14 +284,14 @@ export function VoiceFill() {
               const prev = (draft as unknown as Record<string, unknown>)[key];
               const hasPrev = prev !== "" && prev !== 0 && prev !== false && prev != null;
               return (
-                <div key={key} className="rounded-2xl bg-[#F7F9FC] p-2.5">
+                <div key={key} className="rounded-2xl bg-[#F7F8F5] p-2.5">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setKeep((k) => ({ ...k, [key]: !k[key] }))}
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border ${
                         keep[key]
-                          ? "border-[#0751D8] bg-[#0751D8] text-white"
-                          : "border-[#DCE8FA] bg-white text-transparent"
+                          ? "border-[#3578C8] bg-[#3578C8] text-white"
+                          : "border-[#E5E7EB] bg-white text-transparent"
                       }`}
                       aria-label={`${f.label} 넣기`}
                     >
@@ -299,7 +303,7 @@ export function VoiceFill() {
                     <input
                       value={edited[key] ?? f.text}
                       onChange={(e) => setEdited((s) => ({ ...s, [key]: e.target.value }))}
-                      className="min-w-0 flex-1 rounded-xl border border-[#DFE6F2] bg-white px-2.5 py-2 text-[14px]"
+                      className="min-w-0 flex-1 rounded-xl border border-[#E5E7EB] bg-white px-2.5 py-2 text-[14px]"
                     />
                   </div>
                   {hasPrev && (
@@ -318,7 +322,7 @@ export function VoiceFill() {
                 setStatus("idle");
                 setHint("");
               }}
-              className="flex-1 rounded-2xl border border-[#E7EBF2] bg-white py-3 text-[14px] font-bold text-[#6B7280]"
+              className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3 text-[14px] font-bold text-[#6B7280]"
             >
               취소
             </button>

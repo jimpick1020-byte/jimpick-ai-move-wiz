@@ -98,7 +98,7 @@ export function Plan3D() {
 
   return (
     <MobileShell>
-      <div className="px-4 pt-2 pb-3 bg-white border-b border-[#E7EBF2]">
+      <div className="px-4 pt-2 pb-3 bg-white border-b border-[#E5E7EB]">
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -106,11 +106,11 @@ export function Plan3D() {
               setScreen("step6");
             }}
             aria-label="5단계로 돌아가기"
-            className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] flex items-center justify-center text-[#0751D8] shadow-[0_4px_0_#DCE8FA,inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#DCE8FA]"
+            className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] flex items-center justify-center text-[#25282D] shadow-[0_4px_0_#E5E7EB,inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#E5E7EB]"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
-          <h1 className="flex-1 text-center text-[20px] font-black text-[#0F172A] leading-tight">
+          <h1 className="flex-1 text-center text-[20px] font-black text-[#25282D] leading-tight">
             6단계. 3D 품목 확인
           </h1>
           <button
@@ -125,7 +125,7 @@ export function Plan3D() {
               }
             }}
             aria-label="5~6단계 변경 직전으로 복원"
-            className="shrink-0 h-10 px-3 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] flex items-center gap-1 text-[12px] font-black text-[#0751D8] shadow-[0_4px_0_#DCE8FA,inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#DCE8FA]"
+            className="shrink-0 h-10 px-3 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] flex items-center gap-1 text-[12px] font-black text-[#25282D] shadow-[0_4px_0_#E5E7EB,inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#E5E7EB]"
           >
             <RotateCcw className="w-4 h-4" />
             복원
@@ -137,7 +137,7 @@ export function Plan3D() {
       </div>
 
       {/* 평수 선택 */}
-      <div className="bg-white border-b border-[#E7EBF2] px-4 py-3">
+      <div className="bg-white border-b border-[#E5E7EB] px-4 py-3">
         <div className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {SIZE_TABS.map((t) => (
             <button
@@ -145,8 +145,8 @@ export function Plan3D() {
               onClick={() => pickSize(t.key)}
               className={`px-4 py-2.5 rounded-2xl text-[14px] font-black whitespace-nowrap transition-all active:translate-y-[2px] ${
                 t.key === size
-                  ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_4px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.5)]"
-                  : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F1F6FF] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff]"
+                  ? "text-white bg-gradient-to-b from-[#5B93D6] to-[#3578C8] shadow-[0_4px_0_#285C99,inset_0_1px_0_rgba(255,255,255,0.5)]"
+                  : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F7F8F5] shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff]"
               }`}
             >
               {t.key}
@@ -158,7 +158,7 @@ export function Plan3D() {
       {/* 3D 입체 평면도 */}
       <div className="flex-1 overflow-auto p-4 pb-8 bg-gradient-to-b from-[#EEF6FF] to-[#DCE7F8]">
         <div className="[perspective:1200px]">
-          <div className="grid grid-cols-4 gap-2.5 rounded-3xl p-3 bg-gradient-to-b from-white/80 to-[#EAF2FF]/80 border border-[#DCE8FA] shadow-[0_14px_30px_-16px_rgba(7,81,216,0.55)] [transform:rotateX(9deg)] [transform-style:preserve-3d]">
+          <div className="grid grid-cols-4 gap-2.5 rounded-3xl p-3 bg-gradient-to-b from-white/80 to-[#F7F8F5]/80 border border-[#E5E7EB] shadow-[0_14px_30px_-16px_rgba(7,81,216,0.55)] [transform:rotateX(9deg)] [transform-style:preserve-3d]">
             {sizeRooms.map((name) => {
               const r = roomOf(name);
               const s = roomSummary(r?.items || {});
@@ -170,11 +170,11 @@ export function Plan3D() {
                     tap("soft");
                     setOpen(name);
                   }}
-                  className={`${layout[name] || "col-span-2"} relative text-left rounded-2xl p-2.5 bg-gradient-to-b from-white to-[#F2F7FF] border border-[#DCE8FA] shadow-[0_8px_0_#E1EAF8,0_16px_26px_-14px_rgba(7,81,216,0.45),inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-[0_2px_0_#E1EAF8] transition-transform`}
+                  className={`${layout[name] || "col-span-2"} relative text-left rounded-2xl p-2.5 bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_8px_0_#E5E7EB,0_16px_26px_-14px_rgba(7,81,216,0.45),inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-[0_2px_0_#E5E7EB] transition-transform`}
                 >
                   <span
                     className={`inline-block px-2.5 py-1 rounded-xl text-white text-[13px] font-black bg-gradient-to-b ${
-                      ROOM_TINT[name] || "from-[#4C9BFF] to-[#0751D8]"
+                      ROOM_TINT[name] || "from-[#5B93D6] to-[#3578C8]"
                     } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)]`}
                   >
                     {name}
@@ -189,11 +189,11 @@ export function Plan3D() {
                         return (
                           <span
                             key={id}
-                            className="relative rounded-xl bg-gradient-to-b from-white to-[#EAF2FF] border border-[#CFE0FA] p-0.5 shadow-[0_2px_0_#DCE8FA,inset_0_1px_0_#fff]"
+                            className="relative rounded-xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] p-0.5 shadow-[0_2px_0_#E5E7EB,inset_0_1px_0_#fff]"
                           >
                             <ItemArt id={id} name={nm} size={24} />
                             {qty > 1 && (
-                              <span className="absolute -top-1 -right-1 px-1 rounded-full bg-[#0751D8] text-white text-[9px] font-black">
+                              <span className="absolute -top-1 -right-1 px-1 rounded-full bg-[#3578C8] text-white text-[9px] font-black">
                                 {qty}
                               </span>
                             )}
@@ -201,17 +201,17 @@ export function Plan3D() {
                         );
                       })}
                       {entries.length > 8 && (
-                        <span className="self-center text-[11px] font-black text-[#0751D8]">
+                        <span className="self-center text-[11px] font-black text-[#25282D]">
                           +{entries.length - 8}
                         </span>
                       )}
                     </div>
                   )}
-                  <div className="mt-1 text-center text-[11px] font-extrabold text-[#0F172A]">
+                  <div className="mt-1 text-center text-[11px] font-extrabold text-[#25282D]">
                     {s.kinds > 0 ? `품목 ${s.kinds}종 · 총 ${s.count}개` : "품목 없음"}
                   </div>
                   {s.count > 0 && (
-                    <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.5)]">
+                    <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#285C99,inset_0_1px_0_rgba(255,255,255,0.5)]">
                       {s.count}
                     </span>
                   )}
@@ -237,14 +237,14 @@ export function Plan3D() {
       {openRoom && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div
-            className="absolute inset-0 bg-[#0F172A]/45 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-[#25282D]/45 backdrop-blur-[2px]"
             onClick={() => setOpen(null)}
           />
-          <div className="relative w-full max-w-md max-h-[80dvh] overflow-auto rounded-t-3xl bg-gradient-to-b from-white to-[#F5F9FF] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-14px_40px_rgba(7,81,216,0.28)]">
+          <div className="relative w-full max-w-md max-h-[80dvh] overflow-auto rounded-t-3xl bg-gradient-to-b from-white to-[#F7F8F5] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-14px_40px_rgba(7,81,216,0.28)]">
             <div className="flex items-center gap-2">
               <span
                 className={`px-3 py-1 rounded-xl text-white text-[15px] font-black bg-gradient-to-b ${
-                  ROOM_TINT[openRoom.name] || "from-[#4C9BFF] to-[#0751D8]"
+                  ROOM_TINT[openRoom.name] || "from-[#5B93D6] to-[#3578C8]"
                 } shadow-[0_3px_0_rgba(0,0,0,0.18)]`}
               >
                 {openRoom.name}
@@ -262,11 +262,11 @@ export function Plan3D() {
                 return (
                   <div
                     key={id}
-                    className="flex items-center gap-3 p-2.5 rounded-2xl bg-white border border-[#E3EBF7] shadow-[0_3px_0_#EDF2FA,inset_0_1px_0_#fff]"
+                    className="flex items-center gap-3 p-2.5 rounded-2xl bg-white border border-[#E5E7EB] shadow-[0_3px_0_#F7F8F5,inset_0_1px_0_#fff]"
                   >
                     <ItemArt id={id} name={nm} size={40} />
-                    <span className="flex-1 font-extrabold text-[15px] text-[#0F172A]">{nm}</span>
-                    <span className="font-black text-[15px] text-[#0751D8] tabular-nums">
+                    <span className="flex-1 font-extrabold text-[15px] text-[#25282D]">{nm}</span>
+                    <span className="font-black text-[15px] text-[#25282D] tabular-nums">
                       {qty}
                     </span>
                   </div>

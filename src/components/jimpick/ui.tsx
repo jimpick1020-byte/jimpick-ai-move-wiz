@@ -29,8 +29,9 @@ export function StatusBar() {
   );
 }
 
+// 형광색을 쓰지 않고, 차분한 파란색·연회색으로 은은한 테두리를 만듭니다.
 const NEON_GRADIENT =
-  "conic-gradient(from var(--jp-angle), #ff007f, #7928ca, #00dfd8, #7928ca, #ff007f)";
+  "conic-gradient(from var(--jp-angle), #3578C8, #A9C3E4, #E5E7EB, #A9C3E4, #3578C8)";
 
 /**
  * 작성 중인 견적 자동 임시저장 알림.
@@ -50,9 +51,9 @@ export function DraftSaveBadge() {
           : "임시저장 실패 · 연결되면 다시 저장합니다";
   const tone =
     state === "saved"
-      ? "bg-[#DCFCE7] text-[#15803D]"
+      ? "bg-[#E7F3EE] text-[#3E9B78]"
       : state === "saving"
-        ? "bg-[#EEF4FF] text-[#0751D8]"
+        ? "bg-[#F7F8F5] text-[#25282D]"
         : "bg-[#FEF3C7] text-[#B45309]";
   return (
     <div className="px-4 pt-1" aria-live="polite">
@@ -65,7 +66,7 @@ export function DraftSaveBadge() {
 
 export function MobileShell({
   children,
-  bg = "bg-[#F5F7FB]",
+  bg = "bg-[#F7F8F5]",
   className = "",
 }: {
   children: ReactNode;
@@ -108,7 +109,7 @@ export function TopBar({
   confirmBack?: string;
 }) {
   return (
-    <div className="flex items-center gap-1 border-b border-[#E7EBF2] bg-white px-4 py-3">
+    <div className="flex items-center gap-1 border-b border-[#E5E7EB] bg-white px-4 py-3">
       {onBack && (
         <button
           onClick={() => {
@@ -116,13 +117,13 @@ export function TopBar({
             tap("soft");
             onBack();
           }}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-[#DCE8FA] bg-gradient-to-b from-white to-[#F1F6FF] text-[#0864DC] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff] transition-transform active:translate-y-[2px] active:shadow-none"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7F8F5] text-[#25282D] shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff] transition-transform active:translate-y-[2px] active:shadow-none"
           aria-label="뒤로"
         >
           <ChevronLeft className="h-[24px] w-[24px]" strokeWidth={2.2} />
         </button>
       )}
-      <h1 className="min-w-0 flex-1 truncate text-center text-[20px] font-black text-[#0864DC]">
+      <h1 className="min-w-0 flex-1 truncate text-center text-[20px] font-black text-[#25282D]">
         {title}
       </h1>
       {/* 제목이 가운데 오도록 뒤로가기 버튼과 같은 너비를 비워 둡니다 */}
@@ -149,9 +150,9 @@ export function PrimaryButton({
         onClick?.();
       }}
       disabled={disabled}
-      className={`relative w-full py-4 rounded-2xl text-white text-lg font-bold overflow-hidden transition-transform active:translate-y-[2px] active:shadow-[0_2px_0_#0645B0,0_6px_14px_rgba(7,81,216,0.25)] shadow-[0_5px_0_#0645B0,0_14px_26px_rgba(7,81,216,0.32)] disabled:opacity-50 disabled:shadow-none ${className}`}
+      className={`relative w-full py-4 rounded-2xl text-white text-lg font-bold overflow-hidden transition-transform active:translate-y-[2px] active:shadow-[0_2px_0_#285C99,0_6px_14px_rgba(7,81,216,0.25)] shadow-[0_5px_0_#285C99,0_14px_26px_rgba(7,81,216,0.32)] disabled:opacity-50 disabled:shadow-none ${className}`}
       style={{
-        background: "linear-gradient(180deg, #4A94FF 0%, #287BFF 45%, #0751D8 100%)",
+        background: "linear-gradient(180deg, #5B93D6 0%, #3578C8 45%, #3578C8 100%)",
       }}
     >
       <span className="pointer-events-none absolute inset-x-1 top-1 h-1/3 rounded-2xl bg-white/25 blur-[1px]" />
@@ -162,7 +163,7 @@ export function PrimaryButton({
 
 export function BottomButtonBar({ children }: { children: ReactNode }) {
   return (
-    <div className="sticky bottom-0 mt-auto p-4 bg-white border-t border-[#E7EBF2] pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="sticky bottom-0 mt-auto p-4 bg-white border-t border-[#E5E7EB] pb-[max(1rem,env(safe-area-inset-bottom))]">
       {children}
     </div>
   );
@@ -218,10 +219,10 @@ export function Counter({
         onPointerLeave={clear}
         onPointerCancel={clear}
         onContextMenu={(e) => e.preventDefault()}
-        className="w-10 h-10 rounded-full bg-gradient-to-b from-white to-[#EDF1F8] border border-[#DCE3EE] shadow-[0_3px_0_#DCE3EE,0_6px_12px_rgba(15,23,42,0.08)] flex items-center justify-center transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#DCE3EE] touch-none"
+        className="w-10 h-10 rounded-full bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_3px_0_#E5E7EB,0_6px_12px_rgba(15,23,42,0.08)] flex items-center justify-center transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#E5E7EB] touch-none"
         aria-label="감소"
       >
-        <Minus className="w-5 h-5 text-[#334155]" />
+        <Minus className="w-5 h-5 text-[#6B7280]" />
       </button>
       <span className="text-xl font-bold w-8 text-center tabular-nums">{value}</span>
       <button
@@ -230,8 +231,8 @@ export function Counter({
         onPointerLeave={clear}
         onPointerCancel={clear}
         onContextMenu={(e) => e.preventDefault()}
-        className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-[0_3px_0_#0645B0,0_8px_16px_rgba(7,81,216,0.3)] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#0645B0] touch-none"
-        style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
+        className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-[0_3px_0_#285C99,0_8px_16px_rgba(7,81,216,0.3)] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#285C99] touch-none"
+        style={{ background: "linear-gradient(180deg, #5B93D6 0%, #3578C8 100%)" }}
         aria-label="증가"
       >
         <Plus className="w-5 h-5" />
@@ -301,10 +302,10 @@ export function MoneyInput({
         onPointerLeave={clear}
         onPointerCancel={clear}
         onContextMenu={(e) => e.preventDefault()}
-        className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-b from-white to-[#EDF1F8] border border-[#DCE3EE] shadow-[0_3px_0_#DCE3EE] flex items-center justify-center active:translate-y-[2px] active:shadow-none touch-none"
+        className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_3px_0_#E5E7EB] flex items-center justify-center active:translate-y-[2px] active:shadow-none touch-none"
         aria-label="금액 감소"
       >
-        <Minus className="w-4 h-4 text-[#334155]" />
+        <Minus className="w-4 h-4 text-[#6B7280]" />
       </button>
       <div className="relative flex-1">
         <TextInput
@@ -328,8 +329,8 @@ export function MoneyInput({
         onPointerLeave={clear}
         onPointerCancel={clear}
         onContextMenu={(e) => e.preventDefault()}
-        className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-white shadow-[0_3px_0_#0645B0] active:translate-y-[2px] active:shadow-none touch-none"
-        style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
+        className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-white shadow-[0_3px_0_#285C99] active:translate-y-[2px] active:shadow-none touch-none"
+        style={{ background: "linear-gradient(180deg, #5B93D6 0%, #3578C8 100%)" }}
         aria-label="금액 증가"
       >
         <Plus className="w-4 h-4" />
@@ -364,8 +365,8 @@ export function AdminTopNav() {
             }}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-[14px] py-3 text-[18px] font-black transition-transform active:translate-y-[2px] ${
               active
-                ? "bg-gradient-to-b from-[#1B76EF] to-[#0757C4] text-white shadow-[0_4px_0_#0645B0]"
-                : "border border-[#DCE8FA] bg-white text-[#0864DC] shadow-[0_3px_0_#EDF2FA]"
+                ? "bg-gradient-to-b from-[#3578C8] to-[#2C63A8] text-white shadow-[0_4px_0_#285C99]"
+                : "border border-[#E5E7EB] bg-white text-[#25282D] shadow-[0_3px_0_#F7F8F5]"
             }`}
           >
             <Icon className="h-[20px] w-[20px] shrink-0" strokeWidth={1.9} />
@@ -415,7 +416,7 @@ export function AdminBackButton({
     <button
       onClick={go}
       aria-label="뒤로"
-      className={`inline-flex items-center gap-1 rounded-[14px] border border-[#DCE8FA] bg-white px-3 py-2 text-[18px] font-black text-[#0864DC] shadow-[0_3px_0_#EDF2FA] transition-transform active:translate-y-[2px] active:shadow-none ${className}`}
+      className={`inline-flex items-center gap-1 rounded-[14px] border border-[#E5E7EB] bg-white px-3 py-2 text-[18px] font-black text-[#25282D] shadow-[0_3px_0_#F7F8F5] transition-transform active:translate-y-[2px] active:shadow-none ${className}`}
     >
       <ChevronLeft className="h-[22px] w-[22px]" strokeWidth={2.2} />
       뒤로
@@ -432,7 +433,7 @@ export function BottomNav() {
     { key: "settings", icon: SettingsIcon, label: "설정" },
   ];
   return (
-    <div className="sticky bottom-0 mt-auto bg-white border-t border-[#E7EBF2] flex pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+    <div className="sticky bottom-0 mt-auto bg-white border-t border-[#E5E7EB] flex pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       {items.map(({ key, icon: Icon, label }) => {
         const active = screen === key;
         return (
@@ -444,9 +445,9 @@ export function BottomNav() {
             }}
             className="flex-1 py-3 flex flex-col items-center gap-1"
           >
-            <Icon className={`w-6 h-6 ${active ? "text-[#0751D8]" : "text-[#6B7280]"}`} />
+            <Icon className={`w-6 h-6 ${active ? "text-[#3578C8]" : "text-[#6B7280]"}`} />
             <span
-              className={`text-xs font-semibold ${active ? "text-[#0751D8]" : "text-[#6B7280]"}`}
+              className={`text-xs font-semibold ${active ? "text-[#3578C8]" : "text-[#6B7280]"}`}
             >
               {label}
             </span>
@@ -480,8 +481,8 @@ export function Card({
       }
       className={`rounded-2xl border p-4 transition-all duration-200 ${
         selected
-          ? "border-[#287BFF] bg-gradient-to-b from-[#F5F9FF] to-[#DEEAFF] shadow-[0_14px_26px_-10px_rgba(40,123,255,0.45),0_3px_0_#BBD3FF,inset_0_1px_0_#FFFFFF] ring-2 ring-[#287BFF]/30"
-          : "border-[#DFE6F2] bg-gradient-to-b from-white to-[#F2F6FD] shadow-[0_10px_22px_-8px_rgba(15,23,42,0.18),0_2px_0_#E3E9F5,inset_0_1px_0_#FFFFFF]"
+          ? "border-[#3578C8] bg-gradient-to-b from-[#F7F8F5] to-[#D7E5F5] shadow-[0_14px_26px_-10px_rgba(40,123,255,0.45),0_3px_0_#E5E7EB,inset_0_1px_0_#FFFFFF] ring-2 ring-[#3578C8]/30"
+          : "border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7F8F5] shadow-[0_10px_22px_-8px_rgba(15,23,42,0.18),0_2px_0_#E5E7EB,inset_0_1px_0_#FFFFFF]"
       } ${onClick ? "cursor-pointer active:scale-[0.98] active:shadow-[0_2px_8px_rgba(15,23,42,0.08)]" : ""} ${className}`}
     >
       {children}
@@ -502,7 +503,7 @@ export function Field({
   return (
     <div className="space-y-2">
       <label
-        className={`jp-field-label text-[17px] font-black ${labelClassName ?? "text-[#0864DC]"}`}
+        className={`jp-field-label text-[17px] font-black ${labelClassName ?? "text-[#25282D]"}`}
       >
         {label}
       </label>
@@ -515,7 +516,7 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full px-4 py-3 rounded-xl border border-[#BFD4F5] bg-gradient-to-b from-[#F8FAFD] to-white text-[18px] font-bold text-[#0F172A] placeholder:text-[#7C899D] shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] focus:shadow-[inset_0_2px_4px_rgba(15,23,42,0.06),0_0_0_3px_rgba(40,123,255,0.15)] ${props.className ?? ""}`}
+      className={`w-full px-4 py-3 rounded-xl border border-[#E5E7EB] bg-gradient-to-b from-[#F8FAFD] to-white text-[18px] font-bold text-[#25282D] placeholder:text-[#7C899D] shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#3578C8] focus:shadow-[inset_0_2px_4px_rgba(15,23,42,0.06),0_0_0_3px_rgba(40,123,255,0.15)] ${props.className ?? ""}`}
     />
   );
 }

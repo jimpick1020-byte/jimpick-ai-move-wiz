@@ -124,8 +124,8 @@ export function KakaoMap({
           bounds.extend(pos);
           hasPoint = true;
         };
-        if (from) add(from, "출발", "#0751D8");
-        if (to) add(to, "도착", "#EF4444");
+        if (from) add(from, "출발", "#3578C8");
+        if (to) add(to, "도착", "#D95C5C");
 
         const line = path && path.length > 1 ? path : from && to ? [from, to] : null;
         if (line) {
@@ -134,7 +134,7 @@ export function KakaoMap({
             map,
             path: latlngs,
             strokeWeight: 5,
-            strokeColor: "#287BFF",
+            strokeColor: "#3578C8",
             strokeOpacity: 0.9,
             strokeStyle: path && path.length > 1 ? "solid" : "shortdash",
           });
@@ -164,30 +164,30 @@ export function KakaoMap({
     <div className="relative w-full block" style={{ height, minHeight: height }}>
       <div
         ref={ref}
-        className="w-full h-full block rounded-xl overflow-hidden border border-[#E7EBF2] bg-[#F5F7FB]"
+        className="w-full h-full block rounded-xl overflow-hidden border border-[#E5E7EB] bg-[#F7F8F5]"
         style={{ height, minHeight: height }}
       />
       {ready === null && (
-        <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#EEF4FF] to-[#F5F7FB] animate-pulse flex items-center justify-center text-xs font-semibold text-[#6B7280]">
+        <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#F7F8F5] to-[#F7F8F5] animate-pulse flex items-center justify-center text-xs font-semibold text-[#6B7280]">
           지도를 불러오는 중입니다
         </div>
       )}
       {ready === false && (
-        <div className="absolute inset-0 rounded-xl bg-[#F5F7FB] flex items-center justify-center">
+        <div className="absolute inset-0 rounded-xl bg-[#F7F8F5] flex items-center justify-center">
           <button
             type="button"
             onClick={() => {
               setReady(null);
               setAttempt((a) => a + 1);
             }}
-            className="rounded-full bg-[#0751D8] px-4 py-2 text-xs font-bold text-white shadow-sm"
+            className="rounded-full bg-[#3578C8] px-4 py-2 text-xs font-bold text-white shadow-sm"
           >
             지도 다시 불러오기
           </button>
         </div>
       )}
       {ready && from && !to && (
-        <div className="absolute bottom-2 left-2 right-2 rounded-lg bg-white/95 border border-[#E7EBF2] px-3 py-2 text-[11px] font-semibold text-[#0751D8] text-center shadow-sm">
+        <div className="absolute bottom-2 left-2 right-2 rounded-lg bg-white/95 border border-[#E5E7EB] px-3 py-2 text-[11px] font-semibold text-[#25282D] text-center shadow-sm">
           도착지를 선택하면 이동 경로가 표시됩니다
         </div>
       )}

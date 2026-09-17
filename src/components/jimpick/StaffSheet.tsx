@@ -18,21 +18,13 @@ import {
   Navigation,
 } from "lucide-react";
 
-function Row({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
+function Row({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   if (!value) return null;
   return (
     <div className="flex items-start gap-2.5 border-b border-[#EEF3FB] py-3 last:border-0">
-      <span className="mt-0.5 shrink-0 text-[#0864DC]">{icon}</span>
+      <span className="mt-0.5 shrink-0 text-[#25282D]">{icon}</span>
       <span className="w-[86px] shrink-0 text-[14px] font-bold text-[#6B7280]">{label}</span>
-      <span className="min-w-0 flex-1 break-words text-[15px] font-bold text-[#111827]">
+      <span className="min-w-0 flex-1 break-words text-[15px] font-bold text-[#25282D]">
         {value}
       </span>
     </div>
@@ -41,9 +33,9 @@ function Row({
 
 function Card({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[16px] border border-[#DCE8FA] bg-white px-3.5 py-2">
+    <div className="rounded-[16px] border border-[#E5E7EB] bg-white px-3.5 py-2">
       {title && (
-        <div className="border-b border-[#EEF3FB] py-2.5 text-[15px] font-black text-[#0864DC]">
+        <div className="border-b border-[#EEF3FB] py-2.5 text-[15px] font-black text-[#25282D]">
           {title}
         </div>
       )}
@@ -81,12 +73,11 @@ export function StaffSheet() {
     };
   }, [token]);
 
-  const mapUrl = (addr: string) =>
-    `https://map.kakao.com/link/search/${encodeURIComponent(addr)}`;
+  const mapUrl = (addr: string) => `https://map.kakao.com/link/search/${encodeURIComponent(addr)}`;
 
   return (
     <div className="min-h-[100dvh] bg-[#E9EFF8] pb-10">
-      <div className="flex h-[72px] items-center gap-2 bg-[#0864DC] px-4">
+      <div className="flex h-[72px] items-center gap-2 bg-[#3578C8] px-4">
         <span className="text-[19px] font-black text-white">JIMPICK 직원용</span>
       </div>
 
@@ -102,8 +93,8 @@ export function StaffSheet() {
         {!state.loading && state.error && (
           <Card>
             <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <ShieldAlert className="h-8 w-8 text-[#DC2626]" />
-              <div className="text-[16px] font-black text-[#111827]">{state.error}</div>
+              <ShieldAlert className="h-8 w-8 text-[#D95C5C]" />
+              <div className="text-[16px] font-black text-[#25282D]">{state.error}</div>
               <div className="text-[14px] text-[#6B7280]">
                 고객정보는 표시되지 않습니다. 담당자에게 새 링크를 요청해 주세요.
               </div>
@@ -117,7 +108,7 @@ export function StaffSheet() {
               <div className="text-[13px] font-bold text-[#6B7280]">
                 작업 지시서 {state.snap.sheetNo ? `· ${state.snap.sheetNo}` : ""}
               </div>
-              <div className="mt-1 text-[20px] font-black text-[#0864DC]">
+              <div className="mt-1 text-[20px] font-black text-[#25282D]">
                 {state.snap.moveDate || "이사일 미정"} {state.snap.moveTime || ""}
               </div>
               {state.expiresAt && (
@@ -128,17 +119,37 @@ export function StaffSheet() {
             </div>
 
             <Card title="고객">
-              <Row icon={<ClipboardList className="h-5 w-5" />} label="이름" value={state.snap.customerName} />
-              <Row icon={<Phone className="h-5 w-5" />} label="연락처" value={state.snap.customerPhone} />
-              <Row icon={<Calendar className="h-5 w-5" />} label="이사 날짜" value={state.snap.moveDate} />
-              <Row icon={<Clock className="h-5 w-5" />} label="시작 시간" value={state.snap.moveTime} />
-              <Row icon={<Truck className="h-5 w-5" />} label="이사 유형" value={state.snap.moveType} />
+              <Row
+                icon={<ClipboardList className="h-5 w-5" />}
+                label="이름"
+                value={state.snap.customerName}
+              />
+              <Row
+                icon={<Phone className="h-5 w-5" />}
+                label="연락처"
+                value={state.snap.customerPhone}
+              />
+              <Row
+                icon={<Calendar className="h-5 w-5" />}
+                label="이사 날짜"
+                value={state.snap.moveDate}
+              />
+              <Row
+                icon={<Clock className="h-5 w-5" />}
+                label="시작 시간"
+                value={state.snap.moveTime}
+              />
+              <Row
+                icon={<Truck className="h-5 w-5" />}
+                label="이사 유형"
+                value={state.snap.moveType}
+              />
             </Card>
 
             {state.snap.customerPhone && (
               <a
                 href={`tel:${state.snap.customerPhone.replace(/[^0-9+]/g, "")}`}
-                className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[16px] bg-[#0864DC] text-[16px] font-black text-white"
+                className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[16px] bg-[#3578C8] text-[16px] font-black text-white"
               >
                 <Phone className="h-5 w-5" /> 고객 전화 연결
               </a>
@@ -153,7 +164,9 @@ export function StaffSheet() {
               <Row
                 icon={<Building2 className="h-5 w-5" />}
                 label="출발 조건"
-                value={state.snap.fromEnv ?? (state.snap.fromFloor ? `${state.snap.fromFloor}층` : "")}
+                value={
+                  state.snap.fromEnv ?? (state.snap.fromFloor ? `${state.snap.fromFloor}층` : "")
+                }
               />
               <Row
                 icon={<MapPin className="h-5 w-5" />}
@@ -182,7 +195,7 @@ export function StaffSheet() {
                   href={mapUrl(state.snap.fromAddress)}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex min-h-[56px] items-center justify-center rounded-[16px] border border-[#DCE8FA] bg-white text-[15px] font-black text-[#0864DC]"
+                  className="flex min-h-[56px] items-center justify-center rounded-[16px] border border-[#E5E7EB] bg-white text-[15px] font-black text-[#25282D]"
                 >
                   출발지 지도
                 </a>
@@ -192,7 +205,7 @@ export function StaffSheet() {
                   href={mapUrl(state.snap.toAddress)}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex min-h-[56px] items-center justify-center rounded-[16px] border border-[#DCE8FA] bg-white text-[15px] font-black text-[#0864DC]"
+                  className="flex min-h-[56px] items-center justify-center rounded-[16px] border border-[#E5E7EB] bg-white text-[15px] font-black text-[#25282D]"
                 >
                   도착지 지도
                 </a>
@@ -207,14 +220,14 @@ export function StaffSheet() {
               <Card title="공간별 품목">
                 {state.snap.rooms.map((r) => (
                   <div key={r.name} className="border-b border-[#EEF3FB] py-3 last:border-0">
-                    <div className="text-[15px] font-black text-[#111827]">
+                    <div className="text-[15px] font-black text-[#25282D]">
                       {r.name}{" "}
                       <span className="text-[13px] font-bold text-[#6B7280]">
-                        품목 {r.items.length}종 · 총{" "}
-                        {r.items.reduce((s, i) => s + (i.qty || 0), 0)}개
+                        품목 {r.items.length}종 · 총 {r.items.reduce((s, i) => s + (i.qty || 0), 0)}
+                        개
                       </span>
                     </div>
-                    <div className="mt-1 break-words text-[14.5px] text-[#374151]">
+                    <div className="mt-1 break-words text-[14.5px] text-[#6B7280]">
                       {r.items.map((i) => `${i.name} ${i.qty}`).join(" · ")}
                     </div>
                   </div>
@@ -224,7 +237,7 @@ export function StaffSheet() {
 
             {state.snap.extraWork.length > 0 && (
               <Card title="추가 작업">
-                <div className="py-3 text-[15px] font-bold text-[#111827]">
+                <div className="py-3 text-[15px] font-bold text-[#25282D]">
                   {state.snap.extraWork.join(" · ")}
                 </div>
               </Card>
@@ -232,7 +245,7 @@ export function StaffSheet() {
 
             {(state.snap.options ?? []).length > 0 && (
               <Card title="추가 옵션">
-                <div className="py-3 text-[15px] font-bold text-[#111827]">
+                <div className="py-3 text-[15px] font-bold text-[#25282D]">
                   {(state.snap.options ?? []).join(" · ")}
                 </div>
               </Card>
@@ -240,7 +253,7 @@ export function StaffSheet() {
 
             {state.snap.specialTerms?.trim() && (
               <Card title="특약사항">
-                <div className="whitespace-pre-wrap py-3 text-[15px] text-[#374151]">
+                <div className="whitespace-pre-wrap py-3 text-[15px] text-[#6B7280]">
                   {state.snap.specialTerms.trim()}
                 </div>
               </Card>
@@ -248,15 +261,23 @@ export function StaffSheet() {
 
             {state.snap.note && (
               <Card title="현장 안내사항">
-                <div className="whitespace-pre-wrap py-3 text-[15px] text-[#374151]">
+                <div className="whitespace-pre-wrap py-3 text-[15px] text-[#6B7280]">
                   {state.snap.note}
                 </div>
               </Card>
             )}
 
             <Card title="담당자">
-              <Row icon={<ClipboardList className="h-5 w-5" />} label="담당자" value={state.snap.staffName} />
-              <Row icon={<Phone className="h-5 w-5" />} label="연락처" value={state.snap.staffPhone} />
+              <Row
+                icon={<ClipboardList className="h-5 w-5" />}
+                label="담당자"
+                value={state.snap.staffName}
+              />
+              <Row
+                icon={<Phone className="h-5 w-5" />}
+                label="연락처"
+                value={state.snap.staffPhone}
+              />
             </Card>
 
             <div className="pt-1 text-center text-[12.5px] text-[#9CA3AF]">

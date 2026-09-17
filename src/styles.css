@@ -76,7 +76,7 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
+  --background: #f7f8f5;
   --foreground: oklch(0.129 0.042 264.695);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.129 0.042 264.695);
@@ -236,12 +236,24 @@
   background: var(--jp-category-color);
   box-shadow: 0 4px 0 color-mix(in srgb, var(--jp-category-color) 72%, black);
 }
-.jp-category-tab[data-category="가전"] { --jp-category-color: #2563eb; }
-.jp-category-tab[data-category="가구"] { --jp-category-color: #7c3aed; }
-.jp-category-tab[data-category="주방"] { --jp-category-color: #c2410c; }
-.jp-category-tab[data-category="생활용품"] { --jp-category-color: #059669; }
-.jp-category-tab[data-category="운동·레저용품"] { --jp-category-color: #0891b2; }
-.jp-category-tab[data-category="기타"] { --jp-category-color: #475569; }
+.jp-category-tab[data-category="가전"] {
+  --jp-category-color: #2563eb;
+}
+.jp-category-tab[data-category="가구"] {
+  --jp-category-color: #7c3aed;
+}
+.jp-category-tab[data-category="주방"] {
+  --jp-category-color: #c2410c;
+}
+.jp-category-tab[data-category="생활용품"] {
+  --jp-category-color: #059669;
+}
+.jp-category-tab[data-category="운동·레저용품"] {
+  --jp-category-color: #0891b2;
+}
+.jp-category-tab[data-category="기타"] {
+  --jp-category-color: #475569;
+}
 
 /* 3·4단계: 항목명과 선택 이름을 조금 더 크게 */
 .jp-tone-3 .jp-field-label,
@@ -349,7 +361,7 @@
   display: inline-block;
   width: 2px;
   height: 1em;
-  background-color: #0751D8;
+  background-color: #3578c8;
   margin-left: 2px;
   vertical-align: middle;
   animation: jp-cursor-blink 0.8s step-end infinite;
@@ -364,7 +376,6 @@
     opacity: 0;
   }
 }
-
 
 /* ──────────────────────────────────────────────────────────
    홈 화면에 추가해 앱처럼 실행할 때 (standalone)
