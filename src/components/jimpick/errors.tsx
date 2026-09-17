@@ -77,13 +77,15 @@ export function ErrorLogScreen() {
       <TopBar title="오류 관리" onBack={() => setScreen("settings")} />
       <div className="flex-1 space-y-3 overflow-auto p-4 pb-24">
         <Card className="flex items-center justify-between gap-2">
-          <div className="text-sm font-bold text-[#111827]">최근 오류 기록</div>
-          <div className={`text-xs font-bold ${unresolved > 0 ? "text-[#B42318]" : "text-[#166534]"}`}>
+          <div className="text-sm font-bold text-[#25282D]">최근 오류 기록</div>
+          <div
+            className={`text-xs font-bold ${unresolved > 0 ? "text-[#D95C5C]" : "text-[#3E9B78]"}`}
+          >
             {unresolved > 0 ? `해결되지 않은 오류 ${unresolved}건` : "해결되지 않은 오류 없음"}
           </div>
         </Card>
 
-        {error && <Card className="text-xs text-[#B42318] break-keep">{error}</Card>}
+        {error && <Card className="text-xs text-[#D95C5C] break-keep">{error}</Card>}
         {rows === null && (
           <div className="py-10 text-center text-sm text-[#6B7280]">불러오는 중…</div>
         )}
@@ -94,12 +96,12 @@ export function ErrorLogScreen() {
         {rows?.map((r) => (
           <Card
             key={r.id}
-            className={`space-y-2 ${r.resolved ? "" : "border border-[#FECACA] bg-[#FEF2F2]"}`}
+            className={`space-y-2 ${r.resolved ? "" : "border border-[#FECACA] bg-[#FBEAEA]"}`}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div
-                  className={`text-[15px] font-bold ${r.resolved ? "text-[#111827]" : "text-[#B42318]"}`}
+                  className={`text-[15px] font-bold ${r.resolved ? "text-[#25282D]" : "text-[#D95C5C]"}`}
                 >
                   {SCREEN_LABEL[r.screen] ?? r.screen}
                 </div>
@@ -107,13 +109,13 @@ export function ErrorLogScreen() {
               </div>
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                  r.resolved ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEE2E2] text-[#B42318]"
+                  r.resolved ? "bg-[#E7F3EE] text-[#3E9B78]" : "bg-[#FBEAEA] text-[#D95C5C]"
                 }`}
               >
                 {r.resolved ? "해결됨" : "미해결"}
               </span>
             </div>
-            <div className="rounded-xl bg-white px-2.5 py-2 text-xs leading-5 text-[#374151] break-all">
+            <div className="rounded-xl bg-white px-2.5 py-2 text-xs leading-5 text-[#6B7280] break-all">
               {r.message}
             </div>
             <div className="flex items-center justify-between text-[11px] text-[#6B7280]">
@@ -125,7 +127,7 @@ export function ErrorLogScreen() {
                 type="button"
                 onClick={() => void onResolve(r)}
                 disabled={busyId === r.id}
-                className="w-full rounded-xl bg-[#0751D8] py-2 text-xs font-bold text-white disabled:opacity-50"
+                className="w-full rounded-xl bg-[#3578C8] py-2 text-xs font-bold text-white disabled:opacity-50"
               >
                 {busyId === r.id ? "저장 중…" : "해결됨으로 표시"}
               </button>

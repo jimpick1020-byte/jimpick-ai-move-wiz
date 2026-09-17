@@ -89,7 +89,9 @@ export function DepositPanel({
       const r = await confirmDeposit({ data: { id } });
       if (r.ok) {
         toast.success(`예약금 ${won(r.paid ?? 0)} 반영 완료`, {
-          description: r.smsError ? `고객 문자 실패: ${r.smsError}` : "고객에게 안내 문자를 보냈습니다.",
+          description: r.smsError
+            ? `고객 문자 실패: ${r.smsError}`
+            : "고객에게 안내 문자를 보냈습니다.",
         });
       } else toast.error("반영 실패", { description: r.error ?? "" });
     } finally {
@@ -112,15 +114,15 @@ export function DepositPanel({
   };
 
   return (
-    <div className="mt-2 rounded-xl bg-[#F7F9FC] p-2.5">
+    <div className="mt-2 rounded-xl bg-[#F7F8F5] p-2.5">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between text-[12.5px] font-bold text-[#334155]"
+        className="flex w-full items-center justify-between text-[12.5px] font-bold text-[#6B7280]"
       >
         <span>
           예약금 입금{" "}
           {paid > 0 ? (
-            <span className="text-[#15803D]">{won(paid)} 확인 완료</span>
+            <span className="text-[#3E9B78]">{won(paid)} 확인 완료</span>
           ) : (
             <span className="text-[#6B7280]">미확인</span>
           )}
@@ -132,7 +134,7 @@ export function DepositPanel({
       </button>
 
       {paid > 0 && (
-        <div className="mt-1 text-[12px] font-semibold text-[#334155]">
+        <div className="mt-1 text-[12px] font-semibold text-[#6B7280]">
           잔금 {won(Math.max(0, total - paid))} · 고객 견적서에도 함께 표시됩니다
         </div>
       )}
@@ -143,11 +145,13 @@ export function DepositPanel({
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={3}
-            placeholder={"은행 입금알림 문자를 그대로 붙여넣어 주세요\n예) [Web발신] 국민 09/10 22:30 입금 100,000 김호영"}
-            className="w-full rounded-xl border border-[#DCE8FA] bg-white p-2.5 text-[13px] leading-relaxed outline-none focus:border-[#0751D8]"
+            placeholder={
+              "은행 입금알림 문자를 그대로 붙여넣어 주세요\n예) [Web발신] 국민 09/10 22:30 입금 100,000 김호영"
+            }
+            className="w-full rounded-xl border border-[#E5E7EB] bg-white p-2.5 text-[13px] leading-relaxed outline-none focus:border-[#3578C8]"
           />
           {preview && (
-            <div className="rounded-xl bg-white p-2.5 text-[12.5px] text-[#334155]">
+            <div className="rounded-xl bg-white p-2.5 text-[12.5px] text-[#6B7280]">
               <div>
                 읽은 입금자: <b>{preview.depositorName || "못 읽음"}</b> · 금액{" "}
                 <b>{preview.amount > 0 ? won(preview.amount) : "못 읽음"}</b>
@@ -163,7 +167,7 @@ export function DepositPanel({
           <button
             onClick={() => void submit()}
             disabled={busy || !text.trim()}
-            className="w-full rounded-xl bg-[#0751D8] py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
+            className="w-full rounded-xl bg-[#3578C8] py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
           >
             {busy ? "확인 중…" : "입금 확인하기"}
           </button>
@@ -179,7 +183,7 @@ export function DepositPanel({
                     <span
                       className={
                         r.status === "confirmed"
-                          ? "font-bold text-[#15803D]"
+                          ? "font-bold text-[#3E9B78]"
                           : r.status === "rejected"
                             ? "font-bold text-[#6B7280]"
                             : "font-bold text-[#B45309]"
@@ -199,7 +203,7 @@ export function DepositPanel({
                       : ""}
                   </div>
                   {r.notifyError && r.status === "confirmed" && (
-                    <div className="mt-0.5 font-semibold text-[#B91C1C]">
+                    <div className="mt-0.5 font-semibold text-[#D95C5C]">
                       고객 문자 실패: {r.notifyError}
                     </div>
                   )}
@@ -208,7 +212,7 @@ export function DepositPanel({
                       <button
                         onClick={() => void doConfirm(r.id)}
                         disabled={working === r.id}
-                        className="flex-1 rounded-xl bg-[#EEF4FF] py-2 font-bold text-[#0751D8] disabled:opacity-50"
+                        className="flex-1 rounded-xl bg-[#F7F8F5] py-2 font-bold text-[#25282D] disabled:opacity-50"
                       >
                         {working === r.id ? "처리 중…" : "내 고객 입금 맞음 · 반영"}
                       </button>

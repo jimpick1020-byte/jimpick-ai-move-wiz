@@ -7,7 +7,11 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card } from "@/components/jimpick/ui";
-import { listCompanyAccounts, deleteCompanyAccount, type CompanyAccount } from "@/lib/admin.functions";
+import {
+  listCompanyAccounts,
+  deleteCompanyAccount,
+  type CompanyAccount,
+} from "@/lib/admin.functions";
 
 const STATUS_LABEL: Record<string, string> = {
   trialing: "무료체험 중",
@@ -18,11 +22,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_STYLE: Record<string, string> = {
-  trialing: "bg-[#EFF6FF] text-[#0751D8]",
-  active: "bg-[#DCFCE7] text-[#166534]",
+  trialing: "bg-[#EFF6FF] text-[#25282D]",
+  active: "bg-[#E7F3EE] text-[#3E9B78]",
   past_due: "bg-[#FEF3C7] text-[#92400E]",
-  canceled: "bg-[#F3F4F6] text-[#4B5563]",
-  expired: "bg-[#FEF2F2] text-[#B42318]",
+  canceled: "bg-[#F3F4F6] text-[#6B7280]",
+  expired: "bg-[#FBEAEA] text-[#D95C5C]",
 };
 
 const day = (v: string | null) =>
@@ -82,27 +86,28 @@ export function AdminAccountsScreen() {
       <TopBar title="업체 계정 관리" onBack={() => setScreen("home")} />
       <div className="flex-1 space-y-3 overflow-auto p-4 pb-24">
         {error && (
-          <Card className="text-sm leading-6 text-[#B42318] break-keep">
+          <Card className="text-sm leading-6 text-[#D95C5C] break-keep">
             관리자만 볼 수 있는 화면입니다.
             <div className="mt-1 text-xs text-[#6B7280] break-all">{error}</div>
           </Card>
         )}
-        {deleteError && (
-          <Card className="text-xs text-[#B42318] break-keep">{deleteError}</Card>
-        )}
+        {deleteError && <Card className="text-xs text-[#D95C5C] break-keep">{deleteError}</Card>}
         {!error && rows === null && (
           <div className="py-10 text-center text-sm text-[#6B7280]">불러오는 중…</div>
         )}
         {rows && rows.length > 0 && (
           <Card className="flex items-center justify-between gap-2">
-            <div className="text-sm font-bold text-[#111827]">최근 가입 업체</div>
+            <div className="text-sm font-bold text-[#25282D]">최근 가입 업체</div>
             <div className="text-xs text-[#6B7280]">
-              3일 안에 가입한 업체 {rows.filter((r) => isNewSignup(r.joinedAt)).length}곳 · 최근 가입 순으로 표시
+              3일 안에 가입한 업체 {rows.filter((r) => isNewSignup(r.joinedAt)).length}곳 · 최근
+              가입 순으로 표시
             </div>
           </Card>
         )}
         {rows?.length === 0 && (
-          <div className="py-10 text-center text-sm text-[#6B7280]">등록된 업체 계정이 없습니다.</div>
+          <div className="py-10 text-center text-sm text-[#6B7280]">
+            등록된 업체 계정이 없습니다.
+          </div>
         )}
         {rows?.map((r) => (
           <Card key={r.userId} className="space-y-2">
@@ -113,7 +118,7 @@ export function AdminAccountsScreen() {
                     {r.companyName || "업체명 미입력"}
                   </span>
                   {isNewSignup(r.joinedAt) && (
-                    <span className="shrink-0 rounded-full bg-[#DCFCE7] px-1.5 py-0.5 text-[10px] font-bold text-[#166534]">
+                    <span className="shrink-0 rounded-full bg-[#E7F3EE] px-1.5 py-0.5 text-[10px] font-bold text-[#3E9B78]">
                       신규
                     </span>
                   )}
@@ -125,13 +130,13 @@ export function AdminAccountsScreen() {
               </div>
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                  STATUS_STYLE[r.subscriptionStatus] ?? "bg-[#F3F4F6] text-[#4B5563]"
+                  STATUS_STYLE[r.subscriptionStatus] ?? "bg-[#F3F4F6] text-[#6B7280]"
                 }`}
               >
                 {STATUS_LABEL[r.subscriptionStatus] ?? r.subscriptionStatus}
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-y-1 text-xs text-[#374151]">
+            <div className="grid grid-cols-2 gap-y-1 text-xs text-[#6B7280]">
               <div className="text-[#6B7280]">가입일</div>
               <div className="text-right">{day(r.joinedAt)}</div>
               <div className="text-[#6B7280]">체험 시작</div>
@@ -160,7 +165,7 @@ export function AdminAccountsScreen() {
               </div>
             </div>
             {r.cancelAtPeriodEnd && (
-              <div className="rounded-xl bg-[#FEF2F2] px-2.5 py-2 text-[11px] text-[#B42318]">
+              <div className="rounded-xl bg-[#FBEAEA] px-2.5 py-2 text-[11px] text-[#D95C5C]">
                 해지 예약됨 · {day(r.periodEnd)} 이후 결제되지 않습니다
               </div>
             )}
@@ -171,23 +176,23 @@ export function AdminAccountsScreen() {
                   setConfirmingId(r.userId);
                   setDeleteError("");
                 }}
-                className="w-full rounded-xl border border-[#FECACA] py-2 text-xs font-bold text-[#B42318]"
+                className="w-full rounded-xl border border-[#FECACA] py-2 text-xs font-bold text-[#D95C5C]"
               >
                 업체 삭제
               </button>
             )}
             {canDelete(r) && confirmingId === r.userId && (
-              <div className="space-y-2 rounded-xl bg-[#FEF2F2] px-2.5 py-2">
-                <p className="text-[11px] leading-5 text-[#B42318] break-keep">
-                  정말 삭제할까요? {r.companyName || "이 업체"}의 로그인 계정과 서버에
-                  저장된 데이터가 모두 삭제되며 되돌릴 수 없습니다.
+              <div className="space-y-2 rounded-xl bg-[#FBEAEA] px-2.5 py-2">
+                <p className="text-[11px] leading-5 text-[#D95C5C] break-keep">
+                  정말 삭제할까요? {r.companyName || "이 업체"}의 로그인 계정과 서버에 저장된
+                  데이터가 모두 삭제되며 되돌릴 수 없습니다.
                 </p>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => setConfirmingId(null)}
                     disabled={deletingId === r.userId}
-                    className="flex-1 rounded-xl bg-white py-2 text-xs font-bold text-[#374151]"
+                    className="flex-1 rounded-xl bg-white py-2 text-xs font-bold text-[#6B7280]"
                   >
                     취소
                   </button>
@@ -195,7 +200,7 @@ export function AdminAccountsScreen() {
                     type="button"
                     onClick={() => void onDelete(r)}
                     disabled={deletingId === r.userId}
-                    className="flex-1 rounded-xl bg-[#B42318] py-2 text-xs font-bold text-white disabled:opacity-50"
+                    className="flex-1 rounded-xl bg-[#D95C5C] py-2 text-xs font-bold text-white disabled:opacity-50"
                   >
                     {deletingId === r.userId ? "삭제 중…" : "삭제합니다"}
                   </button>

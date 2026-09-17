@@ -327,11 +327,11 @@ export function Splash() {
       >
         <div className="text-center">
           <div className="flex items-baseline justify-center">
-            <span className="text-6xl font-black text-[#0751D8] tracking-tight drop-shadow-[0_4px_10px_rgba(7,81,216,0.25)]">
+            <span className="text-6xl font-black text-[#25282D] tracking-tight drop-shadow-[0_4px_10px_rgba(7,81,216,0.25)]">
               JIMPICK
             </span>
           </div>
-          <div className="text-lg font-bold text-[#111827] mt-3">AI 이사 견적 앱</div>
+          <div className="text-lg font-bold text-[#25282D] mt-3">AI 이사 견적 앱</div>
           <div className="text-sm text-[#6B7280] mt-1">이사 견적, 더 쉽고 정확하게!</div>
         </div>
         <div className="space-y-2 w-full mt-8">
@@ -354,11 +354,11 @@ export function Splash() {
                 onClick ? " cursor-pointer" : ""
               }`}
             >
-              <Sparkles className="w-4 h-4 text-[#7928CA] shrink-0 transition-transform duration-200 group-hover:scale-125" />
-              <div className="w-9 h-9 rounded-xl bg-[#EEF4FF] flex items-center justify-center">
-                <Icon className="w-5 h-5 text-[#0751D8]" />
+              <Sparkles className="w-4 h-4 text-[#3578C8] shrink-0 transition-transform duration-200 group-hover:scale-125" />
+              <div className="w-9 h-9 rounded-xl bg-[#F7F8F5] flex items-center justify-center">
+                <Icon className="w-5 h-5 text-[#25282D]" />
               </div>
-              <span className="font-semibold text-[#111827]">{label}</span>
+              <span className="font-semibold text-[#25282D]">{label}</span>
             </div>
           ))}
         </div>
@@ -372,7 +372,7 @@ export function Splash() {
               role="img"
               aria-label={fullText}
             >
-              <div className="relative px-4 py-2 rounded-2xl bg-white/95 shadow-[0_8px_24px_-6px_rgba(7,81,216,0.35)] border border-[#0751D8]/10">
+              <div className="relative px-4 py-2 rounded-2xl bg-white/95 shadow-[0_8px_24px_-6px_rgba(7,81,216,0.35)] border border-[#3578C8]/10">
                 <span
                   className="text-sm font-extrabold text-[#0B3EA8] whitespace-nowrap"
                   aria-label={fullText}
@@ -381,7 +381,7 @@ export function Splash() {
                   <span className="jp-typing-cursor" />
                 </span>
                 {/* 말풍선 꼬리 */}
-                <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-white/95 rotate-45 border-b border-r border-[#0751D8]/10" />
+                <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-white/95 rotate-45 border-b border-r border-[#3578C8]/10" />
               </div>
             </div>
 
@@ -399,8 +399,8 @@ export function Splash() {
             setScreen(loggedIn ? "home" : "login");
             setTimeout(() => tap("click"), 0);
           }}
-          className="w-full mt-2 mb-1 py-5 rounded-2xl text-white text-lg font-black tracking-tight shadow-[0_14px_30px_-10px_rgba(121,40,202,0.6)] transition-transform active:translate-y-[2px]"
-          style={{ background: "linear-gradient(90deg,#ff007f 0%,#7928ca 50%,#00dfd8 100%)" }}
+          className="w-full mt-2 mb-1 py-5 rounded-2xl text-white text-lg font-black tracking-tight shadow-[0_14px_30px_-10px_rgba(53,120,200,0.5)] transition-transform active:translate-y-[2px]"
+          style={{ background: "linear-gradient(90deg,#3578C8 0%,#2C63A8 100%)" }}
         >
           견적 시작하기
         </button>
@@ -656,18 +656,18 @@ export function HomeScreen() {
             <div className="truncate text-xl font-bold">{greetingName}</div>
           </div>
         </div>
-        <Bell className="w-6 h-6 shrink-0 text-[#111827]" />
+        <Bell className="w-6 h-6 shrink-0 text-[#25282D]" />
       </div>
 
       <div className="px-5 space-y-4 flex-1 pb-4">
         {entitlement?.isSuperAdmin && (
-          <div className="inline-flex items-center rounded-full bg-[#DCFCE7] px-3 py-1 text-xs font-bold text-[#166534]">
+          <div className="inline-flex items-center rounded-full bg-[#E7F3EE] px-3 py-1 text-xs font-bold text-[#3E9B78]">
             JIMPICK 서비스 관리자
           </div>
         )}
         {!entitlement?.isSuperAdmin && blocked && (
-          <div className="rounded-2xl border border-[#FCA5A5] bg-[#FEF2F2] p-4">
-            <div className="text-sm font-bold text-[#B91C1C] break-keep">
+          <div className="rounded-2xl border border-[#FCA5A5] bg-[#FBEAEA] p-4">
+            <div className="text-sm font-bold text-[#D95C5C] break-keep">
               {TRIAL_EXPIRED_MESSAGE}
             </div>
             <div className="mt-1 text-xs text-[#7F1D1D] break-keep">
@@ -676,14 +676,14 @@ export function HomeScreen() {
             </div>
             <button
               onClick={() => setScreen("subscription")}
-              className="mt-3 w-full rounded-xl bg-[#0751D8] py-2.5 text-sm font-bold text-white"
+              className="mt-3 w-full rounded-xl bg-[#3578C8] py-2.5 text-sm font-bold text-white"
             >
               구독하고 계속 사용하기
             </button>
           </div>
         )}
         {!blocked && entitlement?.state === "trial" && remainingText && (
-          <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-2.5 text-xs font-semibold text-[#0751D8] break-keep">
+          <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-2.5 text-xs font-semibold text-[#25282D] break-keep">
             한 달 무료체험 · 문자 무제한 ({entitlement.freeSmsUsed}건 사용)
             <div className="mt-0.5 font-medium text-[#1D4ED8]">
               무료체험 {entitlement.trialDaysLeft}일 남음 · 문자는 체험 기간 동안 무제한
@@ -691,20 +691,20 @@ export function HomeScreen() {
           </div>
         )}
         {!blocked && entitlement?.state === "trial" && entitlement.canSendSms === false && (
-          <div className="rounded-2xl border border-[#FCA5A5] bg-[#FEF2F2] p-4">
-            <div className="text-sm font-bold text-[#B91C1C] break-keep">
+          <div className="rounded-2xl border border-[#FCA5A5] bg-[#FBEAEA] p-4">
+            <div className="text-sm font-bold text-[#D95C5C] break-keep">
               {entitlement.smsMessage}
             </div>
             <button
               onClick={() => setScreen("subscription")}
-              className="mt-3 w-full rounded-xl bg-[#0751D8] py-2.5 text-sm font-bold text-white"
+              className="mt-3 w-full rounded-xl bg-[#3578C8] py-2.5 text-sm font-bold text-white"
             >
               구독하기
             </button>
           </div>
         )}
         {entitlement?.state === "active" && (
-          <div className="rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] px-4 py-2.5 text-xs font-semibold text-[#166534]">
+          <div className="rounded-2xl border border-[#BFE3D3] bg-[#E7F3EE] px-4 py-2.5 text-xs font-semibold text-[#3E9B78]">
             구독 이용 중
             {entitlement.periodEnd
               ? ` · 다음 결제 예정일 ${new Date(entitlement.periodEnd).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}`
@@ -722,7 +722,7 @@ export function HomeScreen() {
             setScreen("step1");
           }}
           className="rounded-2xl p-5 text-white cursor-pointer active:scale-[0.98] shadow-[0_6px_20px_rgba(15,23,42,0.10)]"
-          style={{ background: "linear-gradient(135deg, #287BFF 0%, #0751D8 100%)" }}
+          style={{ background: "linear-gradient(135deg, #3578C8 0%, #3578C8 100%)" }}
         >
           <div className="flex items-center justify-between">
             <div>
@@ -743,7 +743,7 @@ export function HomeScreen() {
               onClick={() => setScreen(s)}
               className="flex flex-col items-center py-4 gap-2"
             >
-              <Icon className="w-7 h-7 text-[#0751D8]" />
+              <Icon className="w-7 h-7 text-[#25282D]" />
               <span className="text-sm font-semibold text-center">{label}</span>
             </Card>
           ))}
@@ -751,27 +751,27 @@ export function HomeScreen() {
         {/* 견적 현황 — 저장된 견적을 그대로 셉니다 */}
         <Card className="rounded-[14px]">
           <div className="mb-3 flex items-center gap-2">
-            <ClipboardList className="h-[20px] w-[20px] text-[#0864DC]" strokeWidth={1.8} />
+            <ClipboardList className="h-[20px] w-[20px] text-[#25282D]" strokeWidth={1.8} />
             <div className="text-[17px] font-bold">견적 현황</div>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-[14px] bg-[#F7F9FC] py-3">
-              <div className="text-2xl font-black text-[#0864DC]">{total}</div>
+            <div className="rounded-[14px] bg-[#F7F8F5] py-3">
+              <div className="text-2xl font-black text-[#25282D]">{total}</div>
               <div className="mt-0.5 text-[15px] text-[#6B7280]">총 견적</div>
             </div>
-            <div className="rounded-[14px] bg-[#F7F9FC] py-3">
-              <div className="text-2xl font-black text-[#0864DC]">{inProg}</div>
+            <div className="rounded-[14px] bg-[#F7F8F5] py-3">
+              <div className="text-2xl font-black text-[#25282D]">{inProg}</div>
               <div className="mt-0.5 text-[15px] text-[#6B7280]">진행 중</div>
             </div>
-            <div className="rounded-[14px] bg-[#F7F9FC] py-3">
-              <div className="text-2xl font-black text-[#16A34A]">{done}</div>
+            <div className="rounded-[14px] bg-[#F7F8F5] py-3">
+              <div className="text-2xl font-black text-[#3E9B78]">{done}</div>
               <div className="mt-0.5 text-[15px] text-[#6B7280]">완료</div>
             </div>
           </div>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#F1F5FA]">
             <div
               className="h-full rounded-full"
-              style={{ width: `${pct}%`, background: "linear-gradient(135deg, #287BFF, #0864DC)" }}
+              style={{ width: `${pct}%`, background: "linear-gradient(135deg, #3578C8, #3578C8)" }}
             />
           </div>
           <div className="mt-1 text-right text-[15px] text-[#6B7280]">완료율 {pct}%</div>
@@ -781,29 +781,29 @@ export function HomeScreen() {
         <Card className="rounded-[14px]">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Users className="h-[20px] w-[20px] text-[#0864DC]" strokeWidth={1.8} />
+              <Users className="h-[20px] w-[20px] text-[#25282D]" strokeWidth={1.8} />
               <div className="text-[17px] font-bold">고객 현황</div>
             </div>
             <button
               onClick={() => setScreen("customers")}
-              className="shrink-0 whitespace-nowrap text-[16px] font-bold text-[#0864DC]"
+              className="shrink-0 whitespace-nowrap text-[16px] font-bold text-[#25282D]"
             >
               전체 보기
             </button>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-[14px] bg-[#F7F9FC] px-3 py-3">
-              <div className="text-2xl font-black text-[#0864DC]">{customerCount}</div>
+            <div className="rounded-[14px] bg-[#F7F8F5] px-3 py-3">
+              <div className="text-2xl font-black text-[#25282D]">{customerCount}</div>
               <div className="mt-0.5 text-[15px] text-[#6B7280]">등록 고객</div>
             </div>
-            <div className="rounded-[14px] bg-[#F7F9FC] px-3 py-3">
-              <div className="text-2xl font-black text-[#0864DC]">{newThisMonth}</div>
+            <div className="rounded-[14px] bg-[#F7F8F5] px-3 py-3">
+              <div className="text-2xl font-black text-[#25282D]">{newThisMonth}</div>
               <div className="mt-0.5 text-[15px] text-[#6B7280]">이번 달 신규</div>
             </div>
           </div>
-          <div className="mt-2 rounded-[14px] bg-[#F7F9FC] px-3 py-3">
+          <div className="mt-2 rounded-[14px] bg-[#F7F8F5] px-3 py-3">
             <div className="text-[15px] text-[#6B7280]">완료 견적 금액 합계</div>
-            <div className="mt-0.5 text-xl font-black text-[#0864DC]">
+            <div className="mt-0.5 text-xl font-black text-[#25282D]">
               {doneSum.toLocaleString()}원
             </div>
           </div>
@@ -813,18 +813,18 @@ export function HomeScreen() {
         <Card className="rounded-[14px]">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <HistoryIcon className="h-[20px] w-[20px] text-[#0864DC]" strokeWidth={1.8} />
+              <HistoryIcon className="h-[20px] w-[20px] text-[#25282D]" strokeWidth={1.8} />
               <div className="text-[17px] font-bold">최근 작업</div>
             </div>
             <button
               onClick={() => setScreen("history")}
-              className="shrink-0 whitespace-nowrap text-[16px] font-bold text-[#0864DC]"
+              className="shrink-0 whitespace-nowrap text-[16px] font-bold text-[#25282D]"
             >
               전체 보기
             </button>
           </div>
           {recent.length === 0 ? (
-            <div className="rounded-[14px] bg-[#F7F9FC] px-3 py-5 text-center text-[16px] text-[#6B7280]">
+            <div className="rounded-[14px] bg-[#F7F8F5] px-3 py-5 text-center text-[16px] text-[#6B7280]">
               아직 저장된 견적이 없습니다.
             </div>
           ) : (
@@ -833,7 +833,7 @@ export function HomeScreen() {
                 <button
                   key={e.id}
                   onClick={() => loadEstimate(e.id)}
-                  className="flex w-full items-center justify-between gap-3 rounded-[14px] bg-[#F7F9FC] px-3 py-3 text-left active:translate-y-[1px]"
+                  className="flex w-full items-center justify-between gap-3 rounded-[14px] bg-[#F7F8F5] px-3 py-3 text-left active:translate-y-[1px]"
                 >
                   <div className="min-w-0">
                     <div className="truncate text-[16px] font-bold">
@@ -845,7 +845,7 @@ export function HomeScreen() {
                       {e.toAddress ? ` · ${e.toAddress}` : ""}
                     </div>
                   </div>
-                  <div className="shrink-0 whitespace-nowrap text-[16px] font-black text-[#0864DC]">
+                  <div className="shrink-0 whitespace-nowrap text-[16px] font-black text-[#25282D]">
                     {(e.total || 0).toLocaleString()}원
                   </div>
                 </button>
@@ -974,7 +974,7 @@ export function Step1() {
                   }}
                   className="text-center py-3"
                 >
-                  <div className="text-[17px] font-black text-[#0864DC]">{t}</div>
+                  <div className="text-[17px] font-black text-[#25282D]">{t}</div>
                 </Card>
               );
             })}
@@ -1074,7 +1074,7 @@ export function Step1() {
                   moveTime: `${e.target.value} ${draft.moveTime.split(" ")[1] || "09:00"}`,
                 })
               }
-              className="px-4 py-3 rounded-xl border border-[#BFD4F5] bg-white text-[18px] font-bold text-[#0F172A]"
+              className="px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-[18px] font-bold text-[#25282D]"
             >
               <option>오전</option>
               <option>오후</option>
@@ -1086,7 +1086,7 @@ export function Step1() {
                   moveTime: `${draft.moveTime.split(" ")[0] || "오전"} ${e.target.value}`,
                 })
               }
-              className="px-4 py-3 rounded-xl border border-[#BFD4F5] bg-white text-[18px] font-bold text-[#0F172A]"
+              className="px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-[18px] font-bold text-[#25282D]"
             >
               {Array.from({ length: 12 }, (_, i) => `${String(i + 1).padStart(2, "0")}:00`).map(
                 (h) => (
@@ -1102,10 +1102,10 @@ export function Step1() {
             onChange={(e) => updateDraft({ memo: e.target.value })}
             placeholder="예) 엘리베이터 예약 필요, 반려동물 있음, 오전 도착 희망 등"
             rows={3}
-            className="w-full px-4 py-3 rounded-xl border border-[#BFD4F5] bg-gradient-to-b from-[#F8FAFD] to-white text-[18px] font-semibold text-[#0F172A] placeholder:text-[#7C899D] shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] resize-none"
+            className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] bg-gradient-to-b from-[#F8FAFD] to-white text-[18px] font-semibold text-[#25282D] placeholder:text-[#7C899D] shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#3578C8] resize-none"
           />
         </Field>
-        {err && <div className="text-sm text-[#EF4444]">{err}</div>}
+        {err && <div className="text-sm text-[#D95C5C]">{err}</div>}
       </div>
       <BottomButtonBar>
         <PrimaryButton onClick={next}>다음: 주소 검색</PrimaryButton>
@@ -1160,7 +1160,7 @@ function AddressSearch({
 
   return (
     <Card className="space-y-3">
-      <div className="text-[18px] font-black text-[#16A34A]">{label}</div>
+      <div className="text-[18px] font-black text-[#3E9B78]">{label}</div>
       <div className="flex gap-2">
         <TextInput
           placeholder="도로명·지번·건물명 검색"
@@ -1173,13 +1173,13 @@ function AddressSearch({
         <button
           onClick={() => run()}
           className="px-4 rounded-xl text-white font-semibold"
-          style={{ background: "linear-gradient(135deg, #287BFF, #0751D8)" }}
+          style={{ background: "linear-gradient(135deg, #3578C8, #3578C8)" }}
         >
           <Search className="w-5 h-5" />
         </button>
       </div>
       {open && (
-        <div className="border border-[#E7EBF2] rounded-xl max-h-52 overflow-auto bg-white">
+        <div className="border border-[#E5E7EB] rounded-xl max-h-52 overflow-auto bg-white">
           {loading && <div className="px-4 py-3 text-sm text-[#6B7280]">검색 중...</div>}
           {!loading &&
             results.map((a, i) => (
@@ -1191,10 +1191,10 @@ function AddressSearch({
                   setQ("");
                   tap();
                 }}
-                className="w-full text-left px-4 py-3 hover:bg-[#F5F7FB] text-sm border-b last:border-b-0 border-[#E7EBF2]"
+                className="w-full text-left px-4 py-3 hover:bg-[#F7F8F5] text-sm border-b last:border-b-0 border-[#E5E7EB]"
               >
-                <div className="text-[17px] font-black text-[#0F172A]">{a.name}</div>
-                <div className="mt-0.5 text-[15px] font-semibold text-[#526174]">
+                <div className="text-[17px] font-black text-[#25282D]">{a.name}</div>
+                <div className="mt-0.5 text-[15px] font-semibold text-[#6B7280]">
                   {a.roadAddress || a.address}
                 </div>
               </button>
@@ -1209,13 +1209,13 @@ function AddressSearch({
             setQ("");
             tap();
           }}
-          className="w-full text-sm font-semibold rounded-xl py-2.5 border border-[#0751D8] text-[#0751D8] bg-white"
+          className="w-full text-sm font-semibold rounded-xl py-2.5 border border-[#3578C8] text-[#25282D] bg-white"
         >
           검색이 안 되면: 입력한 주소 그대로 사용
         </button>
       )}
       {value && (
-        <div className="rounded-xl bg-[#EAF2FF] p-3 text-[17px] font-bold text-[#0751D8]">
+        <div className="rounded-xl bg-[#F7F8F5] p-3 text-[17px] font-bold text-[#25282D]">
           {value}
         </div>
       )}
@@ -1332,7 +1332,7 @@ export function Step2() {
             <KakaoMap from={from} to={to} path={path} height={280} />
             {routeError && !routing ? (
               <div className="mt-3 rounded-xl bg-[#FFF1F1] border border-[#FFD4D4] p-3 text-center space-y-2">
-                <div className="text-xs font-semibold text-[#B91C1C] leading-relaxed">
+                <div className="text-xs font-semibold text-[#D95C5C] leading-relaxed">
                   {routeError}
                 </div>
                 <button
@@ -1340,7 +1340,7 @@ export function Step2() {
                     tap("click");
                     setTick((t) => t + 1);
                   }}
-                  className="px-4 min-h-12 rounded-xl bg-[#0751D8] text-white text-sm font-bold transition-transform active:scale-[0.97]"
+                  className="px-4 min-h-12 rounded-xl bg-[#3578C8] text-white text-sm font-bold transition-transform active:scale-[0.97]"
                 >
                   다시 계산
                 </button>
@@ -1464,10 +1464,10 @@ function FloorStepper({
         onPointerLeave={clear}
         onPointerCancel={clear}
         onContextMenu={(e) => e.preventDefault()}
-        className="w-10 h-10 rounded-full bg-gradient-to-b from-white to-[#EDF1F8] border border-[#DCE3EE] shadow-[0_3px_0_#DCE3EE] flex items-center justify-center active:translate-y-[2px] touch-none"
+        className="w-10 h-10 rounded-full bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_3px_0_#E5E7EB] flex items-center justify-center active:translate-y-[2px] touch-none"
         aria-label={`${label} 감소`}
       >
-        <Minus className="w-5 h-5 text-[#334155]" />
+        <Minus className="w-5 h-5 text-[#6B7280]" />
       </button>
       <input
         type="number"
@@ -1480,7 +1480,7 @@ function FloorStepper({
           if (!Number.isFinite(n)) return;
           onChange(Math.min(max, Math.max(min, Math.floor(n))));
         }}
-        className="w-16 text-center text-xl font-bold tabular-nums rounded-xl border border-[#DCE3EE] py-1.5"
+        className="w-16 text-center text-xl font-bold tabular-nums rounded-xl border border-[#E5E7EB] py-1.5"
         aria-label={label}
       />
       <button
@@ -1489,8 +1489,8 @@ function FloorStepper({
         onPointerLeave={clear}
         onPointerCancel={clear}
         onContextMenu={(e) => e.preventDefault()}
-        className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-[0_3px_0_#0645B0] active:translate-y-[2px] touch-none"
-        style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
+        className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-[0_3px_0_#285C99] active:translate-y-[2px] touch-none"
+        style={{ background: "linear-gradient(180deg, #5B93D6 0%, #3578C8 100%)" }}
         aria-label={`${label} 증가`}
       >
         <Plus className="w-5 h-5" />
@@ -1594,7 +1594,7 @@ export function Step3() {
                     className="text-center py-5"
                   >
                     <Art3D src={ENV_IMG["계단"]} alt="계단" size={56} className="mx-auto mb-2" />
-                    <div className="text-[17px] font-black text-[#0864DC]">계단 (수작업)</div>
+                    <div className="text-[17px] font-black text-[#25282D]">계단 (수작업)</div>
                   </Card>
                   <Card
                     selected={env === "엘리베이터"}
@@ -1607,11 +1607,11 @@ export function Step3() {
                       size={56}
                       className="mx-auto mb-2"
                     />
-                    <div className="text-[17px] font-black text-[#0864DC]">엘리베이터</div>
+                    <div className="text-[17px] font-black text-[#25282D]">엘리베이터</div>
                   </Card>
                 </div>
                 {!env && !ladderOn && (
-                  <div className="mt-2 text-[13px] font-semibold text-[#DC2626]">
+                  <div className="mt-2 text-[13px] font-semibold text-[#D95C5C]">
                     {place} 작업 방식을 선택해 주세요 (계단 / 엘리베이터)
                   </div>
                 )}
@@ -1620,16 +1620,16 @@ export function Step3() {
                   <div className="flex items-center gap-3">
                     <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={48} />
                     <div className="flex-1">
-                      <div className="text-[17px] font-black text-[#0864DC]">
+                      <div className="text-[17px] font-black text-[#25282D]">
                         {place} 사다리차 사용
                       </div>
-                      <div className="text-[14px] font-semibold text-[#526174]">
+                      <div className="text-[14px] font-semibold text-[#6B7280]">
                         필요하면 눌러서 선택하세요
                       </div>
                     </div>
                     <div
                       className={`w-7 h-7 rounded-full flex items-center justify-center ${
-                        ladderOn ? "bg-[#0751D8] text-white" : "border-2 border-[#DFE6F2]"
+                        ladderOn ? "bg-[#3578C8] text-white" : "border-2 border-[#E5E7EB]"
                       }`}
                     >
                       {ladderOn && <Check className="w-4 h-4" />}
@@ -1639,7 +1639,7 @@ export function Step3() {
                 <div className="h-3" />
                 <Card>
                   <div className="flex items-center justify-between">
-                    <div className="text-[17px] font-black text-[#0864DC]">{place} 층수</div>
+                    <div className="text-[17px] font-black text-[#25282D]">{place} 층수</div>
                     <FloorStepper
                       value={floor}
                       onChange={(n) => setSideFloor(side, n)}
@@ -1697,8 +1697,8 @@ export function Step4() {
                 <Art3D src={v.img} alt={v.name} size={72} />
 
                 <div>
-                  <div className="text-[19px] font-black text-[#0864DC]">{v.name}</div>
-                  <div className="text-[14px] font-bold text-[#526174]">최대 {v.max}대</div>
+                  <div className="text-[19px] font-black text-[#25282D]">{v.name}</div>
+                  <div className="text-[14px] font-bold text-[#6B7280]">최대 {v.max}대</div>
                 </div>
               </div>
               <Counter
@@ -1714,12 +1714,12 @@ export function Step4() {
           <div className="flex items-center gap-3 mb-3">
             <Art3D src={VEHICLE_IMG.ladder} alt="사다리차" size={56} />
             <div>
-              <div className="text-[19px] font-black text-[#0864DC]">사다리차 사용 위치</div>
-              <div className="text-[14px] font-bold text-[#526174]">출발지·도착지를 선택하세요</div>
+              <div className="text-[19px] font-black text-[#25282D]">사다리차 사용 위치</div>
+              <div className="text-[14px] font-bold text-[#6B7280]">출발지·도착지를 선택하세요</div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <label className="flex items-center gap-2 px-3 py-3 rounded-xl border border-[#DFE6F2] bg-white font-semibold text-sm">
+            <label className="flex items-center gap-2 px-3 py-3 rounded-xl border border-[#E5E7EB] bg-white font-semibold text-sm">
               <input
                 type="checkbox"
                 className="w-5 h-5"
@@ -1738,7 +1738,7 @@ export function Step4() {
               />
               출발지
             </label>
-            <label className="flex items-center gap-2 px-3 py-3 rounded-xl border border-[#DFE6F2] bg-white font-semibold text-sm">
+            <label className="flex items-center gap-2 px-3 py-3 rounded-xl border border-[#E5E7EB] bg-white font-semibold text-sm">
               <input
                 type="checkbox"
                 className="w-5 h-5"
@@ -1769,7 +1769,7 @@ export function Step4() {
                   step={10000}
                   placeholder="금액 입력"
                 />
-                <label className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
+                <label className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#25282D]">
                   <input
                     type="checkbox"
                     className="w-5 h-5"
@@ -1793,7 +1793,7 @@ export function Step4() {
                   step={10000}
                   placeholder="금액 입력"
                 />
-                <label className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
+                <label className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#25282D]">
                   <input
                     type="checkbox"
                     className="w-5 h-5"
@@ -1809,7 +1809,7 @@ export function Step4() {
             )}
             <div className="flex justify-between text-sm font-bold">
               <span className="text-[#6B7280]">사다리차 합계</span>
-              <span className="text-[#0751D8]">
+              <span className="text-[#25282D]">
                 {won(draft.ladderFromPrice + draft.ladderToPrice)}
               </span>
             </div>
@@ -1823,8 +1823,8 @@ export function Step4() {
               <div className="flex items-center gap-3">
                 <Art3D src={CHAR_IMG.male} alt="남자 작업자" size={56} />
                 <div>
-                  <div className="text-[17px] font-black text-[#0864DC]">남자 작업자</div>
-                  <div className="text-[14px] font-bold text-[#526174]">0~10명</div>
+                  <div className="text-[17px] font-black text-[#25282D]">남자 작업자</div>
+                  <div className="text-[14px] font-bold text-[#6B7280]">0~10명</div>
                 </div>
               </div>
               <Counter
@@ -1841,8 +1841,8 @@ export function Step4() {
               <div className="flex items-center gap-3">
                 <Art3D src={CHAR_IMG.female} alt="주방 이모" size={56} />
                 <div>
-                  <div className="text-[17px] font-black text-[#0864DC]">주방 이모</div>
-                  <div className="text-[14px] font-bold text-[#526174]">0~5명</div>
+                  <div className="text-[17px] font-black text-[#25282D]">주방 이모</div>
+                  <div className="text-[14px] font-bold text-[#6B7280]">0~5명</div>
                 </div>
               </div>
               <Counter
@@ -1877,14 +1877,14 @@ export const SIZE_TABS: { key: string; rooms: string[] }[] = [
 const DEFAULT_SIZE_TAB = SIZE_TABS.find((t) => t.key === "30~40평") ?? SIZE_TABS[0];
 
 export const ROOM_TINT: Record<string, string> = {
-  안방: "from-[#4C9BFF] to-[#0751D8]",
+  안방: "from-[#5B93D6] to-[#3578C8]",
   작은방: "from-[#5FD08A] to-[#2F9E44]",
   입구방: "from-[#A78BFA] to-[#7C3AED]",
   거실: "from-[#F472B6] to-[#DB2777]",
   부엌: "from-[#FBBF24] to-[#D97706]",
   베란다: "from-[#38BDF8] to-[#0284C7]",
   옷방: "from-[#60A5FA] to-[#2563EB]",
-  서재: "from-[#94A3B8] to-[#475569]",
+  서재: "from-[#94A3B8] to-[#6B7280]",
 };
 
 /** 번호 마지막 4자리 (발송 결과에 가려서 보여 줍니다) */
@@ -2391,7 +2391,7 @@ export function Step6() {
   return (
     <MobileShell className="jp-estimate-flow jp-tone-5">
       {/* 헤더 */}
-      <div className="px-4 pt-2 pb-3 bg-white border-b border-[#E7EBF2]">
+      <div className="px-4 pt-2 pb-3 bg-white border-b border-[#E5E7EB]">
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -2399,11 +2399,11 @@ export function Step6() {
               setScreen("step4");
             }}
             aria-label="뒤로"
-            className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F1F6FF] border border-[#DCE8FA] flex items-center justify-center text-[#0751D8] shadow-[0_4px_0_#DCE8FA,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#DCE8FA]"
+            className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] flex items-center justify-center text-[#25282D] shadow-[0_4px_0_#E5E7EB,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#E5E7EB]"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
-          <h1 className="flex-1 text-center text-[20px] font-black text-[#0F172A] leading-tight">
+          <h1 className="flex-1 text-center text-[20px] font-black text-[#25282D] leading-tight">
             5단계. 공간별 품목
           </h1>
           <div className="shrink-0 w-10" />
@@ -2424,7 +2424,7 @@ export function Step6() {
       </div>
 
       {/* 평수 선택 탭 */}
-      <div className="bg-white border-b border-[#E7EBF2] px-4 py-3">
+      <div className="bg-white border-b border-[#E5E7EB] px-4 py-3">
         <div className="flex gap-2 overflow-x-auto overflow-y-visible -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {SIZE_TABS.map((t) => (
             <button
@@ -2432,8 +2432,8 @@ export function Step6() {
               onClick={() => pickSize(t.key)}
               className={`px-4 py-2.5 rounded-2xl text-[14px] font-black whitespace-nowrap transition-all duration-150 active:translate-y-[2px] ${
                 t.key === size
-                  ? "text-white bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_4px_0_#0640A8,0_8px_16px_rgba(7,81,216,0.32),inset_0_1px_0_rgba(255,255,255,0.5)] active:shadow-[0_1px_0_#0640A8]"
-                  : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F1F6FF] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff] active:shadow-[0_1px_0_#DCE8FA]"
+                  ? "text-white bg-gradient-to-b from-[#5B93D6] to-[#3578C8] shadow-[0_4px_0_#285C99,0_8px_16px_rgba(7,81,216,0.32),inset_0_1px_0_rgba(255,255,255,0.5)] active:shadow-[0_1px_0_#285C99]"
+                  : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F7F8F5] shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff] active:shadow-[0_1px_0_#E5E7EB]"
               }`}
             >
               {t.key}
@@ -2454,7 +2454,7 @@ export function Step6() {
             return (
               <div
                 key={name}
-                className="relative rounded-3xl p-3 bg-gradient-to-b from-white to-[#F2F7FF] border border-[#DCE8FA] shadow-[0_8px_0_#E1EAF8,0_16px_28px_-14px_rgba(7,81,216,0.4),inset_0_1px_0_#fff]"
+                className="relative rounded-3xl p-3 bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_8px_0_#E5E7EB,0_16px_28px_-14px_rgba(7,81,216,0.4),inset_0_1px_0_#fff]"
               >
                 <button
                   onClick={() => {
@@ -2468,7 +2468,7 @@ export function Step6() {
                 >
                   <span
                     className={`inline-block px-3 py-1 rounded-xl text-white text-[14px] font-black bg-gradient-to-b ${
-                      ROOM_TINT[name] || "from-[#4C9BFF] to-[#0751D8]"
+                      ROOM_TINT[name] || "from-[#5B93D6] to-[#3578C8]"
                     } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)]`}
                   >
                     {name}
@@ -2489,18 +2489,18 @@ export function Step6() {
                           {shownItems.map(([id, qty]) => (
                             <span
                               key={id}
-                              className="relative rounded-xl bg-gradient-to-b from-white to-[#EAF2FF] border border-[#CFE0FA] p-0.5 shadow-[0_2px_0_#DCE8FA,inset_0_1px_0_#fff]"
+                              className="relative rounded-xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] p-0.5 shadow-[0_2px_0_#E5E7EB,inset_0_1px_0_#fff]"
                             >
                               <ItemArt id={id} name={nameOf(id)} size={34} />
                               {qty > 1 && (
-                                <span className="absolute -top-1 -right-1 min-w-4 px-1 rounded-full bg-[#0751D8] text-white text-[9px] font-black text-center">
+                                <span className="absolute -top-1 -right-1 min-w-4 px-1 rounded-full bg-[#3578C8] text-white text-[9px] font-black text-center">
                                   {qty}
                                 </span>
                               )}
                             </span>
                           ))}
                           {rest > 0 && (
-                            <span className="self-center rounded-xl bg-[#EAF2FF] border border-[#CFE0FA] px-1.5 py-2 text-[12px] font-black text-[#0751D8]">
+                            <span className="self-center rounded-xl bg-[#F7F8F5] border border-[#E5E7EB] px-1.5 py-2 text-[12px] font-black text-[#25282D]">
                               +{rest}
                             </span>
                           )}
@@ -2511,12 +2511,12 @@ export function Step6() {
                       </>
                     );
                   })()}
-                  <div className="mt-1 text-center text-[12px] font-extrabold text-[#0F172A]">
+                  <div className="mt-1 text-center text-[12px] font-extrabold text-[#25282D]">
                     {s.kinds > 0 ? `${s.kinds}종 · ${s.count}개` : "품목 없음"}
                   </div>
                 </button>
                 {s.count > 0 && (
-                  <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#0640A8,inset_0_1px_0_rgba(255,255,255,0.5)]">
+                  <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#285C99,inset_0_1px_0_rgba(255,255,255,0.5)]">
                     {s.count}
                   </span>
                 )}
@@ -2536,11 +2536,11 @@ export function Step6() {
       {room && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div
-            className="absolute inset-0 bg-[#0F172A]/45 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-[#25282D]/45 backdrop-blur-[2px]"
             onClick={() => setOpenRoom(null)}
           />
           <div
-            className={`relative w-full max-w-md flex flex-col rounded-t-3xl bg-gradient-to-b from-white to-[#F5F9FF] shadow-[0_-14px_40px_rgba(7,81,216,0.28)] pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
+            className={`relative w-full max-w-md flex flex-col rounded-t-3xl bg-gradient-to-b from-white to-[#F7F8F5] shadow-[0_-14px_40px_rgba(7,81,216,0.28)] pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
               // 품목을 고를 때는 시트를 위로 더 끌어올려 넓게 보여 줍니다
               pickerOpen ? "h-[95dvh] max-h-[95dvh]" : "max-h-[86dvh]"
             }`}
@@ -2548,7 +2548,7 @@ export function Step6() {
             <div className="px-4 pt-3 pb-2 flex items-center gap-2">
               <span
                 className={`px-3 py-1 rounded-xl text-white text-[15px] font-black bg-gradient-to-b ${
-                  ROOM_TINT[room.name] || "from-[#4C9BFF] to-[#0751D8]"
+                  ROOM_TINT[room.name] || "from-[#5B93D6] to-[#3578C8]"
                 } shadow-[0_3px_0_rgba(0,0,0,0.18)]`}
               >
                 {room.name}
@@ -2558,10 +2558,10 @@ export function Step6() {
               </span>
               <button
                 onClick={() => setOpenRoom(null)}
-                className="ml-auto w-9 h-9 rounded-full bg-white border border-[#DCE8FA] flex items-center justify-center shadow-[0_3px_0_#EDF2FA]"
+                className="ml-auto w-9 h-9 rounded-full bg-white border border-[#E5E7EB] flex items-center justify-center shadow-[0_3px_0_#F7F8F5]"
                 aria-label="닫기"
               >
-                <X className="w-5 h-5 text-[#334155]" />
+                <X className="w-5 h-5 text-[#6B7280]" />
               </button>
             </div>
 
@@ -2574,11 +2574,11 @@ export function Step6() {
                   {picked.map((p) => (
                     <span
                       key={p.id}
-                      className="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-2xl bg-gradient-to-b from-white to-[#EAF2FF] border border-[#CFE0FA] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff]"
+                      className="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff]"
                     >
                       <ItemArt id={p.id} name={p.name} size={26} />
-                      <span className="text-[13px] font-extrabold text-[#0F172A]">{p.name}</span>
-                      <span className="text-[13px] font-black text-[#0751D8] tabular-nums">
+                      <span className="text-[13px] font-extrabold text-[#25282D]">{p.name}</span>
+                      <span className="text-[13px] font-black text-[#25282D] tabular-nums">
                         {p.qty}
                       </span>
                       <button
@@ -2601,7 +2601,7 @@ export function Step6() {
                   tap("soft");
                   setPickerOpen((v) => !v);
                 }}
-                className="w-full py-3.5 rounded-2xl bg-white border border-[#DCE8FA] flex items-center justify-center gap-2 font-black text-[16px] text-[#0751D8] shadow-[0_5px_0_#EDF2FA,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
+                className="w-full py-3.5 rounded-2xl bg-white border border-[#E5E7EB] flex items-center justify-center gap-2 font-black text-[16px] text-[#25282D] shadow-[0_5px_0_#F7F8F5,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
               >
                 <Hand className="w-5 h-5" /> 직접 품목 선택
                 <ChevronDown
@@ -2613,9 +2613,9 @@ export function Step6() {
             {pickerOpen && (
               <div className="flex-1 min-h-[44dvh] overflow-auto px-4 pt-3 space-y-3" {...tabSwipe}>
                 {/* 자주 담는 품목 — 검색 없이 눌러서 바로 담습니다 */}
-                <div className="rounded-2xl border border-[#DCE8FA] bg-white px-4 py-3 space-y-2 shadow-[inset_0_1px_0_#fff]">
+                <div className="rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 space-y-2 shadow-[inset_0_1px_0_#fff]">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-[13.5px] font-black text-[#0F172A]">
+                    <div className="text-[13.5px] font-black text-[#25282D]">
                       자주 담는 품목
                       <span className="ml-1.5 text-[11.5px] font-semibold text-[#9AA4B2]">
                         한 번 눌러 바로 담기
@@ -2623,7 +2623,7 @@ export function Step6() {
                     </div>
                     <button
                       onClick={openFavEdit}
-                      className="shrink-0 rounded-xl border border-[#DCE8FA] bg-white px-2.5 py-1.5 text-[12px] font-black text-[#0751D8] shadow-[0_2px_0_#EDF2FA] active:translate-y-[1px] active:shadow-none"
+                      className="shrink-0 rounded-xl border border-[#E5E7EB] bg-white px-2.5 py-1.5 text-[12px] font-black text-[#25282D] shadow-[0_2px_0_#F7F8F5] active:translate-y-[1px] active:shadow-none"
                     >
                       편집
                     </button>
@@ -2640,21 +2640,21 @@ export function Step6() {
                           }}
                           className="relative flex flex-col items-center gap-1 rounded-2xl border px-1 pb-1.5 pt-2 transition-transform active:translate-y-[2px]"
                           style={{
-                            borderColor: qty > 0 ? "#287BFF" : "#DCE8FA",
-                            background: qty > 0 ? "#F2F7FF" : "#FFFFFF",
-                            boxShadow: qty > 0 ? "0 3px 0 #BBD3FF" : "0 2px 0 #EDF2FA",
+                            borderColor: qty > 0 ? "#3578C8" : "#E5E7EB",
+                            background: qty > 0 ? "#F7F8F5" : "#FFFFFF",
+                            boxShadow: qty > 0 ? "0 3px 0 #E5E7EB" : "0 2px 0 #F7F8F5",
                           }}
                         >
                           <ItemArt id={it.id} name={it.name} size={36} />
                           <span
                             className="w-full text-center text-[14px] font-black leading-tight line-clamp-2"
-                            style={{ color: qty > 0 ? "#0751D8" : "#475569" }}
+                            style={{ color: qty > 0 ? "#3578C8" : "#6B7280" }}
                             title={it.name}
                           >
                             {it.name}
                           </span>
                           {qty > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-[#0751D8] px-1.5 py-0.5 text-[10px] font-black text-white shadow-[0_2px_0_#0640A8]">
+                            <span className="absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-[#3578C8] px-1.5 py-0.5 text-[10px] font-black text-white shadow-[0_2px_0_#285C99]">
                               {qty}
                             </span>
                           )}
@@ -2700,7 +2700,7 @@ export function Step6() {
                         <span className="px-2.5 py-1 rounded-xl text-[12px] font-black text-white bg-gradient-to-b from-[#7FB6FF] to-[#2A6FD6] shadow-[0_2px_0_#1F5AB0]">
                           {g}
                         </span>
-                        <span className="flex-1 h-px bg-[#E1EAF8]" />
+                        <span className="flex-1 h-px bg-[#E5E7EB]" />
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         {items
@@ -2714,13 +2714,13 @@ export function Step6() {
                                 key={it.id}
                                 className={`relative rounded-2xl p-2 flex flex-col items-center gap-1 border transition-all ${
                                   qty > 0
-                                    ? "border-[#287BFF] bg-gradient-to-b from-[#F5F9FF] to-[#DCE9FF] shadow-[0_5px_0_#BBD3FF,inset_0_1px_0_#fff]"
-                                    : "border-[#E3EBF7] bg-gradient-to-b from-white to-[#F7FAFF] shadow-[0_4px_0_#EDF2FA,inset_0_1px_0_#fff]"
+                                    ? "border-[#3578C8] bg-gradient-to-b from-[#F7F8F5] to-[#DCE9FF] shadow-[0_5px_0_#E5E7EB,inset_0_1px_0_#fff]"
+                                    : "border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7FAFF] shadow-[0_4px_0_#F7F8F5,inset_0_1px_0_#fff]"
                                 }`}
                               >
                                 {/* 고른 품목은 파란 테두리 + 체크 */}
                                 {qty > 0 && (
-                                  <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] shadow-[0_2px_0_#0640A8]">
+                                  <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-b from-[#5B93D6] to-[#3578C8] shadow-[0_2px_0_#285C99]">
                                     <Check className="h-3.5 w-3.5 text-white" />
                                   </span>
                                 )}
@@ -2731,7 +2731,7 @@ export function Step6() {
                                     tap("soft");
                                     setItemMenu(it.id);
                                   }}
-                                  className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full border border-[#DCE8FA] bg-white text-[11px] font-black leading-none text-[#64748B]"
+                                  className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[11px] font-black leading-none text-[#64748B]"
                                   aria-label={`${it.name} 관리`}
                                 >
                                   ⋯
@@ -2744,7 +2744,7 @@ export function Step6() {
                                   className="w-full flex flex-col items-center gap-1 active:translate-y-[2px] transition-transform"
                                 >
                                   <ItemArt id={it.id} name={it.name} size={62} />
-                                  <span className="text-center text-[15px] font-black leading-tight text-[#0864DC] line-clamp-2">
+                                  <span className="text-center text-[15px] font-black leading-tight text-[#25282D] line-clamp-2">
                                     {it.name}
                                   </span>
                                 </button>
@@ -2752,17 +2752,17 @@ export function Step6() {
                                   <div className="w-full flex items-center justify-between gap-1">
                                     <button
                                       onClick={() => decQty(it.id, it.name, qty)}
-                                      className="w-7 h-7 rounded-xl bg-white border border-[#CFE0FA] text-[#0751D8] font-black shadow-[0_2px_0_#DCE8FA]"
+                                      className="w-7 h-7 rounded-xl bg-white border border-[#E5E7EB] text-[#25282D] font-black shadow-[0_2px_0_#E5E7EB]"
                                       aria-label={`${it.name} 감소`}
                                     >
                                       −
                                     </button>
-                                    <span className="text-[14px] font-black text-[#0751D8] tabular-nums">
+                                    <span className="text-[14px] font-black text-[#25282D] tabular-nums">
                                       {qty}
                                     </span>
                                     <button
                                       onClick={() => setQty(it.id, qty + 1)}
-                                      className="w-7 h-7 rounded-xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white font-black shadow-[0_2px_0_#0640A8]"
+                                      className="w-7 h-7 rounded-xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white font-black shadow-[0_2px_0_#285C99]"
                                       aria-label={`${it.name} 증가`}
                                     >
                                       +
@@ -2782,11 +2782,11 @@ export function Step6() {
                   )}
                   {/* 검색 결과에 없는 품목 — 깨진 그림·박스 대신 안내와 만들기 버튼을 보여 줍니다 */}
                   {noResult && (
-                    <div className="rounded-2xl border border-[#DCE8FA] bg-white p-4 text-center shadow-[inset_0_1px_0_#fff]">
-                      <p className="text-[14px] font-black text-[#0F172A]">
+                    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 text-center shadow-[inset_0_1px_0_#fff]">
+                      <p className="text-[14px] font-black text-[#25282D]">
                         등록된 품목이 없습니다
                       </p>
-                      <p className="mt-1 break-words text-[13px] font-bold text-[#0751D8]">
+                      <p className="mt-1 break-words text-[13px] font-bold text-[#25282D]">
                         「{q.trim()}」
                       </p>
                       {savedIcon?.iconUrl && (
@@ -2795,7 +2795,7 @@ export function Step6() {
                             const failed = applyGeneratedIcon(savedIcon, room.name);
                             if (failed) toast.error(failed);
                           }}
-                          className="mx-auto mt-3 flex items-center gap-2 rounded-2xl border border-[#287BFF] bg-[#F2F7FF] px-3 py-2 text-[13px] font-black text-[#0751D8] active:translate-y-[1px]"
+                          className="mx-auto mt-3 flex items-center gap-2 rounded-2xl border border-[#3578C8] bg-[#F7F8F5] px-3 py-2 text-[13px] font-black text-[#25282D] active:translate-y-[1px]"
                         >
                           <Icon3D
                             src={savedIcon.iconUrl}
@@ -2808,13 +2808,13 @@ export function Step6() {
                       <div className="mt-3 flex flex-col gap-2">
                         <button
                           onClick={openAddItem}
-                          className="w-full rounded-2xl border-2 border-dashed border-[#287BFF] py-3 text-[14px] font-black text-[#0751D8]"
+                          className="w-full rounded-2xl border-2 border-dashed border-[#3578C8] py-3 text-[14px] font-black text-[#25282D]"
                         >
                           새 품목 추가
                         </button>
                         <button
                           onClick={openIconGen}
-                          className="w-full rounded-2xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] py-3 text-[14px] font-black text-white shadow-[0_4px_0_#0640A8] active:translate-y-[2px] active:shadow-none"
+                          className="w-full rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-3 text-[14px] font-black text-white shadow-[0_4px_0_#285C99] active:translate-y-[2px] active:shadow-none"
                         >
                           3D 아이콘 만들기
                         </button>
@@ -2825,7 +2825,7 @@ export function Step6() {
 
                 <button
                   onClick={openAddItem}
-                  className="w-full py-3.5 rounded-2xl border-2 border-dashed border-[#287BFF] text-[#0751D8] font-black flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl border-2 border-dashed border-[#3578C8] text-[#25282D] font-black flex items-center justify-center gap-2"
                 >
                   <Plus className="w-5 h-5" /> {q ? `「${q}」 품목 추가` : "품목 직접 추가"}
                 </button>
@@ -2834,7 +2834,7 @@ export function Step6() {
               </div>
             )}
 
-            <div className="border-t border-[#E7EBF2] bg-white/95 px-4 pt-3 pb-1 backdrop-blur-sm">
+            <div className="border-t border-[#E5E7EB] bg-white/95 px-4 pt-3 pb-1 backdrop-blur-sm">
               <PrimaryButton onClick={() => setOpenRoom(null)}>
                 <span className="inline-flex items-center gap-2">
                   <Check className="w-5 h-5" /> 이 공간 완료
@@ -2847,11 +2847,11 @@ export function Step6() {
             {iconGen && (
               <div className="absolute inset-0 z-30 flex items-end justify-center">
                 <div
-                  className="absolute inset-0 bg-[#0F172A]/45"
+                  className="absolute inset-0 bg-[#25282D]/45"
                   onClick={() => !iconBusy && setIconGen(null)}
                 />
                 <div className="relative max-h-[88%] w-full overflow-auto rounded-t-3xl bg-white p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                  <div className="text-[18px] font-black text-[#0F172A]">3D 아이콘 만들기</div>
+                  <div className="text-[18px] font-black text-[#25282D]">3D 아이콘 만들기</div>
                   <p className="mt-1 text-[12.5px] font-bold text-[#6B7280]">
                     품목명을 확인하고 만들면 이 품목의 3D 아이콘이 새로 그려집니다
                   </p>
@@ -2870,7 +2870,7 @@ export function Step6() {
                     </Field>
 
                     <div>
-                      <div className="mb-1.5 text-[13px] font-black text-[#334155]">품목 분류</div>
+                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">품목 분류</div>
                       <div className="flex flex-wrap gap-2">
                         {["가전", "가구", "주방", "생활용품", "잔짐", "특수"].map((c) => (
                           <button
@@ -2878,8 +2878,8 @@ export function Step6() {
                             onClick={() => setIconGen((f) => (f ? { ...f, cat: c } : f))}
                             className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black ${
                               iconGen.cat === c
-                                ? "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white shadow-[0_3px_0_#0640A8]"
-                                : "border border-[#DCE8FA] bg-white text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                                ? "bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white shadow-[0_3px_0_#285C99]"
+                                : "border border-[#E5E7EB] bg-white text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
                             }`}
                           >
                             {c}
@@ -2889,7 +2889,7 @@ export function Step6() {
                     </div>
 
                     <div>
-                      <div className="mb-1.5 text-[13px] font-black text-[#334155]">담을 공간</div>
+                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">담을 공간</div>
                       <div className="flex flex-wrap gap-2">
                         {draft.rooms.map((r) => (
                           <button
@@ -2897,8 +2897,8 @@ export function Step6() {
                             onClick={() => setIconGen((f) => (f ? { ...f, room: r.name } : f))}
                             className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black ${
                               iconGen.room === r.name
-                                ? "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white shadow-[0_3px_0_#0640A8]"
-                                : "border border-[#DCE8FA] bg-white text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                                ? "bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white shadow-[0_3px_0_#285C99]"
+                                : "border border-[#E5E7EB] bg-white text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
                             }`}
                           >
                             {r.name}
@@ -2908,9 +2908,9 @@ export function Step6() {
                     </div>
 
                     {iconBusy && (
-                      <div className="flex items-center justify-center gap-3 rounded-2xl border border-[#DCE8FA] bg-[#F8FBFF] py-5">
-                        <span className="h-6 w-6 animate-spin rounded-full border-[3px] border-[#DCE8FA] border-t-[#0751D8]" />
-                        <span className="text-[13.5px] font-black text-[#0751D8]">
+                      <div className="flex items-center justify-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F8FBFF] py-5">
+                        <span className="h-6 w-6 animate-spin rounded-full border-[3px] border-[#E5E7EB] border-t-[#3578C8]" />
+                        <span className="text-[13.5px] font-black text-[#25282D]">
                           3D 아이콘 생성 중
                         </span>
                       </div>
@@ -2918,7 +2918,7 @@ export function Step6() {
 
                     {!iconBusy && iconError && (
                       <div className="rounded-2xl border border-[#FBD5D5] bg-[#FFF5F5] p-3">
-                        <p className="text-[13px] font-black text-[#B42318]">
+                        <p className="text-[13px] font-black text-[#D95C5C]">
                           아이콘을 만들지 못했습니다
                         </p>
                         <p className="mt-1 break-words text-[12.5px] font-bold text-[#7A271A]">
@@ -2931,14 +2931,14 @@ export function Step6() {
                       <button
                         onClick={() => setIconGen(null)}
                         disabled={iconBusy}
-                        className="flex-1 rounded-2xl border border-[#DCE8FA] bg-white py-3.5 text-[15px] font-black text-[#334155] disabled:opacity-50"
+                        className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3.5 text-[15px] font-black text-[#6B7280] disabled:opacity-50"
                       >
                         취소
                       </button>
                       <button
                         onClick={runIconGen}
                         disabled={iconBusy || cleanItemName(iconGen.name).length < 2}
-                        className="flex-1 rounded-2xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] py-3.5 text-[15px] font-black text-white shadow-[0_4px_0_#0640A8] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
+                        className="flex-1 rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-3.5 text-[15px] font-black text-white shadow-[0_4px_0_#285C99] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
                       >
                         {iconBusy ? "생성 중…" : iconError ? "다시 생성" : "3D 아이콘 생성"}
                       </button>
@@ -2951,15 +2951,15 @@ export function Step6() {
             {itemForm && (
               <div className="absolute inset-0 z-20 flex items-end justify-center">
                 <div
-                  className="absolute inset-0 bg-[#0F172A]/45"
+                  className="absolute inset-0 bg-[#25282D]/45"
                   onClick={() => setItemForm(null)}
                 />
                 <div className="relative max-h-[88%] w-full overflow-auto rounded-t-3xl bg-white p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                  <div className="text-[18px] font-black text-[#0F172A]">
+                  <div className="text-[18px] font-black text-[#25282D]">
                     {itemForm.id ? "품목 고치기" : "품목 직접 추가"}
                   </div>
                   <p className="mt-1 text-[12.5px] font-bold text-[#6B7280]">
-                    담을 공간: <span className="text-[#0751D8]">{room.name}</span>
+                    담을 공간: <span className="text-[#25282D]">{room.name}</span>
                   </p>
 
                   <div className="mt-3 space-y-3">
@@ -2994,7 +2994,7 @@ export function Step6() {
                     )}
 
                     <div>
-                      <div className="mb-1.5 text-[13px] font-black text-[#334155]">
+                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">
                         대분류{" "}
                         <span className="font-bold text-[#9AA4B2]">— 자동 추천, 눌러서 변경</span>
                       </div>
@@ -3005,8 +3005,8 @@ export function Step6() {
                             onClick={() => setItemForm((f) => (f ? { ...f, cat: c } : f))}
                             className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black ${
                               itemForm.cat === c
-                                ? "bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] text-white shadow-[0_3px_0_#0640A8]"
-                                : "border border-[#DCE8FA] bg-white text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                                ? "bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white shadow-[0_3px_0_#285C99]"
+                                : "border border-[#E5E7EB] bg-white text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
                             }`}
                           >
                             {c}
@@ -3016,18 +3016,18 @@ export function Step6() {
                     </div>
 
                     <div>
-                      <div className="mb-1.5 text-[13px] font-black text-[#334155]">
+                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">
                         아이콘 <span className="font-bold text-[#9AA4B2]">— 눌러서 고르기</span>
                       </div>
-                      <div className="grid max-h-[190px] grid-cols-5 gap-2 overflow-auto rounded-2xl border border-[#E3EBF7] bg-[#F8FBFF] p-2">
+                      <div className="grid max-h-[190px] grid-cols-5 gap-2 overflow-auto rounded-2xl border border-[#E5E7EB] bg-[#F8FBFF] p-2">
                         {iconChoices(itemForm.name).map((src) => (
                           <button
                             key={src}
                             onClick={() => setItemForm((f) => (f ? { ...f, icon: src } : f))}
                             className={`flex items-center justify-center rounded-xl border p-1 ${
                               itemForm.icon === src
-                                ? "border-[#287BFF] bg-[#DCE9FF] shadow-[0_3px_0_#BBD3FF]"
-                                : "border-[#E3EBF7] bg-white"
+                                ? "border-[#3578C8] bg-[#DCE9FF] shadow-[0_3px_0_#E5E7EB]"
+                                : "border-[#E5E7EB] bg-white"
                             }`}
                           >
                             <Icon3D src={src} alt="아이콘" size={40} />
@@ -3040,7 +3040,7 @@ export function Step6() {
                   <div className="mt-4 flex gap-2">
                     <button
                       onClick={() => setItemForm(null)}
-                      className="flex-1 rounded-2xl border border-[#DCE8FA] bg-white py-3.5 font-black text-[14px] text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                      className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3.5 font-black text-[14px] text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
                     >
                       취소
                     </button>
@@ -3056,11 +3056,11 @@ export function Step6() {
             {itemMenu && (
               <div className="absolute inset-0 z-20 flex items-end justify-center">
                 <div
-                  className="absolute inset-0 bg-[#0F172A]/45"
+                  className="absolute inset-0 bg-[#25282D]/45"
                   onClick={() => setItemMenu(null)}
                 />
                 <div className="relative w-full rounded-t-3xl bg-white p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                  <div className="text-[16px] font-black text-[#0F172A]">
+                  <div className="text-[16px] font-black text-[#25282D]">
                     {catalog.find((c) => c.id === itemMenu)?.name ||
                       itemNameById(itemMenu) ||
                       "품목"}
@@ -3072,14 +3072,14 @@ export function Step6() {
                     {itemMenu.startsWith("ci_") && (
                       <button
                         onClick={() => openEditItem(itemMenu)}
-                        className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 font-black text-[14px] text-[#0751D8] shadow-[0_3px_0_#EDF2FA]"
+                        className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3.5 font-black text-[14px] text-[#25282D] shadow-[0_3px_0_#F7F8F5]"
                       >
                         이름 · 분류 · 아이콘 수정
                       </button>
                     )}
                     <button
                       onClick={() => setConfirmCatalogDel(itemMenu)}
-                      className="w-full rounded-2xl border border-[#F3C7C7] bg-white py-3.5 font-black text-[14px] text-[#EF4444] shadow-[0_3px_0_#FBEAEA]"
+                      className="w-full rounded-2xl border border-[#F3C7C7] bg-white py-3.5 font-black text-[14px] text-[#D95C5C] shadow-[0_3px_0_#FBEAEA]"
                     >
                       이 품목을 목록에서 삭제
                     </button>
@@ -3098,11 +3098,11 @@ export function Step6() {
             {confirmCatalogDel && (
               <div className="absolute inset-0 z-30 flex items-center justify-center px-6">
                 <div
-                  className="absolute inset-0 bg-[#0F172A]/45"
+                  className="absolute inset-0 bg-[#25282D]/45"
                   onClick={() => setConfirmCatalogDel(null)}
                 />
                 <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 text-center shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
-                  <div className="text-[16px] font-black leading-snug text-[#0F172A]">
+                  <div className="text-[16px] font-black leading-snug text-[#25282D]">
                     「
                     {catalog.find((c) => c.id === confirmCatalogDel)?.name ||
                       itemNameById(confirmCatalogDel) ||
@@ -3117,7 +3117,7 @@ export function Step6() {
                   <div className="mt-4 flex gap-2">
                     <button
                       onClick={() => setConfirmCatalogDel(null)}
-                      className="flex-1 rounded-2xl border border-[#DCE8FA] bg-white py-3 font-black text-[14px] text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                      className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
                     >
                       취소
                     </button>
@@ -3126,7 +3126,7 @@ export function Step6() {
                         removeFromCatalog(confirmCatalogDel);
                         setConfirmCatalogDel(null);
                       }}
-                      className="flex-1 rounded-2xl bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#A81E20]"
+                      className="flex-1 rounded-2xl bg-gradient-to-b from-[#D95C5C] to-[#D95C5C] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#A81E20]"
                     >
                       삭제
                     </button>
@@ -3139,11 +3139,11 @@ export function Step6() {
             {confirmRemove && (
               <div className="absolute inset-0 z-10 flex items-center justify-center px-6">
                 <div
-                  className="absolute inset-0 bg-[#0F172A]/40"
+                  className="absolute inset-0 bg-[#25282D]/40"
                   onClick={() => setConfirmRemove(null)}
                 />
                 <div className="relative w-full max-w-[300px] rounded-3xl bg-white p-5 text-center shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
-                  <div className="text-[16px] font-black text-[#0F172A]">
+                  <div className="text-[16px] font-black text-[#25282D]">
                     이 품목을 공간에서 삭제할까요?
                   </div>
                   <p className="mt-1.5 text-[13px] font-bold text-[#6B7280]">
@@ -3152,7 +3152,7 @@ export function Step6() {
                   <div className="mt-4 flex gap-2">
                     <button
                       onClick={() => setConfirmRemove(null)}
-                      className="flex-1 rounded-2xl border border-[#DCE8FA] bg-white py-3 font-black text-[14px] text-[#334155] shadow-[0_3px_0_#EDF2FA]"
+                      className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
                     >
                       취소
                     </button>
@@ -3162,7 +3162,7 @@ export function Step6() {
                         setQty(confirmRemove.id, 0);
                         setConfirmRemove(null);
                       }}
-                      className="flex-1 rounded-2xl bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#A81E20]"
+                      className="flex-1 rounded-2xl bg-gradient-to-b from-[#D95C5C] to-[#D95C5C] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#A81E20]"
                     >
                       삭제
                     </button>
@@ -3177,12 +3177,12 @@ export function Step6() {
       {favEditOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div
-            className="absolute inset-0 bg-[#0F172A]/45"
+            className="absolute inset-0 bg-[#25282D]/45"
             onClick={() => !favSaving && setFavEditOpen(false)}
           />
           <div className="relative flex h-[86dvh] w-full max-w-md flex-col rounded-t-3xl bg-white shadow-[0_-14px_40px_rgba(7,81,216,0.28)]">
-            <div className="border-b border-[#EDF2FA] px-4 py-3">
-              <div className="text-[17px] font-black text-[#0F172A]">자주 담는 품목 편집</div>
+            <div className="border-b border-[#F7F8F5] px-4 py-3">
+              <div className="text-[17px] font-black text-[#25282D]">자주 담는 품목 편집</div>
               <div className="mt-0.5 text-[12px] font-bold text-[#6B7280]">
                 등록 {favDraft.length} / {FAVORITE_LIMIT}개 · 눌러서 추가·삭제
               </div>
@@ -3190,8 +3190,8 @@ export function Step6() {
 
             <div className="flex-1 space-y-3 overflow-auto px-4 py-3">
               {/* 등록된 품목 — 순서 변경·삭제 */}
-              <div className="rounded-2xl border border-[#DCE8FA] bg-[#F8FBFF] p-3">
-                <div className="text-[12.5px] font-black text-[#0864DC]">등록한 품목</div>
+              <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8FBFF] p-3">
+                <div className="text-[12.5px] font-black text-[#25282D]">등록한 품목</div>
                 {favDraft.length === 0 ? (
                   <div className="py-3 text-center text-[12.5px] font-bold text-[#94A3B8]">
                     아래에서 품목을 골라 추가해 주세요
@@ -3203,20 +3203,20 @@ export function Step6() {
                       return (
                         <div
                           key={id}
-                          className="flex items-center gap-2 rounded-xl border border-[#DCE8FA] bg-white px-2 py-1.5"
+                          className="flex items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-2 py-1.5"
                         >
                           <span className="w-5 text-center text-[11px] font-black text-[#94A3B8]">
                             {i + 1}
                           </span>
                           <ItemArt id={id} name={it?.name || id} size={26} />
-                          <span className="flex-1 truncate text-[13px] font-extrabold text-[#0F172A]">
+                          <span className="flex-1 truncate text-[13px] font-extrabold text-[#25282D]">
                             {it?.name || id}
                           </span>
                           <button
                             onClick={() => moveFav(id, -1)}
                             disabled={i === 0}
                             aria-label="위로"
-                            className="h-8 w-8 rounded-lg border border-[#DCE8FA] text-[#0751D8] disabled:opacity-30"
+                            className="h-8 w-8 rounded-lg border border-[#E5E7EB] text-[#25282D] disabled:opacity-30"
                           >
                             ↑
                           </button>
@@ -3224,14 +3224,14 @@ export function Step6() {
                             onClick={() => moveFav(id, 1)}
                             disabled={i === favDraft.length - 1}
                             aria-label="아래로"
-                            className="h-8 w-8 rounded-lg border border-[#DCE8FA] text-[#0751D8] disabled:opacity-30"
+                            className="h-8 w-8 rounded-lg border border-[#E5E7EB] text-[#25282D] disabled:opacity-30"
                           >
                             ↓
                           </button>
                           <button
                             onClick={() => toggleFav(id)}
                             aria-label={`${it?.name || id} 삭제`}
-                            className="h-8 w-8 rounded-lg border border-[#FBD5D5] text-[#D9282A]"
+                            className="h-8 w-8 rounded-lg border border-[#FBD5D5] text-[#D95C5C]"
                           >
                             <X className="mx-auto h-4 w-4" />
                           </button>
@@ -3249,7 +3249,7 @@ export function Step6() {
                   value={favQuery}
                   onChange={(e) => setFavQuery(e.target.value)}
                   placeholder="전체 품목 검색 (예: 냉장고)"
-                  className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3 pl-9 pr-3 text-[14px] font-bold outline-none"
+                  className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3 pl-9 pr-3 text-[14px] font-bold outline-none"
                 />
               </div>
               <div className="flex flex-wrap gap-2 pb-2">
@@ -3264,9 +3264,9 @@ export function Step6() {
                         onClick={() => toggleFav(it.id)}
                         className="flex min-h-11 items-center gap-1.5 rounded-2xl border pl-1.5 pr-3 text-[13px] font-black"
                         style={{
-                          borderColor: on ? "#287BFF" : "#DCE8FA",
-                          background: on ? "#F2F7FF" : "#FFFFFF",
-                          color: on ? "#0751D8" : "#475569",
+                          borderColor: on ? "#3578C8" : "#E5E7EB",
+                          background: on ? "#F7F8F5" : "#FFFFFF",
+                          color: on ? "#3578C8" : "#6B7280",
                         }}
                       >
                         <ItemArt id={it.id} name={it.name} size={26} />
@@ -3278,14 +3278,14 @@ export function Step6() {
               </div>
             </div>
 
-            <div className="space-y-2 border-t border-[#EDF2FA] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="space-y-2 border-t border-[#F7F8F5] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               <PrimaryButton onClick={() => void saveFav()} disabled={favSaving}>
                 {favSaving ? "저장 중…" : "저장"}
               </PrimaryButton>
               <button
                 onClick={() => setFavEditOpen(false)}
                 disabled={favSaving}
-                className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 text-[14px] font-black text-[#334155] shadow-[0_3px_0_#EDF2FA] disabled:opacity-50"
+                className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3.5 text-[14px] font-black text-[#6B7280] shadow-[0_3px_0_#F7F8F5] disabled:opacity-50"
               >
                 취소
               </button>
@@ -3801,7 +3801,7 @@ export function AIRecognition() {
         {/* 마스코트가 직접 촬영해 주는 히어로 영역 */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#EDF5FF] to-[#DCEBFF] px-5 pt-4 pb-5 text-center">
           <ScanMascot state={mascotState} size={164} className="mx-auto" />
-          <div className="mt-1 text-[17px] font-black text-[#0F172A]">
+          <div className="mt-1 text-[17px] font-black text-[#25282D]">
             {busy ? "집 안을 살펴보는 중이에요" : "제가 대신 찍어 드릴게요"}
           </div>
           <p className="mt-1 text-[12.5px] font-semibold leading-relaxed text-[#5A6478]">
@@ -3822,8 +3822,8 @@ export function AIRecognition() {
         )}
 
         {/* 담을 공간 고르기 — 스캔·음성 결과가 여기로 들어갑니다 */}
-        <div className="rounded-3xl border border-[#DCE8FA] bg-white px-4 py-3.5">
-          <div className="text-[14px] font-black text-[#0F172A]">
+        <div className="rounded-3xl border border-[#E5E7EB] bg-white px-4 py-3.5">
+          <div className="text-[14px] font-black text-[#25282D]">
             어느 공간에 담을까요?
             <span className="ml-1.5 text-[11.5px] font-semibold text-[#9AA4B2]">
               눌러서 바꿀 수 있어요
@@ -3842,9 +3842,9 @@ export function AIRecognition() {
                   className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black transition-transform active:translate-y-[2px] ${
                     on
                       ? `text-white bg-gradient-to-b ${
-                          ROOM_TINT[r.name] || "from-[#4C9BFF] to-[#0751D8]"
+                          ROOM_TINT[r.name] || "from-[#5B93D6] to-[#3578C8]"
                         } shadow-[0_3px_0_rgba(0,0,0,0.18)]`
-                      : "text-[#334155] bg-white border border-[#DCE8FA] shadow-[0_3px_0_#EDF2FA]"
+                      : "text-[#6B7280] bg-white border border-[#E5E7EB] shadow-[0_3px_0_#F7F8F5]"
                   }`}
                 >
                   {r.name}
@@ -3860,7 +3860,7 @@ export function AIRecognition() {
           disabled={busy}
           className={`flex w-full items-center justify-center gap-2 rounded-3xl py-4 font-black text-[15px] text-white transition-transform active:translate-y-[3px] active:shadow-none disabled:opacity-60 ${
             listening
-              ? "bg-gradient-to-b from-[#FF6B6B] to-[#D9282A] shadow-[0_5px_0_#A81E20]"
+              ? "bg-gradient-to-b from-[#D95C5C] to-[#D95C5C] shadow-[0_5px_0_#A81E20]"
               : "bg-gradient-to-b from-[#34D399] to-[#059669] shadow-[0_5px_0_#047857,inset_0_1px_0_rgba(255,255,255,0.4)]"
           }`}
         >
@@ -3887,7 +3887,7 @@ export function AIRecognition() {
           />
           <div className="min-w-0 flex-1">
             <div
-              className={`text-[16px] font-bold ${voiceError ? "text-[#DC2626]" : "text-[#0864DC]"}`}
+              className={`text-[16px] font-bold ${voiceError ? "text-[#D95C5C]" : "text-[#25282D]"}`}
             >
               {voiceBusy
                 ? "담는 중이에요"
@@ -3906,12 +3906,12 @@ export function AIRecognition() {
         {/* 헷갈리는 말은 담지 않고 먼저 확인합니다 */}
         {pending.length > 0 && (
           <Card className="rounded-[14px]">
-            <div className="text-[16px] font-bold text-[#0864DC]">
+            <div className="text-[16px] font-bold text-[#25282D]">
               이렇게 들었어요. 맞는 것을 골라 주세요.
             </div>
             <div className="mt-2 space-y-3">
               {pending.map((m, i) => (
-                <div key={`${m.id}_${i}`} className="rounded-[14px] bg-[#F7F9FC] p-3">
+                <div key={`${m.id}_${i}`} className="rounded-[14px] bg-[#F7F8F5] p-3">
                   <div className="text-[15px] text-[#6B7280]">
                     “{m.raw}” · {m.qty}
                     {m.unit}
@@ -3921,7 +3921,7 @@ export function AIRecognition() {
                       <button
                         key={c.id}
                         onClick={() => confirmPending(m, c.id)}
-                        className="rounded-[14px] border border-[#DCE8FA] bg-white px-3 py-2 text-[16px] font-bold text-[#0864DC] active:translate-y-[1px]"
+                        className="rounded-[14px] border border-[#E5E7EB] bg-white px-3 py-2 text-[16px] font-bold text-[#25282D] active:translate-y-[1px]"
                       >
                         {c.name}
                       </button>
@@ -3950,24 +3950,24 @@ export function AIRecognition() {
               void applySpeech(t);
             }}
             disabled={voiceBusy || !typed.trim()}
-            className="shrink-0 rounded-2xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] px-4 font-black text-[14px] text-white shadow-[0_4px_0_#0640A8] disabled:opacity-50"
+            className="shrink-0 rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] px-4 font-black text-[14px] text-white shadow-[0_4px_0_#285C99] disabled:opacity-50"
           >
             담기
           </button>
         </div>
 
         {/* 지금 어느 방에 저장되는지 촬영 버튼 위에 분명히 보여 줍니다 */}
-        <div className="rounded-2xl bg-[#EAF2FF] px-4 py-2.5 text-center text-[14px] font-black text-[#0751D8]">
+        <div className="rounded-2xl bg-[#F7F8F5] px-4 py-2.5 text-center text-[14px] font-black text-[#25282D]">
           현재 선택: {targetRoom ? targetRoom.name : "공간을 먼저 선택해 주세요"}
         </div>
 
         {/* 촬영 — 사진 / 동영상 */}
         <div className="grid grid-cols-2 gap-3">
           <label
-            className={`flex flex-col items-center gap-1.5 rounded-3xl py-4 text-white shadow-[0_5px_0_#0645B0,inset_0_1px_0_rgba(255,255,255,0.4)] transition-transform active:translate-y-[3px] active:shadow-none ${
+            className={`flex flex-col items-center gap-1.5 rounded-3xl py-4 text-white shadow-[0_5px_0_#285C99,inset_0_1px_0_rgba(255,255,255,0.4)] transition-transform active:translate-y-[3px] active:shadow-none ${
               busy ? "pointer-events-none opacity-60" : "cursor-pointer"
             }`}
-            style={{ background: "linear-gradient(180deg, #4A94FF 0%, #0751D8 100%)" }}
+            style={{ background: "linear-gradient(180deg, #5B93D6 0%, #3578C8 100%)" }}
           >
             <Camera className="h-6 w-6" />
             <span className="text-[15px] font-black">사진 촬영</span>
@@ -4009,7 +4009,7 @@ export function AIRecognition() {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <label className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-semibold flex items-center justify-center gap-2 cursor-pointer">
+          <label className="py-4 rounded-2xl bg-white border border-[#E5E7EB] font-semibold flex items-center justify-center gap-2 cursor-pointer">
             <ImageIcon className="w-5 h-5" /> 사진 불러오기
             <input
               type="file"
@@ -4021,7 +4021,7 @@ export function AIRecognition() {
               }}
             />
           </label>
-          <label className="py-4 rounded-2xl bg-white border border-[#E7EBF2] font-semibold flex items-center justify-center gap-2 cursor-pointer">
+          <label className="py-4 rounded-2xl bg-white border border-[#E5E7EB] font-semibold flex items-center justify-center gap-2 cursor-pointer">
             <ImageIcon className="w-5 h-5" /> 동영상 불러오기
             <input
               type="file"
@@ -4037,13 +4037,13 @@ export function AIRecognition() {
 
         {busy && (
           <Card className="py-5 text-center">
-            <div className="font-bold text-[#0751D8]">AI 품목 분석 중… {progress}%</div>
+            <div className="font-bold text-[#25282D]">AI 품목 분석 중… {progress}%</div>
             <div className="mt-1 text-xs text-[#6B7280]">
               사진 전체를 본 뒤, 나눠서 확대해 작은 물건까지 다시 확인합니다
             </div>
-            <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-[#EDF2FB]">
+            <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-[#F7F8F5]">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-[#4C9BFF] to-[#0751D8] transition-[width] duration-300"
+                className="h-full rounded-full bg-gradient-to-r from-[#5B93D6] to-[#3578C8] transition-[width] duration-300"
                 style={{ width: `${Math.max(5, progress)}%` }}
               />
             </div>
@@ -4065,7 +4065,7 @@ export function AIRecognition() {
           </Card>
         )}
 
-        <div className="text-xs text-[#6B7280] bg-[#F5F7FB] rounded-xl px-3 py-2">
+        <div className="text-xs text-[#6B7280] bg-[#F7F8F5] rounded-xl px-3 py-2">
           💡 밝고 선명하게, 물건 전체가 나오도록 촬영할수록 인식률이 높아집니다.
         </div>
 
@@ -4075,7 +4075,7 @@ export function AIRecognition() {
               <div className="font-bold">인식 결과</div>
               <button
                 onClick={() => setOnlyHigh((v) => !v)}
-                className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#EDF2FB] text-[#0751D8]"
+                className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#F7F8F5] text-[#25282D]"
               >
                 {onlyHigh ? `${PCT}% 이상만 보기 (숨김 ${lowCount})` : "전체 보기"}
               </button>
@@ -4087,7 +4087,7 @@ export function AIRecognition() {
                 <div className="flex items-start gap-3">
                   <ItemArt id={r.id} name={r.name} size={48} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[18px] font-black text-[#0864DC]">{r.name}</div>
+                    <div className="truncate text-[18px] font-black text-[#25282D]">{r.name}</div>
                     <div className="mt-0.5 text-[12px] font-semibold leading-snug text-[#6B7280]">
                       정확도 {Math.round(r.confidence * 100)}%
                       {r.note ? <span className="block">{r.note}</span> : null}
@@ -4095,7 +4095,7 @@ export function AIRecognition() {
                   </div>
                   <span className="shrink-0">
                     {r.confidence >= THRESHOLD ? (
-                      <Check className="h-5 w-5 text-[#16A34A]" />
+                      <Check className="h-5 w-5 text-[#3E9B78]" />
                     ) : (
                       <span className="rounded-full bg-[#FEF3C7] px-2 py-0.5 text-[10.5px] font-black text-[#B45309]">
                         확인
@@ -4113,7 +4113,7 @@ export function AIRecognition() {
                   />
                   <button
                     onClick={() => setResults(results.filter((x) => x.id !== r.id))}
-                    className="flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-[13px] font-bold text-[#EF4444]"
+                    className="flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-[13px] font-bold text-[#D95C5C]"
                     aria-label={`${r.name} 삭제`}
                   >
                     <Trash2 className="h-4 w-4" /> 삭제
@@ -4138,7 +4138,7 @@ export function AIRecognition() {
                 <button
                   onClick={() => apply(guessedRoom!.id)}
                   disabled={shown.length === 0}
-                  className="flex-1 py-4 rounded-2xl border border-[#DCE8FA] bg-white font-black text-[13.5px] text-[#334155] disabled:opacity-50"
+                  className="flex-1 py-4 rounded-2xl border border-[#E5E7EB] bg-white font-black text-[13.5px] text-[#6B7280] disabled:opacity-50"
                 >
                   「{guessedRoom!.name}」으로 변경
                 </button>
@@ -4158,7 +4158,7 @@ export function AIRecognition() {
                     setVideoUrl("");
                     setPhotoUrl("");
                   }}
-                  className="flex-1 py-4 rounded-2xl border border-[#E7EBF2] font-bold"
+                  className="flex-1 py-4 rounded-2xl border border-[#E5E7EB] font-bold"
                 >
                   다시 촬영
                 </button>
@@ -4177,7 +4177,7 @@ export function AIRecognition() {
               tap("soft");
               setScreen("step6");
             }}
-            className="w-full py-4 rounded-2xl border border-[#DCE8FA] bg-white font-black text-[15px] text-[#0751D8] shadow-[0_4px_0_#EDF2FA] active:translate-y-[2px] active:shadow-none"
+            className="w-full py-4 rounded-2xl border border-[#E5E7EB] bg-white font-black text-[15px] text-[#25282D] shadow-[0_4px_0_#F7F8F5] active:translate-y-[2px] active:shadow-none"
           >
             {results.length > 0 ? "담지 않고 넘어가기" : "건너뛰고 직접 담기"}
           </button>
@@ -4208,7 +4208,7 @@ export function OptionsScreen() {
         {draft.options.map((o, i) => (
           <Card key={o.id}>
             <div className="flex items-center justify-between gap-2">
-              <label className="flex flex-1 items-center gap-3 text-[17px] font-black text-[#0864DC]">
+              <label className="flex flex-1 items-center gap-3 text-[17px] font-black text-[#25282D]">
                 <input
                   type="checkbox"
                   checked={o.enabled}
@@ -4230,7 +4230,7 @@ export function OptionsScreen() {
                   tap("soft");
                   updateDraft({ options: draft.options.filter((_, j) => j !== i) });
                 }}
-                className="p-2 text-[#EF4444]"
+                className="p-2 text-[#D95C5C]"
                 aria-label="옵션 삭제"
               >
                 <Trash2 className="w-4 h-4" />
@@ -4248,7 +4248,7 @@ export function OptionsScreen() {
                     })
                   }
                 />
-                <label className="flex items-center gap-2 text-sm font-semibold text-[#0751D8]">
+                <label className="flex items-center gap-2 text-sm font-semibold text-[#25282D]">
                   <input
                     type="checkbox"
                     className="w-5 h-5"
@@ -4281,7 +4281,7 @@ export function OptionsScreen() {
             });
             tap("success");
           }}
-          className="w-full py-4 rounded-2xl border-2 border-dashed border-[#287BFF] text-[#0751D8] font-bold flex items-center justify-center gap-2"
+          className="w-full py-4 rounded-2xl border-2 border-dashed border-[#3578C8] text-[#25282D] font-bold flex items-center justify-center gap-2"
         >
           <Plus className="w-5 h-5" /> 옵션 품목 직접 추가
         </button>
@@ -4292,7 +4292,7 @@ export function OptionsScreen() {
             onChange={(e) => updateDraft({ specialTerms: e.target.value })}
             placeholder="예) 사다리차 사용료 별도, 주차 공간 확보 필요, 폐기물 처리 미포함 등"
             rows={4}
-            className="w-full px-4 py-3 rounded-xl border border-[#DFE6F2] bg-gradient-to-b from-[#F8FAFD] to-white text-base shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#287BFF] resize-none"
+            className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] bg-gradient-to-b from-[#F8FAFD] to-white text-base shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#3578C8] resize-none"
           />
         </Card>
 
@@ -4321,13 +4321,13 @@ export function OptionsScreen() {
               />
             </Field>
             {days < 0 ? (
-              <div className="text-sm font-semibold text-[#EF4444]">
+              <div className="text-sm font-semibold text-[#D95C5C]">
                 보관 종료일이 시작일보다 빠릅니다. 날짜를 다시 확인해 주세요.
               </div>
             ) : (
               <div className="text-sm">
                 보관 일수: <b>{days}일</b> · 하루 {won(draft.storageDaily)} · 총 보관료:{" "}
-                <b className="text-[#0751D8]">{won(Math.max(0, days) * draft.storageDaily)}</b>
+                <b className="text-[#25282D]">{won(Math.max(0, days) * draft.storageDaily)}</b>
               </div>
             )}
           </Card>
@@ -5071,7 +5071,7 @@ export function Result() {
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
         <div
           className="rounded-2xl p-6 text-white text-center"
-          style={{ background: "linear-gradient(135deg, #0A2A6C 0%, #0751D8 100%)" }}
+          style={{ background: "linear-gradient(135deg, #0A2A6C 0%, #3578C8 100%)" }}
         >
           <div className="text-sm opacity-90">예상 견적 금액</div>
           <div className="text-4xl font-black my-3">{won(total)}</div>
@@ -5093,7 +5093,7 @@ export function Result() {
                   tap("soft");
                   setDetailEdit((v) => !v);
                 }}
-                className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#EEF4FF] text-[#0751D8] flex items-center gap-1"
+                className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#F7F8F5] text-[#25282D] flex items-center gap-1"
               >
                 <Edit3 className="w-3.5 h-3.5" /> {detailEdit ? "수정 완료" : "내역 수정"}
               </button>
@@ -5116,7 +5116,7 @@ export function Result() {
                       <span className="font-semibold">{won(p.amount)}</span>
                     </div>
                   ))}
-                <div className="border-t border-[#E7EBF2] pt-3 space-y-3">
+                <div className="border-t border-[#E5E7EB] pt-3 space-y-3">
                   {(draft.extraCharges ?? []).map((x) => (
                     <div key={x.id} className="space-y-2">
                       <div className="flex items-center gap-2">
@@ -5138,7 +5138,7 @@ export function Result() {
                               extraCharges: (draft.extraCharges ?? []).filter((y) => y.id !== x.id),
                             });
                           }}
-                          className="shrink-0 w-10 h-10 rounded-xl border border-[#F3C7C7] text-[#EF4444] flex items-center justify-center"
+                          className="shrink-0 w-10 h-10 rounded-xl border border-[#F3C7C7] text-[#D95C5C] flex items-center justify-center"
                           aria-label="항목 삭제"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -5167,7 +5167,7 @@ export function Result() {
                         ],
                       });
                     }}
-                    className="w-full py-3 rounded-xl border-2 border-dashed border-[#BFD4FF] text-[#0751D8] font-bold text-sm"
+                    className="w-full py-3 rounded-xl border-2 border-dashed border-[#BFD4FF] text-[#25282D] font-bold text-sm"
                   >
                     + 항목 추가
                   </button>
@@ -5192,9 +5192,9 @@ export function Result() {
                 </div>
               ))
             )}
-            <div className="border-t border-[#E7EBF2] pt-2 mt-2 flex justify-between font-bold">
+            <div className="border-t border-[#E5E7EB] pt-2 mt-2 flex justify-between font-bold">
               <span>합계</span>
-              <span className="text-[#0751D8]">{won(total)}</span>
+              <span className="text-[#25282D]">{won(total)}</span>
             </div>
           </Card>
         )}
@@ -5207,7 +5207,7 @@ export function Result() {
                 tap("soft");
                 setEdit((v) => !v);
               }}
-              className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#EEF4FF] text-[#0751D8] flex items-center gap-1"
+              className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#F7F8F5] text-[#25282D] flex items-center gap-1"
             >
               <Edit3 className="w-3.5 h-3.5" /> {edit ? "수정 완료" : "견적 수정"}
             </button>
@@ -5328,8 +5328,8 @@ export function Result() {
         </Card>
         <button
           onClick={openSheet}
-          className="w-full py-4 rounded-2xl font-black text-[16px] text-white flex items-center justify-center gap-2 shadow-[0_5px_0_#0640A8,0_12px_24px_-10px_rgba(7,81,216,0.5)] active:translate-y-[3px] active:shadow-[0_2px_0_#0640A8]"
-          style={{ background: "linear-gradient(180deg,#4C9BFF 0%,#0751D8 100%)" }}
+          className="w-full py-4 rounded-2xl font-black text-[16px] text-white flex items-center justify-center gap-2 shadow-[0_5px_0_#285C99,0_12px_24px_-10px_rgba(7,81,216,0.5)] active:translate-y-[3px] active:shadow-[0_2px_0_#285C99]"
+          style={{ background: "linear-gradient(180deg,#5B93D6 0%,#3578C8 100%)" }}
         >
           <FileText className="w-5 h-5" /> 견적서 확인
         </button>
@@ -5351,18 +5351,18 @@ export function Result() {
         {staffShareOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
             <div
-              className="absolute inset-0 bg-[#0F172A]/45"
+              className="absolute inset-0 bg-[#25282D]/45"
               onClick={() => !staffSharing && setStaffShareOpen(false)}
             />
             <div className="relative w-full max-w-[330px] rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
-              <div className="text-center text-[17px] font-black text-[#0F172A]">
+              <div className="text-center text-[17px] font-black text-[#25282D]">
                 직원에게 이사정보를 보낼까요?
               </div>
               <p className="mt-1.5 text-center text-[12.5px] font-bold text-[#6B7280]">
                 금액·계좌·약관은 직원 화면에 표시되지 않습니다.
               </p>
-              <div className="mt-3 max-h-[240px] space-y-1 overflow-auto rounded-2xl bg-[#F5F8FE] px-3.5 py-3 text-[13px] font-bold text-[#334155]">
-                <div className="text-[12px] font-black text-[#0864DC]">보낼 내용 미리보기</div>
+              <div className="mt-3 max-h-[240px] space-y-1 overflow-auto rounded-2xl bg-[#F5F8FE] px-3.5 py-3 text-[13px] font-bold text-[#6B7280]">
+                <div className="text-[12px] font-black text-[#25282D]">보낼 내용 미리보기</div>
                 {staffKakaoLines().map((line, i) => (
                   <div key={i} className="whitespace-pre-wrap break-words">
                     {line}
@@ -5388,7 +5388,7 @@ export function Result() {
                   <button
                     onClick={() => void prepareStaffShare()}
                     disabled={staffSharing}
-                    className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3 text-[13px] font-black text-[#0751D8]"
+                    className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3 text-[13px] font-black text-[#25282D]"
                   >
                     다시 준비하기
                   </button>
@@ -5396,7 +5396,7 @@ export function Result() {
                 <button
                   onClick={() => setStaffShareOpen(false)}
                   disabled={staffSharing}
-                  className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 text-[14px] font-black text-[#334155] shadow-[0_3px_0_#EDF2FA] disabled:opacity-50"
+                  className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3.5 text-[14px] font-black text-[#6B7280] shadow-[0_3px_0_#F7F8F5] disabled:opacity-50"
                 >
                   취소
                 </button>
@@ -5411,7 +5411,7 @@ export function Result() {
               tap("soft");
               setScreen(backTo);
             }}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#DCE8FA] bg-gradient-to-b from-white to-[#F1F6FF] px-4 py-3 text-base font-bold text-[#0864DC] shadow-[0_3px_0_#DCE8FA,inset_0_1px_0_#fff] transition-transform active:translate-y-[2px] active:shadow-none"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7F8F5] px-4 py-3 text-base font-bold text-[#25282D] shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff] transition-transform active:translate-y-[2px] active:shadow-none"
           >
             <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
             {backTo === "customers" ? "고객 목록으로" : "견적 내역으로"}
@@ -5430,7 +5430,7 @@ export function Result() {
       {/* 종이 견적서 */}
       {sheetOpen && (
         <div className="fixed inset-0 z-50 flex flex-col bg-[#E9EFF8]">
-          <div className="flex items-center gap-2 border-b border-[#DCE8FA] bg-white px-4 py-3">
+          <div className="flex items-center gap-2 border-b border-[#E5E7EB] bg-white px-4 py-3">
             <button
               onClick={() => {
                 setSheetOpen(false);
@@ -5442,16 +5442,16 @@ export function Result() {
                   /* 기록 정리에 실패해도 화면은 이미 닫혔습니다 */
                 }
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-[#DCE8FA] bg-white shadow-[0_3px_0_#EDF2FA]"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white shadow-[0_3px_0_#F7F8F5]"
               aria-label="닫기"
             >
-              <ChevronLeft className="h-5 w-5 text-[#334155]" />
+              <ChevronLeft className="h-5 w-5 text-[#6B7280]" />
             </button>
-            <div className="text-[16px] font-black text-[#0F172A]">
+            <div className="text-[16px] font-black text-[#25282D]">
               {sheetEdit ? "견적서 수정" : "이사 견적서"}
             </div>
             {draft.sheetConfirmedAt && (
-              <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-[11px] font-black text-[#15803D]">
+              <span className="rounded-full bg-[#E7F3EE] px-2 py-0.5 text-[11px] font-black text-[#3E9B78]">
                 확정
               </span>
             )}
@@ -5502,9 +5502,9 @@ export function Result() {
                   />
                 </Field>
                 {/* 예약금(계약금)을 넣으면 남은 잔금을 바로 보여 줍니다 */}
-                <div className="flex items-center justify-between rounded-2xl bg-[#F2F7FF] px-4 py-3">
-                  <span className="text-sm font-bold text-[#334155]">잔금 (총액 − 예약금)</span>
-                  <span className="text-[17px] font-black text-[#0751D8]">
+                <div className="flex items-center justify-between rounded-2xl bg-[#F7F8F5] px-4 py-3">
+                  <span className="text-sm font-bold text-[#6B7280]">잔금 (총액 − 예약금)</span>
+                  <span className="text-[17px] font-black text-[#25282D]">
                     {won(Math.max(0, total - (draft.deposit ?? 0)))}
                   </span>
                 </div>
@@ -5571,7 +5571,7 @@ export function Result() {
             )}
           </div>
 
-          <div className="border-t border-[#DCE8FA] bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="border-t border-[#E5E7EB] bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => {
@@ -5598,26 +5598,26 @@ export function Result() {
                   setSheetEdit((v) => !v);
                 }}
                 disabled={savingDefaults}
-                className="rounded-2xl border border-[#DCE8FA] bg-white py-3 text-[13.5px] font-black text-[#0751D8] shadow-[0_3px_0_#EDF2FA] disabled:opacity-60"
+                className="rounded-2xl border border-[#E5E7EB] bg-white py-3 text-[13.5px] font-black text-[#25282D] shadow-[0_3px_0_#F7F8F5] disabled:opacity-60"
               >
                 {sheetEdit ? (savingDefaults ? "저장 중…" : "수정 완료") : "견적서 수정"}
               </button>
               <button
                 onClick={() => void exportSheet()}
                 disabled={!!exporting || sheetEdit}
-                className="col-span-2 rounded-2xl border border-[#DCE8FA] bg-white py-3 text-[13.5px] font-black text-[#0751D8] shadow-[0_3px_0_#EDF2FA] disabled:opacity-50"
+                className="col-span-2 rounded-2xl border border-[#E5E7EB] bg-white py-3 text-[13.5px] font-black text-[#25282D] shadow-[0_3px_0_#F7F8F5] disabled:opacity-50"
               >
                 {exporting ? "여는 중…" : "A4 인쇄 · PDF 저장"}
               </button>
             </div>
             {smsBlocked ? (
-              <div className="mt-2 rounded-2xl border border-[#FCA5A5] bg-[#FEF2F2] p-4">
-                <div className="text-[13px] font-black text-[#B91C1C] break-keep">
+              <div className="mt-2 rounded-2xl border border-[#FCA5A5] bg-[#FBEAEA] p-4">
+                <div className="text-[13px] font-black text-[#D95C5C] break-keep">
                   {smsBlockMessage}
                 </div>
                 <button
                   onClick={() => setScreen("subscription")}
-                  className="mt-3 w-full rounded-xl bg-[#0751D8] py-3 text-[14px] font-black text-white"
+                  className="mt-3 w-full rounded-xl bg-[#3578C8] py-3 text-[14px] font-black text-white"
                 >
                   구독하기
                 </button>
@@ -5630,14 +5630,14 @@ export function Result() {
                     setConfirmSheet(true);
                   }}
                   disabled={!!exporting}
-                  className="mt-2 w-full rounded-2xl bg-gradient-to-b from-[#4C9BFF] to-[#0751D8] py-4 text-[15px] font-black text-white shadow-[0_4px_0_#0640A8] disabled:opacity-50"
+                  className="mt-2 w-full rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-4 text-[15px] font-black text-white shadow-[0_4px_0_#285C99] disabled:opacity-50"
                 >
                   <span className="inline-flex items-center gap-2">
                     <MessageSquare className="h-5 w-5" /> 견적서 문자발송
                   </span>
                 </button>
                 {sendEnt?.freeSmsLimited && (
-                  <div className="mt-2 text-center text-[12px] font-bold text-[#475569] break-keep">
+                  <div className="mt-2 text-center text-[12px] font-bold text-[#6B7280] break-keep">
                     무료 문자 {sendEnt.freeSmsUsed}/{sendEnt.freeSmsLimit}건 사용 ·{" "}
                     {sendEnt.freeSmsRemaining}건 남음
                   </div>
@@ -5650,48 +5650,48 @@ export function Result() {
           {confirmSheet && (
             <div className="absolute inset-0 z-10 flex items-center justify-center px-6">
               <div
-                className="absolute inset-0 bg-[#0F172A]/45"
+                className="absolute inset-0 bg-[#25282D]/45"
                 onClick={() => setConfirmSheet(false)}
               />
               <div className="relative max-h-[86vh] w-full max-w-[340px] overflow-y-auto rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
-                <div className="text-center text-[17px] font-black text-[#0F172A]">
+                <div className="text-center text-[17px] font-black text-[#25282D]">
                   실제 유료 문자가 발송됩니다. 내용을 확인하셨습니까?
                 </div>
                 {/* 무엇이 나가는지 그대로 보여 줍니다 */}
-                <div className="mt-3 space-y-1.5 rounded-2xl bg-[#F7F9FC] p-3 text-left">
+                <div className="mt-3 space-y-1.5 rounded-2xl bg-[#F7F8F5] p-3 text-left">
                   <div className="flex items-start justify-between gap-3">
                     <span className="shrink-0 text-[13px] text-[#6B7280]">받는 고객</span>
-                    <span className="min-w-0 break-words text-right text-[13px] font-bold text-[#111827]">
+                    <span className="min-w-0 break-words text-right text-[13px] font-bold text-[#25282D]">
                       {draft.customerName || "고객"}
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
                     <span className="shrink-0 text-[13px] text-[#6B7280]">받는 번호</span>
-                    <span className="min-w-0 break-words text-right text-[13px] font-bold text-[#111827]">
+                    <span className="min-w-0 break-words text-right text-[13px] font-bold text-[#25282D]">
                       {draft.phone || "번호 없음"}
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
                     <span className="shrink-0 text-[13px] text-[#6B7280]">문자 방식</span>
-                    <span className="min-w-0 text-right text-[13px] font-bold text-[#111827]">
+                    <span className="min-w-0 text-right text-[13px] font-bold text-[#25282D]">
                       링크 문자 (LMS)
                     </span>
                   </div>
                   <div>
                     <div className="text-[13px] text-[#6B7280]">문자 내용</div>
-                    <div className="mt-1 whitespace-pre-wrap break-words rounded-xl bg-white p-2.5 text-[12.5px] font-medium leading-relaxed text-[#111827]">
+                    <div className="mt-1 whitespace-pre-wrap break-words rounded-xl bg-white p-2.5 text-[12.5px] font-medium leading-relaxed text-[#25282D]">
                       {smsPreview}
                     </div>
                   </div>
                   <div>
                     <div className="text-[13px] text-[#6B7280]">보안 링크</div>
-                    <div className="mt-1 break-all rounded-xl bg-white p-2.5 text-[12px] font-medium text-[#0864DC]">
+                    <div className="mt-1 break-all rounded-xl bg-white p-2.5 text-[12px] font-medium text-[#25282D]">
                       {shareUrl()}
                     </div>
                   </div>
                   <div className="flex items-start justify-between gap-3">
                     <span className="shrink-0 text-[13px] text-[#6B7280]">견적 금액</span>
-                    <span className="min-w-0 text-right text-[13px] font-bold text-[#111827]">
+                    <span className="min-w-0 text-right text-[13px] font-bold text-[#25282D]">
                       {won(total)}
                     </span>
                   </div>
@@ -5704,14 +5704,14 @@ export function Result() {
                 {/* 고객이 실제로 받게 될 화면을 지금 견적서 그대로 보여 줍니다 */}
                 <button
                   onClick={() => setCustomerPreview(true)}
-                  className="mt-2.5 w-full rounded-2xl border border-[#DCE8FA] bg-white py-3 text-[13.5px] font-black text-[#0751D8] shadow-[0_3px_0_#EDF2FA]"
+                  className="mt-2.5 w-full rounded-2xl border border-[#E5E7EB] bg-white py-3 text-[13.5px] font-black text-[#25282D] shadow-[0_3px_0_#F7F8F5]"
                 >
                   고객 화면 미리보기
                 </button>
 
                 {/* 빠진 필수 항목 — 있으면 발송하지 않습니다 */}
                 {missingFields.length > 0 && (
-                  <div className="mt-3 rounded-2xl bg-[#FEE2E2] px-3 py-2.5 text-left text-[12.5px] font-bold leading-relaxed text-[#B91C1C]">
+                  <div className="mt-3 rounded-2xl bg-[#FBEAEA] px-3 py-2.5 text-left text-[12.5px] font-bold leading-relaxed text-[#D95C5C]">
                     발송에 필요한 정보가 부족합니다.
                     <ul className="mt-1.5 list-disc space-y-0.5 pl-4">
                       {missingFields.map((m) => (
@@ -5728,7 +5728,7 @@ export function Result() {
                               setSheetOpen(false);
                               if (m.screen !== "result") setScreen(m.screen);
                             }}
-                            className="block w-full rounded-xl bg-[#0864DC] py-2.5 text-[13px] font-black text-white"
+                            className="block w-full rounded-xl bg-[#3578C8] py-2.5 text-[13px] font-black text-white"
                           >
                             {m.screenLabel} 화면으로 이동
                           </button>
@@ -5756,7 +5756,7 @@ export function Result() {
                 {sendResult && (
                   <div
                     className={`mt-3 rounded-2xl px-3 py-2.5 text-left text-[12.5px] font-bold leading-relaxed ${
-                      sendResult.ok ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#FEE2E2] text-[#B91C1C]"
+                      sendResult.ok ? "bg-[#E7F3EE] text-[#3E9B78]" : "bg-[#FBEAEA] text-[#D95C5C]"
                     }`}
                   >
                     {sendResult.ok ? (
@@ -5777,7 +5777,7 @@ export function Result() {
                               setConfirmSheet(false);
                               setScreen("login");
                             }}
-                            className="mt-2 block w-full rounded-xl bg-[#0864DC] py-2.5 text-[13px] font-black text-white"
+                            className="mt-2 block w-full rounded-xl bg-[#3578C8] py-2.5 text-[13px] font-black text-white"
                           >
                             로그인 화면으로 가기
                           </button>
@@ -5789,7 +5789,7 @@ export function Result() {
 
                 {/* 저장 확인에 실패했을 때 실제 이유를 보여 줍니다 */}
                 {finishError && (
-                  <div className="mt-3 rounded-2xl bg-[#FEE2E2] px-3 py-2.5 text-left text-[12.5px] font-bold leading-relaxed text-[#B91C1C]">
+                  <div className="mt-3 rounded-2xl bg-[#FBEAEA] px-3 py-2.5 text-left text-[12.5px] font-bold leading-relaxed text-[#D95C5C]">
                     {finishError}
                   </div>
                 )}
@@ -5800,7 +5800,7 @@ export function Result() {
                     <button
                       onClick={() => void finishAndGoHome()}
                       disabled={finishing}
-                      className="w-full rounded-2xl bg-[#0864DC] py-4 text-[16px] font-black text-white shadow-[0_4px_0_#064AA6] disabled:opacity-60"
+                      className="w-full rounded-2xl bg-[#3578C8] py-4 text-[16px] font-black text-white shadow-[0_4px_0_#064AA6] disabled:opacity-60"
                     >
                       {finishing ? "확인 중…" : "견적 완료 · 처음으로"}
                     </button>
@@ -5810,7 +5810,7 @@ export function Result() {
                     <button
                       onClick={saveAndGoHome}
                       disabled={sending || finishing}
-                      className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 text-[14px] font-black text-[#334155] shadow-[0_3px_0_#EDF2FA] disabled:opacity-50"
+                      className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3.5 text-[14px] font-black text-[#6B7280] shadow-[0_3px_0_#F7F8F5] disabled:opacity-50"
                     >
                       저장 후 처음으로
                     </button>
@@ -5846,7 +5846,7 @@ export function Result() {
                       setSendResult(null);
                     }}
                     disabled={sending}
-                    className="w-full rounded-2xl border border-[#DCE8FA] bg-white py-3.5 font-black text-[14px] text-[#334155] shadow-[0_3px_0_#EDF2FA] disabled:opacity-50"
+                    className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3.5 font-black text-[14px] text-[#6B7280] shadow-[0_3px_0_#F7F8F5] disabled:opacity-50"
                   >
                     {sendResult?.ok ? "닫기" : "취소"}
                   </button>
@@ -5860,14 +5860,14 @@ export function Result() {
             <div className="absolute inset-0 z-20 flex flex-col bg-white">
               <div className="flex items-center justify-between gap-2 border-b border-[#E5EAF2] px-4 py-3">
                 <div className="min-w-0">
-                  <div className="text-[14px] font-black text-[#0F172A]">고객 화면 미리보기</div>
+                  <div className="text-[14px] font-black text-[#25282D]">고객 화면 미리보기</div>
                   <div className="text-[12px] text-[#6B7280]">
                     {draft.sheetNo || draft.id} · {draft.sheetVersion ?? 1}차 · 약관 {TERMS_VERSION}
                   </div>
                 </div>
                 <button
                   onClick={() => setCustomerPreview(false)}
-                  className="shrink-0 rounded-xl border border-[#DCE8FA] px-3 py-2 text-[13px] font-black text-[#334155]"
+                  className="shrink-0 rounded-xl border border-[#E5E7EB] px-3 py-2 text-[13px] font-black text-[#6B7280]"
                 >
                   닫기
                 </button>
@@ -5967,12 +5967,12 @@ export function History() {
         row: null as TermsStatusRow | null,
       };
     if (r.acceptedAt)
-      return { text: "고객 동의 완료 · 예약 확정", tone: "bg-[#DCFCE7] text-[#15803D]", row: r };
+      return { text: "고객 동의 완료 · 예약 확정", tone: "bg-[#E7F3EE] text-[#3E9B78]", row: r };
     if (r.termsViewedAt)
       return { text: "고객 약관 확인", tone: "bg-[#FEF3C7] text-[#B45309]", row: r };
     if (r.firstViewedAt || r.viewedAt)
       return { text: "고객 열람", tone: "bg-[#FEF3C7] text-[#B45309]", row: r };
-    return { text: "약관 발송 완료", tone: "bg-[#EEF4FF] text-[#0751D8]", row: r };
+    return { text: "약관 발송 완료", tone: "bg-[#F7F8F5] text-[#25282D]", row: r };
   };
 
   return (
@@ -6005,7 +6005,7 @@ export function History() {
                           <div className="font-bold">{e.customerName || "이름 없음"}</div>
                           <div className="text-xs text-[#6B7280]">{e.phone}</div>
                         </div>
-                        <span className="text-xs px-2 py-1 rounded-full bg-[#EEF4FF] text-[#0751D8] font-semibold">
+                        <span className="text-xs px-2 py-1 rounded-full bg-[#F7F8F5] text-[#25282D] font-semibold">
                           {e.status}
                         </span>
                       </div>
@@ -6013,7 +6013,7 @@ export function History() {
                         {e.moveDate || "-"} · {e.fromAddress || "?"} → {e.toAddress || "?"}
                       </div>
                       <div className="mt-1 flex items-center justify-between">
-                        <span className="text-lg font-black text-[#0751D8]">{won(e.total)}</span>
+                        <span className="text-lg font-black text-[#25282D]">{won(e.total)}</span>
                         <span className="text-[13px] font-bold text-[#94A3B8]">
                           {open ? "닫기 ▲" : "자세히 ▾"}
                         </span>
@@ -6062,7 +6062,7 @@ export function History() {
                               <div className="mt-2">
                                 <button
                                   onClick={() => toggleLog(e.id)}
-                                  className="flex w-full items-center justify-between rounded-xl bg-[#F7F9FC] px-3 py-2 text-[12.5px] font-bold text-[#334155]"
+                                  className="flex w-full items-center justify-between rounded-xl bg-[#F7F8F5] px-3 py-2 text-[12.5px] font-bold text-[#6B7280]"
                                 >
                                   <span className="truncate">{summary}</span>
                                   <span className="ml-2 shrink-0 text-[#6B7280]">
@@ -6072,24 +6072,24 @@ export function History() {
                                 {open && (
                                   <div className="mt-2 space-y-2">
                                     {ts.row.acceptedAt && (
-                                      <div className="rounded-xl bg-[#F7F9FC] p-2.5">
-                                        <div className="text-[12.5px] font-bold text-[#334155]">
+                                      <div className="rounded-xl bg-[#F7F8F5] p-2.5">
+                                        <div className="text-[12.5px] font-bold text-[#6B7280]">
                                           사장님 알림 문자{" "}
                                           {sent ? (
-                                            <span className="text-[#15803D]">
+                                            <span className="text-[#3E9B78]">
                                               발송 완료 {n?.toMasked ? `(${n.toMasked})` : ""}
                                               {n?.sentAt
                                                 ? ` · ${new Date(n.sentAt).toLocaleString("ko-KR")}`
                                                 : ""}
                                             </span>
                                           ) : n ? (
-                                            <span className="text-[#B91C1C]">발송 실패</span>
+                                            <span className="text-[#D95C5C]">발송 실패</span>
                                           ) : (
                                             <span className="text-[#6B7280]">기록 없음</span>
                                           )}
                                         </div>
                                         {!sent && n?.errorMessage && (
-                                          <div className="mt-1 text-[12px] font-semibold text-[#B91C1C]">
+                                          <div className="mt-1 text-[12px] font-semibold text-[#D95C5C]">
                                             {n.errorMessage}
                                           </div>
                                         )}
@@ -6097,7 +6097,7 @@ export function History() {
                                           <button
                                             onClick={() => doResend(e.id)}
                                             disabled={resending === e.id}
-                                            className="mt-2 w-full rounded-xl bg-[#EEF4FF] py-2 text-[13px] font-bold text-[#0751D8] disabled:opacity-50"
+                                            className="mt-2 w-full rounded-xl bg-[#F7F8F5] py-2 text-[13px] font-bold text-[#25282D] disabled:opacity-50"
                                           >
                                             {resending === e.id
                                               ? "발송 중…"
@@ -6106,7 +6106,7 @@ export function History() {
                                         )}
                                       </div>
                                     )}
-                                    <div className="rounded-xl bg-[#F7F9FC] p-2.5 text-[12.5px] text-[#334155]">
+                                    <div className="rounded-xl bg-[#F7F8F5] p-2.5 text-[12.5px] text-[#6B7280]">
                                       <div className="font-bold">고객 열람 기록</div>
                                       <div className="mt-0.5 text-[#6B7280]">
                                         {ts.row.firstViewedAt
@@ -6127,7 +6127,7 @@ export function History() {
                                         </div>
                                       )}
                                       {ts.row.acceptedAt && (
-                                        <div className="font-semibold text-[#15803D]">
+                                        <div className="font-semibold text-[#3E9B78]">
                                           예약 확정{" "}
                                           {new Date(ts.row.acceptedAt).toLocaleString("ko-KR")}
                                         </div>
@@ -6158,7 +6158,7 @@ export function History() {
                         <div className="flex gap-2 mt-3">
                           <button
                             onClick={() => loadEstimate(e.id)}
-                            className="flex-1 py-2 rounded-xl bg-[#EEF4FF] text-[#0751D8] text-sm font-semibold"
+                            className="flex-1 py-2 rounded-xl bg-[#F7F8F5] text-[#25282D] text-sm font-semibold"
                           >
                             상세 보기
                           </button>
@@ -6166,7 +6166,7 @@ export function History() {
                             onClick={() => {
                               if (confirm("삭제하시겠습니까?")) deleteEstimate(e.id);
                             }}
-                            className="px-3 py-2 rounded-xl bg-[#FEE2E2] text-[#EF4444]"
+                            className="px-3 py-2 rounded-xl bg-[#FBEAEA] text-[#D95C5C]"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -6245,25 +6245,25 @@ export function Customers() {
                 <div className="text-xs text-[#6B7280] mt-1">
                   최근: {new Date(c.last).toLocaleDateString("ko-KR")} · {c.count}회
                 </div>
-                <div className="text-[11px] font-bold text-[#0751D8] mt-1">눌러서 견적서 보기</div>
+                <div className="text-[11px] font-bold text-[#25282D] mt-1">눌러서 견적서 보기</div>
               </div>
               <div className="text-right">
-                <div className="text-sm font-bold text-[#0751D8]">{won(c.lastAmount)}</div>
+                <div className="text-sm font-bold text-[#25282D]">{won(c.lastAmount)}</div>
                 <div className="flex gap-1 mt-2">
                   {/* 전화·문자는 카드 열기와 겹치지 않게 클릭 전파를 막습니다 */}
                   <a
                     href={`tel:${c.phone}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="p-2 bg-[#EEF4FF] rounded-lg"
+                    className="p-2 bg-[#F7F8F5] rounded-lg"
                   >
-                    <Phone className="w-4 h-4 text-[#0751D8]" />
+                    <Phone className="w-4 h-4 text-[#25282D]" />
                   </a>
                   <a
                     href={`sms:${c.phone}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="p-2 bg-[#EEF4FF] rounded-lg"
+                    className="p-2 bg-[#F7F8F5] rounded-lg"
                   >
-                    <MessageSquare className="w-4 h-4 text-[#0751D8]" />
+                    <MessageSquare className="w-4 h-4 text-[#25282D]" />
                   </a>
                 </div>
               </div>
@@ -6418,7 +6418,7 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
           <button
             onClick={startEdit}
             disabled={loading}
-            className="text-sm font-bold text-[#0751D8] disabled:opacity-50"
+            className="text-sm font-bold text-[#25282D] disabled:opacity-50"
           >
             사업자 정보 수정
           </button>
@@ -6467,9 +6467,9 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
       </Field>
 
       <div className="space-y-1.5">
-        <div className="text-sm font-semibold text-[#374151]">사업자등록증</div>
+        <div className="text-sm font-semibold text-[#6B7280]">사업자등록증</div>
         {certPath ? (
-          <button onClick={viewCert} className="text-sm font-bold text-[#0751D8] underline">
+          <button onClick={viewCert} className="text-sm font-bold text-[#25282D] underline">
             등록된 사업자등록증 보기
           </button>
         ) : (
@@ -6482,11 +6482,11 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
               type="file"
               accept="image/jpeg,image/png,application/pdf"
               onChange={pickFile}
-              className="block w-full text-sm text-[#374151] file:mr-3 file:rounded-lg file:border-0 file:bg-[#EEF4FF] file:px-3 file:py-2 file:text-[#0751D8] file:font-bold"
+              className="block w-full text-sm text-[#6B7280] file:mr-3 file:rounded-lg file:border-0 file:bg-[#F7F8F5] file:px-3 file:py-2 file:text-[#25282D] file:font-bold"
             />
             <div className="text-xs text-[#9AA3AF]">JPG · PNG · PDF, 10MB 이하 · 비공개 저장</div>
-            {pickedFile && <div className="text-xs text-[#16A34A]">선택됨: {pickedFile.name}</div>}
-            {fileError && <div className="text-xs font-bold text-[#EF4444]">{fileError}</div>}
+            {pickedFile && <div className="text-xs text-[#3E9B78]">선택됨: {pickedFile.name}</div>}
+            {fileError && <div className="text-xs font-bold text-[#D95C5C]">{fileError}</div>}
           </>
         )}
       </div>
@@ -6496,14 +6496,14 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
           <button
             onClick={cancelEdit}
             disabled={saving}
-            className="flex-1 py-2.5 rounded-xl bg-white border border-[#E7EBF2] font-bold disabled:opacity-50"
+            className="flex-1 py-2.5 rounded-xl bg-white border border-[#E5E7EB] font-bold disabled:opacity-50"
           >
             취소
           </button>
           <button
             onClick={save}
             disabled={saving}
-            className="flex-1 py-2.5 rounded-xl bg-[#0751D8] text-white font-bold disabled:opacity-60"
+            className="flex-1 py-2.5 rounded-xl bg-[#3578C8] text-white font-bold disabled:opacity-60"
           >
             {saving ? "저장 중…" : "저장"}
           </button>
@@ -6534,10 +6534,10 @@ export function SettingsScreen() {
               tap();
               setScreen("adminAccounts");
             }}
-            className="w-full rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-left"
+            className="w-full rounded-2xl border border-[#BFE3D3] bg-[#E7F3EE] p-4 text-left"
           >
-            <div className="text-base font-bold text-[#166534]">업체 계정 관리</div>
-            <div className="mt-1 text-xs font-medium text-[#15803D]">
+            <div className="text-base font-bold text-[#3E9B78]">업체 계정 관리</div>
+            <div className="mt-1 text-xs font-medium text-[#3E9B78]">
               업체별 가입일 · 무료체험 · 구독 · 결제 · 문자 사용량 확인
             </div>
           </button>
@@ -6547,8 +6547,8 @@ export function SettingsScreen() {
             tap();
             setScreen("subscription");
           }}
-          className="w-full text-left rounded-2xl p-4 text-white font-bold shadow-[0_6px_0_#0645B0]"
-          style={{ background: "linear-gradient(135deg, #287BFF 0%, #0751D8 100%)" }}
+          className="w-full text-left rounded-2xl p-4 text-white font-bold shadow-[0_6px_0_#285C99]"
+          style={{ background: "linear-gradient(135deg, #3578C8 0%, #3578C8 100%)" }}
         >
           <div className="text-base">구독 · 결제 관리</div>
           <div className="text-xs font-medium opacity-90 mt-1">요금제 변경, 결제 내역 확인</div>
@@ -6560,7 +6560,7 @@ export function SettingsScreen() {
           }}
           className="w-full rounded-2xl border border-[#FECACA] bg-white p-4 text-left"
         >
-          <div className="text-base font-bold text-[#B42318]">오류 관리</div>
+          <div className="text-base font-bold text-[#D95C5C]">오류 관리</div>
           <div className="mt-1 text-xs font-medium text-[#6B7280]">
             오류가 난 화면 · 발생시각 · 오류 내용 · 복구 결과 확인
           </div>
@@ -6576,7 +6576,7 @@ export function SettingsScreen() {
           <div className="font-bold">문자 기본 문구</div>
           <textarea
             defaultValue="안녕하세요, JIMPICK입니다. 요청하신 이사 견적을 안내드립니다."
-            className="w-full px-4 py-3 rounded-xl border border-[#E7EBF2] bg-white text-sm min-h-24"
+            className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-sm min-h-24"
           />
         </Card>
         <Card className="space-y-3">
@@ -6590,7 +6590,7 @@ export function SettingsScreen() {
                 value={pricing.truck1t}
                 step={10000}
                 onChange={(n) => setP({ truck1t: n })}
-                inputClassName="h-14 py-0 leading-[3.5rem] text-[18px] font-bold text-[#111827]"
+                inputClassName="h-14 py-0 leading-[3.5rem] text-[18px] font-bold text-[#25282D]"
               />
             </Field>
             <Field label="5톤 차량">
@@ -6598,7 +6598,7 @@ export function SettingsScreen() {
                 value={pricing.truck5t}
                 step={10000}
                 onChange={(n) => setP({ truck5t: n })}
-                inputClassName="h-14 py-0 leading-[3.5rem] text-[18px] font-bold text-[#111827]"
+                inputClassName="h-14 py-0 leading-[3.5rem] text-[18px] font-bold text-[#25282D]"
               />
             </Field>
           </div>
@@ -6627,7 +6627,7 @@ export function SettingsScreen() {
             void signOut();
             logout();
           }}
-          className="w-full py-4 rounded-2xl bg-white border border-[#EF4444] text-[#EF4444] font-bold flex items-center justify-center gap-2"
+          className="w-full py-4 rounded-2xl bg-white border border-[#D95C5C] text-[#D95C5C] font-bold flex items-center justify-center gap-2"
         >
           <LogOut className="w-5 h-5" /> 로그아웃
         </button>
@@ -6668,7 +6668,7 @@ export function StatsScreen() {
           ].map((c) => (
             <Card key={c.label} className="py-4">
               <div className="text-xs text-[#6B7280]">{c.label}</div>
-              <div className="text-lg font-black text-[#0751D8] mt-1">{c.value}</div>
+              <div className="text-lg font-black text-[#25282D] mt-1">{c.value}</div>
             </Card>
           ))}
         </div>
@@ -6683,12 +6683,12 @@ export function StatsScreen() {
                 <span>{name}</span>
                 <span className="font-semibold">{count}건</span>
               </div>
-              <div className="h-2 rounded-full bg-[#EEF4FF] overflow-hidden">
+              <div className="h-2 rounded-full bg-[#F7F8F5] overflow-hidden">
                 <div
                   className="h-full rounded-full"
                   style={{
                     width: `${(count / maxType) * 100}%`,
-                    background: "linear-gradient(90deg, #4A94FF 0%, #0751D8 100%)",
+                    background: "linear-gradient(90deg, #5B93D6 0%, #3578C8 100%)",
                   }}
                 />
               </div>

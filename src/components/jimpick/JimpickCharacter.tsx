@@ -34,11 +34,11 @@ export function JimpickCharacter({
         <>
           <span
             aria-hidden
-            className="jp-wave absolute inset-0 rounded-full border-2 border-[#0864DC]/35"
+            className="jp-wave absolute inset-0 rounded-full border-2 border-[#3578C8]/35"
           />
           <span
             aria-hidden
-            className="jp-wave jp-wave-2 absolute inset-0 rounded-full border-2 border-[#0864DC]/25"
+            className="jp-wave jp-wave-2 absolute inset-0 rounded-full border-2 border-[#3578C8]/25"
           />
         </>
       )}
@@ -47,7 +47,7 @@ export function JimpickCharacter({
       {state === "processing" && (
         <span
           aria-hidden
-          className="jp-spin absolute inset-[6%] rounded-full border-[3px] border-[#DCE8FA] border-t-[#0864DC]"
+          className="jp-spin absolute inset-[6%] rounded-full border-[3px] border-[#E5E7EB] border-t-[#3578C8]"
         />
       )}
 
@@ -66,7 +66,7 @@ export function JimpickCharacter({
       {state === "done" && (
         <span
           aria-hidden
-          className="absolute bottom-0 right-0 flex h-[30%] w-[30%] items-center justify-center rounded-full bg-[#16A34A] shadow-[0_3px_0_#128038]"
+          className="absolute bottom-0 right-0 flex h-[30%] w-[30%] items-center justify-center rounded-full bg-[#3E9B78] shadow-[0_3px_0_#128038]"
         >
           <svg
             viewBox="0 0 24 24"
@@ -86,7 +86,7 @@ export function JimpickCharacter({
       {state === "error" && (
         <span
           aria-hidden
-          className="absolute bottom-0 right-0 flex h-[30%] w-[30%] items-center justify-center rounded-full bg-[#EF4444] text-white shadow-[0_3px_0_#B91C1C]"
+          className="absolute bottom-0 right-0 flex h-[30%] w-[30%] items-center justify-center rounded-full bg-[#D95C5C] text-white shadow-[0_3px_0_#D95C5C]"
         >
           <svg
             viewBox="0 0 24 24"

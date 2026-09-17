@@ -8,10 +8,10 @@ import { TRUCK_CAPACITY, type TruckLoad } from "@/lib/jimpick";
 
 /** 상태별 색 — 여유(파랑) · 빠듯(주황) · 넘침(빨강) */
 const TONE = {
-  ok: { main: "#0751D8", soft: "#4A94FF", bg: "#EEF4FF", line: "#BFD4FF", text: "#0751D8" },
+  ok: { main: "#3578C8", soft: "#5B93D6", bg: "#F7F8F5", line: "#BFD4FF", text: "#3578C8" },
   tight: { main: "#B45309", soft: "#FB923C", bg: "#FFF6EC", line: "#FBD9AE", text: "#B45309" },
-  over: { main: "#B91C1C", soft: "#F87171", bg: "#FEF2F2", line: "#FBC4C4", text: "#B91C1C" },
-  none: { main: "#475569", soft: "#94A3B8", bg: "#F4F7FC", line: "#DFE6F2", text: "#475569" },
+  over: { main: "#D95C5C", soft: "#F87171", bg: "#FBEAEA", line: "#FBC4C4", text: "#D95C5C" },
+  none: { main: "#6B7280", soft: "#94A3B8", bg: "#F4F7FC", line: "#E5E7EB", text: "#6B7280" },
 } as const;
 
 type ToneKey = keyof typeof TONE;
@@ -41,7 +41,7 @@ function TruckArt({ fill, tone }: { fill: number; tone: ToneKey }) {
       aria-label="트럭 적재량"
     >
       {/* 바닥 그림자 */}
-      <ellipse cx="48" cy="52" rx="34" ry="3" fill="#0751D8" opacity="0.14" />
+      <ellipse cx="48" cy="52" rx="34" ry="3" fill="#3578C8" opacity="0.14" />
 
       {/* 적재함 */}
       <rect
@@ -93,9 +93,9 @@ function TruckArt({ fill, tone }: { fill: number; tone: ToneKey }) {
       />
 
       {/* 바퀴 */}
-      <circle cx="18" cy="45" r="6" fill="#1F2937" />
+      <circle cx="18" cy="45" r="6" fill="#25282D" />
       <circle cx="18" cy="45" r="2.4" fill="#94A3B8" />
-      <circle cx="62" cy="45" r="6" fill="#1F2937" />
+      <circle cx="62" cy="45" r="6" fill="#25282D" />
       <circle cx="62" cy="45" r="2.4" fill="#94A3B8" />
     </svg>
   );

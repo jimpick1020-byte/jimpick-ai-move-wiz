@@ -68,7 +68,6 @@ interface LocalAcceptance {
 
 const ACCEPT_KEY = "jimpick.terms.acceptances";
 
-
 function writeAcceptance(rec: LocalAcceptance) {
   try {
     const all = JSON.parse(localStorage.getItem(ACCEPT_KEY) || "{}") as Record<
@@ -155,9 +154,7 @@ export function SharePage() {
       const r = await saveSheetAsPng(el, name);
       window.clearTimeout(guard);
       if (!r.ok) {
-        setExportError(
-          `${r.error ?? "이미지 저장에 실패했습니다."} 「PDF 저장」을 이용해 주세요.`,
-        );
+        setExportError(`${r.error ?? "이미지 저장에 실패했습니다."} 「PDF 저장」을 이용해 주세요.`);
       }
       setExporting("");
     } catch (e) {
@@ -212,7 +209,6 @@ export function SharePage() {
       .catch(() => setLink(null))
       .finally(() => setLoading(false));
   }, [id, token, staffMode]);
-
 
   const localCalc = useMemo(() => (estimate ? calcEstimate(estimate) : null), [estimate]);
 
@@ -345,7 +341,7 @@ export function SharePage() {
   const shell = (children: React.ReactNode) => (
     <div className="min-h-[100dvh] w-full overflow-x-hidden bg-white">
       {/* 상단 파란색 헤더 */}
-      <header className="flex h-[88px] w-full items-center justify-center bg-[#0864DC]">
+      <header className="flex h-[88px] w-full items-center justify-center bg-[#3578C8]">
         <span className="text-[30px] font-black tracking-tight text-white">JIMPICK</span>
         {companyName && (
           <span className="ml-2 text-[16px] font-bold text-white/95">{companyName}</span>
@@ -367,7 +363,7 @@ export function SharePage() {
   if (staffMode) {
     return shell(
       <div className="space-y-4 pt-5">
-        <h1 className="text-center text-[26px] font-black text-[#111827]">작업 지시서</h1>
+        <h1 className="text-center text-[26px] font-black text-[#25282D]">작업 지시서</h1>
         {!estimate ? (
           <Card>
             <div className="text-[16px] font-semibold text-[#6B7280]">
@@ -379,21 +375,21 @@ export function SharePage() {
             <Card className="space-y-2 text-[16px]">
               <div className="text-[17px] font-black">이사 정보</div>
               <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-[#0864DC]" />
+                <User className="h-4 w-4 text-[#25282D]" />
                 <span>{estimate.customerName}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-[#0864DC]" />
+                <Calendar className="h-4 w-4 text-[#25282D]" />
                 <span>
                   {ymd(estimate.moveDate)} {estimate.moveTime}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-[#0864DC]" />
+                <Truck className="h-4 w-4 text-[#25282D]" />
                 <span>{estimate.moveType}</span>
               </div>
               <div className="flex items-start gap-2">
-                <MapPin className="mt-0.5 h-4 w-4 text-[#0864DC]" />
+                <MapPin className="mt-0.5 h-4 w-4 text-[#25282D]" />
                 <div className="min-w-0 flex-1">
                   <div>
                     출발: {estimate.fromAddress} {estimate.fromDetail}
@@ -406,17 +402,22 @@ export function SharePage() {
               <div className="text-[#6B7280]">
                 1톤 {estimate.truck1t}대 · 5톤 {estimate.truck5t}대 · 사다리차 {estimate.ladder}대
               </div>
-              <div className="rounded-xl bg-[#F5F7FB] p-3 font-bold text-[#111827]">금액 미공개</div>
+              <div className="rounded-xl bg-[#F7F8F5] p-3 font-bold text-[#25282D]">
+                금액 미공개
+              </div>
             </Card>
             <Card className="space-y-2">
               <div className="flex items-center gap-2 text-[17px] font-black">
-                <Package className="h-4 w-4 text-[#0864DC]" /> 선택한 품목
+                <Package className="h-4 w-4 text-[#25282D]" /> 선택한 품목
               </div>
               {selectedItems.length === 0 ? (
                 <div className="text-[16px] text-[#6B7280]">선택된 품목이 없습니다.</div>
               ) : (
                 selectedItems.map((it, i) => (
-                  <div key={`${it.room}-${it.name}-${i}`} className="flex justify-between text-[16px]">
+                  <div
+                    key={`${it.room}-${it.name}-${i}`}
+                    className="flex justify-between text-[16px]"
+                  >
                     <span className="text-[#6B7280]">{it.room}</span>
                     <span className="font-medium">
                       {it.name} × {it.qty}
@@ -447,7 +448,7 @@ export function SharePage() {
   if (!link?.ok && !estimate) {
     return shell(
       <div className="py-20 text-center">
-        <div className="text-[18px] font-black text-[#111827]">
+        <div className="text-[18px] font-black text-[#25282D]">
           유효하지 않거나 만료된 링크입니다.
         </div>
         <div className="mt-2 text-[15px] font-medium text-[#6B7280]">
@@ -462,33 +463,34 @@ export function SharePage() {
     <div className="pt-3">
       {/* 보안 안내 */}
       <div className="flex justify-center">
-        <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-[14px] font-bold text-[#111827] shadow-[0_2px_10px_rgba(17,24,39,0.10)]">
-          <ShieldCheck className="h-[18px] w-[18px] text-[#12A150]" /> 보안이 적용된 안전한 링크입니다
+        <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-[14px] font-bold text-[#25282D] shadow-[0_2px_10px_rgba(17,24,39,0.10)]">
+          <ShieldCheck className="h-[18px] w-[18px] text-[#3E9B78]" /> 보안이 적용된 안전한
+          링크입니다
         </span>
       </div>
 
       {/* 제목 */}
-      <h1 className="mt-4 mb-1 text-center text-[26px] font-black leading-tight text-[#111827] sm:text-[30px]">
+      <h1 className="mt-4 mb-1 text-center text-[26px] font-black leading-tight text-[#25282D] sm:text-[30px]">
         이사 견적서 · 표준약관
       </h1>
 
       {/* 예약금 입금이 확인되면 여기에 바로 보입니다 */}
       {hasData && paidDeposit > 0 && (
         <div className="mt-4 rounded-[14px] border border-[#BFE7CE] bg-[#F1FBF4] px-4 py-3.5 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
-          <div className="flex items-center gap-1.5 text-[15px] font-black text-[#12A150]">
+          <div className="flex items-center gap-1.5 text-[15px] font-black text-[#3E9B78]">
             <ShieldCheck className="h-[18px] w-[18px]" /> 예약금 입금이 확인되었습니다
           </div>
           <div className="mt-2 flex items-center justify-between text-[16px]">
-            <span className="text-[#4B5563]">총 견적금액</span>
+            <span className="text-[#6B7280]">총 견적금액</span>
             <span className="font-bold tabular-nums">{won(total)}</span>
           </div>
           <div className="flex items-center justify-between text-[16px]">
-            <span className="text-[#4B5563]">예약금 (입금완료)</span>
-            <span className="font-bold tabular-nums text-[#12A150]">{won(paidDeposit)}</span>
+            <span className="text-[#6B7280]">예약금 (입금완료)</span>
+            <span className="font-bold tabular-nums text-[#3E9B78]">{won(paidDeposit)}</span>
           </div>
           <div className="mt-1 flex items-center justify-between border-t border-[#D8EFE0] pt-2">
             <span className="text-[17px] font-black">잔금</span>
-            <span className="text-[20px] font-black tabular-nums text-[#0864DC]">
+            <span className="text-[20px] font-black tabular-nums text-[#25282D]">
               {won(balanceDue)}
             </span>
           </div>
@@ -521,7 +523,6 @@ export function SharePage() {
             acceptedTermsVersion={accepted?.termsVersion ?? null}
             forCustomer
             onTermsOpen={logTermsOpen}
-
           />
         </div>
       )}
@@ -531,26 +532,26 @@ export function SharePage() {
           <Card className="space-y-2 text-[16px]">
             <div className="text-[17px] font-black">견적서 요약</div>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[#4B5563]">고객</span>
+              <span className="text-[#6B7280]">고객</span>
               <span className="min-w-0 truncate font-bold">{customerName} 고객님</span>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[#4B5563]">이사일</span>
+              <span className="text-[#6B7280]">이사일</span>
               <span className="font-bold">{moveDate}</span>
             </div>
             {sheetNo && (
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[#4B5563]">견적번호</span>
+                <span className="text-[#6B7280]">견적번호</span>
                 <span className="min-w-0 truncate font-bold">{sheetNo}</span>
               </div>
             )}
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[#4B5563]">견적서 차수</span>
+              <span className="text-[#6B7280]">견적서 차수</span>
               <span className="font-bold">{sheetVersion}차</span>
             </div>
-            <div className="mt-1 flex items-center justify-between gap-3 border-t border-[#EDF0F5] pt-2">
+            <div className="mt-1 flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-2">
               <span className="text-[17px] font-black">총 견적금액</span>
-              <span className="text-[20px] font-black text-[#0864DC]">{won(total)}</span>
+              <span className="text-[20px] font-black text-[#25282D]">{won(total)}</span>
             </div>
             <p className="pt-1 text-[14px] leading-relaxed text-[#6B7280]">
               품목·차량·옵션이 담긴 자세한 내역은 담당자에게 문의해 주세요.
@@ -564,17 +565,17 @@ export function SharePage() {
           <Card className="space-y-2 text-[16px]">
             <div className="text-[17px] font-black">이사 정보</div>
             <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-[#0864DC]" />
+              <Phone className="h-4 w-4 text-[#25282D]" />
               <span className="min-w-0 truncate">
                 {estimate.customerName} · {estimate.phone}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Truck className="h-4 w-4 text-[#0864DC]" />
+              <Truck className="h-4 w-4 text-[#25282D]" />
               <span>{estimate.moveType}</span>
             </div>
             <div className="flex items-start gap-2">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#0864DC]" />
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#25282D]" />
               <div className="min-w-0 flex-1">
                 <div>
                   출발: {estimate.fromAddress} {estimate.fromDetail}
@@ -588,7 +589,7 @@ export function SharePage() {
               거리 {estimate.distanceKm}km · {workConditionSummary(estimate)}
             </div>
             {estimate.memo && (
-              <div className="rounded-xl bg-[#F5F7FB] p-3">
+              <div className="rounded-xl bg-[#F7F8F5] p-3">
                 <span className="font-semibold">고객 메모:</span> {estimate.memo}
               </div>
             )}
@@ -596,14 +597,17 @@ export function SharePage() {
 
           <Card className="space-y-2">
             <div className="flex items-center gap-2 text-[17px] font-black">
-              <Package className="h-4 w-4 text-[#0864DC]" /> 선택한 품목
+              <Package className="h-4 w-4 text-[#25282D]" /> 선택한 품목
             </div>
             {selectedItems.length === 0 ? (
               <div className="text-[16px] text-[#6B7280]">선택된 품목이 없습니다.</div>
             ) : (
               <div className="max-h-60 space-y-1 overflow-auto">
                 {selectedItems.map((it, i) => (
-                  <div key={`${it.room}-${it.name}-${i}`} className="flex justify-between text-[16px]">
+                  <div
+                    key={`${it.room}-${it.name}-${i}`}
+                    className="flex justify-between text-[16px]"
+                  >
                     <span className="text-[#6B7280]">{it.room}</span>
                     <span className="font-medium">
                       {it.name} × {it.qty}
@@ -634,9 +638,9 @@ export function SharePage() {
                 <span className="font-semibold">{won(p.amount)}</span>
               </div>
             ))}
-            <div className="flex justify-between border-t border-[#E7EBF2] pt-2 text-[17px] font-black">
+            <div className="flex justify-between border-t border-[#E5E7EB] pt-2 text-[17px] font-black">
               <span>합계</span>
-              <span className="text-[#0864DC]">{won(total)}</span>
+              <span className="text-[#25282D]">{won(total)}</span>
             </div>
           </Card>
 
@@ -644,18 +648,18 @@ export function SharePage() {
             <div className="text-[17px] font-black">계약 진행 안내</div>
             <div className="flex items-center justify-between text-[16px]">
               <span className="inline-flex items-center gap-2 text-[#6B7280]">
-                <User className="h-4 w-4 text-[#0864DC]" /> 담당자
+                <User className="h-4 w-4 text-[#25282D]" /> 담당자
               </span>
               <span className="font-bold">{estimate.staffName?.trim() || "담당자"}</span>
             </div>
             <div className="flex items-center justify-between text-[16px]">
               <span className="inline-flex items-center gap-2 text-[#6B7280]">
-                <Phone className="h-4 w-4 text-[#0864DC]" /> 연락처
+                <Phone className="h-4 w-4 text-[#25282D]" /> 연락처
               </span>
               {contactPhone ? (
                 <a
                   href={`tel:${contactPhone.replace(/-/g, "")}`}
-                  className="font-black text-[#0864DC] underline"
+                  className="font-black text-[#25282D] underline"
                 >
                   {contactPhone}
                 </a>
@@ -665,7 +669,7 @@ export function SharePage() {
             </div>
             <div className="flex items-start justify-between gap-3 text-[16px]">
               <span className="inline-flex items-center gap-2 whitespace-nowrap text-[#6B7280]">
-                <Landmark className="h-4 w-4 text-[#0864DC]" /> 입금 계좌
+                <Landmark className="h-4 w-4 text-[#25282D]" /> 입금 계좌
               </span>
               <span className="text-right font-bold">
                 {estimate.bankAccount?.trim() ? (
@@ -693,14 +697,14 @@ export function SharePage() {
             <button
               onClick={() => void savePdf()}
               disabled={!!exporting}
-              className="rounded-[14px] border-2 border-[#0864DC] bg-white py-3.5 text-[17px] font-black text-[#0864DC] disabled:opacity-50"
+              className="rounded-[14px] border-2 border-[#3578C8] bg-white py-3.5 text-[17px] font-black text-[#25282D] disabled:opacity-50"
             >
               {exporting === "pdf" ? "여는 중…" : "PDF 저장"}
             </button>
             <button
               onClick={() => void savePng()}
               disabled={!!exporting}
-              className="rounded-[14px] border-2 border-[#0864DC] bg-white py-3.5 text-[17px] font-black text-[#0864DC] disabled:opacity-50"
+              className="rounded-[14px] border-2 border-[#3578C8] bg-white py-3.5 text-[17px] font-black text-[#25282D] disabled:opacity-50"
             >
               {exporting === "png" ? "만드는 중…" : "이미지 저장"}
             </button>
@@ -709,7 +713,7 @@ export function SharePage() {
             PDF 저장은 인쇄 화면에서 「PDF로 저장」을 골라 주세요.
           </div>
           {exportError && (
-            <div className="mt-2 rounded-[14px] bg-[#FFF1F2] p-3 text-[15px] font-bold text-[#B42318]">
+            <div className="mt-2 rounded-[14px] bg-[#FBEAEA] p-3 text-[15px] font-bold text-[#D95C5C]">
               {exportError}
             </div>
           )}
@@ -718,11 +722,11 @@ export function SharePage() {
 
       {/* 동의 · 예약 확정 */}
       {accepted ? (
-        <div className="mt-4 rounded-[14px] border-2 border-[#12A150] bg-white p-4">
-          <div className="inline-flex items-center gap-2 text-[19px] font-black text-[#12A150]">
+        <div className="mt-4 rounded-[14px] border-2 border-[#3E9B78] bg-white p-4">
+          <div className="inline-flex items-center gap-2 text-[19px] font-black text-[#3E9B78]">
             <CheckCircle2 className="h-6 w-6" /> 예약이 확정되었습니다
           </div>
-          <div className="mt-1 text-[16px] text-[#111827]">
+          <div className="mt-1 text-[16px] text-[#25282D]">
             동의 일시: {new Date(accepted.acceptedAt).toLocaleString("ko-KR")}
           </div>
           <div className="text-[16px] text-[#6B7280]">
@@ -731,24 +735,24 @@ export function SharePage() {
         </div>
       ) : (
         <>
-          <label className="mt-4 flex items-center gap-3 py-1 text-[17px] font-bold text-[#111827]">
+          <label className="mt-4 flex items-center gap-3 py-1 text-[17px] font-bold text-[#25282D]">
             <input
               type="checkbox"
               checked={checked}
               onChange={(e) => setChecked(e.target.checked)}
-              className="h-[28px] w-[28px] shrink-0 rounded-md accent-[#0864DC]"
+              className="h-[28px] w-[28px] shrink-0 rounded-md accent-[#3578C8]"
             />
             견적서와 약관을 확인했습니다
           </label>
           {saveError && (
-            <div className="mt-3 rounded-xl bg-[#FFF1F2] p-3 text-[15px] font-semibold text-[#B42318]">
+            <div className="mt-3 rounded-xl bg-[#FBEAEA] p-3 text-[15px] font-semibold text-[#D95C5C]">
               {saveError}
             </div>
           )}
           <button
             onClick={() => void confirmReservation()}
             disabled={!checked || saving || !hasData}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-b from-[#1B76EF] to-[#0757C4] py-4 text-[22px] font-black text-white shadow-[0_4px_12px_rgba(8,100,220,0.35)] disabled:from-[#C7D6EE] disabled:to-[#C7D6EE] disabled:shadow-none"
+            className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-b from-[#3578C8] to-[#2C63A8] py-4 text-[22px] font-black text-white shadow-[0_4px_12px_rgba(8,100,220,0.35)] disabled:from-[#C7D6EE] disabled:to-[#C7D6EE] disabled:shadow-none"
           >
             <CheckCircle2 className="h-[26px] w-[26px]" strokeWidth={2.2} />
             {saving ? "확정 중..." : "동의하고 예약 확정"}
@@ -759,7 +763,7 @@ export function SharePage() {
       {/* 문의하기 */}
       <a
         href={contactPhone ? `tel:${contactPhone.replace(/-/g, "")}` : undefined}
-        className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-xl border-2 border-[#0864DC] bg-white py-3.5 text-[20px] font-black text-[#0864DC]"
+        className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-xl border-2 border-[#3578C8] bg-white py-3.5 text-[20px] font-black text-[#25282D]"
       >
         <Headphones className="h-[24px] w-[24px]" strokeWidth={1.9} /> 문의하기
       </a>

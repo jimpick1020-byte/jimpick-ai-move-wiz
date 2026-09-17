@@ -58,10 +58,10 @@ export class JimpickErrorBoundary extends Component<Props, State> {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F6F8FC] px-4">
         <div className="w-full max-w-[420px] space-y-4 rounded-3xl bg-white p-6 shadow-[0_10px_30px_rgba(8,100,220,0.10)]">
-          <div className="text-lg font-bold text-[#111827] break-keep">
+          <div className="text-lg font-bold text-[#25282D] break-keep">
             화면을 여는 중 문제가 생겼습니다
           </div>
-          <p className="text-sm leading-6 text-[#4B5563] break-keep">
+          <p className="text-sm leading-6 text-[#6B7280] break-keep">
             입력하신 내용은 자동 저장되어 있습니다. 아래 버튼으로 다시 시도해 주세요.
           </p>
           <div className="rounded-xl bg-[#F9FAFB] px-3 py-2 text-xs text-[#6B7280] break-all">
@@ -71,7 +71,7 @@ export class JimpickErrorBoundary extends Component<Props, State> {
             <button
               type="button"
               onClick={() => this.setState({ error: null })}
-              className="w-full rounded-2xl bg-[#0751D8] py-3.5 text-sm font-bold text-white"
+              className="w-full rounded-2xl bg-[#3578C8] py-3.5 text-sm font-bold text-white"
             >
               다시 시도
             </button>
@@ -82,7 +82,7 @@ export class JimpickErrorBoundary extends Component<Props, State> {
                 window.location.reload();
               }}
               disabled={savedAt === null}
-              className="w-full rounded-2xl border border-[#D1D5DB] bg-white py-3.5 text-sm font-bold text-[#374151] disabled:opacity-50"
+              className="w-full rounded-2xl border border-[#D1D5DB] bg-white py-3.5 text-sm font-bold text-[#6B7280] disabled:opacity-50"
             >
               {savedAt === null
                 ? "되돌릴 저장 상태가 없습니다"

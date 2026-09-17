@@ -83,7 +83,7 @@ export function SmsConnectionCard({
         : "needSetup";
 
   const dot =
-    state === "connected" ? "bg-[#22C55E]" : state === "checking" ? "bg-[#CBD5E1]" : "bg-[#EF4444]";
+    state === "connected" ? "bg-[#3E9B78]" : state === "checking" ? "bg-[#CBD5E1]" : "bg-[#D95C5C]";
   const label =
     state === "connected"
       ? "문자발송 연결됨"
@@ -94,10 +94,10 @@ export function SmsConnectionCard({
           : "연결 상태 확인 중…";
   const labelColor =
     state === "connected"
-      ? "text-[#15803D]"
+      ? "text-[#3E9B78]"
       : state === "checking"
         ? "text-[#6B7280]"
-        : "text-[#B42318]";
+        : "text-[#D95C5C]";
 
   const sendTest = async () => {
     if (sending) return;
@@ -126,7 +126,7 @@ export function SmsConnectionCard({
       {/* 기본: 제목 + 연결 상태 + 설정 관리 */}
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[16px] font-bold text-[#111827]">문자발송 설정</div>
+          <div className="text-[16px] font-bold text-[#25282D]">문자발송 설정</div>
           <div className="mt-1 flex items-center gap-1.5">
             <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
             <span className={`truncate text-[14px] font-bold ${labelColor}`}>{label}</span>
@@ -137,7 +137,7 @@ export function SmsConnectionCard({
             tap("soft");
             setOpen((v) => !v);
           }}
-          className="shrink-0 rounded-full border border-[#DCE8FA] bg-white px-3 py-1.5 text-[13px] font-bold text-[#0864DC]"
+          className="shrink-0 rounded-full border border-[#E5E7EB] bg-white px-3 py-1.5 text-[13px] font-bold text-[#25282D]"
           aria-expanded={open}
         >
           {open ? "닫기" : "설정 관리"}
@@ -145,31 +145,31 @@ export function SmsConnectionCard({
       </div>
 
       {open && (
-        <div className="space-y-3 border-t border-[#EEF1F5] pt-3">
+        <div className="space-y-3 border-t border-[#E5E7EB] pt-3">
           {/* 알리고 설정 상태 확인 (값은 보여 주지 않고 설정 여부만) */}
-          <div className="rounded-[14px] bg-[#F7F9FC] p-3.5">
+          <div className="rounded-[14px] bg-[#F7F8F5] p-3.5">
             <div className="mb-1.5 flex items-center justify-between">
-              <div className="text-[14px] font-bold text-[#111827]">알리고 설정 상태</div>
+              <div className="text-[14px] font-bold text-[#25282D]">알리고 설정 상태</div>
               <button
                 onClick={() => {
                   tap("soft");
                   void check();
                 }}
                 disabled={checking}
-                className="rounded-full border border-[#0864DC] bg-white px-2.5 py-1 text-[12px] font-bold text-[#0864DC] disabled:opacity-50"
+                className="rounded-full border border-[#3578C8] bg-white px-2.5 py-1 text-[12px] font-bold text-[#25282D] disabled:opacity-50"
               >
                 {checking ? "확인 중…" : "다시 확인"}
               </button>
             </div>
             {config?.error ? (
-              <div className="text-[14px] font-bold text-[#B42318]">{config.error}</div>
+              <div className="text-[14px] font-bold text-[#D95C5C]">{config.error}</div>
             ) : cfgBools.length > 0 ? (
               <>
                 {cfgBools.map(([k, v]) => (
                   <div key={k} className="flex items-center justify-between gap-3 py-1">
                     <span className="min-w-0 truncate text-[14px] text-[#6B7280]">{k}</span>
                     <span
-                      className={`shrink-0 text-[14px] font-bold ${v ? "text-[#15803D]" : "text-[#B42318]"}`}
+                      className={`shrink-0 text-[14px] font-bold ${v ? "text-[#3E9B78]" : "text-[#D95C5C]"}`}
                     >
                       {v ? "설정됨" : "없음"}
                     </span>
@@ -205,7 +205,7 @@ export function SmsConnectionCard({
                     tap("soft");
                     setPhone(ownerPhone);
                   }}
-                  className="shrink-0 whitespace-nowrap rounded-[14px] border border-[#DCE8FA] bg-white px-3 text-[14px] font-bold text-[#0864DC]"
+                  className="shrink-0 whitespace-nowrap rounded-[14px] border border-[#E5E7EB] bg-white px-3 text-[14px] font-bold text-[#25282D]"
                 >
                   내 번호
                 </button>
@@ -219,7 +219,7 @@ export function SmsConnectionCard({
           <button
             onClick={() => void sendTest()}
             disabled={sending || !phone.trim()}
-            className="w-full rounded-[14px] bg-gradient-to-b from-[#1B76EF] to-[#0757C4] py-3 text-[15px] font-black text-white shadow-[0_3px_0_#0645B0] disabled:opacity-50 disabled:shadow-none"
+            className="w-full rounded-[14px] bg-gradient-to-b from-[#3578C8] to-[#2C63A8] py-3 text-[15px] font-black text-white shadow-[0_3px_0_#285C99] disabled:opacity-50 disabled:shadow-none"
           >
             {sending ? "보내는 중…" : "테스트 문자 보내기"}
           </button>
@@ -229,11 +229,11 @@ export function SmsConnectionCard({
           </div>
 
           {result && (
-            <div className={`rounded-[14px] p-3.5 ${result.ok ? "bg-[#ECFDF3]" : "bg-[#FFF1F2]"}`}>
+            <div className={`rounded-[14px] p-3.5 ${result.ok ? "bg-[#ECFDF3]" : "bg-[#FBEAEA]"}`}>
               {result.ok ? (
                 <>
-                  <div className="text-[15px] font-black text-[#15803D]">문자를 보냈습니다</div>
-                  <div className="mt-1 text-[14px] text-[#111827]">
+                  <div className="text-[15px] font-black text-[#3E9B78]">문자를 보냈습니다</div>
+                  <div className="mt-1 text-[14px] text-[#25282D]">
                     종류: {result.msgType ?? "SMS"}
                     {result.msgId ? ` · 알리고 발송번호: ${result.msgId}` : ""}
                   </div>
@@ -243,12 +243,12 @@ export function SmsConnectionCard({
                 </>
               ) : (
                 <>
-                  <div className="text-[15px] font-black text-[#B42318]">보내지 못했습니다</div>
-                  <div className="mt-1 break-words text-[14px] text-[#111827]">{result.error}</div>
+                  <div className="text-[15px] font-black text-[#D95C5C]">보내지 못했습니다</div>
+                  <div className="mt-1 break-words text-[14px] text-[#25282D]">{result.error}</div>
                   {result.needLogin && onNeedLogin && (
                     <button
                       onClick={onNeedLogin}
-                      className="mt-2 w-full rounded-[14px] bg-[#0864DC] py-2.5 text-[15px] font-black text-white"
+                      className="mt-2 w-full rounded-[14px] bg-[#3578C8] py-2.5 text-[15px] font-black text-white"
                     >
                       로그인 화면으로 가기
                     </button>

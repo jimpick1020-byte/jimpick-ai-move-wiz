@@ -14,10 +14,10 @@ import {
 } from "@/lib/reminder.functions";
 
 const COLOR: Record<string, string> = {
-  scheduled: "text-[#0751D8]",
+  scheduled: "text-[#25282D]",
   sending: "text-[#B45309]",
-  success: "text-[#15803D]",
-  failed: "text-[#DC2626]",
+  success: "text-[#3E9B78]",
+  failed: "text-[#D95C5C]",
   canceled: "text-[#6B7280]",
 };
 
@@ -66,7 +66,7 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
 
   return (
     <div className="mt-3 rounded-2xl border border-[#E5E7EB] p-3">
-      <div className="text-sm font-bold text-[#111827]">이사 전날 안내 문자</div>
+      <div className="text-sm font-bold text-[#25282D]">이사 전날 안내 문자</div>
       {rows.length === 0 ? (
         <div className="mt-1 text-xs text-[#6B7280]">
           예약이 확정되면 이사 전날 오후 6시에 보낼 안내 문자가 자동으로 예약됩니다.
@@ -75,7 +75,7 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
         <div className="mt-2 space-y-2">
           {rows.map((r) => (
             <div key={r.id} className="rounded-xl bg-[#F9FAFB] p-2.5 text-xs">
-              <div className={`text-sm font-bold ${COLOR[r.status] ?? "text-[#111827]"}`}>
+              <div className={`text-sm font-bold ${COLOR[r.status] ?? "text-[#25282D]"}`}>
                 {REMINDER_STATUS_LABEL[r.status] ?? r.status}
               </div>
               <div className="mt-0.5 text-[#6B7280] break-words">
@@ -88,16 +88,14 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
                 <div className="text-[#6B7280] break-words">발송번호 {r.aligoMessageId}</div>
               )}
               {r.errorReason && (
-                <div className="mt-1 text-[#DC2626] break-words">{r.errorReason}</div>
+                <div className="mt-1 text-[#D95C5C] break-words">{r.errorReason}</div>
               )}
-              {r.retryCount > 0 && (
-                <div className="text-[#6B7280]">다시 시도 {r.retryCount}회</div>
-              )}
+              {r.retryCount > 0 && <div className="text-[#6B7280]">다시 시도 {r.retryCount}회</div>}
               {r.status === "failed" && (
                 <button
                   onClick={() => retry(r.id)}
                   disabled={busy}
-                  className="mt-2 w-full py-2 rounded-xl bg-[#EEF4FF] text-[#0751D8] text-sm font-semibold disabled:opacity-60"
+                  className="mt-2 w-full py-2 rounded-xl bg-[#F7F8F5] text-[#25282D] text-sm font-semibold disabled:opacity-60"
                 >
                   다시 발송
                 </button>

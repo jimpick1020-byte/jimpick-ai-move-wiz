@@ -107,31 +107,31 @@ export function MoveDateCalendar({
   /** 요일별 숫자 색 — 일요일 빨강, 토요일 파랑, 평일 짙은 남색 */
   const dowColor = (dow: number, muted: boolean) => {
     if (muted) return "text-[#C3CAD6]";
-    if (dow === 0) return "text-[#EF4444]";
-    if (dow === 6) return "text-[#0864DC]";
-    return "text-[#1F2937]";
+    if (dow === 0) return "text-[#D95C5C]";
+    if (dow === 6) return "text-[#3578C8]";
+    return "text-[#25282D]";
   };
 
   return (
-    <div className="rounded-2xl border border-[#E7EBF2] bg-white p-3">
+    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3">
       {/* 연·월 + 파란 화살표 버튼 */}
       <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={() => move(-1)}
           aria-label="이전 달"
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#DCE8FA] bg-[#F1F6FF] text-[#0864DC] active:translate-y-[1px]"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F7F8F5] text-[#25282D] active:translate-y-[1px]"
         >
           <ChevronLeft className="h-5 w-5" strokeWidth={2.2} />
         </button>
-        <div className="text-[18px] font-black text-[#111827] tabular-nums">
+        <div className="text-[18px] font-black text-[#25282D] tabular-nums">
           {view.y}년 {view.m}월
         </div>
         <button
           type="button"
           onClick={() => move(1)}
           aria-label="다음 달"
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#DCE8FA] bg-[#F1F6FF] text-[#0864DC] active:translate-y-[1px]"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F7F8F5] text-[#25282D] active:translate-y-[1px]"
         >
           <ChevronRight className="h-5 w-5" strokeWidth={2.2} />
         </button>
@@ -161,11 +161,11 @@ export function MoveDateCalendar({
               const box = many
                 ? "bg-[#FFF4E5] border-[#F59E0B]"
                 : cnt === 1
-                  ? "bg-[#E9F9EF] border-[#22C55E]"
+                  ? "bg-[#E9F9EF] border-[#3E9B78]"
                   : c.son
                     ? "bg-[#FDF6E3] border-[#F3D98A]"
-                    : "border-[#EEF1F5] bg-white";
-              const ring = selected ? " ring-2 ring-[#0864DC]" : "";
+                    : "border-[#E5E7EB] bg-white";
+              const ring = selected ? " ring-2 ring-[#3578C8]" : "";
               return (
                 <button
                   key={c.date}
@@ -191,14 +191,16 @@ export function MoveDateCalendar({
                     c.past ? "opacity-45" : ""
                   }`}
                 >
-                  <span className={`text-[17px] font-black tabular-nums ${dowColor(c.dow, c.past)}`}>
+                  <span
+                    className={`text-[17px] font-black tabular-nums ${dowColor(c.dow, c.past)}`}
+                  >
                     {c.d}
                   </span>
                   {/* 상태 표시 — 계약완료(초록/주황) + 건수 > 손없는날 배지 */}
                   {hasContract ? (
                     <span
                       className={`flex flex-col items-center leading-none ${
-                        many ? "text-[#B45309]" : "text-[#15803D]"
+                        many ? "text-[#B45309]" : "text-[#3E9B78]"
                       }`}
                     >
                       <span className="text-[10px] font-black">계약완료</span>
@@ -219,10 +221,10 @@ export function MoveDateCalendar({
       </div>
 
       {/* 얇은 회색 구분선 + 범례 (모바일에서 두 줄로 자연스럽게 줄바꿈) */}
-      <div className="mt-3 border-t border-[#EEF1F5] pt-3">
+      <div className="mt-3 border-t border-[#E5E7EB] pt-3">
         <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[12.5px] font-semibold text-[#6B7280]">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-4 w-4 rounded-md border border-[#22C55E] bg-[#E9F9EF]" />
+            <span className="inline-block h-4 w-4 rounded-md border border-[#3E9B78] bg-[#E9F9EF]" />
             계약 1건
           </span>
           <span className="flex items-center gap-1.5">
@@ -238,16 +240,16 @@ export function MoveDateCalendar({
 
       {/* 예약된 날짜를 누르면 그 날짜의 확정 계약을 보여 줍니다 */}
       {openDate && (bookings?.[openDate]?.length ?? 0) > 0 && (
-        <div className="mt-3 rounded-xl border border-[#DCE8FA] bg-[#F7FAFF] p-3">
-          <div className="mb-2 text-[13px] font-bold text-[#0864DC]">
+        <div className="mt-3 rounded-xl border border-[#E5E7EB] bg-[#F7FAFF] p-3">
+          <div className="mb-2 text-[13px] font-bold text-[#25282D]">
             {openDate} 계약 {bookings?.[openDate]?.length ?? 0}건 · 고객을 선택하세요
           </div>
           <div className="space-y-2">
             {(bookings?.[openDate] ?? []).map((b) => (
-              <div key={b.termsId} className="rounded-xl border border-[#E7EBF2] bg-white p-2.5">
+              <div key={b.termsId} className="rounded-xl border border-[#E5E7EB] bg-white p-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="truncate text-[14px] font-bold text-[#111827]">
+                    <div className="truncate text-[14px] font-bold text-[#25282D]">
                       {b.customerName || "이름 없음"}
                     </div>
                     <div className="text-[12.5px] font-semibold text-[#6B7280] tabular-nums">
@@ -260,7 +262,7 @@ export function MoveDateCalendar({
                       tap("click");
                       onOpenBooking?.(b.estimateId, b.customerName, b.termsId);
                     }}
-                    className="shrink-0 rounded-lg bg-[#0864DC] px-3 py-2 text-[13px] font-bold text-white active:translate-y-[1px]"
+                    className="shrink-0 rounded-lg bg-[#3578C8] px-3 py-2 text-[13px] font-bold text-white active:translate-y-[1px]"
                   >
                     견적서 보기
                   </button>
@@ -272,7 +274,7 @@ export function MoveDateCalendar({
                       tap("soft");
                       onCancelBooking(b.termsId, b.estimateId);
                     }}
-                    className="mt-2 w-full rounded-lg border border-[#F0D3D3] bg-white py-2 text-[12.5px] font-bold text-[#DC2626] active:translate-y-[1px]"
+                    className="mt-2 w-full rounded-lg border border-[#EBCFCF] bg-white py-2 text-[12.5px] font-bold text-[#D95C5C] active:translate-y-[1px]"
                   >
                     이 예약 취소
                   </button>
@@ -284,7 +286,7 @@ export function MoveDateCalendar({
       )}
 
       {value && (
-        <div className="mt-3 rounded-xl bg-[#F5F7FB] px-3 py-2 text-center text-[13px] font-semibold text-[#111827]">
+        <div className="mt-3 rounded-xl bg-[#F7F8F5] px-3 py-2 text-center text-[13px] font-semibold text-[#25282D]">
           선택한 이사 날짜 · {value}
         </div>
       )}
