@@ -1189,4 +1189,21 @@ const handle = async (req: Request): Promise<Response> => {
     requestedAt,
     sentAt: now,
   });
+};
+
+Deno.serve(async (req) => {
+  try {
+    return await handle(req);
+  } catch (e) {
+    // 예상하지 못한 오류도 워커를 죽이지 않고, 사장님이 읽을 수 있는 문구로 답합니다.
+    console.error("[send-estimate-sms] 처리 중 오류", e instanceof Error ? e.stack : e);
+    return json(
+      {
+        ok: false,
+        error: "문자 발송 중 오류가 났습니다. 잠시 후 다시 시도해 주세요.",
+        status: "failed",
+      },
+      500,
+    );
+  }
 });
