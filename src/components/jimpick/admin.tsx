@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card } from "@/components/jimpick/ui";
-import { listCompanyAccounts, type CompanyAccount } from "@/lib/admin.functions";
+import { listCompanyAccounts, deleteCompanyAccount, type CompanyAccount } from "@/lib/admin.functions";
 
 const STATUS_LABEL: Record<string, string> = {
   trialing: "무료체험 중",
