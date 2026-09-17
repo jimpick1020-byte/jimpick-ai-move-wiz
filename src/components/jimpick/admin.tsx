@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card } from "@/components/jimpick/ui";
-import { listCompanyAccounts, type CompanyAccount } from "@/lib/admin.functions";
+import { listCompanyAccounts, deleteCompanyAccount, type CompanyAccount } from "@/lib/admin.functions";
 
 const STATUS_LABEL: Record<string, string> = {
   trialing: "무료체험 중",
@@ -37,6 +37,30 @@ export function AdminAccountsScreen() {
   const { setScreen } = useApp();
   const [rows, setRows] = useState<CompanyAccount[] | null>(null);
   const [error, setError] = useState("");
+  // 삭제 확인을 기다리는 업체(한 번 더 물어보기)와 삭제 진행 중인 업체
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+
+  /** 구독으로 이용 중인 업체는 삭제 버튼을 보여주지 않습니다 */
+  const canDelete = (r: CompanyAccount) =>
+    r.role !== "super_admin" &&
+    r.subscriptionStatus !== "active" &&
+    r.subscriptionStatus !== "past_due";
+
+  const onDelete = async (r: CompanyAccount) => {
+    setDeletingId(r.userId);
+    setDeleteError("");
+    try {
+      await deleteCompanyAccount({ data: { userId: r.userId } });
+      setRows((prev) => (prev ? prev.filter((x) => x.userId !== r.userId) : prev));
+      setConfirmingId(null);
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "삭제하지 못했습니다");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -62,6 +86,9 @@ export function AdminAccountsScreen() {
             관리자만 볼 수 있는 화면입니다.
             <div className="mt-1 text-xs text-[#6B7280] break-all">{error}</div>
           </Card>
+        )}
+        {deleteError && (
+          <Card className="text-xs text-[#B42318] break-keep">{deleteError}</Card>
         )}
         {!error && rows === null && (
           <div className="py-10 text-center text-sm text-[#6B7280]">불러오는 중…</div>
@@ -135,6 +162,44 @@ export function AdminAccountsScreen() {
             {r.cancelAtPeriodEnd && (
               <div className="rounded-xl bg-[#FEF2F2] px-2.5 py-2 text-[11px] text-[#B42318]">
                 해지 예약됨 · {day(r.periodEnd)} 이후 결제되지 않습니다
+              </div>
+            )}
+            {canDelete(r) && confirmingId !== r.userId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmingId(r.userId);
+                  setDeleteError("");
+                }}
+                className="w-full rounded-xl border border-[#FECACA] py-2 text-xs font-bold text-[#B42318]"
+              >
+                업체 삭제
+              </button>
+            )}
+            {canDelete(r) && confirmingId === r.userId && (
+              <div className="space-y-2 rounded-xl bg-[#FEF2F2] px-2.5 py-2">
+                <p className="text-[11px] leading-5 text-[#B42318] break-keep">
+                  정말 삭제할까요? {r.companyName || "이 업체"}의 로그인 계정과 서버에
+                  저장된 데이터가 모두 삭제되며 되돌릴 수 없습니다.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingId(null)}
+                    disabled={deletingId === r.userId}
+                    className="flex-1 rounded-xl bg-white py-2 text-xs font-bold text-[#374151]"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void onDelete(r)}
+                    disabled={deletingId === r.userId}
+                    className="flex-1 rounded-xl bg-[#B42318] py-2 text-xs font-bold text-white disabled:opacity-50"
+                  >
+                    {deletingId === r.userId ? "삭제 중…" : "삭제합니다"}
+                  </button>
+                </div>
               </div>
             )}
           </Card>
