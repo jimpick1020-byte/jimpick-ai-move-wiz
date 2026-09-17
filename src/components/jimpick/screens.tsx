@@ -1551,7 +1551,11 @@ export function Step3() {
           const floor = isFrom ? draft.fromFloor : draft.toFloor;
           const ladderOn = isFrom ? !!draft.ladderFrom : !!draft.ladderTo;
           return (
-            <Field key={side} label={`${place} 작업 조건`}>
+            <div
+              key={side}
+              className={isFrom ? "" : "mt-7 border-t-2 border-dashed border-[#D7DEEB] pt-7"}
+            >
+              <Field label={`${place} 작업 조건`}>
               <div className="grid grid-cols-2 gap-3">
                 <Card
                   selected={env === "계단"}
