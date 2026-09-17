@@ -28,6 +28,11 @@ const STATUS_STYLE: Record<string, string> = {
 const day = (v: string | null) =>
   v ? new Date(v).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" }) : "-";
 
+/** 최근 3일 안에 가입한 업체는 "신규" 표시를 붙입니다 */
+const NEW_SIGNUP_MS = 3 * 24 * 3600_000;
+const isNewSignup = (v: string | null) =>
+  v !== null && Date.now() - new Date(v).getTime() < NEW_SIGNUP_MS;
+
 export function AdminAccountsScreen() {
   const { setScreen } = useApp();
   const [rows, setRows] = useState<CompanyAccount[] | null>(null);
@@ -61,6 +66,14 @@ export function AdminAccountsScreen() {
         {!error && rows === null && (
           <div className="py-10 text-center text-sm text-[#6B7280]">불러오는 중…</div>
         )}
+        {rows && rows.length > 0 && (
+          <Card className="flex items-center justify-between gap-2">
+            <div className="text-sm font-bold text-[#111827]">최근 가입 업체</div>
+            <div className="text-xs text-[#6B7280]">
+              3일 안에 가입한 업체 {rows.filter((r) => isNewSignup(r.joinedAt)).length}곳 · 최근 가입 순으로 표시
+            </div>
+          </Card>
+        )}
         {rows?.length === 0 && (
           <div className="py-10 text-center text-sm text-[#6B7280]">등록된 업체 계정이 없습니다.</div>
         )}
@@ -68,8 +81,15 @@ export function AdminAccountsScreen() {
           <Card key={r.userId} className="space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="truncate text-[15px] font-bold">
-                  {r.companyName || "업체명 미입력"}
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-[15px] font-bold">
+                    {r.companyName || "업체명 미입력"}
+                  </span>
+                  {isNewSignup(r.joinedAt) && (
+                    <span className="shrink-0 rounded-full bg-[#DCFCE7] px-1.5 py-0.5 text-[10px] font-bold text-[#166534]">
+                      신규
+                    </span>
+                  )}
                 </div>
                 <div className="truncate text-xs text-[#6B7280]">
                   {r.ownerName || "대표자 미입력"}
