@@ -1613,6 +1613,7 @@ export function Step3() {
                 </div>
               </Card>
             </Field>
+            </div>
           );
         })}
       </div>
