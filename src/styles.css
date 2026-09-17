@@ -195,6 +195,47 @@
   line-height: 1.5rem !important;
 }
 
+/* ===== 단계별 고유 색상 — 1단계부터 끝까지 단계마다 다른 강조색으로 구분 ===== */
+.jp-tone-1 {
+  --jp-tone: #0864dc; /* 1단계 고객 정보 · 파랑 */
+}
+.jp-tone-2 {
+  --jp-tone: #059669; /* 2단계 주소 검색 · 초록 */
+}
+.jp-tone-3 {
+  --jp-tone: #ea580c; /* 3단계 작업 조건 · 주황 */
+}
+.jp-tone-4 {
+  --jp-tone: #7c3aed; /* 4단계 차량·인원 · 보라 */
+}
+.jp-tone-5 {
+  --jp-tone: #db2777; /* 5단계 공간별 품목 · 진한 분홍 */
+}
+.jp-tone-ai {
+  --jp-tone: #0891b2; /* AI 집 안 스캔 · 청록 */
+}
+.jp-tone-6 {
+  --jp-tone: #4f46e5; /* 6단계 옵션·보관료 · 남색 */
+}
+
+/* 강조 텍스트(항목명·선택 이름 등)는 단계 색을 따릅니다 */
+.jp-estimate-flow .text-\[\#0864DC\],
+.jp-estimate-flow .text-\[\#0751D8\] {
+  color: var(--jp-tone, #0864dc);
+}
+
+/* 3·4단계: 항목명과 선택 이름을 조금 더 크게 */
+.jp-tone-3 .jp-field-label,
+.jp-tone-4 .jp-field-label {
+  font-size: 1.25rem;
+  line-height: 1.8rem;
+}
+.jp-tone-3 .text-\[17px\],
+.jp-tone-4 .text-\[17px\] {
+  font-size: 19px !important;
+  line-height: 1.4 !important;
+}
+
 /* ===== JIMPICK 네온 프레임 / 캐릭터 애니메이션 ===== */
 @property --jp-angle {
   syntax: "<angle>";
