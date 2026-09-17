@@ -1451,7 +1451,8 @@ export type Screen =
   | "subscription"
   | "settings"
   | "stats"
-  | "adminAccounts";
+  | "adminAccounts"
+  | "errorLogs";
 
 interface AppState {
   loggedIn: boolean;
@@ -1631,6 +1632,14 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {}
   }, [state, hydrated]);
+
+  // 단계가 바뀔 때마다 "마지막으로 정상 작동한 상태"를 따로 백업합니다.
+  // 화면 오류가 났을 때 이 백업으로 되돌릴 수 있습니다(저장된 견적 원본은 건드리지 않습니다).
+  useEffect(() => {
+    if (!hydrated) return;
+    saveSafeSnapshot();
+  }, [state.screen, hydrated]);
+
 
   // 휴대폰(갤럭시 등) 뒤로가기 버튼 처리.
   // 쌓아 둔 기록으로 돌아가고, 기록이 없으면 첫 화면으로 갑니다.
