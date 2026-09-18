@@ -2956,49 +2956,51 @@ export function Step6() {
                 <p className="text-[13px] font-bold text-[#9AA4B2]">아직 등록된 품목이 없습니다</p>
               ) : (
                 <div
-                  className={`grid grid-cols-3 gap-2 ${
+                  className={`grid grid-cols-4 gap-1.5 ${
                     pickerOpen ? "max-h-[34dvh] overflow-auto rounded-2xl" : ""
                   }`}
                 >
                   {picked.map((p) => (
                     <div
                       key={p.id}
-                      className="relative min-w-0 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] p-2 shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff]"
+                      className="relative min-w-0 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] p-1.5 shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff]"
                     >
                       <button
-                        onClick={() => setConfirmRemove({ id: p.id, name: p.name })}
-                        className="absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white text-[#94A3B8] shadow-sm"
+                        onClick={() => setConfirmRemove({ id: p.id, name: p.name, room: room.name })}
+                        className="absolute right-0.5 top-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#94A3B8] shadow-sm"
                         aria-label={`${p.name} 삭제`}
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-3 h-3" />
                       </button>
-                      <div className="flex h-[58px] items-center justify-center">
-                        <ItemArt id={p.id} name={p.name} size={52} />
+                      <div className="flex h-[42px] items-center justify-center">
+                        <ItemArt id={p.id} name={p.name} size={38} />
                       </div>
-                      <div className="min-h-9 text-center text-[13px] font-extrabold leading-tight text-[#25282D] line-clamp-2">
+                      <div className="min-h-8 break-keep text-center text-[11.5px] font-extrabold leading-tight text-[#25282D] line-clamp-2">
                         {p.name}
                       </div>
-                      <div className="mt-1 flex items-center justify-center gap-1">
+                      <div className="mt-1 flex items-center justify-center gap-0.5">
                         <button
                           onClick={() => decQty(p.id, p.name, p.qty)}
-                          className="h-7 w-7 rounded-full bg-white border border-[#E5E7EB] text-[15px] font-black text-[#25282D]"
+                          className="h-7 w-7 shrink-0 rounded-full bg-white border border-[#E5E7EB] text-[14px] font-black text-[#25282D]"
                           aria-label={`${p.name} 수량 줄이기`}
                         >
                           −
                         </button>
-                        <span className="min-w-5 text-center text-[13px] font-black text-[#25282D] tabular-nums">
+                        <span className="min-w-4 text-center text-[12.5px] font-black text-[#25282D] tabular-nums">
                           {p.qty}
                         </span>
                         <button
                           onClick={() => setQty(p.id, p.qty + 1, p.name)}
-                          className="h-7 w-7 rounded-full bg-white border border-[#E5E7EB] text-[15px] font-black text-[#25282D]"
+                          className="h-7 w-7 shrink-0 rounded-full bg-white border border-[#E5E7EB] text-[14px] font-black text-[#25282D]"
                           aria-label={`${p.name} 수량 늘리기`}
                         >
                           +
                         </button>
                       </div>
                       <button
-                        onClick={() => setMoveItem({ id: p.id, name: p.name, qty: p.qty })}
+                        onClick={() =>
+                          setMoveItem({ id: p.id, name: p.name, qty: p.qty, room: room.name })
+                        }
                         className="mt-1 w-full text-center text-[11px] font-black text-[#2A6FD6]"
                         aria-label={`${p.name} 다른 공간으로 옮기기`}
                       >
@@ -3010,21 +3012,30 @@ export function Step6() {
               )}
             </div>
 
-            {/* 직접 품목 선택 (기본 접힘) */}
-            <div className="px-4 pt-3">
+            {/* 직접 품목 선택 (기본 접힘) + 3D 품목 생성 */}
+            <div className="flex items-stretch gap-2 px-4 pt-3">
               <button
                 onClick={() => {
                   tap("soft");
                   setPickerOpen((v) => !v);
                 }}
-                className="w-full py-3.5 rounded-2xl bg-white border border-[#E5E7EB] flex items-center justify-center gap-2 font-black text-[16px] text-[#25282D] shadow-[0_5px_0_#F7F8F5,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
+                className="flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-[#E5E7EB] bg-white py-3.5 text-[16px] font-black text-[#25282D] shadow-[0_5px_0_#F7F8F5,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
               >
                 <Hand className="w-5 h-5" /> 직접 품목 선택
                 <ChevronDown
                   className={`w-5 h-5 transition-transform ${pickerOpen ? "rotate-180" : ""}`}
                 />
               </button>
+              <button
+                onClick={openIconGen}
+                aria-label="3D 품목 생성"
+                className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-[#3578C8] bg-gradient-to-b from-white to-[#EEF6FF] px-3 py-2 text-[11px] font-black leading-tight text-[#2A6FD6] shadow-[0_5px_0_#DCE9FF,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
+              >
+                <Box className="h-5 w-5" />
+                3D 품목 생성
+              </button>
             </div>
+
 
             {pickerOpen && (
               <div className="flex-1 min-h-[44dvh] overflow-auto px-4 pt-3 space-y-3" {...tabSwipe}>
