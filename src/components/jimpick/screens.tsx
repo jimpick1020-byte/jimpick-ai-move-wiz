@@ -2526,14 +2526,14 @@ export function Step6() {
         )}
       </div>
 
-      {/* 평수 선택 — 한 줄에 3개씩 두 줄 (모바일에서 잘리지 않습니다) */}
+      {/* 평수 선택 — 예전처럼 한 줄을 좌우로 밀어서 봅니다 */}
       <div className="bg-white border-b border-[#E5E7EB] px-4 py-3">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {SIZE_TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => pickSize(t.key)}
-              className={`min-w-0 px-1 py-2.5 rounded-2xl text-[14px] font-black text-center transition-all duration-150 active:translate-y-[2px] ${
+              className={`min-w-[108px] shrink-0 snap-start px-3 py-2.5 rounded-2xl text-[14px] font-black text-center whitespace-nowrap transition-all duration-150 active:translate-y-[2px] ${
                 t.key === size
                   ? "text-white bg-gradient-to-b from-[#5B93D6] to-[#3578C8] shadow-[0_4px_0_#285C99,0_8px_16px_rgba(7,81,216,0.32),inset_0_1px_0_rgba(255,255,255,0.5)] active:shadow-[0_1px_0_#285C99]"
                   : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F7F8F5] shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff] active:shadow-[0_1px_0_#E5E7EB]"
@@ -2707,46 +2707,52 @@ export function Step6() {
               {picked.length === 0 ? (
                 <p className="text-[13px] font-bold text-[#9AA4B2]">아직 등록된 품목이 없습니다</p>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {picked.map((p) => (
-                    <span
+                    <div
                       key={p.id}
-                      className="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff]"
+                      className="relative min-w-0 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] p-2 shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff]"
                     >
-                      <ItemArt id={p.id} name={p.name} size={26} />
-                      <span className="text-[13px] font-extrabold text-[#25282D]">{p.name}</span>
-                      <button
-                        onClick={() => decQty(p.id, p.name, p.qty)}
-                        className="w-6 h-6 rounded-full bg-white border border-[#E5E7EB] text-[15px] font-black text-[#25282D]"
-                        aria-label={`${p.name} 수량 줄이기`}
-                      >
-                        −
-                      </button>
-                      <span className="text-[13px] font-black text-[#25282D] tabular-nums">
-                        {p.qty}
-                      </span>
-                      <button
-                        onClick={() => setQty(p.id, p.qty + 1, p.name)}
-                        className="w-6 h-6 rounded-full bg-white border border-[#E5E7EB] text-[15px] font-black text-[#25282D]"
-                        aria-label={`${p.name} 수량 늘리기`}
-                      >
-                        +
-                      </button>
-                      <button
-                        onClick={() => setMoveItem({ id: p.id, name: p.name, qty: p.qty })}
-                        className="ml-0.5 text-[11px] font-black text-[#2A6FD6]"
-                        aria-label={`${p.name} 다른 공간으로 옮기기`}
-                      >
-                        이동
-                      </button>
                       <button
                         onClick={() => setConfirmRemove({ id: p.id, name: p.name })}
-                        className="ml-0.5 text-[#94A3B8]"
+                        className="absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white text-[#94A3B8] shadow-sm"
                         aria-label={`${p.name} 삭제`}
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
-                    </span>
+                      <div className="flex h-[58px] items-center justify-center">
+                        <ItemArt id={p.id} name={p.name} size={52} />
+                      </div>
+                      <div className="min-h-9 text-center text-[13px] font-extrabold leading-tight text-[#25282D] line-clamp-2">
+                        {p.name}
+                      </div>
+                      <div className="mt-1 flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => decQty(p.id, p.name, p.qty)}
+                          className="h-7 w-7 rounded-full bg-white border border-[#E5E7EB] text-[15px] font-black text-[#25282D]"
+                          aria-label={`${p.name} 수량 줄이기`}
+                        >
+                          −
+                        </button>
+                        <span className="min-w-5 text-center text-[13px] font-black text-[#25282D] tabular-nums">
+                          {p.qty}
+                        </span>
+                        <button
+                          onClick={() => setQty(p.id, p.qty + 1, p.name)}
+                          className="h-7 w-7 rounded-full bg-white border border-[#E5E7EB] text-[15px] font-black text-[#25282D]"
+                          aria-label={`${p.name} 수량 늘리기`}
+                        >
+                          +
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => setMoveItem({ id: p.id, name: p.name, qty: p.qty })}
+                        className="mt-1 w-full text-center text-[11px] font-black text-[#2A6FD6]"
+                        aria-label={`${p.name} 다른 공간으로 옮기기`}
+                      >
+                        이동
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}

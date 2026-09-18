@@ -7,6 +7,7 @@
  */
 import { useState } from "react";
 import { ITEMS_1000 } from "./items-catalog-1000";
+import { FEATURED_HOUSEHOLD_100 } from "./featured-household-100";
 
 const BASE = "/assets/items-3d";
 
@@ -230,6 +231,9 @@ export const ICON3D: Record<string, string> = {
 for (const it of ITEMS_1000) {
   if (!(it.id in ICON3D)) ICON3D[it.id] = it.path;
 }
+
+// 선별 생성한 가정용 대형 가전·가구 100종은 실제 아이콘이 있으므로 기본 상자 대신 사용합니다.
+for (const item of FEATURED_HOUSEHOLD_100) ICON3D[item.id] = item.icon;
 
 // 새 블루/화이트 3D 아이콘 세트 (기존 품목 교체 + 신규 품목).
 // ITEMS_1000 로딩 뒤에 덮어써서, 겹치는 품목은 이 아이콘이 우선합니다.
