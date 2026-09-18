@@ -4,6 +4,7 @@ import { ITEMS_1000, CATS20 } from "./items-catalog-1000";
 import { useDraftAutosave, type DraftSaveState } from "./use-draft-autosave";
 import { loadEstimateDraft } from "./draft-sync.functions";
 import { registerCustomIcons } from "./jimpick-icon3d";
+import { FEATURED_HOUSEHOLD_100 } from "./featured-household-100";
 import { saveSafeSnapshot } from "./safe-state";
 
 // ============ Types ============
@@ -777,6 +778,14 @@ export const ITEM_CATALOG: {
     extra: 10000,
   },
   { id: "bathtub", name: "욕조", cat: "생활용품", sub: "생활", emoji: "🛁", extra: 10000 },
+  // ===== 가정용 대형 가전·가구 100종 (실제 3D 아이콘) =====
+  ...FEATURED_HOUSEHOLD_100.map((item) => ({
+    id: item.id,
+    name: item.name,
+    cat: item.cat,
+    sub: item.sub,
+    emoji: item.cat === "가전" ? "🔌" : "🪑",
+  })),
 ];
 
 // ============ 트럭 적재량 ============
@@ -787,6 +796,7 @@ export const ITEM_CATALOG: {
  * 6단계 트럭 게이지가 통째로 따라 움직입니다.
  */
 export const ITEM_VOLUME: Record<string, number> = {
+  ...Object.fromEntries(FEATURED_HOUSEHOLD_100.map((item) => [item.id, item.vol])),
   // 가전
   fridge: 1.0,
   kimchi: 0.8,
