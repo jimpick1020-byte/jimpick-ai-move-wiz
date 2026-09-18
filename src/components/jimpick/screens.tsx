@@ -2298,11 +2298,13 @@ export function Step6() {
     const list = draft.customItems || [];
     const exists = list.some((c) => c.id === itemId);
     const nextCustom = exists
-      ? list.map((c) => (c.id === itemId ? { ...c, name, cat, icon: iconUrl, active: true } : c))
-      : [...list, { id: itemId, name, cat, extra: 0, icon: iconUrl, active: true }];
+      ? list.map((c) =>
+          c.id === itemId ? { ...c, name, cat, extra, icon: iconUrl, active: true } : c,
+        )
+      : [...list, { id: itemId, name, cat, extra, icon: iconUrl, active: true }];
     const nextRooms = rooms.map((r) =>
       r.id === target.id
-        ? { ...r, items: { ...r.items, [itemId]: Math.max(1, r.items[itemId] ?? 0) } }
+        ? { ...r, items: { ...r.items, [itemId]: Math.max(addQty, r.items[itemId] ?? 0) } }
         : r,
     );
     // 담기 결과가 실제로 반영됐는지 확인한 뒤에만 완료로 처리합니다
@@ -2319,12 +2321,22 @@ export function Step6() {
 
     // 품목 목록에서 바로 보이도록 해당 분류 탭을 열고, 담긴 공간을 펼쳐 둡니다
     setTab(cat5For(cat));
-    setOpenRoom(roomName);
+    setOpenRooms((prev) => {
+      const cur = prev ?? [];
+      if (cur.includes(roomName)) return cur;
+      const next = [...cur, roomName];
+      try {
+        localStorage.setItem(ROOM_OPEN_KEY, JSON.stringify(next));
+      } catch {
+        /* 저장 공간이 없어도 화면 표시는 그대로입니다 */
+      }
+      return next;
+    });
     setSavedIcon(null);
     setIconGen(null);
     setQ("");
     tap("success");
-    toast.success(`「${name}」을(를) ${roomName}에 수량 1로 담았습니다`);
+    toast.success(`「${name}」을(를) ${roomName}에 수량 ${placed}로 담았습니다`);
     return null;
   };
 
