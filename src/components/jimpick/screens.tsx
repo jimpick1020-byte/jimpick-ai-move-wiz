@@ -2480,11 +2480,23 @@ export function Step6() {
       const bf = itemFamily(b.name, b.sub || "기타");
       return af.rank - bf.rank || af.label.localeCompare(bf.label, "ko") || a.name.localeCompare(b.name, "ko");
     });
-  const picked = Object.entries(room?.items || {}).map(([id, qty]) => ({
-    id,
-    qty,
-    name: catalog.find((c) => c.id === id)?.name || itemNameById(id) || id,
-  }));
+  /**
+   * 한 공간에 담긴 품목 목록 —
+   * 침대·협탁·서랍장… 처럼 같은 종류끼리 모여 보이도록 정렬해 돌려줍니다.
+   */
+  const pickedOf = (r: { items: Record<string, number> }) =>
+    sortByGroup(
+      Object.entries(r.items).map(([id, qty]) => {
+        const c = catalog.find((x) => x.id === id);
+        return {
+          id,
+          qty,
+          name: c?.name || itemNameById(id) || id,
+          cat: c?.cat,
+        };
+      }),
+    );
+  const picked = room ? pickedOf(room) : [];
   const totalKinds = draft.rooms.reduce((a, r) => a + roomSummary(r.items).kinds, 0);
 
   /** 담긴 짐이 4단계에서 고른 차량에 들어가는지 */
