@@ -209,7 +209,7 @@ import {
   cleanItemName,
   type IconResult,
 } from "@/lib/item-icon.functions";
-import { sortByGroup } from "@/lib/item-groups";
+import { sortByGroup, itemSubRank } from "@/lib/item-groups";
 
 /** 공간별 품목 접기·펼치기 상태를 기억하는 자리 */
 const ROOM_OPEN_KEY = "jimpick_step6_open_rooms";
@@ -234,6 +234,8 @@ import houseImg from "@/assets/step6-house.png";
 
 /** 이름이 비슷한 품목은 기존 소분류가 달라도 한 제목 아래 연속 배치합니다. */
 const ITEM_FAMILIES: { match: RegExp; label: string; rank: number }[] = [
+  // 「화분받침대」처럼 침대가 아닌 물건은 침대 묶음에 들어오지 않게 합니다
+  { match: /화분|식물|받침대/, label: "생활·기타", rank: 80 },
   { match: /침대|매트리스|토퍼|헤드보드|평상/, label: "침대·매트리스", rank: 10 },
   { match: /옷장|장롱|붙박이장|행거|드레스룸|이불장/, label: "옷장·행거", rank: 11 },
   { match: /서랍장|드레서|체스트|협탁|화장대|경대/, label: "서랍장·화장대·협탁", rank: 12 },
@@ -2465,6 +2467,18 @@ export function Step6() {
     toast.success(`「${nm}」을(를) 목록에서 지웠습니다`);
   };
 
+  /**
+   * 직접 만든(3D 생성) 품목을 같은 종류의 앞부분에 둡니다.
+   * 최근에 만든 품목이 더 앞에 오도록 저장 순서를 뒤에서부터 셉니다.
+   */
+  const customOrder = useMemo(() => {
+    const list = draft.customItems || [];
+    const map = new Map<string, number>();
+    list.forEach((c, i) => map.set(c.id, -(list.length - i)));
+    return map;
+  }, [draft.customItems]);
+  const newFirst = (id: string) => customOrder.get(id) ?? 0;
+
   // 검색어가 있으면 전체에서, 없으면 현재 탭에서 보여 주고 같은 종류끼리 정렬합니다.
   const items = catalog
     .filter((i) => (q ? i.name.includes(q) : i.cat5 === tab))
@@ -2472,7 +2486,14 @@ export function Step6() {
     .sort((a, b) => {
       const af = itemFamily(a.name, a.sub || "기타");
       const bf = itemFamily(b.name, b.sub || "기타");
-      return af.rank - bf.rank || af.label.localeCompare(bf.label, "ko") || a.name.localeCompare(b.name, "ko");
+      return (
+        af.rank - bf.rank ||
+        af.label.localeCompare(bf.label, "ko") ||
+        itemSubRank(a.name) - itemSubRank(b.name) ||
+        // 직접 만든 3D 품목은 같은 세부 종류 안에서 맨 앞(최근 생성이 먼저)
+        newFirst(a.id) - newFirst(b.id) ||
+        a.name.localeCompare(b.name, "ko")
+      );
     });
   /**
    * 한 공간에 담긴 품목 목록 —
@@ -2818,7 +2839,7 @@ export function Step6() {
                 <span className="h-1.5 w-14 rounded-full bg-[#C9D2E0]" />
               </div>
             )}
-            <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+            <div className="px-4 pt-2 pb-1.5 flex items-center gap-2">
               <span
                 className={`px-3 py-1 rounded-xl text-white text-[15px] font-black bg-gradient-to-b ${
                   ROOM_TINT[room.name] || "from-[#5B93D6] to-[#3578C8]"
@@ -2839,7 +2860,7 @@ export function Step6() {
             </div>
 
             {/* 등록된 품목 뱃지 */}
-            <div className="px-4 pt-3">
+            <div className="px-4 pt-1">
               {pickerOpen && pickedCollapsed ? (
                 <button
                   onClick={() => {
@@ -2866,7 +2887,7 @@ export function Step6() {
                   {picked.map((p) => (
                     <div
                       key={p.id}
-                      className="relative min-w-0 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] p-1.5 shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff]"
+                      className="relative flex min-w-0 flex-col justify-between rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] px-1.5 pb-1 pt-1 shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff]"
                     >
                       <button
                         onClick={() => setConfirmRemove({ id: p.id, name: p.name, room: room.name })}
@@ -2875,13 +2896,23 @@ export function Step6() {
                       >
                         <X className="w-3 h-3" />
                       </button>
-                      <div className="flex h-[42px] items-center justify-center">
-                        <ItemArt id={p.id} name={p.name} size={38} />
+                      <button
+                        onClick={() => {
+                          tap("soft");
+                          setItemMenu(p.id);
+                        }}
+                        className="absolute left-0.5 top-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[11px] font-black leading-none text-[#64748B]"
+                        aria-label={`${p.name} 관리`}
+                      >
+                        ⋯
+                      </button>
+                      <div className="flex h-[34px] items-center justify-center">
+                        <ItemArt id={p.id} name={p.name} size={34} />
                       </div>
-                      <div className="min-h-8 break-keep text-center text-[11.5px] font-extrabold leading-tight text-[#25282D] line-clamp-2">
+                      <div className="break-keep text-center text-[11.5px] font-extrabold leading-tight text-[#25282D] line-clamp-2">
                         {p.name}
                       </div>
-                      <div className="mt-1 flex items-center justify-center gap-0.5">
+                      <div className="mt-0.5 flex items-center justify-center gap-0.5">
                         <button
                           onClick={() => decQty(p.id, p.name, p.qty)}
                           className="h-7 w-7 shrink-0 rounded-full bg-white border border-[#E5E7EB] text-[14px] font-black text-[#25282D]"
@@ -2900,15 +2931,6 @@ export function Step6() {
                           +
                         </button>
                       </div>
-                      <button
-                        onClick={() =>
-                          setMoveItem({ id: p.id, name: p.name, qty: p.qty, room: room.name })
-                        }
-                        className="mt-1 w-full text-center text-[11px] font-black text-[#2A6FD6]"
-                        aria-label={`${p.name} 다른 공간으로 옮기기`}
-                      >
-                        이동
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -2916,13 +2938,13 @@ export function Step6() {
             </div>
 
             {/* 직접 품목 선택 (기본 접힘) + 3D 품목 생성 */}
-            <div className="flex items-stretch gap-2 px-4 pt-3">
+            <div className="flex items-stretch gap-2 px-4 pt-2">
               <button
                 onClick={() => {
                   tap("soft");
                   setPickerOpen((v) => !v);
                 }}
-                className="flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-[#E5E7EB] bg-white py-3.5 text-[16px] font-black text-[#25282D] shadow-[0_5px_0_#F7F8F5,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
+                className="flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-[#E5E7EB] bg-white py-3 text-[16px] font-black text-[#25282D] shadow-[0_5px_0_#F7F8F5,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
               >
                 <Hand className="w-5 h-5" /> 직접 품목 선택
                 <ChevronDown
@@ -3430,6 +3452,26 @@ export function Step6() {
                     {itemMenu.startsWith("ci_") ? "직접 추가한 품목" : "품목 관리"}
                   </p>
                   <div className="mt-3 space-y-2">
+                    {room && (itemMenu in room.items) && (
+                      <button
+                        onClick={() => {
+                          const nm =
+                            catalog.find((c) => c.id === itemMenu)?.name ||
+                            itemNameById(itemMenu) ||
+                            "품목";
+                          setMoveItem({
+                            id: itemMenu,
+                            name: nm,
+                            qty: room.items[itemMenu] || 1,
+                            room: room.name,
+                          });
+                          setItemMenu(null);
+                        }}
+                        className="w-full rounded-2xl border border-[#CFE0F7] bg-white py-3.5 font-black text-[14px] text-[#2A6FD6] shadow-[0_3px_0_#EAF2FC]"
+                      >
+                        다른 공간으로 보내기
+                      </button>
+                    )}
                     {itemMenu.startsWith("ci_") && (
                       <button
                         onClick={() => openEditItem(itemMenu)}
