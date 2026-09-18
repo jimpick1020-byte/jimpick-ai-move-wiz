@@ -91,6 +91,14 @@ import {
   TextInput,
 } from "./ui";
 import { MoveDateCalendar, type CalendarBooking } from "./MoveDateCalendar";
+import {
+  DEFAULT_SIZE_PRESETS,
+  resolvePreset,
+  type PresetRoom,
+  type SizePresets,
+} from "@/lib/size-presets";
+import { getSizePresets } from "@/lib/size-presets.functions";
+import { SizePresetCard } from "./SizePresetCard";
 
 import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
@@ -1925,8 +1933,34 @@ export function Step6() {
   const [pickerOpen, setPickerOpen] = useState(false);
   /** 수량을 0으로 줄일 때 뜨는 삭제 확인창 */
   const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string } | null>(null);
+  /** 품목을 다른 공간으로 옮기는 창 */
+  const [moveItem, setMoveItem] = useState<{ id: string; name: string; qty: number } | null>(null);
 
-  const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || DEFAULT_SIZE_TAB).rooms;
+  /** 사장님이 설정에서 고친 평수별 기본품목 (없으면 기본값) */
+  const [ownerPresets, setOwnerPresets] = useState<SizePresets>({});
+  useEffect(() => {
+    let alive = true;
+    getSizePresets()
+      .then((r) => {
+        if (alive && r.ok) setOwnerPresets(r.presets);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const presetRooms: PresetRoom[] = useMemo(
+    () => ownerPresets[size] ?? DEFAULT_SIZE_PRESETS[size] ?? [],
+    [ownerPresets, size],
+  );
+
+  const tabRooms = (SIZE_TABS.find((t) => t.key === size) || DEFAULT_SIZE_TAB).rooms;
+  /** 화면에 보여 줄 공간 — 평수 구획 + 기본품목에 있는 공간 */
+  const sizeRooms = useMemo(
+    () => [...new Set([...tabRooms, ...presetRooms.map((r) => r.room)])],
+    [tabRooms, presetRooms],
+  );
 
   // 20카테고리 병합 목록(기존 이미지·요금 보존 + 1,000 신규) + 직접 추가 품목.
   const catalog = useMemo(
@@ -1979,27 +2013,96 @@ export function Step6() {
     },
   );
 
-  /** 평수를 고르면 없는 방만 새로 만들고, 기존 방 품목은 그대로 유지합니다 */
+  /** 평수 변경 확인창 — stage 1: 기본 확인, stage 2: 직접 추가 품목 재확인 */
+  const [sizeConfirm, setSizeConfirm] = useState<{ key: string; stage: 1 | 2 } | null>(null);
+  /** 품목 목록에 없어서 담지 못한 기본품목 (품목 등록 필요) */
+  const [needRegister, setNeedRegister] = useState<{ room: string; name: string; qty: number }[]>(
+    [],
+  );
+
+  /** 지금 담긴 품목 개수 (평수 변경 확인창을 띄울지 판단합니다) */
+  const pickedCount = draft.rooms.reduce((a, r) => a + roomSummary(r.items).count, 0);
+  /** 사장님이 직접 추가한 품목이 담겨 있는지 */
+  const hasCustomPicked = (draft.customItems || []).some((c) =>
+    draft.rooms.some((r) => (r.items[c.id] ?? 0) > 0),
+  );
+
+  /**
+   * 평수별 기본품목을 실제 품목 데이터에 넣습니다.
+   * merge   기존 품목·수량은 그대로 두고 빠진 품목만 추가 (중복 생성 없음)
+   * replace 기본품목 구성으로 새로 채움
+   */
+  const applyPreset = (key: string, mode: "merge" | "replace") => {
+    const rows = ownerPresets[key] ?? DEFAULT_SIZE_PRESETS[key] ?? [];
+    const resolved = resolvePreset(rows, catalog);
+    const baseRooms = (SIZE_TABS.find((t) => t.key === key) || DEFAULT_SIZE_TAB).rooms;
+    const names = [...new Set([...baseRooms, ...resolved.rooms.map((r) => r.room)])];
+
+    const rooms = draft.rooms.map((r) => ({ ...r, items: { ...r.items } }));
+    for (const n of names) {
+      if (!rooms.some((r) => r.name === n))
+        rooms.push({ id: `r_${n}`, name: n, items: {} as Record<string, number> });
+    }
+    if (mode === "replace") for (const r of rooms) r.items = {};
+    for (const pr of resolved.rooms) {
+      const t = rooms.find((r) => r.name === pr.room);
+      if (!t) continue;
+      for (const [id, qty] of Object.entries(pr.items)) {
+        // 「현재 품목에 추가」는 이미 담긴 품목의 수량을 그대로 유지합니다
+        if (mode === "merge" && t.items[id]) continue;
+        t.items[id] = qty;
+      }
+    }
+
+    setSize(key);
+    setNeedRegister(resolved.missing);
+    setSizeConfirm(null);
+    updateDraft({ sizeTab: key, rooms });
+    tap("success");
+    toast.success(
+      mode === "merge" ? `${key} 기본품목을 현재 품목에 추가했습니다` : `${key} 기본품목을 담았습니다`,
+    );
+  };
+
+  /** 평수 버튼 — 담긴 품목이 있으면 먼저 확인창을 띄웁니다 */
   const pickSize = (key: string) => {
     tap("soft");
-    setSize(key);
-    const rooms = (SIZE_TABS.find((t) => t.key === key) || DEFAULT_SIZE_TAB).rooms;
-    const missing = rooms.filter((n) => !draft.rooms.some((r) => r.name === n));
-    updateDraft({
-      sizeTab: key,
-      ...(missing.length
-        ? {
-            rooms: [
-              ...draft.rooms,
-              ...missing.map((n) => ({
-                id: `r_${n}`,
-                name: n,
-                items: {} as Record<string, number>,
-              })),
-            ],
-          }
-        : {}),
-    });
+    if (pickedCount === 0) {
+      applyPreset(key, "replace");
+      return;
+    }
+    setSizeConfirm({ key, stage: 1 });
+  };
+
+  /** 전체 선택 해제 — 담긴 품목만 비우고 고객정보·주소·차량·옵션은 그대로입니다 */
+  const clearAllItems = () => {
+    tap("soft");
+    updateDraft({ rooms: draft.rooms.map((r) => ({ ...r, items: {} as Record<string, number> })) });
+    setNeedRegister([]);
+    toast.success("담은 품목을 모두 비웠습니다");
+  };
+
+  /** 품목을 다른 공간으로 옮깁니다 (수량 그대로) */
+  const moveItemTo = (itemId: string, qty: number, from: string, to: string) => {
+    if (from === to) {
+      setMoveItem(null);
+      return;
+    }
+    const rooms = draft.rooms.map((r) => ({ ...r, items: { ...r.items } }));
+    if (!rooms.some((r) => r.name === to))
+      rooms.push({ id: `r_${to}`, name: to, items: {} as Record<string, number> });
+    const src = rooms.find((r) => r.name === from);
+    const dst = rooms.find((r) => r.name === to);
+    if (!src || !dst) {
+      toast.error("옮길 공간을 찾지 못했습니다");
+      return;
+    }
+    delete src.items[itemId];
+    dst.items[itemId] = (dst.items[itemId] ?? 0) + qty;
+    updateDraft({ rooms });
+    setMoveItem(null);
+    tap("success");
+    toast.success(`${to}(으)로 옮겼습니다`);
   };
 
   const roomOf = (name: string) => draft.rooms.find((r) => r.name === name);
@@ -2423,14 +2526,14 @@ export function Step6() {
         )}
       </div>
 
-      {/* 평수 선택 탭 */}
+      {/* 평수 선택 — 한 줄에 3개씩 두 줄 (모바일에서 잘리지 않습니다) */}
       <div className="bg-white border-b border-[#E5E7EB] px-4 py-3">
-        <div className="flex gap-2 overflow-x-auto overflow-y-visible -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="grid grid-cols-3 gap-2">
           {SIZE_TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => pickSize(t.key)}
-              className={`px-4 py-2.5 rounded-2xl text-[14px] font-black whitespace-nowrap transition-all duration-150 active:translate-y-[2px] ${
+              className={`min-w-0 px-1 py-2.5 rounded-2xl text-[14px] font-black text-center transition-all duration-150 active:translate-y-[2px] ${
                 t.key === size
                   ? "text-white bg-gradient-to-b from-[#5B93D6] to-[#3578C8] shadow-[0_4px_0_#285C99,0_8px_16px_rgba(7,81,216,0.32),inset_0_1px_0_rgba(255,255,255,0.5)] active:shadow-[0_1px_0_#285C99]"
                   : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F7F8F5] shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff] active:shadow-[0_1px_0_#E5E7EB]"
@@ -2440,6 +2543,34 @@ export function Step6() {
             </button>
           ))}
         </div>
+        <div className="mt-2 flex gap-2">
+          <button
+            onClick={() => setSizeConfirm({ key: size, stage: pickedCount > 0 ? 1 : 2 })}
+            className="flex-1 min-w-0 py-2.5 rounded-2xl text-[13px] font-black text-[#2A6FD6] bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_3px_0_#E5E7EB] active:translate-y-[2px]"
+          >
+            기본품목 다시 적용
+          </button>
+          <button
+            onClick={clearAllItems}
+            className="flex-1 min-w-0 py-2.5 rounded-2xl text-[13px] font-black text-[#B4232A] bg-white border border-[#FECACA] shadow-[0_3px_0_#FEE2E2] active:translate-y-[2px]"
+          >
+            전체 선택 해제
+          </button>
+        </div>
+        {needRegister.length > 0 && (
+          <div className="mt-2 rounded-2xl border border-[#FDE68A] bg-[#FFFBEB] p-3">
+            <div className="text-[13px] font-black text-[#B45309]">
+              품목 등록 필요 {needRegister.length}건
+            </div>
+            <div className="mt-1 text-[12px] font-bold text-[#92400E] leading-relaxed">
+              {needRegister.map((m) => `${m.room} · ${m.name} ${m.qty}`).join(" / ")}
+            </div>
+            <div className="mt-1 text-[11px] font-semibold text-[#B45309]">
+              품목 목록에 없어 담지 못했습니다. 공간을 눌러 직접 추가하거나 3D 아이콘을 만들어
+              주세요.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 디지털 3D 집 구조 */}
@@ -2505,9 +2636,15 @@ export function Step6() {
                             </span>
                           )}
                         </div>
-                        <div className="mt-1 truncate text-center text-[11px] font-bold text-[#5A6478]">
-                          {shownItems.map(([id]) => nameOf(id)).join(", ")}
+                        {/* 품목 이름·수량 — 두 줄까지 보여 주고 나머지는 「외 N종」 */}
+                        <div className="mt-1 text-center text-[11px] font-bold text-[#5A6478] leading-snug line-clamp-2 break-keep">
+                          {shownItems.map(([id, qty]) => `${nameOf(id)} ${qty}`).join(" · ")}
                         </div>
+                        {rest > 0 && (
+                          <div className="text-center text-[11px] font-bold text-[#8A93A6]">
+                            외 {rest}종
+                          </div>
+                        )}
                       </>
                     );
                   })()}
@@ -2515,9 +2652,9 @@ export function Step6() {
                     {s.kinds > 0 ? `${s.kinds}종 · ${s.count}개` : "품목 없음"}
                   </div>
                 </button>
-                {s.count > 0 && (
+                {s.kinds > 0 && (
                   <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#285C99,inset_0_1px_0_rgba(255,255,255,0.5)]">
-                    {s.count}
+                    {s.kinds}
                   </span>
                 )}
               </div>
@@ -2578,9 +2715,30 @@ export function Step6() {
                     >
                       <ItemArt id={p.id} name={p.name} size={26} />
                       <span className="text-[13px] font-extrabold text-[#25282D]">{p.name}</span>
+                      <button
+                        onClick={() => decQty(p.id, p.name, p.qty)}
+                        className="w-6 h-6 rounded-full bg-white border border-[#E5E7EB] text-[15px] font-black text-[#25282D]"
+                        aria-label={`${p.name} 수량 줄이기`}
+                      >
+                        −
+                      </button>
                       <span className="text-[13px] font-black text-[#25282D] tabular-nums">
                         {p.qty}
                       </span>
+                      <button
+                        onClick={() => setQty(p.id, p.qty + 1, p.name)}
+                        className="w-6 h-6 rounded-full bg-white border border-[#E5E7EB] text-[15px] font-black text-[#25282D]"
+                        aria-label={`${p.name} 수량 늘리기`}
+                      >
+                        +
+                      </button>
+                      <button
+                        onClick={() => setMoveItem({ id: p.id, name: p.name, qty: p.qty })}
+                        className="ml-0.5 text-[11px] font-black text-[#2A6FD6]"
+                        aria-label={`${p.name} 다른 공간으로 옮기기`}
+                      >
+                        이동
+                      </button>
                       <button
                         onClick={() => setConfirmRemove({ id: p.id, name: p.name })}
                         className="ml-0.5 text-[#94A3B8]"
@@ -3173,6 +3331,102 @@ export function Step6() {
           </div>
         </div>
       )}
+      {/* 평수 변경 확인 — 담은 품목을 지키기 위해 두 번 물어봅니다 */}
+      {sizeConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-6">
+          <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => setSizeConfirm(null)} />
+          <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+            {sizeConfirm.stage === 1 ? (
+              <>
+                <div className="text-center text-[17px] font-black text-[#25282D]">
+                  {sizeConfirm.key} 기본품목을 담을까요?
+                </div>
+                <p className="mt-1.5 text-center text-[13px] font-bold text-[#6B7280]">
+                  지금 담은 품목 {pickedCount}개가 있습니다
+                </p>
+                <div className="mt-4 space-y-2">
+                  <button
+                    onClick={() => applyPreset(sizeConfirm.key, "merge")}
+                    className="w-full rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-3 font-black text-[15px] text-white shadow-[0_3px_0_#285C99]"
+                  >
+                    현재 품목에 추가
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (hasCustomPicked) setSizeConfirm({ key: sizeConfirm.key, stage: 2 });
+                      else applyPreset(sizeConfirm.key, "replace");
+                    }}
+                    className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[15px] text-[#B4232A] shadow-[0_3px_0_#F7F8F5]"
+                  >
+                    새 기본품목으로 변경
+                  </button>
+                  <button
+                    onClick={() => setSizeConfirm(null)}
+                    className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280]"
+                  >
+                    취소
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-center text-[17px] font-black text-[#25282D]">
+                  직접 추가한 품목도 함께 지워집니다
+                </div>
+                <p className="mt-1.5 text-center text-[13px] font-bold text-[#6B7280]">
+                  {sizeConfirm.key} 기본품목 구성으로 새로 채울까요?
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={() => setSizeConfirm(null)}
+                    className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => applyPreset(sizeConfirm.key, "replace")}
+                    className="flex-1 rounded-2xl bg-[#D95C5C] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#A81E20]"
+                  >
+                    변경
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 품목을 다른 공간으로 옮기기 */}
+      {moveItem && openRoom && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-6">
+          <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => setMoveItem(null)} />
+          <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+            <div className="text-center text-[16px] font-black text-[#25282D]">
+              {moveItem.name} {moveItem.qty}개를 어디로 옮길까요?
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {sizeRooms
+                .filter((n) => n !== openRoom)
+                .map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => moveItemTo(moveItem.id, moveItem.qty, openRoom, n)}
+                    className="rounded-2xl border border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7F8F5] py-3 font-black text-[14px] text-[#2A6FD6] shadow-[0_3px_0_#E5E7EB] active:translate-y-[2px]"
+                  >
+                    {n}
+                  </button>
+                ))}
+            </div>
+            <button
+              onClick={() => setMoveItem(null)}
+              className="mt-3 w-full rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280]"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 자주 담는 품목 편집 */}
       {favEditOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -6571,6 +6825,8 @@ export function SettingsScreen() {
           ownerPhone={draft.staffPhone ?? ""}
           onNeedLogin={() => setScreen("login")}
         />
+
+        <SizePresetCard onNeedLogin={() => setScreen("login")} />
 
         <Card className="space-y-3">
           <div className="font-bold">문자 기본 문구</div>
