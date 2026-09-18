@@ -2234,9 +2234,16 @@ export function Step6() {
     });
   };
 
-  /** ─── 검색 결과에 없는 품목의 3D 아이콘 만들기 ─────────────────── */
+  /** ─── 3D 품목 생성 (검색 결과에 없는 품목의 3D 아이콘 만들기) ───────── */
   /** 만들기 확인 화면 (null 이면 닫힘) */
-  const [iconGen, setIconGen] = useState<{ name: string; cat: string; room: string } | null>(null);
+  const [iconGen, setIconGen] = useState<{
+    name: string;
+    cat: string;
+    room: string;
+    qty: number;
+    /** 크기에 따라 더해지는 부피(루베) — 적재량 계산에 함께 반영됩니다 */
+    extra: number;
+  } | null>(null);
   const [iconBusy, setIconBusy] = useState(false);
   const [iconError, setIconError] = useState<string | null>(null);
   /** 같은 업체가 전에 만들어 둔 아이콘 (있으면 다시 만들지 않습니다) */
@@ -2244,18 +2251,17 @@ export function Step6() {
 
   const openIconGen = () => {
     const name = cleanItemName(q);
-    if (!name) {
-      toast.error("품목명을 먼저 입력해 주세요");
-      return;
-    }
     tap("soft");
     setIconError(null);
     setIconGen({
       name,
-      cat: guessCategory(name),
-      room: room?.name || suggestRoomName(name, sizeRooms) || sizeRooms[0],
+      cat: name ? guessCategory(name) : "가구",
+      room: room?.name || (name ? suggestRoomName(name, sizeRooms) : undefined) || sizeRooms[0],
+      qty: 1,
+      extra: 0,
     });
   };
+
 
   /**
    * 만들어진(또는 저장돼 있던) 아이콘을 품목으로 담습니다.
