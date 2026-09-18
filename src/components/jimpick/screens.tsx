@@ -2714,9 +2714,30 @@ export function Step6() {
                     >
                       <ItemArt id={p.id} name={p.name} size={26} />
                       <span className="text-[13px] font-extrabold text-[#25282D]">{p.name}</span>
+                      <button
+                        onClick={() => decQty(p.id, p.name, p.qty)}
+                        className="w-6 h-6 rounded-full bg-white border border-[#E5E7EB] text-[15px] font-black text-[#25282D]"
+                        aria-label={`${p.name} 수량 줄이기`}
+                      >
+                        −
+                      </button>
                       <span className="text-[13px] font-black text-[#25282D] tabular-nums">
                         {p.qty}
                       </span>
+                      <button
+                        onClick={() => setQty(p.id, p.qty + 1, p.name)}
+                        className="w-6 h-6 rounded-full bg-white border border-[#E5E7EB] text-[15px] font-black text-[#25282D]"
+                        aria-label={`${p.name} 수량 늘리기`}
+                      >
+                        +
+                      </button>
+                      <button
+                        onClick={() => setMoveItem({ id: p.id, name: p.name, qty: p.qty })}
+                        className="ml-0.5 text-[11px] font-black text-[#2A6FD6]"
+                        aria-label={`${p.name} 다른 공간으로 옮기기`}
+                      >
+                        이동
+                      </button>
                       <button
                         onClick={() => setConfirmRemove({ id: p.id, name: p.name })}
                         className="ml-0.5 text-[#94A3B8]"
