@@ -55,7 +55,13 @@ export const saveSizePresets = createServerFn({ method: "POST" })
     const presets = sanitize(data.presets);
     const { error } = await context.supabase
       .from("company_size_presets")
-      .upsert({ user_id: context.userId, payload: { presets } }, { onConflict: "user_id" });
+      .upsert(
+        {
+          user_id: context.userId,
+          payload: JSON.parse(JSON.stringify({ presets })),
+        },
+        { onConflict: "user_id" },
+      );
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const, presets };
   });
