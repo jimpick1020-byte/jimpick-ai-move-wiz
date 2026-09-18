@@ -98,6 +98,7 @@ import {
   type SizePresets,
 } from "@/lib/size-presets";
 import { getSizePresets } from "@/lib/size-presets.functions";
+import { SizePresetCard } from "./SizePresetCard";
 
 import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
