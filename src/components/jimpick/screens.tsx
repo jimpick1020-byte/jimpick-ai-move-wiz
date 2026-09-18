@@ -2488,11 +2488,12 @@ export function Step6() {
     sortByGroup(
       Object.entries(r.items).map(([id, qty]) => {
         const c = catalog.find((x) => x.id === id);
+        const cat = c && "cat" in c ? (c.cat as string) : undefined;
         return {
           id,
           qty,
           name: c?.name || itemNameById(id) || id,
-          cat: c?.cat,
+          cat,
         };
       }),
     );
