@@ -1949,20 +1949,6 @@ export function Step6() {
     // 처음 들어올 때 한 번만 정합니다
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const roomOpenList = openRooms ?? [];
-  const toggleRoomOpen = (name: string) => {
-    tap("soft");
-    setOpenRooms((prev) => {
-      const cur = prev ?? [];
-      const next = cur.includes(name) ? cur.filter((x) => x !== name) : [...cur, name];
-      try {
-        localStorage.setItem(ROOM_OPEN_KEY, JSON.stringify(next));
-      } catch {
-        /* 저장 공간이 없으면 이번 화면에서만 유지됩니다 */
-      }
-      return next;
-    });
-  };
 
   /** 특정 공간의 품목 수량을 바꿉니다 (다른 공간·품목은 건드리지 않습니다) */
   const setQtyInRoom = (roomName: string, itemId: string, qty: number) => {
