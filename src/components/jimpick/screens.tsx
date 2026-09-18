@@ -1949,20 +1949,6 @@ export function Step6() {
     // 처음 들어올 때 한 번만 정합니다
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const roomOpenList = openRooms ?? [];
-  const toggleRoomOpen = (name: string) => {
-    tap("soft");
-    setOpenRooms((prev) => {
-      const cur = prev ?? [];
-      const next = cur.includes(name) ? cur.filter((x) => x !== name) : [...cur, name];
-      try {
-        localStorage.setItem(ROOM_OPEN_KEY, JSON.stringify(next));
-      } catch {
-        /* 저장 공간이 없으면 이번 화면에서만 유지됩니다 */
-      }
-      return next;
-    });
-  };
 
   /** 특정 공간의 품목 수량을 바꿉니다 (다른 공간·품목은 건드리지 않습니다) */
   const setQtyInRoom = (roomName: string, itemId: string, qty: number) => {
@@ -2763,100 +2749,8 @@ export function Step6() {
             );
           })}
         </div>
-
-        {/* 공간별 담은 품목 — 공간 이름을 누르면 접히고 펼쳐집니다 (품목·수량은 그대로) */}
-        <div className="mt-4 space-y-3">
-          {sizeRooms.map((name) => {
-            const r = roomOf(name);
-            if (!r) return null;
-            const list = pickedOf(r);
-            if (list.length === 0) return null;
-            const s = roomSummary(r.items);
-            const isOpen = roomOpenList.includes(name);
-            return (
-              <div
-                key={`picked-${name}`}
-                className="rounded-3xl border border-[#E5E7EB] bg-white p-3 shadow-[0_5px_0_#E5E7EB,inset_0_1px_0_#fff]"
-              >
-                <button
-                  onClick={() => toggleRoomOpen(name)}
-                  aria-expanded={isOpen}
-                  className="flex w-full items-center gap-2 text-left active:translate-y-[1px]"
-                >
-                  <span
-                    className={`shrink-0 rounded-xl bg-gradient-to-b px-3 py-1 text-[15px] font-black text-white ${
-                      ROOM_TINT[name] || "from-[#5B93D6] to-[#3578C8]"
-                    } shadow-[0_3px_0_rgba(0,0,0,0.18)]`}
-                  >
-                    {name}
-                  </span>
-                  <span className="text-[14px] font-black text-[#5A6478]">
-                    {s.kinds}종 · {s.count}개
-                  </span>
-                  <ChevronDown
-                    className={`ml-auto h-6 w-6 shrink-0 text-[#6B7280] transition-transform ${
-                      isOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-
-                {isOpen && (
-                  <div className="mt-3 grid grid-cols-4 gap-1.5">
-                    {list.map((p) => (
-                      <div
-                        key={p.id}
-                        className="relative min-w-0 rounded-2xl border border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7F8F5] p-1.5 shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff]"
-                      >
-                        <button
-                          onClick={() => setConfirmRemove({ id: p.id, name: p.name, room: name })}
-                          className="absolute right-0.5 top-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#94A3B8] shadow-sm"
-                          aria-label={`${p.name} 삭제`}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        <div className="flex h-[42px] items-center justify-center">
-                          <ItemArt id={p.id} name={p.name} size={38} />
-                        </div>
-                        <div className="min-h-8 break-keep text-center text-[11.5px] font-extrabold leading-tight text-[#25282D] line-clamp-2">
-                          {p.name}
-                        </div>
-                        <div className="mt-1 flex items-center justify-center gap-0.5">
-                          <button
-                            onClick={() => decQtyInRoom(name, p.id, p.name, p.qty)}
-                            className="h-7 w-7 shrink-0 rounded-full border border-[#E5E7EB] bg-white text-[14px] font-black text-[#25282D]"
-                            aria-label={`${p.name} 수량 줄이기`}
-                          >
-                            −
-                          </button>
-                          <span className="min-w-4 text-center text-[12.5px] font-black tabular-nums text-[#25282D]">
-                            {p.qty}
-                          </span>
-                          <button
-                            onClick={() => setQtyInRoom(name, p.id, p.qty + 1)}
-                            className="h-7 w-7 shrink-0 rounded-full border border-[#E5E7EB] bg-white text-[14px] font-black text-[#25282D]"
-                            aria-label={`${p.name} 수량 늘리기`}
-                          >
-                            +
-                          </button>
-                        </div>
-                        <button
-                          onClick={() =>
-                            setMoveItem({ id: p.id, name: p.name, qty: p.qty, room: name })
-                          }
-                          className="mt-1 w-full text-center text-[11px] font-black text-[#2A6FD6]"
-                          aria-label={`${p.name} 다른 공간으로 옮기기`}
-                        >
-                          이동
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
       </div>
+
 
       <BottomButtonBar>
         <PrimaryButton onClick={() => setScreen("options")}>

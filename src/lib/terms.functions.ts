@@ -287,6 +287,8 @@ async function notifyManager(token: string): Promise<void> {
     console.error("[notifyManager] 발송 서버 설정이 없어 사장님 알림을 보내지 못했습니다.");
     return;
   }
+  // 서버 확인값을 함께 보냅니다 — 열쇠가 바뀌어도 발송 서버가 우리 서버를 알아봅니다
+  const serverSecret = (process.env["JIMPICK_PROXY_SECRET"] ?? "").trim();
   try {
     const r = await fetch(`${url.replace(/\/$/, "")}/functions/v1/send-estimate-sms`, {
       method: "POST",
@@ -294,6 +296,7 @@ async function notifyManager(token: string): Promise<void> {
         "Content-Type": "application/json",
         apikey: key,
         Authorization: `Bearer ${key}`,
+        ...(serverSecret ? { "x-jimpick-server": serverSecret } : {}),
       },
       body: JSON.stringify({ mode: "manager_notify", token }),
     });
