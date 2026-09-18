@@ -98,7 +98,6 @@ import {
   type SizePresets,
 } from "@/lib/size-presets";
 import { getSizePresets } from "@/lib/size-presets.functions";
-import { SizePresetCard } from "./SizePresetCard";
 
 import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
@@ -7091,15 +7090,12 @@ export function SettingsScreen() {
         {/* 업체 화면에는 문자 사용 가능 여부와 내 업체 발송 현황만 보여 줍니다 */}
         {!settingsEnt?.isSuperAdmin && <SmsNoticeCard />}
         <BusinessInfoCard onNeedLogin={() => setScreen("login")} />
-        {/* 문자발송 설정·시험 발송·평수별 기본품목은 서비스 관리자 전용입니다 */}
+        {/* 문자발송 설정·시험 발송은 서비스 관리자 전용입니다 */}
         {settingsEnt?.isSuperAdmin && (
-          <>
-            <SmsConnectionCard
-              ownerPhone={draft.staffPhone ?? ""}
-              onNeedLogin={() => setScreen("login")}
-            />
-            <SizePresetCard onNeedLogin={() => setScreen("login")} />
-          </>
+          <SmsConnectionCard
+            ownerPhone={draft.staffPhone ?? ""}
+            onNeedLogin={() => setScreen("login")}
+          />
         )}
 
         <Card className="space-y-3">
