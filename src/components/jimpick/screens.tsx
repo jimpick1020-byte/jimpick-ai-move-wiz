@@ -2352,7 +2352,10 @@ export function Step6() {
         setIconError(res.error || "아이콘을 만들지 못했습니다. 다시 시도해 주세요.");
         return;
       }
-      const failed = applyGeneratedIcon(res, iconGen.room);
+      const failed = applyGeneratedIcon(res, iconGen.room, {
+        qty: iconGen.qty,
+        extra: iconGen.extra,
+      });
       if (failed) setIconError(failed);
     } catch (e) {
       setIconError(e instanceof Error ? e.message : "아이콘을 만들지 못했습니다.");
