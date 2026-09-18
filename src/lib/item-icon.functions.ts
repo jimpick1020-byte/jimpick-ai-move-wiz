@@ -77,6 +77,43 @@ export const findItemIcon = createServerFn({ method: "POST" })
     };
   });
 
+/**
+ * 이 업체가 만들어 둔 3D 품목 전체 목록.
+ * 새로고침·앱 업그레이드·다른 기기에서도 같은 품목이 그대로 보이게 합니다.
+ */
+export const listItemIcons = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(
+    async ({
+      context,
+    }): Promise<{
+      ok: boolean;
+      error?: string;
+      items: { itemId: string; name: string; cat: string; room?: string; iconUrl: string }[];
+    }> => {
+      const { data, error } = await context.supabase
+        .from("item_icons")
+        .select("item_id, name, cat, room, image_url, created_at")
+        .eq("user_id", context.userId)
+        .eq("active", true)
+        .eq("status", "ready")
+        .order("created_at", { ascending: true });
+      if (error) return { ok: false, error: error.message, items: [] };
+      return {
+        ok: true,
+        items: (data ?? [])
+          .filter((r) => !!r.image_url)
+          .map((r) => ({
+            itemId: r.item_id as string,
+            name: r.name as string,
+            cat: r.cat as string,
+            room: (r.room as string | null) ?? undefined,
+            iconUrl: r.image_url as string,
+          })),
+      };
+    },
+  );
+
 /** 검색 결과에 없는 품목의 3D 아이콘을 실제로 생성합니다 (서버에서만 AI 호출) */
 export const generateItemIcon = createServerFn({ method: "POST" })
   .middleware([requireActiveEntitlement])
