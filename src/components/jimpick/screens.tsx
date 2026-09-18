@@ -6825,6 +6825,8 @@ export function SettingsScreen() {
           onNeedLogin={() => setScreen("login")}
         />
 
+        <SizePresetCard onNeedLogin={() => setScreen("login")} />
+
         <Card className="space-y-3">
           <div className="font-bold">문자 기본 문구</div>
           <textarea
