@@ -6,6 +6,7 @@
  * 깨진 그림 대신 기본 3D 박스가 나옵니다.
  */
 import { useState } from "react";
+import { useIconFit } from "./icon-fit";
 import { ITEMS_1000 } from "./items-catalog-1000";
 import { FEATURED_HOUSEHOLD_100 } from "./featured-household-100";
 
@@ -614,17 +615,25 @@ export function Icon3D({
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
+  const shown = failed ? DEFAULT_ICON3D : src;
+  // 그림마다 다른 투명 여백을 지우고 「침대(킹)」과 비슷한 크기로 맞춥니다
+  const fit = useIconFit(shown);
   return (
-    <img
-      src={failed ? DEFAULT_ICON3D : src}
-      alt={alt}
-      width={size}
-      height={size}
-      loading="lazy"
-      onError={() => setFailed(true)}
-      className={`shrink-0 object-contain ${className}`}
+    <span
+      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden ${className}`}
       style={{ width: size, height: size }}
-    />
+    >
+      <img
+        src={shown}
+        alt={alt}
+        width={size}
+        height={size}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="h-full w-full object-contain"
+        style={{ transform: `scale(${fit})`, transformOrigin: "center" }}
+      />
+    </span>
   );
 }
 
