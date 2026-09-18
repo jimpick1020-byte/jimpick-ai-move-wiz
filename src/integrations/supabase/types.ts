@@ -836,6 +836,8 @@ export type Database = {
           accept_method: string
           accepted: boolean
           accepted_at: string
+          confirmed_by: string
+          confirmed_by_user_id: string | null
           created_at: string
           estimate_id: string
           estimate_snapshot: string | null
@@ -857,6 +859,8 @@ export type Database = {
           accept_method?: string
           accepted?: boolean
           accepted_at?: string
+          confirmed_by?: string
+          confirmed_by_user_id?: string | null
           created_at?: string
           estimate_id: string
           estimate_snapshot?: string | null
@@ -878,6 +882,8 @@ export type Database = {
           accept_method?: string
           accepted?: boolean
           accepted_at?: string
+          confirmed_by?: string
+          confirmed_by_user_id?: string | null
           created_at?: string
           estimate_id?: string
           estimate_snapshot?: string | null
@@ -1089,6 +1095,19 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
+      owner_confirm_contract: {
+        Args: {
+          _contact_phone?: string
+          _customer_name: string
+          _estimate_id: string
+          _estimate_snapshot: string
+          _move_date: string
+          _sheet_no: string
+          _sheet_version: number
+          _total: number
+        }
+        Returns: Json
+      }
       release_free_sms: {
         Args: { _key: string; _user_id: string }
         Returns: Json
