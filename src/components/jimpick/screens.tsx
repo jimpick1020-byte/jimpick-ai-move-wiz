@@ -6503,6 +6503,22 @@ export function History() {
                             </span>
                           )}
                         </div>
+                        {/* 업체(사장님) 직접 계약완료 — 고객 웹 동의가 없어도 달력에 계약으로 표시됩니다 */}
+                        {!ts.row?.acceptedAt && (
+                          <button
+                            type="button"
+                            disabled={confirmingId === e.id}
+                            onClick={() => doOwnerConfirm(e)}
+                            className="mt-2 w-full rounded-xl bg-[#3578C8] py-2.5 text-[13.5px] font-bold text-white disabled:opacity-50"
+                          >
+                            {confirmingId === e.id ? "저장 중…" : "계약완료로 표시 (업체 확정)"}
+                          </button>
+                        )}
+                        {ts.row?.acceptedAt && (
+                          <div className="mt-2 rounded-xl bg-[#EAF2FC] px-3 py-2 text-[12.5px] font-bold text-[#1D4ED8]">
+                            계약완료 · 달력에 표시됩니다
+                          </div>
+                        )}
                         {ts.row &&
                           (() => {
                             const n = noticeOf(e.id);
