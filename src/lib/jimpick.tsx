@@ -1826,6 +1826,47 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, [hydrated, state.loggedIn, authChecked, state.draft?.id, recoveredFor]);
 
+  // 서버에 저장해 둔 "직접 만든 3D 품목"을 가져와 품목 목록에 계속 남아 있게 합니다.
+  // (새로고침·앱 업그레이드·다른 기기에서도 그대로 보입니다)
+  const [iconsLoaded, setIconsLoaded] = useState(false);
+  useEffect(() => {
+    if (!hydrated || !state.loggedIn || !authChecked || iconsLoaded) return;
+    setIconsLoaded(true);
+    void listItemIcons()
+      .then((r) => {
+        if (!r.ok || !r.items.length) return;
+        setState((s) => {
+          const hidden = new Set([...(s.catalogHidden || []), ...(s.draft.hiddenItems || [])]);
+          const list = s.draft.customItems || [];
+          const byId = new Map(list.map((c) => [c.id, c]));
+          let changed = false;
+          const merged = [...list];
+          for (const it of r.items) {
+            if (hidden.has(it.itemId)) continue;
+            const cur = byId.get(it.itemId);
+            if (!cur) {
+              merged.push({
+                id: it.itemId,
+                name: it.name,
+                cat: it.cat,
+                extra: 0,
+                icon: it.iconUrl,
+                active: true,
+              });
+              changed = true;
+            } else if (cur.icon !== it.iconUrl || cur.active === false) {
+              const i = merged.findIndex((c) => c.id === it.itemId);
+              merged[i] = { ...cur, icon: it.iconUrl, active: true };
+              changed = true;
+            }
+          }
+          if (!changed) return s;
+          return { ...s, draft: { ...s.draft, customItems: merged } };
+        });
+      })
+      .catch(() => {});
+  }, [hydrated, state.loggedIn, authChecked, iconsLoaded]);
+
   // 직접 추가·AI 로 만든 품목의 아이콘을 등록해 견적서·공유 화면에서도 같은 그림이 나오게 합니다
   registerCustomIcons(state.draft?.customItems);
 
