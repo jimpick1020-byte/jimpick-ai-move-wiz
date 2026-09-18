@@ -6370,6 +6370,8 @@ export function History() {
   /** 사장님 예약확정 알림 문자 발송 기록 */
   const [noticeRows, setNoticeRows] = useState<ManagerNoticeRow[]>([]);
   const [resending, setResending] = useState<string | null>(null);
+  /** 업체 계약완료 저장 중인 견적 id */
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   /** 카드별 '기록 보기' 펼침 상태 (기본은 접힘 → 목록이 짧게 보입니다) */
   const [openLog, setOpenLog] = useState<Record<string, boolean>>({});
   const toggleLog = (id: string) => setOpenLog((p) => ({ ...p, [id]: !p[id] }));
