@@ -147,6 +147,7 @@ import {
   renameReservationCustomer,
   getReservationCustomerName,
   getManagerNotices,
+  ownerConfirmContract,
   type TermsStatusRow,
   type ManagerNoticeRow,
 } from "@/lib/terms.functions";
