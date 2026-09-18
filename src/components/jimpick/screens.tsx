@@ -6409,6 +6409,41 @@ export function History() {
   }, []);
   /** 이 견적의 사장님 알림 기록 (가장 최근) */
   const noticeOf = (id: string) => noticeRows.find((n) => n.estimateId === id) ?? null;
+  /** 사장님이 직접 계약완료 처리 — 서버 저장이 성공한 뒤에만 계약완료로 보여 줍니다 */
+  const doOwnerConfirm = async (e: Estimate) => {
+    if (confirmingId) return;
+    const date = (e.moveDate ?? "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      toast.error("이사 날짜를 먼저 입력해 주세요.");
+      return;
+    }
+    if (!window.confirm(`${e.customerName || "고객"} · ${date} 계약완료로 저장할까요?`)) return;
+    setConfirmingId(e.id);
+    try {
+      const r = await ownerConfirmContract({
+        data: {
+          estimateId: e.id,
+          moveDate: date,
+          customerName: e.customerName ?? "",
+          total: Math.max(0, Math.round(Number(e.total ?? 0))),
+          sheetNo: e.sheetNo ?? null,
+          sheetVersion: Number(e.sheetVersion ?? 1) || 1,
+          estimateSnapshot: JSON.stringify({ draft: e }).slice(0, 300_000),
+          contactPhone: e.phone ?? null,
+        },
+      });
+      if (r.ok) {
+        toast.success(r.duplicate ? "이미 계약완료된 건입니다" : "계약완료로 저장했습니다");
+        loadTerms();
+      } else {
+        toast.error(r.error ?? "계약완료를 저장하지 못했습니다.");
+      }
+    } catch {
+      toast.error("계약완료를 저장하지 못했습니다. 통신 상태를 확인해 주세요.");
+    } finally {
+      setConfirmingId(null);
+    }
+  };
   const doResend = async (id: string) => {
     if (resending) return;
     setResending(id);
