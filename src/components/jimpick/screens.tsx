@@ -3699,8 +3699,8 @@ export function Step6() {
       )}
 
       {/* 품목을 다른 공간으로 옮기기 */}
-      {moveItem && openRoom && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-6">
+      {moveItem && (moveItem.room ?? openRoom) && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center px-6">
           <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => setMoveItem(null)} />
           <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
             <div className="text-center text-[16px] font-black text-[#25282D]">
@@ -3708,11 +3708,18 @@ export function Step6() {
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {sizeRooms
-                .filter((n) => n !== openRoom)
+                .filter((n) => n !== (moveItem.room ?? openRoom))
                 .map((n) => (
                   <button
                     key={n}
-                    onClick={() => moveItemTo(moveItem.id, moveItem.qty, openRoom, n)}
+                    onClick={() =>
+                      moveItemTo(
+                        moveItem.id,
+                        moveItem.qty,
+                        (moveItem.room ?? openRoom) as string,
+                        n,
+                      )
+                    }
                     className="rounded-2xl border border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7F8F5] py-3 font-black text-[14px] text-[#2A6FD6] shadow-[0_3px_0_#E5E7EB] active:translate-y-[2px]"
                   >
                     {n}
