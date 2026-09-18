@@ -208,6 +208,10 @@ import {
   cleanItemName,
   type IconResult,
 } from "@/lib/item-icon.functions";
+import { sortByGroup } from "@/lib/item-groups";
+
+/** 공간별 품목 접기·펼치기 상태를 기억하는 자리 */
+const ROOM_OPEN_KEY = "jimpick_step6_open_rooms";
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
 import { ScanMascot, type MascotState } from "./ScanMascot";
