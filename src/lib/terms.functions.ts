@@ -505,12 +505,13 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
   });
 
 /**
- * 날짜별(YYYY-MM-DD) 확정 예약 건수 — 달력에서 예약 1건/마감 표시에 씁니다.
+ * 날짜별(YYYY-MM-DD) 확정 계약 건수 — 달력 표시에 씁니다.
  *
- *  · 로그인한 업체(user_id)의 예약만 셉니다 (RLS + user_id 필터 → 다른 업체와 섞이지 않음).
- *  · 확정 예약 = terms_acceptances 에 동의(accepted_at)가 있고 reservation_status 가
- *    'canceled' 가 아닌 건. (임시 견적·문자만 보낸 상태·취소 건은 제외)
- *  · 화면 표시용 집계입니다. 실제 3번째 예약 차단은 예약 확정 시 서버에서 원자적으로 막아야 합니다.
+ *  · 로그인한 업체(user_id)의 계약만 셉니다 (RLS + user_id 필터 → 다른 업체와 섞이지 않음).
+ *  · 확정 계약 = terms_acceptances 에 확정 기록(accepted_at)이 있고 reservation_status 가
+ *    'canceled' 가 아닌 건. 고객이 링크에서 동의한 건(confirmed_by='customer')과
+ *    사장님이 직접 계약완료한 건(confirmed_by='company_admin') 모두 포함합니다.
+ *  · 같은 날짜에 몇 건이든 모두 셉니다(하루 건수 제한 없음).
  */
 export interface ReservationRow {
   /** 견적번호 (앱의 견적 id) */
@@ -521,6 +522,23 @@ export interface ReservationRow {
   total: number;
   sheetNo: string | null;
   acceptedAt: string | null;
+  /** 확정 방식 — 'customer'(고객 확정) | 'company_admin'(업체 확정) */
+  confirmedBy: string;
+  /** 아래는 계약 당시 견적서에서 읽은 표시용 값 (없으면 null) */
+  moveTime: string | null;
+  fromArea: string | null;
+  toArea: string | null;
+  moveType: string | null;
+  truck: string | null;
+  staffName: string | null;
+}
+
+/** 주소에서 시·구 정도만 남깁니다 (상세주소는 달력에 노출하지 않습니다) */
+function areaOf(addr: unknown): string | null {
+  const s = typeof addr === "string" ? addr.trim() : "";
+  if (!s) return null;
+  const parts = s.split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).join(" ") || null;
 }
 
 export const getReservationCounts = createServerFn({ method: "POST" })
@@ -549,24 +567,29 @@ export const getReservationCounts = createServerFn({ method: "POST" })
       const { data: accs } = termIds.length
         ? await context.supabase
             .from("terms_acceptances")
-            .select("estimate_terms_id, accepted_at, reservation_status")
+            .select("estimate_terms_id, accepted_at, reservation_status, confirmed_by")
             .in("estimate_terms_id", termIds)
         : { data: [] as never[] };
 
-      // 확정(동의 O · 취소 X)된 약관 id → 동의 일시
-      const confirmed = new Map<string, string | null>();
+      // 확정(기록 O · 취소 X)된 약관 id → 확정 일시 + 확정 방식
+      const confirmed = new Map<string, { at: string | null; by: string }>();
       for (const a of (accs ?? []) as {
         estimate_terms_id?: string;
         accepted_at?: string | null;
         reservation_status?: string | null;
+        confirmed_by?: string | null;
       }[]) {
         if (!a.accepted_at) continue;
         if (String(a.reservation_status ?? "confirmed") === "canceled") continue;
-        confirmed.set(String(a.estimate_terms_id ?? ""), a.accepted_at ?? null);
+        confirmed.set(String(a.estimate_terms_id ?? ""), {
+          at: a.accepted_at ?? null,
+          by: String(a.confirmed_by ?? "customer"),
+        });
       }
 
       // 같은 견적번호(estimate_id)는 여러 차수(버전)로 저장될 수 있습니다.
       // 계약은 견적 1건이므로 견적번호 기준으로 최신 차수 하나만 셉니다.
+      // (서로 다른 견적번호는 같은 날짜라도 모두 각각 셉니다)
       const byEstimate = new Map<string, ReservationRow & { version: number }>();
       for (const row of terms as {
         id: string;
@@ -578,8 +601,8 @@ export const getReservationCounts = createServerFn({ method: "POST" })
         sheet_version: number | null;
       }[]) {
         if (!row.move_date) continue;
-        const acceptedAt = confirmed.get(String(row.id));
-        if (acceptedAt === undefined) continue;
+        const conf = confirmed.get(String(row.id));
+        if (!conf) continue;
         const key = String(row.estimate_id);
         const version = Number(row.sheet_version ?? 0);
         const prev = byEstimate.get(key);
@@ -592,25 +615,130 @@ export const getReservationCounts = createServerFn({ method: "POST" })
           moveDate: String(row.move_date).slice(0, 10),
           total: Number(row.total ?? 0),
           sheetNo: row.sheet_no ?? null,
-          acceptedAt: acceptedAt ?? null,
+          acceptedAt: conf.at,
+          confirmedBy: conf.by,
+          moveTime: null,
+          fromArea: null,
+          toArea: null,
+          moveType: null,
+          truck: null,
+          staffName: null,
         });
+      }
+
+      // 확정된 계약에 대해서만 견적서 원본에서 표시용 정보를 읽습니다.
+      const confirmedIds = [...byEstimate.values()].map((r) => r.termsId);
+      if (confirmedIds.length) {
+        const { data: snaps } = await context.supabase
+          .from("estimate_terms")
+          .select("id, sheet_snapshot")
+          .eq("user_id", context.userId)
+          .in("id", confirmedIds);
+        const snapById = new Map<string, string | null>();
+        for (const s of (snaps ?? []) as { id: string; sheet_snapshot: string | null }[]) {
+          snapById.set(String(s.id), s.sheet_snapshot ?? null);
+        }
+        for (const r of byEstimate.values()) {
+          const raw = snapById.get(r.termsId);
+          if (!raw) continue;
+          try {
+            const snap = JSON.parse(raw) as { draft?: Record<string, unknown> };
+            const d = snap?.draft;
+            if (!d || typeof d !== "object") continue;
+            r.moveTime = typeof d["moveTime"] === "string" ? (d["moveTime"] as string) : null;
+            r.fromArea = areaOf(d["fromAddr"] ?? d["fromAddress"]);
+            r.toArea = areaOf(d["toAddr"] ?? d["toAddress"]);
+            r.moveType = typeof d["moveType"] === "string" ? (d["moveType"] as string) : null;
+            const truck = d["truck"] ?? d["truckName"] ?? d["vehicle"];
+            r.truck = typeof truck === "string" ? truck : null;
+            const staff = d["staffName"] ?? d["manager"];
+            r.staffName = typeof staff === "string" ? staff : null;
+          } catch {
+            /* 스냅샷이 깨졌으면 표시용 정보만 비웁니다 */
+          }
+        }
       }
 
       const counts: Record<string, number> = {};
       const reservations: Record<string, ReservationRow[]> = {};
       for (const r of byEstimate.values()) {
         counts[r.moveDate] = (counts[r.moveDate] ?? 0) + 1;
-        (reservations[r.moveDate] ??= []).push({
-          estimateId: r.estimateId,
-          termsId: r.termsId,
-          customerName: r.customerName,
-          moveDate: r.moveDate,
-          total: r.total,
-          sheetNo: r.sheetNo,
-          acceptedAt: r.acceptedAt,
-        });
+        const { version: _v, ...row } = r;
+        (reservations[r.moveDate] ??= []).push(row);
       }
       return { ok: true, counts, reservations };
+    },
+  );
+
+/**
+ * 업체(사장님) 직접 계약완료 — 고객 웹 동의가 없어도 계약을 확정합니다.
+ *
+ * 로그인한 업체 본인의 견적만 처리하며(서버에서 auth.uid() 기준으로 확인),
+ * 같은 견적을 여러 번 눌러도 계약은 한 건만 만들어집니다.
+ */
+export const ownerConfirmContract = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        estimateId: z.string().min(1).max(120),
+        moveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        customerName: z.string().max(60).default(""),
+        total: z.number().int().min(0).max(1_000_000_000).default(0),
+        sheetNo: z.string().max(60).nullable().optional(),
+        sheetVersion: z.number().int().min(1).max(9999).default(1),
+        estimateSnapshot: z.string().max(400_000).optional(),
+        contactPhone: z.string().max(40).nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(
+    async ({
+      context,
+      data,
+    }): Promise<{
+      ok: boolean;
+      duplicate?: boolean;
+      termsId?: string;
+      moveDate?: string;
+      error?: string;
+    }> => {
+      const { data: res, error } = await context.supabase.rpc("owner_confirm_contract", {
+        _estimate_id: data.estimateId,
+        _move_date: data.moveDate,
+        _customer_name: data.customerName,
+        _total: data.total,
+        _sheet_no: data.sheetNo ?? null,
+        _sheet_version: data.sheetVersion,
+        _estimate_snapshot: data.estimateSnapshot ?? null,
+        _contact_phone: data.contactPhone ?? null,
+      } as never);
+      if (error) {
+        console.error("[ownerConfirmContract]", error.message);
+        return { ok: false, error: "계약완료를 저장하지 못했습니다. 다시 시도해 주세요." };
+      }
+      const out = (res ?? {}) as {
+        ok?: boolean;
+        reason?: string;
+        duplicate?: boolean;
+        terms_id?: string;
+        move_date?: string;
+      };
+      if (!out.ok) {
+        const msg =
+          out.reason === "no_move_date"
+            ? "이사 날짜를 먼저 선택해 주세요."
+            : out.reason === "no_auth"
+              ? "로그인이 필요합니다."
+              : "계약완료를 저장하지 못했습니다.";
+        return { ok: false, error: msg };
+      }
+      return {
+        ok: true,
+        duplicate: !!out.duplicate,
+        termsId: out.terms_id,
+        moveDate: out.move_date,
+      };
     },
   );
 
