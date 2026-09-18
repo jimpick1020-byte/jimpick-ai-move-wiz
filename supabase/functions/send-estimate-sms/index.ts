@@ -107,6 +107,25 @@ async function db(
   });
 }
 
+/** 서비스 최고관리자인지 데이터베이스에서 확인합니다 (설정 확인·시험 발송 전용) */
+async function isSuperAdmin(
+  userId: string,
+  supabaseUrl: string,
+  serviceKey: string,
+): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const res = await db(
+      `user_roles?select=role&user_id=eq.${userId}&role=eq.super_admin&limit=1`,
+      { supabaseUrl, serviceKey },
+    );
+    const rows = (await res.json().catch(() => [])) as unknown[];
+    return Array.isArray(rows) && rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 이용 권한 확인 — 한 달 무료체험 중이거나 유료 구독 중이거나 관리자여야 문자를 보낼 수 있습니다.
  */
@@ -420,26 +439,7 @@ const handle = async (req: Request): Promise<Response> => {
       /preview|staging|sandbox/i.test(appUrl) ||
       !/^https:\/\//i.test(appUrl));
 
-  if (body.checkOnly) {
-    return json({
-      ok: missing.length === 0,
-      config: {
-        ALIGO_USER_ID: !!aligoUserId,
-        ALIGO_API_KEY: !!apiKey,
-        ALIGO_SENDER: !!sender,
-        PUBLIC_APP_URL: !!appUrl && !badAppUrl,
-        SUPABASE_URL: !!supabaseUrl,
-        SUPABASE_SERVICE_ROLE_KEY: !!serviceKey,
-        SMS_PROXY_URL: !!proxyUrl,
-        JIMPICK_PROXY_SECRET: !!proxySecret,
-        발송경로: viaProxy ? "고정 IP 중계 서버 경유" : "알리고 직접 호출",
-      },
-      missing,
-      appUrlProblem: badAppUrl
-        ? "PUBLIC_APP_URL 이 배포 주소가 아닙니다. https://jimpick-ai-move-wiz.lovable.app 처럼 배포된 주소로 넣어 주세요."
-        : null,
-    });
-  }
+  // 설정 상태 확인(checkOnly)과 시험 발송은 아래에서 로그인·관리자 권한을 확인한 뒤에만 처리합니다.
 
   // ── 1. 누가 부르는지 확인합니다 (로그인한 사장님만) ──
   // 예약확정 알림·입금 알림은 우리 서버가 직접 부르므로, 서버 확인값으로 온 요청도 받아 줍니다.
@@ -471,11 +471,46 @@ const handle = async (req: Request): Promise<Response> => {
     return json({ ok: false, error: "로그인이 필요합니다. 다시 로그인한 뒤 시도해 주세요." }, 401);
   }
 
+  // 설정 상태 확인·시험 발송은 서비스 최고관리자(또는 우리 서버)만 할 수 있습니다.
+  const adminOnly = body.checkOnly === true || body.mode === "test";
+  if (adminOnly && !isServerCall) {
+    const admin = await isSuperAdmin(userId, supabaseUrl, serviceKey);
+    if (!admin) {
+      return json(
+        { ok: false, error: "문자발송 설정은 서비스 관리자만 확인할 수 있습니다." },
+        403,
+      );
+    }
+  }
+
+  // 설정이 되어 있는지만 알려 줍니다 — 아이디·키·발신번호 값은 절대 보내지 않습니다.
+  if (body.checkOnly) {
+    return json({
+      ok: missing.length === 0,
+      config: {
+        ALIGO_USER_ID: !!aligoUserId,
+        ALIGO_API_KEY: !!apiKey,
+        ALIGO_SENDER: !!sender,
+        PUBLIC_APP_URL: !!appUrl && !badAppUrl,
+        SUPABASE_URL: !!supabaseUrl,
+        SUPABASE_SERVICE_ROLE_KEY: !!serviceKey,
+        SMS_PROXY_URL: !!proxyUrl,
+        JIMPICK_PROXY_SECRET: !!proxySecret,
+        발송경로: viaProxy ? "고정 IP 중계 서버 경유" : "알리고 직접 호출",
+      },
+      missing,
+      appUrlProblem: badAppUrl
+        ? "PUBLIC_APP_URL 이 배포 주소가 아닙니다. 배포된 주소로 넣어 주세요."
+        : null,
+    });
+  }
+
   // 한 달 무료체험이 끝나고 결제하지 않은 업체는 문자 발송을 막습니다 (기존 기록은 그대로 둡니다).
   if (userId && !isServerCall) {
     const allow = await canSend(userId, supabaseUrl, serviceKey);
     if (!allow.ok) return json({ ok: false, error: allow.error }, 403);
   }
+
 
   if (missing.length) {
     // 값은 절대 보여 주지 않고, 빠진 이름만 알려 줍니다

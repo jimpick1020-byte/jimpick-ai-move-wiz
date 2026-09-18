@@ -124,6 +124,7 @@ import {
 } from "@/lib/staff-share";
 
 import { SmsConnectionCard } from "./SmsConnectionCard";
+import { SmsNoticeCard } from "./SmsNoticeCard";
 import { DepositPanel } from "./DepositPanel";
 import { PaymentPanel } from "./PaymentPanel";
 import { ReminderPanel } from "./ReminderPanel";
@@ -7011,26 +7012,34 @@ export function SettingsScreen() {
           <div className="text-base">구독 · 결제 관리</div>
           <div className="text-xs font-medium opacity-90 mt-1">요금제 변경, 결제 내역 확인</div>
         </button>
-        <button
-          onClick={() => {
-            tap();
-            setScreen("errorLogs");
-          }}
-          className="w-full rounded-2xl border border-[#FECACA] bg-white p-4 text-left"
-        >
-          <div className="text-base font-bold text-[#D95C5C]">오류 관리</div>
-          <div className="mt-1 text-xs font-medium text-[#6B7280]">
-            오류가 난 화면 · 발생시각 · 오류 내용 · 복구 결과 확인
-          </div>
-        </button>
+        {/* 오류 관리 — 서비스 관리자 전용 (서버에서도 관리자만 읽을 수 있습니다) */}
+        {settingsEnt?.isSuperAdmin && (
+          <button
+            onClick={() => {
+              tap();
+              setScreen("errorLogs");
+            }}
+            className="w-full rounded-2xl border border-[#FECACA] bg-white p-4 text-left"
+          >
+            <div className="text-base font-bold text-[#D95C5C]">오류 관리</div>
+            <div className="mt-1 text-xs font-medium text-[#6B7280]">
+              오류가 난 업체 · 화면 · 발생시각 · 오류 내용 · 복구 결과 확인
+            </div>
+          </button>
+        )}
+        {/* 업체 화면에는 문자 사용 가능 여부와 내 업체 발송 현황만 보여 줍니다 */}
+        {!settingsEnt?.isSuperAdmin && <SmsNoticeCard />}
         <BusinessInfoCard onNeedLogin={() => setScreen("login")} />
-        {/* 문자발송 연결 확인·시험 — 받는 번호는 코드에 고정하지 않습니다 */}
-        <SmsConnectionCard
-          ownerPhone={draft.staffPhone ?? ""}
-          onNeedLogin={() => setScreen("login")}
-        />
-
-        <SizePresetCard onNeedLogin={() => setScreen("login")} />
+        {/* 문자발송 설정·시험 발송·평수별 기본품목은 서비스 관리자 전용입니다 */}
+        {settingsEnt?.isSuperAdmin && (
+          <>
+            <SmsConnectionCard
+              ownerPhone={draft.staffPhone ?? ""}
+              onNeedLogin={() => setScreen("login")}
+            />
+            <SizePresetCard onNeedLogin={() => setScreen("login")} />
+          </>
+        )}
 
         <Card className="space-y-3">
           <div className="font-bold">문자 기본 문구</div>
