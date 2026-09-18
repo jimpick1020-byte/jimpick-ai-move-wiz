@@ -15,8 +15,10 @@ export const Route = createFileRoute("/api/public/item-icon/$file")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: row } = await supabaseAdmin
           .from("item_icons")
-          .select("image_path, status")
+          .select("image_path, status, active")
           .eq("id", id)
+          .eq("status", "ready")
+          .eq("active", true)
           .maybeSingle();
         const path = (row as { image_path?: string | null } | null)?.image_path;
         if (!path) return new Response("Not found", { status: 404 });

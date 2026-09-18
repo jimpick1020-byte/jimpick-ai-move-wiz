@@ -38,6 +38,9 @@ export interface CustomItem {
   extra: number;
   /** 직접 고른 3D 아이콘 경로 (없으면 이름으로 추천한 아이콘) */
   icon?: string;
+  /** 생성 품목의 같은 종류 묶음과 크기 — 구 견적에는 없어도 됩니다. */
+  subgroup?: string;
+  size?: "소형" | "중형" | "대형";
   /**
    * 목록에서 지웠는지 (지운 뒤에도 지난 견적서에는 이름·수량이 그대로 남도록
    * 실제로 지우지 않고 이 값만 false 로 바꿉니다)
@@ -1850,14 +1853,32 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
                 id: it.itemId,
                 name: it.name,
                 cat: it.cat,
-                extra: 0,
+                extra: it.size === "대형" ? 1 : it.size === "중형" ? 0.5 : 0,
                 icon: it.iconUrl,
+                subgroup: it.subgroup,
+                size: it.size,
                 active: true,
               });
               changed = true;
-            } else if (cur.icon !== it.iconUrl || cur.active === false) {
+            } else if (
+              cur.icon !== it.iconUrl ||
+              cur.name !== it.name ||
+              cur.cat !== it.cat ||
+              cur.subgroup !== it.subgroup ||
+              cur.size !== it.size ||
+              cur.active === false
+            ) {
               const i = merged.findIndex((c) => c.id === it.itemId);
-              merged[i] = { ...cur, icon: it.iconUrl, active: true };
+              merged[i] = {
+                ...cur,
+                name: it.name,
+                cat: it.cat,
+                extra: it.size === "대형" ? 1 : it.size === "중형" ? 0.5 : 0,
+                icon: it.iconUrl,
+                subgroup: it.subgroup,
+                size: it.size,
+                active: true,
+              };
               changed = true;
             }
           }

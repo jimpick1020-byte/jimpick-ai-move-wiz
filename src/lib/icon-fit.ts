@@ -12,7 +12,7 @@
 import { useEffect, useState } from "react";
 
 /** 물체가 칸에서 차지하길 바라는 비율 */
-const TARGET = 0.82;
+const TARGET = 0.85;
 /** 확대 한도 — 너무 키우면 흐릿해집니다 */
 const MAX_SCALE = 2.4;
 const CACHE_KEY = "jp_icon_fit_v1";

@@ -485,51 +485,90 @@ export type Database = {
         Row: {
           active: boolean
           cat: string
+          category_group: string
           created_at: string
           created_by: string
+          display_name: string
+          generation_id: string | null
+          generation_prompt: string | null
           id: string
           image_path: string | null
           image_url: string | null
+          is_generated: boolean
           item_id: string
+          metadata: Json
           name: string
           norm_name: string
+          normalized_name: string
+          original_name: string | null
           prompt: string | null
+          requested_name: string | null
           room: string | null
+          size_label: string
+          sort_order: number
           status: string
+          storage_path: string | null
+          subcategory_group: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           active?: boolean
           cat?: string
+          category_group: string
           created_at?: string
           created_by: string
+          display_name: string
+          generation_id?: string | null
+          generation_prompt?: string | null
           id?: string
           image_path?: string | null
           image_url?: string | null
+          is_generated?: boolean
           item_id: string
+          metadata?: Json
           name: string
           norm_name: string
+          normalized_name: string
+          original_name?: string | null
           prompt?: string | null
+          requested_name?: string | null
           room?: string | null
+          size_label?: string
+          sort_order?: number
           status?: string
+          storage_path?: string | null
+          subcategory_group?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           active?: boolean
           cat?: string
+          category_group?: string
           created_at?: string
           created_by?: string
+          display_name?: string
+          generation_id?: string | null
+          generation_prompt?: string | null
           id?: string
           image_path?: string | null
           image_url?: string | null
+          is_generated?: boolean
           item_id?: string
+          metadata?: Json
           name?: string
           norm_name?: string
+          normalized_name?: string
+          original_name?: string | null
           prompt?: string | null
+          requested_name?: string | null
           room?: string | null
+          size_label?: string
+          sort_order?: number
           status?: string
+          storage_path?: string | null
+          subcategory_group?: string | null
           updated_at?: string
           user_id?: string
         }
