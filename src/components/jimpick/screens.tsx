@@ -3314,23 +3314,56 @@ export function Step6() {
                     </div>
 
                     <div>
-                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">담을 공간</div>
+                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">
+                        크기 — 부피(루베)에 함께 반영됩니다
+                      </div>
                       <div className="flex flex-wrap gap-2">
-                        {draft.rooms.map((r) => (
+                        {[
+                          { label: "소형", extra: 0 },
+                          { label: "중형", extra: 0.5 },
+                          { label: "대형", extra: 1 },
+                        ].map((s) => (
                           <button
-                            key={r.id}
-                            onClick={() => setIconGen((f) => (f ? { ...f, room: r.name } : f))}
+                            key={s.label}
+                            onClick={() => setIconGen((f) => (f ? { ...f, extra: s.extra } : f))}
                             className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black ${
-                              iconGen.room === r.name
+                              iconGen.extra === s.extra
                                 ? "bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white shadow-[0_3px_0_#285C99]"
                                 : "border border-[#E5E7EB] bg-white text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
                             }`}
                           >
-                            {r.name}
+                            {s.label}
                           </button>
                         ))}
                       </div>
                     </div>
+
+                    <Field label="수량">
+                      <Counter
+                        value={iconGen.qty}
+                        onChange={(n) => setIconGen((f) => (f ? { ...f, qty: n } : f))}
+                      />
+                    </Field>
+
+                    <div>
+                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">담을 공간</div>
+                      <div className="flex flex-wrap gap-2">
+                        {sizeRooms.map((n) => (
+                          <button
+                            key={n}
+                            onClick={() => setIconGen((f) => (f ? { ...f, room: n } : f))}
+                            className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black ${
+                              iconGen.room === n
+                                ? "bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white shadow-[0_3px_0_#285C99]"
+                                : "border border-[#E5E7EB] bg-white text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
+                            }`}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
 
                     {iconBusy && (
                       <div className="flex items-center justify-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F8FBFF] py-5">
