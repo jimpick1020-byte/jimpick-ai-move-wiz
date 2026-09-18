@@ -3330,6 +3330,102 @@ export function Step6() {
           </div>
         </div>
       )}
+      {/* 평수 변경 확인 — 담은 품목을 지키기 위해 두 번 물어봅니다 */}
+      {sizeConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-6">
+          <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => setSizeConfirm(null)} />
+          <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+            {sizeConfirm.stage === 1 ? (
+              <>
+                <div className="text-center text-[17px] font-black text-[#25282D]">
+                  {sizeConfirm.key} 기본품목을 담을까요?
+                </div>
+                <p className="mt-1.5 text-center text-[13px] font-bold text-[#6B7280]">
+                  지금 담은 품목 {pickedCount}개가 있습니다
+                </p>
+                <div className="mt-4 space-y-2">
+                  <button
+                    onClick={() => applyPreset(sizeConfirm.key, "merge")}
+                    className="w-full rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-3 font-black text-[15px] text-white shadow-[0_3px_0_#285C99]"
+                  >
+                    현재 품목에 추가
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (hasCustomPicked) setSizeConfirm({ key: sizeConfirm.key, stage: 2 });
+                      else applyPreset(sizeConfirm.key, "replace");
+                    }}
+                    className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[15px] text-[#B4232A] shadow-[0_3px_0_#F7F8F5]"
+                  >
+                    새 기본품목으로 변경
+                  </button>
+                  <button
+                    onClick={() => setSizeConfirm(null)}
+                    className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280]"
+                  >
+                    취소
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-center text-[17px] font-black text-[#25282D]">
+                  직접 추가한 품목도 함께 지워집니다
+                </div>
+                <p className="mt-1.5 text-center text-[13px] font-bold text-[#6B7280]">
+                  {sizeConfirm.key} 기본품목 구성으로 새로 채울까요?
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={() => setSizeConfirm(null)}
+                    className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => applyPreset(sizeConfirm.key, "replace")}
+                    className="flex-1 rounded-2xl bg-[#D95C5C] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#A81E20]"
+                  >
+                    변경
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 품목을 다른 공간으로 옮기기 */}
+      {moveItem && openRoom && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-6">
+          <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => setMoveItem(null)} />
+          <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+            <div className="text-center text-[16px] font-black text-[#25282D]">
+              {moveItem.name} {moveItem.qty}개를 어디로 옮길까요?
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {sizeRooms
+                .filter((n) => n !== openRoom)
+                .map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => moveItemTo(moveItem.id, moveItem.qty, openRoom, n)}
+                    className="rounded-2xl border border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7F8F5] py-3 font-black text-[14px] text-[#2A6FD6] shadow-[0_3px_0_#E5E7EB] active:translate-y-[2px]"
+                  >
+                    {n}
+                  </button>
+                ))}
+            </div>
+            <button
+              onClick={() => setMoveItem(null)}
+              className="mt-3 w-full rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280]"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 자주 담는 품목 편집 */}
       {favEditOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
