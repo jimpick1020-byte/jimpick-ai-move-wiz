@@ -1906,6 +1906,9 @@ export function Step6() {
   const [tab, setTab] = useState<string>(CATS5[0]);
   const [q, setQ] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  /** 직접 품목 선택 중 위로 드래그하면 담은 품목 영역을 접어 목록을 넓게 봅니다 */
+  const [pickedCollapsed, setPickedCollapsed] = useState(false);
+  const grabberY = useRef<number | null>(null);
   /** 수량을 0으로 줄일 때 뜨는 삭제 확인창 */
   const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string } | null>(null);
   /** 품목을 다른 공간으로 옮기는 창 */
@@ -2661,9 +2664,48 @@ export function Step6() {
           <div
             className={`relative w-full max-w-md flex flex-col rounded-t-3xl bg-gradient-to-b from-white to-[#F7F8F5] shadow-[0_-14px_40px_rgba(7,81,216,0.28)] pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
               // 품목을 고를 때는 시트를 위로 더 끌어올려 넓게 보여 줍니다
-              pickerOpen ? "h-[95dvh] max-h-[95dvh]" : "max-h-[86dvh]"
+              pickerOpen && pickedCollapsed
+                ? "h-[98dvh] max-h-[98dvh]"
+                : pickerOpen
+                  ? "h-[95dvh] max-h-[95dvh]"
+                  : "max-h-[86dvh]"
             }`}
           >
+            {/* 드래그 손잡이 — 위로 올리면 담은 품목이 접혀 품목 목록이 넓어집니다 */}
+            {pickerOpen && (
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label={pickedCollapsed ? "담은 품목 펼치기" : "담은 품목 접기"}
+                onPointerDown={(e) => {
+                  grabberY.current = e.clientY;
+                  // 마우스로 위아래로 끌어도 pointerUp이 손잡이에 전달되도록 포인터를 붙잡습니다
+                  try {
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                  } catch {
+                    /* 일부 환경에서는 지원하지 않아도 탭 토글은 동작합니다 */
+                  }
+                }}
+                onPointerUp={(e) => {
+                  if (grabberY.current == null) return;
+                  const dy = e.clientY - grabberY.current;
+                  grabberY.current = null;
+                  if (Math.abs(dy) < 24) {
+                    tap("soft");
+                    setPickedCollapsed((v) => !v);
+                  } else if (dy < 0 && !pickedCollapsed) {
+                    tap("soft");
+                    setPickedCollapsed(true);
+                  } else if (dy > 0 && pickedCollapsed) {
+                    tap("soft");
+                    setPickedCollapsed(false);
+                  }
+                }}
+                className="flex w-full shrink-0 cursor-grab touch-none justify-center pt-2 pb-1 active:cursor-grabbing"
+              >
+                <span className="h-1.5 w-14 rounded-full bg-[#C9D2E0]" />
+              </div>
+            )}
             <div className="px-4 pt-3 pb-2 flex items-center gap-2">
               <span
                 className={`px-3 py-1 rounded-xl text-white text-[15px] font-black bg-gradient-to-b ${
@@ -2686,10 +2728,29 @@ export function Step6() {
 
             {/* 등록된 품목 뱃지 */}
             <div className="px-4 pt-3">
-              {picked.length === 0 ? (
+              {pickerOpen && pickedCollapsed ? (
+                <button
+                  onClick={() => {
+                    tap("soft");
+                    setPickedCollapsed(false);
+                  }}
+                  className="w-full flex items-center gap-2 rounded-2xl bg-white border border-[#E5E7EB] px-3.5 py-2.5 shadow-[0_3px_0_#F7F8F5,inset_0_1px_0_#fff] active:translate-y-[1px] active:shadow-none"
+                >
+                  <span className="text-[14px] font-black text-[#25282D]">
+                    담은 품목 {roomSummary(room.items).kinds}종 · {roomSummary(room.items).count}개
+                  </span>
+                  <span className="ml-auto flex items-center gap-1 text-[12px] font-black text-[#2A6FD6]">
+                    펼치기 <ChevronDown className="w-4 h-4" />
+                  </span>
+                </button>
+              ) : picked.length === 0 ? (
                 <p className="text-[13px] font-bold text-[#9AA4B2]">아직 등록된 품목이 없습니다</p>
               ) : (
-                <div className="grid grid-cols-3 gap-2">
+                <div
+                  className={`grid grid-cols-3 gap-2 ${
+                    pickerOpen ? "max-h-[34dvh] overflow-auto rounded-2xl" : ""
+                  }`}
+                >
                   {picked.map((p) => (
                     <div
                       key={p.id}
