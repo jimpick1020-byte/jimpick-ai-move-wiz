@@ -34,8 +34,8 @@ export function isSonEomneunDay(y: number, m: number, d: number) {
   return last === 9 || last === 0;
 }
 
-/** 하루에 받을 수 있는 확정 계약 최대 건수 (넘으면 마감) */
-export const DAILY_BOOKING_LIMIT = 2;
+/** 하루 여러 건 계약을 받을 수 있습니다. 2건 이상이면 달력에서 빨간색으로 알려 줍니다. */
+export const MANY_BOOKING_WARN = 2;
 
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -45,6 +45,14 @@ export interface CalendarBooking {
   customerName: string;
   total: number;
   sheetNo: string | null;
+  /** 'customer'(고객 확정) | 'company_admin'(업체 확정) */
+  confirmedBy?: string;
+  moveTime?: string | null;
+  fromArea?: string | null;
+  toArea?: string | null;
+  moveType?: string | null;
+  truck?: string | null;
+  staffName?: string | null;
 }
 
 export function MoveDateCalendar({
@@ -60,7 +68,7 @@ export function MoveDateCalendar({
   onSelect: (date: string) => void;
   /** 날짜별(YYYY-MM-DD) 확정 계약 건수 — 실제 계약 데이터에서 집계해 전달합니다 */
   counts?: Record<string, number>;
-  /** 날짜별 확정 예약 상세 — 누르면 견적서를 열 수 있게 합니다 */
+  /** 날짜별 확정 계약 상세 — 누르면 견적서를 열 수 있게 합니다 */
   bookings?: Record<string, CalendarBooking[]>;
   onOpenBooking?: (estimateId: string, customerName: string, termsId: string) => void;
   onCancelBooking?: (termsId: string, estimateId: string) => void;
