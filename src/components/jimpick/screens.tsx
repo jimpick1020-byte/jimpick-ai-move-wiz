@@ -91,6 +91,13 @@ import {
   TextInput,
 } from "./ui";
 import { MoveDateCalendar, type CalendarBooking } from "./MoveDateCalendar";
+import {
+  DEFAULT_SIZE_PRESETS,
+  resolvePreset,
+  type PresetRoom,
+  type SizePresets,
+} from "@/lib/size-presets";
+import { getSizePresets } from "@/lib/size-presets.functions";
 
 import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
