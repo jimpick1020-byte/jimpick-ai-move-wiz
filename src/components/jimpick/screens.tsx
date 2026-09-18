@@ -2635,9 +2635,15 @@ export function Step6() {
                             </span>
                           )}
                         </div>
-                        <div className="mt-1 truncate text-center text-[11px] font-bold text-[#5A6478]">
-                          {shownItems.map(([id]) => nameOf(id)).join(", ")}
+                        {/* 품목 이름·수량 — 두 줄까지 보여 주고 나머지는 「외 N종」 */}
+                        <div className="mt-1 text-center text-[11px] font-bold text-[#5A6478] leading-snug line-clamp-2 break-keep">
+                          {shownItems.map(([id, qty]) => `${nameOf(id)} ${qty}`).join(" · ")}
                         </div>
+                        {rest > 0 && (
+                          <div className="text-center text-[11px] font-bold text-[#8A93A6]">
+                            외 {rest}종
+                          </div>
+                        )}
                       </>
                     );
                   })()}
@@ -2645,9 +2651,9 @@ export function Step6() {
                     {s.kinds > 0 ? `${s.kinds}종 · ${s.count}개` : "품목 없음"}
                   </div>
                 </button>
-                {s.count > 0 && (
+                {s.kinds > 0 && (
                   <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#285C99,inset_0_1px_0_rgba(255,255,255,0.5)]">
-                    {s.count}
+                    {s.kinds}
                   </span>
                 )}
               </div>
