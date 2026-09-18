@@ -1915,9 +1915,79 @@ export function Step6() {
   const [pickedCollapsed, setPickedCollapsed] = useState(false);
   const grabberY = useRef<number | null>(null);
   /** 수량을 0으로 줄일 때 뜨는 삭제 확인창 */
-  const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string } | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<{
+    id: string;
+    name: string;
+    room?: string;
+  } | null>(null);
   /** 품목을 다른 공간으로 옮기는 창 */
-  const [moveItem, setMoveItem] = useState<{ id: string; name: string; qty: number } | null>(null);
+  const [moveItem, setMoveItem] = useState<{
+    id: string;
+    name: string;
+    qty: number;
+    room?: string;
+  } | null>(null);
+
+  /**
+   * 공간별 담은 품목 접기·펼치기.
+   * 접어도 담은 품목·수량은 그대로 남고, 화면을 나갔다 와도 상태가 유지됩니다.
+   */
+  const [openRooms, setOpenRooms] = useState<string[] | null>(null);
+  useEffect(() => {
+    let saved: string[] | null = null;
+    try {
+      const raw = localStorage.getItem(ROOM_OPEN_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(parsed)) saved = parsed.filter((x): x is string => typeof x === "string");
+    } catch {
+      /* 저장값을 읽지 못하면 품목이 있는 공간을 펼칩니다 */
+    }
+    setOpenRooms(
+      saved ??
+        draft.rooms.filter((r) => Object.keys(r.items).length > 0).map((r) => r.name),
+    );
+    // 처음 들어올 때 한 번만 정합니다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const roomOpenList = openRooms ?? [];
+  const toggleRoomOpen = (name: string) => {
+    tap("soft");
+    setOpenRooms((prev) => {
+      const cur = prev ?? [];
+      const next = cur.includes(name) ? cur.filter((x) => x !== name) : [...cur, name];
+      try {
+        localStorage.setItem(ROOM_OPEN_KEY, JSON.stringify(next));
+      } catch {
+        /* 저장 공간이 없으면 이번 화면에서만 유지됩니다 */
+      }
+      return next;
+    });
+  };
+
+  /** 특정 공간의 품목 수량을 바꿉니다 (다른 공간·품목은 건드리지 않습니다) */
+  const setQtyInRoom = (roomName: string, itemId: string, qty: number) => {
+    tap("soft");
+    updateDraft({
+      rooms: draft.rooms.map((r) => {
+        if (r.name !== roomName) return r;
+        const items = { ...r.items };
+        if (qty <= 0) delete items[itemId];
+        else items[itemId] = qty;
+        return { ...r, items };
+      }),
+    });
+  };
+
+  /** 수량 1에서 더 줄이면 바로 지우지 않고 삭제 확인창을 띄웁니다 */
+  const decQtyInRoom = (roomName: string, itemId: string, itemName: string, qty: number) => {
+    if (qty <= 1) {
+      tap("soft");
+      setConfirmRemove({ id: itemId, name: itemName, room: roomName });
+      return;
+    }
+    setQtyInRoom(roomName, itemId, qty - 1);
+  };
+
 
   /** 사장님이 설정에서 고친 평수별 기본품목 (없으면 기본값) */
   const [ownerPresets, setOwnerPresets] = useState<SizePresets>({});
