@@ -79,9 +79,15 @@ async function notifyCustomer(estimateId: string): Promise<{ ok: boolean; error?
   const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
   if (!url || !key) return { ok: false, error: "발송 서버 설정이 없습니다." };
   try {
+    const serverSecret = (process.env["JIMPICK_PROXY_SECRET"] ?? "").trim();
     const r = await fetch(`${url.replace(/\/$/, "")}/functions/v1/send-estimate-sms`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", apikey: key, Authorization: `Bearer ${key}` },
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        ...(serverSecret ? { "x-jimpick-server": serverSecret } : {}),
+      },
       body: JSON.stringify({ mode: "deposit_notify", estimate_id: estimateId }),
     });
     const body = (await r.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
