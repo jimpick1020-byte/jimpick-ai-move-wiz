@@ -105,6 +105,9 @@ export function ErrorLogScreen() {
                 >
                   {SCREEN_LABEL[r.screen] ?? r.screen}
                 </div>
+                <div className="truncate text-xs font-bold text-[#3578C8]">
+                  {r.companyName || "업체명 미입력"}
+                </div>
                 <div className="text-xs text-[#6B7280]">{when(r.occurredAt)}</div>
               </div>
               <span

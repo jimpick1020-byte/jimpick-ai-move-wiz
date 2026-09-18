@@ -21,8 +21,17 @@ export function maskSensitive(input: string): string {
     .slice(0, 1000);
 }
 
+/** 최고관리자인지 서버에서 확인합니다 (화면에서 숨기는 것과 별개로 서버가 막습니다) */
+async function assertSuperAdmin(userId: string): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.rpc("is_super_admin", { _user_id: userId });
+  if (data !== true) throw new Error("Forbidden: 서비스 관리자만 사용할 수 있습니다");
+}
+
 export interface ErrorLogRow {
   id: string;
+  /** 오류가 난 업체 이름 (최고관리자 화면 표시용) */
+  companyName: string | null;
   screen: string;
   kind: string;
   message: string;
@@ -69,18 +78,29 @@ export const logAppError = createServerFn({ method: "POST" })
     return { ok: true, id: row?.id };
   });
 
+/** 오류 기록 조회 — 서비스 최고관리자만 볼 수 있습니다 (서버에서 권한을 확인합니다) */
 export const listAppErrors = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ErrorLogRow[]> => {
+    await assertSuperAdmin(context.userId);
     const { data, error } = await context.supabase
       .from("error_logs")
-      .select("id, screen, kind, message, detail, recovery, attempts, resolved, resolved_at, occurred_at")
-      .eq("user_id", context.userId)
+      .select("id, user_id, screen, kind, message, detail, recovery, attempts, resolved, resolved_at, occurred_at")
       .order("occurred_at", { ascending: false })
-      .limit(100);
+      .limit(200);
     if (error) throw new Error(error.message);
-    return (data ?? []).map((r) => ({
+    const rows = data ?? [];
+    const names = new Map<string, string | null>();
+    if (rows.length) {
+      const { data: profiles } = await context.supabase
+        .from("profiles")
+        .select("id, company_name")
+        .in("id", Array.from(new Set(rows.map((r) => r.user_id))));
+      for (const p of profiles ?? []) names.set(p.id, p.company_name);
+    }
+    return rows.map((r) => ({
       id: r.id,
+      companyName: names.get(r.user_id) ?? null,
       screen: r.screen,
       kind: r.kind,
       message: r.message,
@@ -93,18 +113,18 @@ export const listAppErrors = createServerFn({ method: "GET" })
     }));
   });
 
-/** 오류를 "해결됨"으로 표시합니다 (내 기록만 바꿀 수 있습니다) */
+/** 오류를 "해결됨"으로 표시합니다 (서비스 최고관리자만) */
 export const resolveAppError = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.string().uuid(), recovery: z.string().max(40).default("manual") }).parse(d),
   )
   .handler(async ({ data, context }): Promise<{ ok: boolean }> => {
+    await assertSuperAdmin(context.userId);
     const { error } = await context.supabase
       .from("error_logs")
       .update({ resolved: true, resolved_at: new Date().toISOString(), recovery: data.recovery })
-      .eq("id", data.id)
-      .eq("user_id", context.userId);
+      .eq("id", data.id);
     if (error) {
       console.error("[resolveAppError]", error.message);
       return { ok: false };
