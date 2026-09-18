@@ -1932,8 +1932,34 @@ export function Step6() {
   const [pickerOpen, setPickerOpen] = useState(false);
   /** 수량을 0으로 줄일 때 뜨는 삭제 확인창 */
   const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string } | null>(null);
+  /** 품목을 다른 공간으로 옮기는 창 */
+  const [moveItem, setMoveItem] = useState<{ id: string; name: string; qty: number } | null>(null);
 
-  const sizeRooms = (SIZE_TABS.find((t) => t.key === size) || DEFAULT_SIZE_TAB).rooms;
+  /** 사장님이 설정에서 고친 평수별 기본품목 (없으면 기본값) */
+  const [ownerPresets, setOwnerPresets] = useState<SizePresets>({});
+  useEffect(() => {
+    let alive = true;
+    getSizePresets()
+      .then((r) => {
+        if (alive && r.ok) setOwnerPresets(r.presets);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const presetRooms: PresetRoom[] = useMemo(
+    () => ownerPresets[size] ?? DEFAULT_SIZE_PRESETS[size] ?? [],
+    [ownerPresets, size],
+  );
+
+  const tabRooms = (SIZE_TABS.find((t) => t.key === size) || DEFAULT_SIZE_TAB).rooms;
+  /** 화면에 보여 줄 공간 — 평수 구획 + 기본품목에 있는 공간 */
+  const sizeRooms = useMemo(
+    () => [...new Set([...tabRooms, ...presetRooms.map((r) => r.room)])],
+    [tabRooms, presetRooms],
+  );
 
   // 20카테고리 병합 목록(기존 이미지·요금 보존 + 1,000 신규) + 직접 추가 품목.
   const catalog = useMemo(
