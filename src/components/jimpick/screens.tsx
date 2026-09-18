@@ -2525,14 +2525,14 @@ export function Step6() {
         )}
       </div>
 
-      {/* 평수 선택 탭 */}
+      {/* 평수 선택 — 한 줄에 3개씩 두 줄 (모바일에서 잘리지 않습니다) */}
       <div className="bg-white border-b border-[#E5E7EB] px-4 py-3">
-        <div className="flex gap-2 overflow-x-auto overflow-y-visible -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="grid grid-cols-3 gap-2">
           {SIZE_TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => pickSize(t.key)}
-              className={`px-4 py-2.5 rounded-2xl text-[14px] font-black whitespace-nowrap transition-all duration-150 active:translate-y-[2px] ${
+              className={`min-w-0 px-1 py-2.5 rounded-2xl text-[14px] font-black text-center transition-all duration-150 active:translate-y-[2px] ${
                 t.key === size
                   ? "text-white bg-gradient-to-b from-[#5B93D6] to-[#3578C8] shadow-[0_4px_0_#285C99,0_8px_16px_rgba(7,81,216,0.32),inset_0_1px_0_rgba(255,255,255,0.5)] active:shadow-[0_1px_0_#285C99]"
                   : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F7F8F5] shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff] active:shadow-[0_1px_0_#E5E7EB]"
@@ -2542,6 +2542,34 @@ export function Step6() {
             </button>
           ))}
         </div>
+        <div className="mt-2 flex gap-2">
+          <button
+            onClick={() => setSizeConfirm({ key: size, stage: pickedCount > 0 ? 1 : 2 })}
+            className="flex-1 min-w-0 py-2.5 rounded-2xl text-[13px] font-black text-[#2A6FD6] bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_3px_0_#E5E7EB] active:translate-y-[2px]"
+          >
+            기본품목 다시 적용
+          </button>
+          <button
+            onClick={clearAllItems}
+            className="flex-1 min-w-0 py-2.5 rounded-2xl text-[13px] font-black text-[#B4232A] bg-white border border-[#FECACA] shadow-[0_3px_0_#FEE2E2] active:translate-y-[2px]"
+          >
+            전체 선택 해제
+          </button>
+        </div>
+        {needRegister.length > 0 && (
+          <div className="mt-2 rounded-2xl border border-[#FDE68A] bg-[#FFFBEB] p-3">
+            <div className="text-[13px] font-black text-[#B45309]">
+              품목 등록 필요 {needRegister.length}건
+            </div>
+            <div className="mt-1 text-[12px] font-bold text-[#92400E] leading-relaxed">
+              {needRegister.map((m) => `${m.room} · ${m.name} ${m.qty}`).join(" / ")}
+            </div>
+            <div className="mt-1 text-[11px] font-semibold text-[#B45309]">
+              품목 목록에 없어 담지 못했습니다. 공간을 눌러 직접 추가하거나 3D 아이콘을 만들어
+              주세요.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 디지털 3D 집 구조 */}
