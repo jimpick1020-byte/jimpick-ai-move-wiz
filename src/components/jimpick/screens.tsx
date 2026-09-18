@@ -2265,14 +2265,22 @@ export function Step6() {
 
   /**
    * 만들어진(또는 저장돼 있던) 아이콘을 품목으로 담습니다.
-   * 품목 등록 → 고른 공간에 수량 1 반영까지 모두 성공해야 true를 돌려줍니다.
+   * 품목 등록 → 고른 공간에 수량 반영까지 모두 성공해야 null(성공)을 돌려줍니다.
+   * 담긴 품목은 같은 종류(침대·서랍장·TV 등) 옆으로 자동 정렬돼 보입니다.
    */
-  const applyGeneratedIcon = (res: IconResult, roomName: string): string | null => {
+  const applyGeneratedIcon = (
+    res: IconResult,
+    roomName: string,
+    opts?: { qty?: number; extra?: number },
+  ): string | null => {
     if (!res.itemId || !res.iconUrl) return "아이콘 주소를 받지 못했습니다.";
     const itemId = res.itemId;
     const iconUrl = res.iconUrl;
     const name = res.name || cleanItemName(q);
     const cat = res.cat || guessCategory(name);
+    const addQty = Math.max(1, Math.min(99, opts?.qty ?? 1));
+    const extra = Math.max(0, opts?.extra ?? 0);
+
 
     // 고른 공간이 아직 없으면 그 공간을 먼저 만듭니다 (기존 공간·품목은 그대로)
     let rooms = draft.rooms;
