@@ -65,6 +65,27 @@ export type Database = {
         }
         Relationships: []
       }
+      company_size_presets: {
+        Row: {
+          created_at: string
+          payload: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          payload?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          payload?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       deposit_records: {
         Row: {
           amount: number
