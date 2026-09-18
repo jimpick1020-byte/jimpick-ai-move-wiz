@@ -227,6 +227,7 @@ import {
   UserCircle,
   Hand,
   Calculator,
+  Box,
 } from "lucide-react";
 import houseImg from "@/assets/step6-house.png";
 
