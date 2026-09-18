@@ -226,56 +226,31 @@ import {
 } from "lucide-react";
 import houseImg from "@/assets/step6-house.png";
 
-/**
- * 품목을 「비슷한 종류끼리」 모아 보여 주기 위한 정렬 키.
- * 예) 옷장·장롱·붙박이장 → 같은 무리, 서랍장·드레서 → 같은 무리.
- * 같은 소분류(침실·거실 등) 안에서 이 순서대로 이웃하게 정렬합니다.
- */
-const ITEM_FAMILY_ORDER: [RegExp, string][] = [
-  // 침실
-  [/침대/, "10"],
-  [/매트리스/, "11"],
-  [/옷장|장롱|붙박이장/, "12"],
-  [/서랍장|드레서|체스트/, "13"],
-  [/화장대/, "14"],
-  [/협탁/, "15"],
-  [/거울|경대/, "16"],
-  [/행거/, "17"],
-  // 거실
-  [/소파/, "20"],
-  [/리클라이너/, "21"],
-  [/안마의자/, "22"],
-  [/소파테이블|티테이블|커피테이블/, "23"],
-  [/tv장|거실장/i, "24"],
-  [/장식장|진열장/, "25"],
-  [/괘종|시계/, "26"],
-  [/스탠드|조명|플로어/, "27"],
-  // 수납·서재·사무
-  [/책장/, "30"],
-  [/선반/, "31"],
-  [/사이드보드/, "32"],
-  [/수납장|캐비닛|보관|정리함|서류/, "33"],
-  [/신발/, "34"],
-  [/책상/, "35"],
-  [/의자/, "36"],
-  [/회의|리셉션|파티션|연단|화이트보드|서버랙|금고|제도판|카트/, "37"],
-  // 식탁·주방가구
-  [/식탁|아일랜드|다이닝|카페\s*테이블/, "40"],
-  [/그릇장|찬장|주방\s*수납|쌀|김치통|냄비|작업대|팬트리|전자레인지장/, "41"],
-  // 가전
-  [/냉장고|냉동고|와인셀러/, "50"],
-  [/세탁기|건조기|워시타워|스타일러/, "51"],
-  [/에어컨|공기청정기|제습기|가습기|선풍기|히터|실링팬|오일히터/, "52"],
-  [/tv|티비|모니터|스피커|서브우퍼|오디오|프로젝터|피아노|오르간|게임|노래방/i, "53"],
-  [/청소기/, "54"],
-  [
-    /전자레인지|오븐|에어프라이어|가스레인지|인덕션|밥솥|커피|믹서|토스터|전기포트|식기세척기|정수기|냉온수기|제빙기|렌지후드|음식물/,
-    "55",
-  ],
+/** 이름이 비슷한 품목은 기존 소분류가 달라도 한 제목 아래 연속 배치합니다. */
+const ITEM_FAMILIES: { match: RegExp; label: string; rank: number }[] = [
+  { match: /침대|매트리스|토퍼|헤드보드|평상/, label: "침대·매트리스", rank: 10 },
+  { match: /옷장|장롱|붙박이장|행거|드레스룸|이불장/, label: "옷장·행거", rank: 11 },
+  { match: /서랍장|드레서|체스트|협탁|화장대|경대/, label: "서랍장·화장대·협탁", rank: 12 },
+  { match: /소파|리클라이너|안락의자|빈백|흔들의자/, label: "소파·안락의자", rank: 20 },
+  { match: /거실테이블|소파테이블|티테이블|커피테이블|네스팅|콘솔테이블/, label: "거실 테이블", rank: 21 },
+  { match: /tv장|거실장|아트월|장식장|진열장|사이드보드/i, label: "거실장·진열장", rank: 22 },
+  { match: /책상|데스크/, label: "책상", rank: 30 },
+  { match: /책장|선반/, label: "책장·선반", rank: 31 },
+  { match: /수납장|캐비닛|정리함|수납벤치|신발장|신발 정리대/, label: "수납장", rank: 32 },
+  { match: /식탁|다이닝|홈바테이블/, label: "식탁", rank: 40 },
+  { match: /의자|벤치|스툴/, label: "의자", rank: 41 },
+  { match: /찬장|그릇장|주방.*수납|팬트리|레인지대|전자레인지선반|주방트롤리/, label: "주방 수납", rank: 42 },
+  { match: /냉장고|냉동고|와인셀러/, label: "냉장고", rank: 50 },
+  { match: /세탁기|건조기|워시타워|스타일러|의류건조/, label: "세탁·의류가전", rank: 51 },
+  { match: /에어컨|공기청정기|제습기|가습기|선풍기|히터|실링팬|오일히터/, label: "냉난방·공기", rank: 52 },
+  { match: /tv|티비|모니터|스피커|서브우퍼|오디오|프로젝터|피아노|오르간|게임|턴테이블/i, label: "TV·영상·음향", rank: 53 },
+  { match: /청소기|스팀청소/, label: "청소가전", rank: 54 },
+  { match: /전자레인지|오븐|에어프라이어|가스레인지|인덕션|전기레인지|밥솥|커피|믹서|토스터|전기포트|식기세척기|정수기|제빙기|렌지후드|음식물/, label: "주방가전", rank: 55 },
 ];
-function familyKey(name: string): string {
-  for (const [re, k] of ITEM_FAMILY_ORDER) if (re.test(name)) return k + name;
-  return "99" + name;
+
+function itemFamily(name: string, fallback: string) {
+  const found = ITEM_FAMILIES.find(({ match }) => match.test(name));
+  return found ?? { label: fallback || "기타", rank: 90 };
 }
 
 export function Splash() {
@@ -2389,8 +2364,15 @@ export function Step6() {
     toast.success(`「${nm}」을(를) 목록에서 지웠습니다`);
   };
 
-  // 검색어가 있으면 전체에서, 없으면 지금 20카테고리 탭에서 보여 줍니다.
-  const items = catalog.filter((i) => (q ? i.name.includes(q) : i.cat5 === tab));
+  // 검색어가 있으면 전체에서, 없으면 현재 탭에서 보여 주고 같은 종류끼리 정렬합니다.
+  const items = catalog
+    .filter((i) => (q ? i.name.includes(q) : i.cat5 === tab))
+    .slice()
+    .sort((a, b) => {
+      const af = itemFamily(a.name, a.sub || "기타");
+      const bf = itemFamily(b.name, b.sub || "기타");
+      return af.rank - bf.rank || af.label.localeCompare(bf.label, "ko") || a.name.localeCompare(b.name, "ko");
+    });
   const picked = Object.entries(room?.items || {}).map(([id, qty]) => ({
     id,
     qty,
@@ -2858,7 +2840,7 @@ export function Step6() {
 
                 {/* 소분류로 묶어서 3D 카드로 보여줍니다 */}
                 <div className="space-y-4">
-                  {[...new Set(items.map((i) => i.sub || "기타"))].map((g) => (
+                  {[...new Set(items.map((i) => itemFamily(i.name, i.sub || "기타").label))].map((g) => (
                     <div key={g}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="px-2.5 py-1 rounded-xl text-[12px] font-black text-white bg-gradient-to-b from-[#7FB6FF] to-[#2A6FD6] shadow-[0_2px_0_#1F5AB0]">
@@ -2868,9 +2850,7 @@ export function Step6() {
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         {items
-                          .filter((i) => (i.sub || "기타") === g)
-                          .slice()
-                          .sort((a, b) => familyKey(a.name).localeCompare(familyKey(b.name), "ko"))
+                          .filter((i) => itemFamily(i.name, i.sub || "기타").label === g)
                           .map((it) => {
                             const qty = room.items[it.id] || 0;
                             return (

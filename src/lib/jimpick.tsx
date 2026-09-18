@@ -1062,13 +1062,101 @@ export interface BrowseItem {
 }
 
 /**
+ * 기본 가정집 선택 화면에서는 겹치는 변형과 업소·사무·시설 전용 품목을 감춥니다.
+ * ITEM_CATALOG에는 계속 남겨 두므로 기존 견적의 이름·부피·아이콘은 보존됩니다.
+ */
+const HIDDEN_FROM_HOUSEHOLD_BROWSE = new Set([
+  // 기존 대표 품목과 용도·그림이 겹치는 신규 변형
+  "clothing-care-machine-01",
+  "builtin-dishwasher-01",
+  "electric-oven-01",
+  "gas-oven-range-01",
+  "electric-adjustable-bed-01",
+  "system-air-conditioner-01",
+  "ice-maker-01",
+  "large-kimchi-refrigerator-01",
+  "large-water-purifier-01",
+  "tv-85-inch-01",
+  "kimchi-stand-refrigerator-01",
+  "ceragem-01",
+  "sofa-01",
+  "three-seat-sofa-01",
+  "living-room-table-01",
+  "sofa-side-table-01",
+  "tv-stand-01",
+  "living-room-cabinet-01",
+  "display-cabinet-01",
+  "showcase-cabinet-01",
+  "carpet-01",
+  "rug-01",
+  "living-massage-chair-01",
+  "single-recliner-01",
+  "storage-bench-01",
+  "bed-01",
+  "single-bed-01",
+  "super-single-bed-01",
+  "double-bed-01",
+  "queen-bed-01",
+  "king-bed-01",
+  "bedside-table-01",
+  "dining-table-01",
+  "four-seat-dining-table-01",
+  "dining-chair-01",
+  "island-storage-01",
+  "dish-rack-shelf-01",
+  "rice-storage-cabinet-01",
+  // 일반 가정 이사 목록에서 불필요한 사무·업소·시설 전용 품목
+  "officechair",
+  "partition",
+  "execdesk",
+  "ldesk",
+  "filecabinet",
+  "serverrack",
+  "draftingtable",
+  "whiteboard",
+  "podium",
+  "servicecart",
+  "worktable",
+  "cafetable",
+  "arcade",
+  "wetvac",
+  "toolcart",
+  "deckoven",
+  "vending",
+  "watercooler",
+  "medbed",
+  "salonchair",
+  "pooltable",
+  "pingpong",
+  "hospitalbed",
+  "massagetable",
+  "potterywheel",
+  "sauna",
+  "commercial-refrigerator-01",
+  "commercial-freezer-01",
+  "showcase-refrigerator-01",
+  // 지나치게 유사하거나 가정 이사에서 거의 선택하지 않는 소품
+  "hot-water-mat-boiler-01",
+  "water-softener-01",
+  "fireplace-heater-01",
+  "audio-cabinet-01",
+  "magazine-rack-01",
+  "bar-stool-01",
+  "fridge-base-stand-01",
+  "kitchen-storage-bench-01",
+  "wine-rack-01",
+]);
+
+/**
  * 품목 선택 화면 목록.
  * 실제 3D 그림이 있는 품목(ITEM_CATALOG)만 보여 줍니다.
  * 1,000개 자동 목록(ITEMS_1000)은 그림 파일이 없어 기본 박스로만 표시되므로
  * 선택 목록에서 제외합니다. (이름·부피 조회는 아래에서 그대로 유지 →
  * 예전에 저장된 견적/고객 데이터는 그대로 해석됩니다)
  */
-export const BROWSE_ITEMS: BrowseItem[] = ITEM_CATALOG.map((i) => ({
+export const BROWSE_ITEMS: BrowseItem[] = ITEM_CATALOG.filter(
+  (i) => !HIDDEN_FROM_HOUSEHOLD_BROWSE.has(i.id),
+).map((i) => ({
   id: i.id,
   name: i.name,
   cat20: cat20For(i.cat, i.sub),
