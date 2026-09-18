@@ -442,10 +442,16 @@ const handle = async (req: Request): Promise<Response> => {
   }
 
   // ── 1. 누가 부르는지 확인합니다 (로그인한 사장님만) ──
-  // 예약확정 알림은 우리 서버가 직접 부르므로, 서비스 키로 온 요청도 받아 줍니다.
+  // 예약확정 알림·입금 알림은 우리 서버가 직접 부르므로, 서버 확인값으로 온 요청도 받아 줍니다.
+  // 열쇠가 바뀌면 서비스 키 비교만으로는 우리 서버를 못 알아보므로,
+  // 앱 서버와 이 함수가 함께 가진 서버 확인값(JIMPICK_PROXY_SECRET)도 함께 봅니다.
   const auth = req.headers.get("Authorization") ?? "";
   const jwt = auth.replace(/^Bearer\s+/i, "").trim();
-  const isServerCall = !!serviceKey && jwt === serviceKey;
+  const serverSecret = (Deno.env.get("JIMPICK_PROXY_SECRET") ?? "").trim();
+  const serverHeader = (req.headers.get("x-jimpick-server") ?? "").trim();
+  const isServerCall =
+    (!!serviceKey && jwt === serviceKey) ||
+    (!!serverSecret && serverHeader.length === serverSecret.length && serverHeader === serverSecret);
   let userId = "";
   if (jwt && !isServerCall) {
     // 토큰 내용을 그대로 믿지 않고, 인증 서버에 직접 물어 확인합니다.
