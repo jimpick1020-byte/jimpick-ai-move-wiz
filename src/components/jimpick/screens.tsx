@@ -208,6 +208,10 @@ import {
   cleanItemName,
   type IconResult,
 } from "@/lib/item-icon.functions";
+import { sortByGroup } from "@/lib/item-groups";
+
+/** 공간별 품목 접기·펼치기 상태를 기억하는 자리 */
+const ROOM_OPEN_KEY = "jimpick_step6_open_rooms";
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
 import { ScanMascot, type MascotState } from "./ScanMascot";
@@ -223,6 +227,7 @@ import {
   UserCircle,
   Hand,
   Calculator,
+  Box,
 } from "lucide-react";
 import houseImg from "@/assets/step6-house.png";
 
@@ -1910,9 +1915,79 @@ export function Step6() {
   const [pickedCollapsed, setPickedCollapsed] = useState(false);
   const grabberY = useRef<number | null>(null);
   /** 수량을 0으로 줄일 때 뜨는 삭제 확인창 */
-  const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string } | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<{
+    id: string;
+    name: string;
+    room?: string;
+  } | null>(null);
   /** 품목을 다른 공간으로 옮기는 창 */
-  const [moveItem, setMoveItem] = useState<{ id: string; name: string; qty: number } | null>(null);
+  const [moveItem, setMoveItem] = useState<{
+    id: string;
+    name: string;
+    qty: number;
+    room?: string;
+  } | null>(null);
+
+  /**
+   * 공간별 담은 품목 접기·펼치기.
+   * 접어도 담은 품목·수량은 그대로 남고, 화면을 나갔다 와도 상태가 유지됩니다.
+   */
+  const [openRooms, setOpenRooms] = useState<string[] | null>(null);
+  useEffect(() => {
+    let saved: string[] | null = null;
+    try {
+      const raw = localStorage.getItem(ROOM_OPEN_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(parsed)) saved = parsed.filter((x): x is string => typeof x === "string");
+    } catch {
+      /* 저장값을 읽지 못하면 품목이 있는 공간을 펼칩니다 */
+    }
+    setOpenRooms(
+      saved ??
+        draft.rooms.filter((r) => Object.keys(r.items).length > 0).map((r) => r.name),
+    );
+    // 처음 들어올 때 한 번만 정합니다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const roomOpenList = openRooms ?? [];
+  const toggleRoomOpen = (name: string) => {
+    tap("soft");
+    setOpenRooms((prev) => {
+      const cur = prev ?? [];
+      const next = cur.includes(name) ? cur.filter((x) => x !== name) : [...cur, name];
+      try {
+        localStorage.setItem(ROOM_OPEN_KEY, JSON.stringify(next));
+      } catch {
+        /* 저장 공간이 없으면 이번 화면에서만 유지됩니다 */
+      }
+      return next;
+    });
+  };
+
+  /** 특정 공간의 품목 수량을 바꿉니다 (다른 공간·품목은 건드리지 않습니다) */
+  const setQtyInRoom = (roomName: string, itemId: string, qty: number) => {
+    tap("soft");
+    updateDraft({
+      rooms: draft.rooms.map((r) => {
+        if (r.name !== roomName) return r;
+        const items = { ...r.items };
+        if (qty <= 0) delete items[itemId];
+        else items[itemId] = qty;
+        return { ...r, items };
+      }),
+    });
+  };
+
+  /** 수량 1에서 더 줄이면 바로 지우지 않고 삭제 확인창을 띄웁니다 */
+  const decQtyInRoom = (roomName: string, itemId: string, itemName: string, qty: number) => {
+    if (qty <= 1) {
+      tap("soft");
+      setConfirmRemove({ id: itemId, name: itemName, room: roomName });
+      return;
+    }
+    setQtyInRoom(roomName, itemId, qty - 1);
+  };
+
 
   /** 사장님이 설정에서 고친 평수별 기본품목 (없으면 기본값) */
   const [ownerPresets, setOwnerPresets] = useState<SizePresets>({});
@@ -2159,9 +2234,16 @@ export function Step6() {
     });
   };
 
-  /** ─── 검색 결과에 없는 품목의 3D 아이콘 만들기 ─────────────────── */
+  /** ─── 3D 품목 생성 (검색 결과에 없는 품목의 3D 아이콘 만들기) ───────── */
   /** 만들기 확인 화면 (null 이면 닫힘) */
-  const [iconGen, setIconGen] = useState<{ name: string; cat: string; room: string } | null>(null);
+  const [iconGen, setIconGen] = useState<{
+    name: string;
+    cat: string;
+    room: string;
+    qty: number;
+    /** 크기에 따라 더해지는 부피(루베) — 적재량 계산에 함께 반영됩니다 */
+    extra: number;
+  } | null>(null);
   const [iconBusy, setIconBusy] = useState(false);
   const [iconError, setIconError] = useState<string | null>(null);
   /** 같은 업체가 전에 만들어 둔 아이콘 (있으면 다시 만들지 않습니다) */
@@ -2169,29 +2251,36 @@ export function Step6() {
 
   const openIconGen = () => {
     const name = cleanItemName(q);
-    if (!name) {
-      toast.error("품목명을 먼저 입력해 주세요");
-      return;
-    }
     tap("soft");
     setIconError(null);
     setIconGen({
       name,
-      cat: guessCategory(name),
-      room: room?.name || suggestRoomName(name, sizeRooms) || sizeRooms[0],
+      cat: name ? guessCategory(name) : "가구",
+      room: room?.name || (name ? suggestRoomName(name, sizeRooms) : undefined) || sizeRooms[0],
+      qty: 1,
+      extra: 0,
     });
   };
 
+
   /**
    * 만들어진(또는 저장돼 있던) 아이콘을 품목으로 담습니다.
-   * 품목 등록 → 고른 공간에 수량 1 반영까지 모두 성공해야 true를 돌려줍니다.
+   * 품목 등록 → 고른 공간에 수량 반영까지 모두 성공해야 null(성공)을 돌려줍니다.
+   * 담긴 품목은 같은 종류(침대·서랍장·TV 등) 옆으로 자동 정렬돼 보입니다.
    */
-  const applyGeneratedIcon = (res: IconResult, roomName: string): string | null => {
+  const applyGeneratedIcon = (
+    res: IconResult,
+    roomName: string,
+    opts?: { qty?: number; extra?: number },
+  ): string | null => {
     if (!res.itemId || !res.iconUrl) return "아이콘 주소를 받지 못했습니다.";
     const itemId = res.itemId;
     const iconUrl = res.iconUrl;
     const name = res.name || cleanItemName(q);
     const cat = res.cat || guessCategory(name);
+    const addQty = Math.max(1, Math.min(99, opts?.qty ?? 1));
+    const extra = Math.max(0, opts?.extra ?? 0);
+
 
     // 고른 공간이 아직 없으면 그 공간을 먼저 만듭니다 (기존 공간·품목은 그대로)
     let rooms = draft.rooms;
@@ -2209,11 +2298,13 @@ export function Step6() {
     const list = draft.customItems || [];
     const exists = list.some((c) => c.id === itemId);
     const nextCustom = exists
-      ? list.map((c) => (c.id === itemId ? { ...c, name, cat, icon: iconUrl, active: true } : c))
-      : [...list, { id: itemId, name, cat, extra: 0, icon: iconUrl, active: true }];
+      ? list.map((c) =>
+          c.id === itemId ? { ...c, name, cat, extra, icon: iconUrl, active: true } : c,
+        )
+      : [...list, { id: itemId, name, cat, extra, icon: iconUrl, active: true }];
     const nextRooms = rooms.map((r) =>
       r.id === target.id
-        ? { ...r, items: { ...r.items, [itemId]: Math.max(1, r.items[itemId] ?? 0) } }
+        ? { ...r, items: { ...r.items, [itemId]: Math.max(addQty, r.items[itemId] ?? 0) } }
         : r,
     );
     // 담기 결과가 실제로 반영됐는지 확인한 뒤에만 완료로 처리합니다
@@ -2230,12 +2321,22 @@ export function Step6() {
 
     // 품목 목록에서 바로 보이도록 해당 분류 탭을 열고, 담긴 공간을 펼쳐 둡니다
     setTab(cat5For(cat));
-    setOpenRoom(roomName);
+    setOpenRooms((prev) => {
+      const cur = prev ?? [];
+      if (cur.includes(roomName)) return cur;
+      const next = [...cur, roomName];
+      try {
+        localStorage.setItem(ROOM_OPEN_KEY, JSON.stringify(next));
+      } catch {
+        /* 저장 공간이 없어도 화면 표시는 그대로입니다 */
+      }
+      return next;
+    });
     setSavedIcon(null);
     setIconGen(null);
     setQ("");
     tap("success");
-    toast.success(`「${name}」을(를) ${roomName}에 수량 1로 담았습니다`);
+    toast.success(`「${name}」을(를) ${roomName}에 수량 ${placed}로 담았습니다`);
     return null;
   };
 
@@ -2251,7 +2352,10 @@ export function Step6() {
         setIconError(res.error || "아이콘을 만들지 못했습니다. 다시 시도해 주세요.");
         return;
       }
-      const failed = applyGeneratedIcon(res, iconGen.room);
+      const failed = applyGeneratedIcon(res, iconGen.room, {
+        qty: iconGen.qty,
+        extra: iconGen.extra,
+      });
       if (failed) setIconError(failed);
     } catch (e) {
       setIconError(e instanceof Error ? e.message : "아이콘을 만들지 못했습니다.");
@@ -2376,11 +2480,24 @@ export function Step6() {
       const bf = itemFamily(b.name, b.sub || "기타");
       return af.rank - bf.rank || af.label.localeCompare(bf.label, "ko") || a.name.localeCompare(b.name, "ko");
     });
-  const picked = Object.entries(room?.items || {}).map(([id, qty]) => ({
-    id,
-    qty,
-    name: catalog.find((c) => c.id === id)?.name || itemNameById(id) || id,
-  }));
+  /**
+   * 한 공간에 담긴 품목 목록 —
+   * 침대·협탁·서랍장… 처럼 같은 종류끼리 모여 보이도록 정렬해 돌려줍니다.
+   */
+  const pickedOf = (r: { items: Record<string, number> }) =>
+    sortByGroup(
+      Object.entries(r.items).map(([id, qty]) => {
+        const c = catalog.find((x) => x.id === id);
+        const cat = c && "cat" in c ? (c.cat as string) : undefined;
+        return {
+          id,
+          qty,
+          name: c?.name || itemNameById(id) || id,
+          cat,
+        };
+      }),
+    );
+  const picked = room ? pickedOf(room) : [];
   const totalKinds = draft.rooms.reduce((a, r) => a + roomSummary(r.items).kinds, 0);
 
   /** 담긴 짐이 4단계에서 고른 차량에 들어가는지 */
@@ -2646,6 +2763,99 @@ export function Step6() {
             );
           })}
         </div>
+
+        {/* 공간별 담은 품목 — 공간 이름을 누르면 접히고 펼쳐집니다 (품목·수량은 그대로) */}
+        <div className="mt-4 space-y-3">
+          {sizeRooms.map((name) => {
+            const r = roomOf(name);
+            if (!r) return null;
+            const list = pickedOf(r);
+            if (list.length === 0) return null;
+            const s = roomSummary(r.items);
+            const isOpen = roomOpenList.includes(name);
+            return (
+              <div
+                key={`picked-${name}`}
+                className="rounded-3xl border border-[#E5E7EB] bg-white p-3 shadow-[0_5px_0_#E5E7EB,inset_0_1px_0_#fff]"
+              >
+                <button
+                  onClick={() => toggleRoomOpen(name)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center gap-2 text-left active:translate-y-[1px]"
+                >
+                  <span
+                    className={`shrink-0 rounded-xl bg-gradient-to-b px-3 py-1 text-[15px] font-black text-white ${
+                      ROOM_TINT[name] || "from-[#5B93D6] to-[#3578C8]"
+                    } shadow-[0_3px_0_rgba(0,0,0,0.18)]`}
+                  >
+                    {name}
+                  </span>
+                  <span className="text-[14px] font-black text-[#5A6478]">
+                    {s.kinds}종 · {s.count}개
+                  </span>
+                  <ChevronDown
+                    className={`ml-auto h-6 w-6 shrink-0 text-[#6B7280] transition-transform ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {isOpen && (
+                  <div className="mt-3 grid grid-cols-4 gap-1.5">
+                    {list.map((p) => (
+                      <div
+                        key={p.id}
+                        className="relative min-w-0 rounded-2xl border border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7F8F5] p-1.5 shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff]"
+                      >
+                        <button
+                          onClick={() => setConfirmRemove({ id: p.id, name: p.name, room: name })}
+                          className="absolute right-0.5 top-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#94A3B8] shadow-sm"
+                          aria-label={`${p.name} 삭제`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                        <div className="flex h-[42px] items-center justify-center">
+                          <ItemArt id={p.id} name={p.name} size={38} />
+                        </div>
+                        <div className="min-h-8 break-keep text-center text-[11.5px] font-extrabold leading-tight text-[#25282D] line-clamp-2">
+                          {p.name}
+                        </div>
+                        <div className="mt-1 flex items-center justify-center gap-0.5">
+                          <button
+                            onClick={() => decQtyInRoom(name, p.id, p.name, p.qty)}
+                            className="h-7 w-7 shrink-0 rounded-full border border-[#E5E7EB] bg-white text-[14px] font-black text-[#25282D]"
+                            aria-label={`${p.name} 수량 줄이기`}
+                          >
+                            −
+                          </button>
+                          <span className="min-w-4 text-center text-[12.5px] font-black tabular-nums text-[#25282D]">
+                            {p.qty}
+                          </span>
+                          <button
+                            onClick={() => setQtyInRoom(name, p.id, p.qty + 1)}
+                            className="h-7 w-7 shrink-0 rounded-full border border-[#E5E7EB] bg-white text-[14px] font-black text-[#25282D]"
+                            aria-label={`${p.name} 수량 늘리기`}
+                          >
+                            +
+                          </button>
+                        </div>
+                        <button
+                          onClick={() =>
+                            setMoveItem({ id: p.id, name: p.name, qty: p.qty, room: name })
+                          }
+                          className="mt-1 w-full text-center text-[11px] font-black text-[#2A6FD6]"
+                          aria-label={`${p.name} 다른 공간으로 옮기기`}
+                        >
+                          이동
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <BottomButtonBar>
@@ -2747,49 +2957,51 @@ export function Step6() {
                 <p className="text-[13px] font-bold text-[#9AA4B2]">아직 등록된 품목이 없습니다</p>
               ) : (
                 <div
-                  className={`grid grid-cols-3 gap-2 ${
+                  className={`grid grid-cols-4 gap-1.5 ${
                     pickerOpen ? "max-h-[34dvh] overflow-auto rounded-2xl" : ""
                   }`}
                 >
                   {picked.map((p) => (
                     <div
                       key={p.id}
-                      className="relative min-w-0 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] p-2 shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff]"
+                      className="relative min-w-0 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] p-1.5 shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff]"
                     >
                       <button
-                        onClick={() => setConfirmRemove({ id: p.id, name: p.name })}
-                        className="absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white text-[#94A3B8] shadow-sm"
+                        onClick={() => setConfirmRemove({ id: p.id, name: p.name, room: room.name })}
+                        className="absolute right-0.5 top-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#94A3B8] shadow-sm"
                         aria-label={`${p.name} 삭제`}
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-3 h-3" />
                       </button>
-                      <div className="flex h-[58px] items-center justify-center">
-                        <ItemArt id={p.id} name={p.name} size={52} />
+                      <div className="flex h-[42px] items-center justify-center">
+                        <ItemArt id={p.id} name={p.name} size={38} />
                       </div>
-                      <div className="min-h-9 text-center text-[13px] font-extrabold leading-tight text-[#25282D] line-clamp-2">
+                      <div className="min-h-8 break-keep text-center text-[11.5px] font-extrabold leading-tight text-[#25282D] line-clamp-2">
                         {p.name}
                       </div>
-                      <div className="mt-1 flex items-center justify-center gap-1">
+                      <div className="mt-1 flex items-center justify-center gap-0.5">
                         <button
                           onClick={() => decQty(p.id, p.name, p.qty)}
-                          className="h-7 w-7 rounded-full bg-white border border-[#E5E7EB] text-[15px] font-black text-[#25282D]"
+                          className="h-7 w-7 shrink-0 rounded-full bg-white border border-[#E5E7EB] text-[14px] font-black text-[#25282D]"
                           aria-label={`${p.name} 수량 줄이기`}
                         >
                           −
                         </button>
-                        <span className="min-w-5 text-center text-[13px] font-black text-[#25282D] tabular-nums">
+                        <span className="min-w-4 text-center text-[12.5px] font-black text-[#25282D] tabular-nums">
                           {p.qty}
                         </span>
                         <button
                           onClick={() => setQty(p.id, p.qty + 1, p.name)}
-                          className="h-7 w-7 rounded-full bg-white border border-[#E5E7EB] text-[15px] font-black text-[#25282D]"
+                          className="h-7 w-7 shrink-0 rounded-full bg-white border border-[#E5E7EB] text-[14px] font-black text-[#25282D]"
                           aria-label={`${p.name} 수량 늘리기`}
                         >
                           +
                         </button>
                       </div>
                       <button
-                        onClick={() => setMoveItem({ id: p.id, name: p.name, qty: p.qty })}
+                        onClick={() =>
+                          setMoveItem({ id: p.id, name: p.name, qty: p.qty, room: room.name })
+                        }
                         className="mt-1 w-full text-center text-[11px] font-black text-[#2A6FD6]"
                         aria-label={`${p.name} 다른 공간으로 옮기기`}
                       >
@@ -2801,21 +3013,30 @@ export function Step6() {
               )}
             </div>
 
-            {/* 직접 품목 선택 (기본 접힘) */}
-            <div className="px-4 pt-3">
+            {/* 직접 품목 선택 (기본 접힘) + 3D 품목 생성 */}
+            <div className="flex items-stretch gap-2 px-4 pt-3">
               <button
                 onClick={() => {
                   tap("soft");
                   setPickerOpen((v) => !v);
                 }}
-                className="w-full py-3.5 rounded-2xl bg-white border border-[#E5E7EB] flex items-center justify-center gap-2 font-black text-[16px] text-[#25282D] shadow-[0_5px_0_#F7F8F5,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
+                className="flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-[#E5E7EB] bg-white py-3.5 text-[16px] font-black text-[#25282D] shadow-[0_5px_0_#F7F8F5,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
               >
                 <Hand className="w-5 h-5" /> 직접 품목 선택
                 <ChevronDown
                   className={`w-5 h-5 transition-transform ${pickerOpen ? "rotate-180" : ""}`}
                 />
               </button>
+              <button
+                onClick={openIconGen}
+                aria-label="3D 품목 생성"
+                className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-[#3578C8] bg-gradient-to-b from-white to-[#EEF6FF] px-3 py-2 text-[11px] font-black leading-tight text-[#2A6FD6] shadow-[0_5px_0_#DCE9FF,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
+              >
+                <Box className="h-5 w-5" />
+                3D 품목 생성
+              </button>
             </div>
+
 
             {pickerOpen && (
               <div className="flex-1 min-h-[44dvh] overflow-auto px-4 pt-3 space-y-3" {...tabSwipe}>
@@ -3094,23 +3315,56 @@ export function Step6() {
                     </div>
 
                     <div>
-                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">담을 공간</div>
+                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">
+                        크기 — 부피(루베)에 함께 반영됩니다
+                      </div>
                       <div className="flex flex-wrap gap-2">
-                        {draft.rooms.map((r) => (
+                        {[
+                          { label: "소형", extra: 0 },
+                          { label: "중형", extra: 0.5 },
+                          { label: "대형", extra: 1 },
+                        ].map((s) => (
                           <button
-                            key={r.id}
-                            onClick={() => setIconGen((f) => (f ? { ...f, room: r.name } : f))}
+                            key={s.label}
+                            onClick={() => setIconGen((f) => (f ? { ...f, extra: s.extra } : f))}
                             className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black ${
-                              iconGen.room === r.name
+                              iconGen.extra === s.extra
                                 ? "bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white shadow-[0_3px_0_#285C99]"
                                 : "border border-[#E5E7EB] bg-white text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
                             }`}
                           >
-                            {r.name}
+                            {s.label}
                           </button>
                         ))}
                       </div>
                     </div>
+
+                    <Field label="수량">
+                      <Counter
+                        value={iconGen.qty}
+                        onChange={(n) => setIconGen((f) => (f ? { ...f, qty: n } : f))}
+                      />
+                    </Field>
+
+                    <div>
+                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">담을 공간</div>
+                      <div className="flex flex-wrap gap-2">
+                        {sizeRooms.map((n) => (
+                          <button
+                            key={n}
+                            onClick={() => setIconGen((f) => (f ? { ...f, room: n } : f))}
+                            className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black ${
+                              iconGen.room === n
+                                ? "bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white shadow-[0_3px_0_#285C99]"
+                                : "border border-[#E5E7EB] bg-white text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
+                            }`}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
 
                     {iconBusy && (
                       <div className="flex items-center justify-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F8FBFF] py-5">
@@ -3340,41 +3594,43 @@ export function Step6() {
               </div>
             )}
 
-            {/* 수량을 0으로 줄이거나 뱃지의 X 를 눌렀을 때 */}
-            {confirmRemove && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center px-6">
-                <div
-                  className="absolute inset-0 bg-[#25282D]/40"
-                  onClick={() => setConfirmRemove(null)}
-                />
-                <div className="relative w-full max-w-[300px] rounded-3xl bg-white p-5 text-center shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
-                  <div className="text-[16px] font-black text-[#25282D]">
-                    이 품목을 공간에서 삭제할까요?
-                  </div>
-                  <p className="mt-1.5 text-[13px] font-bold text-[#6B7280]">
-                    「{room.name}」의 {confirmRemove.name}
-                  </p>
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      onClick={() => setConfirmRemove(null)}
-                      className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
-                    >
-                      취소
-                    </button>
-                    <button
-                      onClick={() => {
-                        tap("soft");
-                        setQty(confirmRemove.id, 0);
-                        setConfirmRemove(null);
-                      }}
-                      className="flex-1 rounded-2xl bg-gradient-to-b from-[#D95C5C] to-[#D95C5C] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#A81E20]"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+          </div>
+        </div>
+      )}
+
+      {/* 수량을 0으로 줄이거나 뱃지의 X 를 눌렀을 때 (공간 목록·드로어 모두에서 동작) */}
+      {confirmRemove && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center px-6">
+          <div
+            className="absolute inset-0 bg-[#25282D]/40"
+            onClick={() => setConfirmRemove(null)}
+          />
+          <div className="relative w-full max-w-[300px] rounded-3xl bg-white p-5 text-center shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+            <div className="text-[16px] font-black text-[#25282D]">
+              이 품목을 공간에서 삭제할까요?
+            </div>
+            <p className="mt-1.5 text-[13px] font-bold text-[#6B7280]">
+              「{confirmRemove.room ?? room?.name ?? ""}」의 {confirmRemove.name}
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setConfirmRemove(null)}
+                className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  tap("soft");
+                  const target = confirmRemove.room ?? room?.name;
+                  if (target) setQtyInRoom(target, confirmRemove.id, 0);
+                  setConfirmRemove(null);
+                }}
+                className="flex-1 rounded-2xl bg-gradient-to-b from-[#D95C5C] to-[#D95C5C] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#A81E20]"
+              >
+                삭제
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -3444,8 +3700,8 @@ export function Step6() {
       )}
 
       {/* 품목을 다른 공간으로 옮기기 */}
-      {moveItem && openRoom && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-6">
+      {moveItem && (moveItem.room ?? openRoom) && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center px-6">
           <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => setMoveItem(null)} />
           <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
             <div className="text-center text-[16px] font-black text-[#25282D]">
@@ -3453,11 +3709,18 @@ export function Step6() {
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {sizeRooms
-                .filter((n) => n !== openRoom)
+                .filter((n) => n !== (moveItem.room ?? openRoom))
                 .map((n) => (
                   <button
                     key={n}
-                    onClick={() => moveItemTo(moveItem.id, moveItem.qty, openRoom, n)}
+                    onClick={() =>
+                      moveItemTo(
+                        moveItem.id,
+                        moveItem.qty,
+                        (moveItem.room ?? openRoom) as string,
+                        n,
+                      )
+                    }
                     className="rounded-2xl border border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7F8F5] py-3 font-black text-[14px] text-[#2A6FD6] shadow-[0_3px_0_#E5E7EB] active:translate-y-[2px]"
                   >
                     {n}
