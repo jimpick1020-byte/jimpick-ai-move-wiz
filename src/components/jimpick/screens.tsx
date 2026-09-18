@@ -234,6 +234,8 @@ import houseImg from "@/assets/step6-house.png";
 
 /** 이름이 비슷한 품목은 기존 소분류가 달라도 한 제목 아래 연속 배치합니다. */
 const ITEM_FAMILIES: { match: RegExp; label: string; rank: number }[] = [
+  // 「화분받침대」처럼 침대가 아닌 물건은 침대 묶음에 들어오지 않게 합니다
+  { match: /화분|식물|받침대/, label: "생활·기타", rank: 80 },
   { match: /침대|매트리스|토퍼|헤드보드|평상/, label: "침대·매트리스", rank: 10 },
   { match: /옷장|장롱|붙박이장|행거|드레스룸|이불장/, label: "옷장·행거", rank: 11 },
   { match: /서랍장|드레서|체스트|협탁|화장대|경대/, label: "서랍장·화장대·협탁", rank: 12 },
