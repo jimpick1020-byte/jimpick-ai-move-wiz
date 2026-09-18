@@ -2679,6 +2679,12 @@ export function Step6() {
                 aria-label={pickedCollapsed ? "담은 품목 펼치기" : "담은 품목 접기"}
                 onPointerDown={(e) => {
                   grabberY.current = e.clientY;
+                  // 마우스로 위아래로 끌어도 pointerUp이 손잡이에 전달되도록 포인터를 붙잡습니다
+                  try {
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                  } catch {
+                    /* 일부 환경에서는 지원하지 않아도 탭 토글은 동작합니다 */
+                  }
                 }}
                 onPointerUp={(e) => {
                   if (grabberY.current == null) return;
