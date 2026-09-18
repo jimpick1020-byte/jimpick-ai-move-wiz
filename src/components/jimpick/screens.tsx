@@ -2012,27 +2012,96 @@ export function Step6() {
     },
   );
 
-  /** 평수를 고르면 없는 방만 새로 만들고, 기존 방 품목은 그대로 유지합니다 */
+  /** 평수 변경 확인창 — stage 1: 기본 확인, stage 2: 직접 추가 품목 재확인 */
+  const [sizeConfirm, setSizeConfirm] = useState<{ key: string; stage: 1 | 2 } | null>(null);
+  /** 품목 목록에 없어서 담지 못한 기본품목 (품목 등록 필요) */
+  const [needRegister, setNeedRegister] = useState<{ room: string; name: string; qty: number }[]>(
+    [],
+  );
+
+  /** 지금 담긴 품목 개수 (평수 변경 확인창을 띄울지 판단합니다) */
+  const pickedCount = draft.rooms.reduce((a, r) => a + roomSummary(r.items).count, 0);
+  /** 사장님이 직접 추가한 품목이 담겨 있는지 */
+  const hasCustomPicked = (draft.customItems || []).some((c) =>
+    draft.rooms.some((r) => (r.items[c.id] ?? 0) > 0),
+  );
+
+  /**
+   * 평수별 기본품목을 실제 품목 데이터에 넣습니다.
+   * merge   기존 품목·수량은 그대로 두고 빠진 품목만 추가 (중복 생성 없음)
+   * replace 기본품목 구성으로 새로 채움
+   */
+  const applyPreset = (key: string, mode: "merge" | "replace") => {
+    const rows = ownerPresets[key] ?? DEFAULT_SIZE_PRESETS[key] ?? [];
+    const resolved = resolvePreset(rows, catalog);
+    const baseRooms = (SIZE_TABS.find((t) => t.key === key) || DEFAULT_SIZE_TAB).rooms;
+    const names = [...new Set([...baseRooms, ...resolved.rooms.map((r) => r.room)])];
+
+    const rooms = draft.rooms.map((r) => ({ ...r, items: { ...r.items } }));
+    for (const n of names) {
+      if (!rooms.some((r) => r.name === n))
+        rooms.push({ id: `r_${n}`, name: n, items: {} as Record<string, number> });
+    }
+    if (mode === "replace") for (const r of rooms) r.items = {};
+    for (const pr of resolved.rooms) {
+      const t = rooms.find((r) => r.name === pr.room);
+      if (!t) continue;
+      for (const [id, qty] of Object.entries(pr.items)) {
+        // 「현재 품목에 추가」는 이미 담긴 품목의 수량을 그대로 유지합니다
+        if (mode === "merge" && t.items[id]) continue;
+        t.items[id] = qty;
+      }
+    }
+
+    setSize(key);
+    setNeedRegister(resolved.missing);
+    setSizeConfirm(null);
+    updateDraft({ sizeTab: key, rooms });
+    tap("success");
+    toast.success(
+      mode === "merge" ? `${key} 기본품목을 현재 품목에 추가했습니다` : `${key} 기본품목을 담았습니다`,
+    );
+  };
+
+  /** 평수 버튼 — 담긴 품목이 있으면 먼저 확인창을 띄웁니다 */
   const pickSize = (key: string) => {
     tap("soft");
-    setSize(key);
-    const rooms = (SIZE_TABS.find((t) => t.key === key) || DEFAULT_SIZE_TAB).rooms;
-    const missing = rooms.filter((n) => !draft.rooms.some((r) => r.name === n));
-    updateDraft({
-      sizeTab: key,
-      ...(missing.length
-        ? {
-            rooms: [
-              ...draft.rooms,
-              ...missing.map((n) => ({
-                id: `r_${n}`,
-                name: n,
-                items: {} as Record<string, number>,
-              })),
-            ],
-          }
-        : {}),
-    });
+    if (pickedCount === 0) {
+      applyPreset(key, "replace");
+      return;
+    }
+    setSizeConfirm({ key, stage: 1 });
+  };
+
+  /** 전체 선택 해제 — 담긴 품목만 비우고 고객정보·주소·차량·옵션은 그대로입니다 */
+  const clearAllItems = () => {
+    tap("soft");
+    updateDraft({ rooms: draft.rooms.map((r) => ({ ...r, items: {} as Record<string, number> })) });
+    setNeedRegister([]);
+    toast.success("담은 품목을 모두 비웠습니다");
+  };
+
+  /** 품목을 다른 공간으로 옮깁니다 (수량 그대로) */
+  const moveItemTo = (itemId: string, qty: number, from: string, to: string) => {
+    if (from === to) {
+      setMoveItem(null);
+      return;
+    }
+    const rooms = draft.rooms.map((r) => ({ ...r, items: { ...r.items } }));
+    if (!rooms.some((r) => r.name === to))
+      rooms.push({ id: `r_${to}`, name: to, items: {} as Record<string, number> });
+    const src = rooms.find((r) => r.name === from);
+    const dst = rooms.find((r) => r.name === to);
+    if (!src || !dst) {
+      toast.error("옮길 공간을 찾지 못했습니다");
+      return;
+    }
+    delete src.items[itemId];
+    dst.items[itemId] = (dst.items[itemId] ?? 0) + qty;
+    updateDraft({ rooms });
+    setMoveItem(null);
+    tap("success");
+    toast.success(`${to}(으)로 옮겼습니다`);
   };
 
   const roomOf = (name: string) => draft.rooms.find((r) => r.name === name);
