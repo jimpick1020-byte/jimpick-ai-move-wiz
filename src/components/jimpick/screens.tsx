@@ -3593,41 +3593,43 @@ export function Step6() {
               </div>
             )}
 
-            {/* 수량을 0으로 줄이거나 뱃지의 X 를 눌렀을 때 */}
-            {confirmRemove && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center px-6">
-                <div
-                  className="absolute inset-0 bg-[#25282D]/40"
-                  onClick={() => setConfirmRemove(null)}
-                />
-                <div className="relative w-full max-w-[300px] rounded-3xl bg-white p-5 text-center shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
-                  <div className="text-[16px] font-black text-[#25282D]">
-                    이 품목을 공간에서 삭제할까요?
-                  </div>
-                  <p className="mt-1.5 text-[13px] font-bold text-[#6B7280]">
-                    「{room.name}」의 {confirmRemove.name}
-                  </p>
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      onClick={() => setConfirmRemove(null)}
-                      className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
-                    >
-                      취소
-                    </button>
-                    <button
-                      onClick={() => {
-                        tap("soft");
-                        setQty(confirmRemove.id, 0);
-                        setConfirmRemove(null);
-                      }}
-                      className="flex-1 rounded-2xl bg-gradient-to-b from-[#D95C5C] to-[#D95C5C] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#A81E20]"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+          </div>
+        </div>
+      )}
+
+      {/* 수량을 0으로 줄이거나 뱃지의 X 를 눌렀을 때 (공간 목록·드로어 모두에서 동작) */}
+      {confirmRemove && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center px-6">
+          <div
+            className="absolute inset-0 bg-[#25282D]/40"
+            onClick={() => setConfirmRemove(null)}
+          />
+          <div className="relative w-full max-w-[300px] rounded-3xl bg-white p-5 text-center shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+            <div className="text-[16px] font-black text-[#25282D]">
+              이 품목을 공간에서 삭제할까요?
+            </div>
+            <p className="mt-1.5 text-[13px] font-bold text-[#6B7280]">
+              「{confirmRemove.room ?? room?.name ?? ""}」의 {confirmRemove.name}
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setConfirmRemove(null)}
+                className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  tap("soft");
+                  const target = confirmRemove.room ?? room?.name;
+                  if (target) setQtyInRoom(target, confirmRemove.id, 0);
+                  setConfirmRemove(null);
+                }}
+                className="flex-1 rounded-2xl bg-gradient-to-b from-[#D95C5C] to-[#D95C5C] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#A81E20]"
+              >
+                삭제
+              </button>
+            </div>
           </div>
         </div>
       )}
