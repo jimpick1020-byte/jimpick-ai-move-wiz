@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ITEMS_1000, CATS20 } from "./items-catalog-1000";
 import { useDraftAutosave, type DraftSaveState } from "./use-draft-autosave";
 import { loadEstimateDraft } from "./draft-sync.functions";
+import { listItemIcons } from "./item-icon.functions";
 import { registerCustomIcons } from "./jimpick-icon3d";
 import { FEATURED_HOUSEHOLD_100 } from "./featured-household-100";
 import { saveSafeSnapshot } from "./safe-state";
