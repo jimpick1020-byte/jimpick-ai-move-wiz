@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireActiveEntitlement } from "@/lib/entitlement.functions";
+import { itemSubgroup } from "@/lib/item-groups";
 
 /** 한 업체가 하루에 만들 수 있는 3D 아이콘 개수 (비용 폭주 방지) */
 export const ICON_DAILY_LIMIT = 20;
@@ -15,7 +16,37 @@ export function cleanItemName(raw: string): string {
 
 /** 검색용 정규화 이름 (공백·기호 제거, 소문자) */
 export function normItemName(raw: string): string {
-  return cleanItemName(raw).toLowerCase().replace(/[\s·・.,()[\]{}/\\-]/g, "");
+  const compact = cleanItemName(raw).toLowerCase().replace(/[\s·・.,()[\]{}/\\_-]/g, "");
+  const aliases: Record<string, string> = {
+    로봇청소기: "로봇청소기",
+    로보트청소기: "로봇청소기",
+    로봇청소: "로봇청소기",
+    식기세척기: "식기세척기",
+    식기세척: "식기세척기",
+    건조기: "건조기",
+    의류건조기: "건조기",
+    김치스텐드: "김치냉장고",
+    김치스탠드: "김치냉장고",
+  };
+  return aliases[compact] ?? compact;
+}
+
+const BAD_DISPLAY_NAME = /^(ci_ai_|ai_|generated_|[0-9a-f]{8}-[0-9a-f-]{27,}$)|\.(png|jpe?g|webp|gif)$|\//i;
+
+function recoveredDisplayName(row: {
+  display_name?: string | null;
+  requested_name?: string | null;
+  original_name?: string | null;
+  name?: string | null;
+  prompt?: string | null;
+}): string {
+  const candidates = [row.display_name, row.requested_name, row.original_name, row.name];
+  for (const value of candidates) {
+    const clean = cleanItemName(value ?? "");
+    if (clean && !BAD_DISPLAY_NAME.test(clean)) return clean;
+  }
+  const match = row.prompt?.match(/Korean household moving item:\s*"([^"]*[가-힣][^"]*)"/i);
+  return cleanItemName(match?.[1] ?? "") || "이름 수정 필요";
 }
 
 /** 품목명으로 쓸 수 있는 글자만 허용합니다 (악성 입력·명령문 차단) */
@@ -36,6 +67,8 @@ export interface IconResult {
   itemId?: string;
   name?: string;
   cat?: string;
+  subgroup?: string;
+  size?: "소형" | "중형" | "대형";
   room?: string;
   /** 화면에서 쓰는 아이콘 주소 */
   iconUrl?: string;
@@ -47,7 +80,37 @@ const inputSchema = z.object({
   name: z.string().min(1).max(40),
   cat: z.string().min(1).max(20),
   room: z.string().min(1).max(20),
+  size: z.enum(["소형", "중형", "대형"]),
 });
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function requestImage(key: string, prompt: string): Promise<Response> {
+  let last: Response | undefined;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (attempt > 0) await wait(700 * 2 ** (attempt - 1) + Math.floor(Math.random() * 250));
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "openai/gpt-image-2.5-sunburst",
+        prompt,
+        size: "1024x1024",
+        quality: "medium",
+        n: 1,
+        background: "transparent",
+        output_format: "png",
+      }),
+    });
+    last = response;
+    if (response.status !== 429 && response.status < 500) return response;
+    if (attempt < 2) {
+      const retryAfter = Number(response.headers.get("Retry-After"));
+      if (Number.isFinite(retryAfter) && retryAfter > 0) await wait(Math.min(retryAfter * 1000, 8000));
+    }
+  }
+  return last ?? new Response("이미지 생성 서버에 연결하지 못했습니다.", { status: 503 });
+}
 
 /** 같은 업체가 이미 만든 아이콘이 있으면 찾아 줍니다 (중복 생성 방지) */
 export const findItemIcon = createServerFn({ method: "POST" })
@@ -58,9 +121,9 @@ export const findItemIcon = createServerFn({ method: "POST" })
     if (!norm) return { ok: false, error: "품목명을 입력해 주세요." };
     const { data: row, error } = await context.supabase
       .from("item_icons")
-      .select("item_id, name, cat, room, image_url, status")
+      .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url, status")
       .eq("user_id", context.userId)
-      .eq("norm_name", norm)
+      .eq("normalized_name", norm)
       .eq("active", true)
       .eq("status", "ready")
       .maybeSingle();
@@ -70,8 +133,10 @@ export const findItemIcon = createServerFn({ method: "POST" })
       ok: true,
       reused: true,
       itemId: row.item_id,
-      name: row.name,
-      cat: row.cat,
+      name: recoveredDisplayName(row),
+      cat: row.category_group || row.cat,
+      subgroup: row.subcategory_group ?? undefined,
+      size: row.size_label as "소형" | "중형" | "대형",
       room: row.room ?? undefined,
       iconUrl: row.image_url,
     };
@@ -89,11 +154,11 @@ export const listItemIcons = createServerFn({ method: "GET" })
     }): Promise<{
       ok: boolean;
       error?: string;
-      items: { itemId: string; name: string; cat: string; room?: string; iconUrl: string }[];
+       items: { itemId: string; name: string; cat: string; subgroup?: string; size?: "소형" | "중형" | "대형"; room?: string; iconUrl: string }[];
     }> => {
       const { data, error } = await context.supabase
         .from("item_icons")
-        .select("item_id, name, cat, room, image_url, created_at")
+        .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url, created_at")
         .eq("user_id", context.userId)
         .eq("active", true)
         .eq("status", "ready")
@@ -105,8 +170,10 @@ export const listItemIcons = createServerFn({ method: "GET" })
           .filter((r) => !!r.image_url)
           .map((r) => ({
             itemId: r.item_id as string,
-            name: r.name as string,
-            cat: r.cat as string,
+            name: recoveredDisplayName(r),
+            cat: (r.category_group || r.cat) as string,
+            subgroup: (r.subcategory_group as string | null) ?? undefined,
+            size: r.size_label as "소형" | "중형" | "대형",
             room: (r.room as string | null) ?? undefined,
             iconUrl: r.image_url as string,
           })),
@@ -132,9 +199,9 @@ export const generateItemIcon = createServerFn({ method: "POST" })
     // ① 이미 만들어 둔 아이콘이 있으면 그대로 씁니다
     const existing = await context.supabase
       .from("item_icons")
-      .select("item_id, name, cat, room, image_url")
+      .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url")
       .eq("user_id", context.userId)
-      .eq("norm_name", norm)
+      .eq("normalized_name", norm)
       .eq("active", true)
       .eq("status", "ready")
       .maybeSingle();
@@ -143,8 +210,10 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         ok: true,
         reused: true,
         itemId: existing.data.item_id,
-        name: existing.data.name,
-        cat: existing.data.cat,
+        name: recoveredDisplayName(existing.data),
+        cat: existing.data.category_group || existing.data.cat,
+        subgroup: existing.data.subcategory_group ?? undefined,
+        size: existing.data.size_label as "소형" | "중형" | "대형",
         room: data.room,
         iconUrl: existing.data.image_url,
       };
@@ -175,6 +244,7 @@ export const generateItemIcon = createServerFn({ method: "POST" })
       "clean silhouette that stays readable at 40px, soft shadow.",
       "No text, no letters, no logo, no watermark, no border, no frame, no people, no extra objects.",
     ].join(" ");
+    const subgroup = itemSubgroup(name, data.cat);
 
     // ③ 생성 기록을 먼저 남깁니다 (실패해도 원인이 남습니다)
     const itemId = `ci_ai_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
@@ -187,9 +257,21 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         name,
         norm_name: norm,
         cat: data.cat,
+        display_name: name,
+        normalized_name: norm,
+        category_group: data.cat,
+        subcategory_group: subgroup,
+        size_label: data.size,
         room: data.room,
         status: "pending",
         prompt,
+        original_name: name,
+        requested_name: name,
+        generation_prompt: prompt,
+        generation_id: itemId,
+        is_generated: true,
+        sort_order: -Math.floor(Date.now() / 1000),
+        metadata: { display_name: name, room: data.room, size: data.size },
         active: true,
       })
       .select("id")
@@ -210,23 +292,14 @@ export const generateItemIcon = createServerFn({ method: "POST" })
     };
 
     try {
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "openai/gpt-image-2",
-          prompt,
-          size: "1024x1024",
-          quality: "medium",
-          n: 1,
-        }),
-      });
+      const res = await requestImage(key, prompt);
       if (!res.ok) {
         const text = await res.text().catch(() => "");
         if (res.status === 429) return fail("요청이 많습니다. 잠시 후 다시 시도해 주세요.");
-        if (res.status === 402) return fail("AI 사용 크레딧이 부족합니다.");
-        if (res.status === 403) return fail("AI 사용이 차단되어 있습니다. 관리자에게 문의해 주세요.");
-        return fail(`이미지 생성 실패 (${res.status}) ${text.slice(0, 200)}`);
+        if (res.status === 401) return fail("이미지 생성 설정을 확인해 주세요.");
+        if (res.status === 402 || res.status === 403)
+          return fail(text.slice(0, 200) || "AI 사용 권한 또는 크레딧을 확인해 주세요.");
+        return fail(text.slice(0, 200) || `이미지 생성 실패 (${res.status})`);
       }
       const json = (await res.json()) as {
         data?: { b64_json?: string }[];
@@ -246,7 +319,7 @@ export const generateItemIcon = createServerFn({ method: "POST" })
       const iconUrl = `/api/public/item-icon/${rowId}.png`;
       const done = await context.supabase
         .from("item_icons")
-        .update({ status: "ready", image_path: path, image_url: iconUrl })
+        .update({ status: "ready", image_path: path, storage_path: path, image_url: iconUrl })
         .eq("id", rowId);
       if (done.error) return fail(`아이콘 등록 실패: ${done.error.message}`);
 
@@ -255,6 +328,8 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         itemId,
         name,
         cat: data.cat,
+        subgroup,
+        size: data.size,
         room: data.room,
         iconUrl,
         remaining: Math.max(0, ICON_DAILY_LIMIT - used - 1),
@@ -262,4 +337,58 @@ export const generateItemIcon = createServerFn({ method: "POST" })
     } catch (e) {
       return fail(e instanceof Error ? e.message : "이미지 생성 중 오류가 발생했습니다.");
     }
+  });
+
+const updateSchema = z.object({
+  itemId: z.string().min(1).max(80),
+  name: z.string().min(1).max(40),
+  cat: z.string().min(1).max(20).optional(),
+});
+
+/** 생성 품목의 표시 이름을 업체 소유 행에 영구 저장합니다. */
+export const updateItemIcon = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => updateSchema.parse(input))
+  .handler(async ({ data, context }): Promise<IconResult> => {
+    const name = cleanItemName(data.name);
+    const norm = normItemName(name);
+    if (!name || !norm) return { ok: false, error: "품목명을 입력해 주세요." };
+    if (!NAME_OK.test(name)) return { ok: false, error: "품목명에 쓸 수 없는 문자가 있습니다." };
+    const cat = data.cat || "기타";
+    const { data: row, error } = await context.supabase
+      .from("item_icons")
+      .update({
+        name,
+        norm_name: norm,
+        display_name: name,
+        normalized_name: norm,
+        category_group: cat,
+        cat,
+        subcategory_group: itemSubgroup(name, cat),
+        requested_name: name,
+      })
+      .eq("user_id", context.userId)
+      .eq("item_id", data.itemId)
+      .eq("active", true)
+      .select("item_id, image_url")
+      .maybeSingle();
+    if (error) {
+      if (error.code === "23505") return { ok: false, error: "같은 이름의 품목이 이미 있습니다." };
+      return { ok: false, error: error.message };
+    }
+    if (!row?.image_url) return { ok: false, error: "수정할 생성 품목을 찾지 못했습니다." };
+    return { ok: true, itemId: row.item_id, name, cat, subgroup: itemSubgroup(name, cat), iconUrl: row.image_url };
+  });
+
+/** 생성 품목을 지우지 않고 비활성화하여 지난 견적 기록을 보존합니다. */
+export const deactivateItemIcon = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ itemId: z.string().min(1).max(80) }).parse(input))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
+    const { error } = await context.supabase
+      .from("item_icons")
+      .update({ active: false })
+      .eq("user_id", context.userId)
+      .eq("item_id", data.itemId);
+    return error ? { ok: false, error: error.message } : { ok: true };
   });

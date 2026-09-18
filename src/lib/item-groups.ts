@@ -130,6 +130,11 @@ export function itemGroup(name: string, cat?: string): ItemGroup {
   return hit ? { label: hit.label, rank: hit.rank } : OTHER;
 }
 
+/** 생성 품목을 저장할 때도 화면과 같은 세부 그룹명을 사용합니다. */
+export function itemSubgroup(name: string, cat?: string): string {
+  return itemGroup(name, cat).label;
+}
+
 /**
  * 같은 그룹끼리 붙여 정렬합니다.
  * 같은 그룹 안에서는 원래 저장 순서(담은 순서)를 그대로 유지합니다.
