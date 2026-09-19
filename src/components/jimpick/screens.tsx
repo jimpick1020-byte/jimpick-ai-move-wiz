@@ -2290,7 +2290,7 @@ export function Step6() {
     const iconUrl = res.iconUrl;
     const name = cleanItemName(res.name || "") || "이름 수정 필요";
     const cat = res.cat || guessCategory(name);
-    const addQty = Math.max(1, Math.min(99, opts?.qty ?? 1));
+    const addQty = Math.max(0, Math.min(99, opts?.qty ?? 1));
     const extra = Math.max(0, opts?.extra ?? 0);
 
 
