@@ -2423,6 +2423,7 @@ export function Step6() {
       }
     }
     const kind = kindOf(iconGen.kind);
+    const regen = !!(opts?.force || iconGen.force);
     setIconBusy(true);
     setIconError(null);
     setIconSimilar(null);
@@ -2434,6 +2435,7 @@ export function Step6() {
           room: roomName,
           kind: kind.label,
           volume: kind.volume,
+          ...(regen ? { force: true } : {}),
           ...(iconGen.photo ? { photo: iconGen.photo } : {}),
         },
       });
@@ -2441,12 +2443,16 @@ export function Step6() {
         setIconError(res.error || "이미지 생성에 실패했습니다.");
         return;
       }
+      // 이미 담겨 있는 품목의 그림만 다시 만든 경우에는 수량을 올리지 않습니다
+      const already =
+        regen && draft.rooms.some((r) => (r.items[res.itemId ?? ""] ?? 0) > 0);
       const failed = applyGeneratedIcon(res, roomName, {
-        qty: 1,
+        qty: already ? 0 : 1,
         extra: res.volume ?? kind.volume,
       });
       if (failed) setIconError(failed);
-      else toast.success("품목이 추가되었습니다.");
+      else toast.success(already ? "이미지를 새로 만들었습니다." : "품목이 추가되었습니다.");
+
     } catch (e) {
       setIconError(e instanceof Error ? e.message : "네트워크 연결을 확인해 주세요.");
     } finally {
