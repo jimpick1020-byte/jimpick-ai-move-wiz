@@ -311,7 +311,7 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         normalized_name: norm,
         category_group: data.cat,
         subcategory_group: subgroup,
-        size_label: data.size,
+        size_label: size,
         room: data.room,
         status: "pending",
         prompt,
@@ -321,7 +321,10 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         generation_id: itemId,
         is_generated: true,
         sort_order: -Math.floor(Date.now() / 1000),
-        metadata: { display_name: name, room: data.room, size: data.size },
+        source: "company",
+        default_volume: volume,
+        from_photo: !!data.photo,
+        metadata: { display_name: name, room: data.room, size, kind: kind.label, volume },
         active: true,
       })
       .select("id")
