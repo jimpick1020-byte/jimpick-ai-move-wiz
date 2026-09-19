@@ -2290,7 +2290,7 @@ export function Step6() {
     const iconUrl = res.iconUrl;
     const name = cleanItemName(res.name || "") || "이름 수정 필요";
     const cat = res.cat || guessCategory(name);
-    const addQty = Math.max(1, Math.min(99, opts?.qty ?? 1));
+    const addQty = Math.max(0, Math.min(99, opts?.qty ?? 1));
     const extra = Math.max(0, opts?.extra ?? 0);
 
 
@@ -2316,15 +2316,19 @@ export function Step6() {
             : c,
         )
       : [...list, { id: itemId, name, cat, subgroup: res.subgroup, size: res.size, extra, icon: iconUrl, active: true }];
-    const nextRooms = rooms.map((r) =>
-      r.id === target.id
-        ? { ...r, items: { ...r.items, [itemId]: (r.items[itemId] ?? 0) + addQty } }
-        : r,
-    );
+    const nextRooms =
+      addQty <= 0
+        ? rooms
+        : rooms.map((r) =>
+            r.id === target.id
+              ? { ...r, items: { ...r.items, [itemId]: (r.items[itemId] ?? 0) + addQty } }
+              : r,
+          );
     // 담기 결과가 실제로 반영됐는지 확인한 뒤에만 완료로 처리합니다
     const placed = nextRooms.find((r) => r.id === target.id)?.items[itemId] ?? 0;
-    if (!nextCustom.some((c) => c.id === itemId) || placed < 1)
+    if (!nextCustom.some((c) => c.id === itemId) || (addQty > 0 && placed < 1))
       return "품목을 공간에 담지 못했습니다. 다시 시도해 주세요.";
+
 
     updateDraft({
       customItems: nextCustom,
@@ -2354,15 +2358,40 @@ export function Step6() {
     return null;
   };
 
-  /** 기존 품목을 지금 공간에 1개 담습니다 (중복 생성 대신) */
+  /** 기존 품목을 「추가할 공간」으로 고른 공간에 1개 더 담습니다 (중복 생성 대신) */
   const useExistingItem = (id: string, name: string) => {
-    const target = draft.rooms.find((r) => r.name === (iconGen?.room || room?.name));
-    setQty(id, (target?.items[id] ?? 0) + 1, name);
+    const roomName = iconGen?.room || room?.name || "";
+    if (!roomName) {
+      setQty(id, 1, name);
+    } else {
+      // 고른 공간이 목록에 없으면 먼저 만들고, 그 공간의 수량만 1개 올립니다
+      let rooms = draft.rooms;
+      if (!rooms.some((r) => r.name === roomName))
+        rooms = [...rooms, { id: `r_${roomName}`, name: roomName, items: {} as Record<string, number> }];
+      updateDraft({
+        rooms: rooms.map((r) =>
+          r.name === roomName ? { ...r, items: { ...r.items, [id]: (r.items[id] ?? 0) + 1 } } : r,
+        ),
+        recentItems: [id, ...(draft.recentItems || []).filter((x) => x !== id)].slice(0, 12),
+      });
+      setOpenRooms((prev) => {
+        const cur = prev ?? [];
+        if (cur.includes(roomName)) return cur;
+        const next = [...cur, roomName];
+        try {
+          localStorage.setItem(ROOM_OPEN_KEY, JSON.stringify(next));
+        } catch {
+          /* 저장 공간이 없어도 화면 표시는 그대로입니다 */
+        }
+        return next;
+      });
+      toast.success(`「${name}」을(를) ${roomName}에 담았습니다`);
+    }
     setIconGen(null);
     setIconSimilar(null);
     setQ("");
-    toast.success("이미 등록된 품목입니다. 기존 품목을 추가했습니다.");
   };
+
 
   /** 「목록에 없는 품목 추가」 — 저장·이미지 생성·현재 공간 담기를 한 번에 합니다 */
   const runIconGen = async (opts?: { force?: boolean }) => {
@@ -2394,6 +2423,7 @@ export function Step6() {
       }
     }
     const kind = kindOf(iconGen.kind);
+    const regen = !!(opts?.force || iconGen.force);
     setIconBusy(true);
     setIconError(null);
     setIconSimilar(null);
@@ -2405,6 +2435,7 @@ export function Step6() {
           room: roomName,
           kind: kind.label,
           volume: kind.volume,
+          ...(regen ? { force: true } : {}),
           ...(iconGen.photo ? { photo: iconGen.photo } : {}),
         },
       });
@@ -2412,12 +2443,16 @@ export function Step6() {
         setIconError(res.error || "이미지 생성에 실패했습니다.");
         return;
       }
+      // 이미 담겨 있는 품목의 그림만 다시 만든 경우에는 수량을 올리지 않습니다
+      const already =
+        regen && draft.rooms.some((r) => (r.items[res.itemId ?? ""] ?? 0) > 0);
       const failed = applyGeneratedIcon(res, roomName, {
-        qty: 1,
+        qty: already ? 0 : 1,
         extra: res.volume ?? kind.volume,
       });
       if (failed) setIconError(failed);
-      else toast.success("품목이 추가되었습니다.");
+      else toast.success(already ? "이미지를 새로 만들었습니다." : "품목이 추가되었습니다.");
+
     } catch (e) {
       setIconError(e instanceof Error ? e.message : "네트워크 연결을 확인해 주세요.");
     } finally {

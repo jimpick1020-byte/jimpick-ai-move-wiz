@@ -91,6 +91,8 @@ const inputSchema = z.object({
   volume: z.number().min(0).max(5).optional(),
   /** 사장님이 현장에서 찍은 사진 (data URL). 있으면 이 사진을 참고해 그립니다 */
   photo: z.string().min(32).max(9_000_000).optional(),
+  /** 「이미지 다시 만들기」 — 같은 품목의 그림을 새로 만듭니다 */
+  force: z.boolean().optional(),
 });
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -244,15 +246,16 @@ export const generateItemIcon = createServerFn({ method: "POST" })
       return { ok: false, error: "이 품목명으로는 아이콘을 만들 수 없습니다. 이삿짐 품목 이름으로 바꿔 주세요." };
 
     // ① 이미 만들어 둔 아이콘이 있으면 그대로 씁니다
+    //    (「이미지 다시 만들기」인 경우에는 같은 품목 행에 새 그림을 다시 만들어 넣습니다)
     const existing = await context.supabase
       .from("item_icons")
-      .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url")
+      .select("id, item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url")
       .eq("user_id", context.userId)
       .eq("normalized_name", norm)
       .eq("active", true)
       .eq("status", "ready")
       .maybeSingle();
-    if (existing.data?.image_url) {
+    if (existing.data?.image_url && !data.force) {
       return {
         ok: true,
         reused: true,
@@ -265,6 +268,9 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         iconUrl: existing.data.image_url,
       };
     }
+    /** 다시 만들 기존 품목 행 (있으면 같은 품목 id·수량을 그대로 유지합니다) */
+    const regenRow = data.force && existing.data?.id ? existing.data : null;
+
 
     // ② 하루 생성 횟수 제한
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -302,52 +308,78 @@ export const generateItemIcon = createServerFn({ method: "POST" })
     const size = data.size ?? (volume >= 1 ? "대형" : volume >= 0.5 ? "중형" : "소형");
 
     // ③ 생성 기록을 먼저 남깁니다 (실패해도 원인이 남습니다)
-    const itemId = `ci_ai_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
-    const inserted = await context.supabase
-      .from("item_icons")
-      .insert({
-        user_id: context.userId,
-        created_by: context.userId,
-        item_id: itemId,
-        name,
-        norm_name: norm,
-        cat: data.cat,
-        display_name: name,
-        normalized_name: norm,
-        category_group: data.cat,
-        subcategory_group: subgroup,
-        size_label: size,
-        room: data.room,
-        status: "pending",
-        prompt,
-        original_name: name,
-        requested_name: name,
-        generation_prompt: prompt,
-        generation_id: itemId,
-        is_generated: true,
-        sort_order: -Math.floor(Date.now() / 1000),
-        source: "company",
-        default_volume: volume,
-        from_photo: !!data.photo,
-        metadata: { display_name: name, room: data.room, size, kind: kind.label, volume },
-        active: true,
-      })
-      .select("id")
-      .single();
-    if (inserted.error) {
-      if (inserted.error.code === "23505" || inserted.error.message.includes("duplicate"))
-        return { ok: false, error: "이미 같은 품목명의 아이콘을 만들고 있습니다. 잠시 후 다시 확인해 주세요." };
-      return { ok: false, error: inserted.error.message };
+    //    다시 만들기는 새 행을 만들지 않고 기존 품목 행의 그림만 바꿉니다
+    let rowId: string;
+    let itemId: string;
+    if (regenRow) {
+      rowId = regenRow.id as string;
+      itemId = regenRow.item_id as string;
+      const marked = await context.supabase
+        .from("item_icons")
+        .update({
+          prompt,
+          generation_prompt: prompt,
+          subcategory_group: subgroup,
+          size_label: size,
+          default_volume: volume,
+          from_photo: !!data.photo,
+          metadata: { display_name: name, room: data.room, size, kind: kind.label, volume },
+        })
+        .eq("id", rowId)
+        .eq("user_id", context.userId);
+      if (marked.error) return { ok: false, error: marked.error.message };
+    } else {
+      itemId = `ci_ai_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+      const inserted = await context.supabase
+        .from("item_icons")
+        .insert({
+          user_id: context.userId,
+          created_by: context.userId,
+          item_id: itemId,
+          name,
+          norm_name: norm,
+          cat: data.cat,
+          display_name: name,
+          normalized_name: norm,
+          category_group: data.cat,
+          subcategory_group: subgroup,
+          size_label: size,
+          room: data.room,
+          status: "pending",
+          prompt,
+          original_name: name,
+          requested_name: name,
+          generation_prompt: prompt,
+          generation_id: itemId,
+          is_generated: true,
+          sort_order: -Math.floor(Date.now() / 1000),
+          source: "company",
+          default_volume: volume,
+          from_photo: !!data.photo,
+          metadata: { display_name: name, room: data.room, size, kind: kind.label, volume },
+          active: true,
+        })
+        .select("id")
+        .single();
+      if (inserted.error) {
+        if (inserted.error.code === "23505" || inserted.error.message.includes("duplicate"))
+          return { ok: false, error: "이미 같은 품목명의 아이콘을 만들고 있습니다. 잠시 후 다시 확인해 주세요." };
+        return { ok: false, error: inserted.error.message };
+      }
+      rowId = inserted.data.id as string;
     }
-    const rowId = inserted.data.id as string;
+
 
     const fail = async (message: string): Promise<IconResult> => {
-      await context.supabase
-        .from("item_icons")
-        .update({ status: "failed", active: false })
-        .eq("id", rowId);
+      // 다시 만들기가 실패하면 기존 그림을 그대로 살려 둡니다 (품목이 사라지지 않게)
+      if (!regenRow)
+        await context.supabase
+          .from("item_icons")
+          .update({ status: "failed", active: false })
+          .eq("id", rowId);
       return { ok: false, error: message, remaining: Math.max(0, ICON_DAILY_LIMIT - used - 1) };
     };
+
 
     try {
       const res = await requestImage(key, prompt, data.photo);
@@ -374,7 +406,11 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         .upload(path, bytes, { contentType: "image/png", upsert: true });
       if (up.error) return fail(`이미지 저장 실패: ${up.error.message}`);
 
-      const iconUrl = `/api/public/item-icon/${rowId}.png`;
+      // 다시 만든 경우 브라우저가 옛 그림을 계속 쓰지 않도록 주소 뒤에 버전을 붙입니다
+      const iconUrl = regenRow
+        ? `/api/public/item-icon/${rowId}.png?v=${Date.now()}`
+        : `/api/public/item-icon/${rowId}.png`;
+
       const done = await context.supabase
         .from("item_icons")
         .update({ status: "ready", image_path: path, storage_path: path, image_url: iconUrl })
