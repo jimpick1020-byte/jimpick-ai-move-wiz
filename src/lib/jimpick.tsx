@@ -1753,7 +1753,9 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       const s = (e.state as { jpScreen?: Screen } | null)?.jpScreen;
       setState((prev) => {
         if (!prev.loggedIn) return prev;
-        return { ...prev, screen: s ?? "home" };
+        // 이전 버전의 방문기록에 AI 화면이 남아 있어도 일반 견적 흐름으로 복구합니다.
+        // 최고관리자의 현재 시험 진입은 화면 버튼(setScreen)으로만 허용합니다.
+        return { ...prev, screen: s === "ai" ? "step6" : (s ?? "home") };
       });
     };
     window.addEventListener("popstate", onPop);

@@ -12,6 +12,15 @@ import {
   deleteCompanyAccount,
   type CompanyAccount,
 } from "@/lib/admin.functions";
+import {
+  updateExperimentalFeatures,
+  type ExperimentalFeatures,
+} from "@/lib/experimental-features.functions";
+import {
+  refreshExperimentalFeatures,
+  useExperimentalFeatures,
+} from "@/lib/use-experimental-features";
+import { toast } from "sonner";
 
 const STATUS_LABEL: Record<string, string> = {
   trialing: "무료체험 중",
@@ -36,6 +45,66 @@ const day = (v: string | null) =>
 const NEW_SIGNUP_MS = 3 * 24 * 3600_000;
 const isNewSignup = (v: string | null) =>
   v !== null && Date.now() - new Date(v).getTime() < NEW_SIGNUP_MS;
+
+const EXPERIMENT_LABELS: { key: keyof Omit<ExperimentalFeatures, "isSuperAdmin">; label: string }[] = [
+  { key: "voiceItemInput", label: "음성 품목입력 시험 기능" },
+  { key: "aiPhotoScan", label: "AI 사진 품목인식 시험 기능" },
+  { key: "aiVideoScan", label: "AI 동영상 품목인식 시험 기능" },
+];
+
+export function ExperimentalFeatureSettings() {
+  const { features, loaded } = useExperimentalFeatures();
+  const [saving, setSaving] = useState(false);
+  if (!loaded || !features.isSuperAdmin) return null;
+
+  const toggle = async (key: keyof Omit<ExperimentalFeatures, "isSuperAdmin">) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await updateExperimentalFeatures({
+        data: {
+          voiceItemInput: key === "voiceItemInput" ? !features.voiceItemInput : features.voiceItemInput,
+          aiPhotoScan: key === "aiPhotoScan" ? !features.aiPhotoScan : features.aiPhotoScan,
+          aiVideoScan: key === "aiVideoScan" ? !features.aiVideoScan : features.aiVideoScan,
+        },
+      });
+      await refreshExperimentalFeatures();
+      toast.success("시험 기능 설정을 저장했습니다.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "설정을 저장하지 못했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card className="space-y-3">
+      <div>
+        <div className="font-bold">최고관리자 시험 기능</div>
+        <div className="mt-1 text-xs text-[#6B7280]">모두 기본 OFF이며 일반 업체 계정에는 표시되지 않습니다.</div>
+      </div>
+      {EXPERIMENT_LABELS.map(({ key, label }) => {
+        const on = features[key];
+        return (
+          <button
+            key={key}
+            type="button"
+            role="switch"
+            aria-checked={on}
+            disabled={saving}
+            onClick={() => void toggle(key)}
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-white px-3 py-3 text-left disabled:opacity-60"
+          >
+            <span className="text-sm font-bold text-[#25282D]">{label}</span>
+            <span className={`relative h-7 w-12 shrink-0 rounded-full ${on ? "bg-[#3578C8]" : "bg-[#D1D5DB]"}`}>
+              <span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${on ? "translate-x-6" : "translate-x-1"}`} />
+            </span>
+          </button>
+        );
+      })}
+    </Card>
+  );
+}
 
 export function AdminAccountsScreen() {
   const { setScreen } = useApp();

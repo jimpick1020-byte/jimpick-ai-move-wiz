@@ -9,7 +9,22 @@
 
 const SW_URL = "/sw.js";
 /** 이번 방문에서 이미 한 번 새로고침했는지 (무한 새로고침 방지) */
-const RELOADED_KEY = "jimpick_sw_reloaded";
+const CACHE_VERSION = "v9-ai-access";
+const RELOADED_KEY = `jimpick_sw_reloaded_${CACHE_VERSION}`;
+
+async function cleanupOldCaches() {
+  if (typeof caches === "undefined") return;
+  try {
+    const names = await caches.keys();
+    await Promise.allSettled(
+      names
+        .filter((name) => name.startsWith("jimpick-") && !name.includes(CACHE_VERSION))
+        .map((name) => caches.delete(name)),
+    );
+  } catch {
+    /* 캐시 정리에 실패해도 앱 데이터나 로그인 상태는 건드리지 않습니다 */
+  }
+}
 
 /** 이 화면에서 서비스워커를 써도 되는지 */
 function allowed(): boolean {
@@ -79,10 +94,14 @@ export function registerPwa() {
     return;
   }
 
-  const onControllerChange = () => reloadOnce();
+  void cleanupOldCaches();
+  const onControllerChange = () => {
+    void cleanupOldCaches();
+    reloadOnce();
+  };
 
   void navigator.serviceWorker
-    .register(SW_URL, { scope: "/" })
+    .register(`${SW_URL}?v=${CACHE_VERSION}`, { scope: "/", updateViaCache: "none" })
     .then((reg) => {
       // 첫 설치일 때는 새로고침하지 않습니다
       if (!navigator.serviceWorker.controller) {

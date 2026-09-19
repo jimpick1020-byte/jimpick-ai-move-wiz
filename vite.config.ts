@@ -48,7 +48,7 @@ export default defineConfig({
                 !url.pathname.startsWith("/reset-password"),
               handler: "NetworkFirst",
               options: {
-                cacheName: "jimpick-html",
+                cacheName: "jimpick-html-v9-ai-access",
                 networkTimeoutSeconds: 5,
                 expiration: { maxEntries: 10 },
                 cacheableResponse: { statuses: [200] },
@@ -60,7 +60,7 @@ export default defineConfig({
                 Boolean(sameOrigin) && /^\/assets\/.+\.[0-9a-zA-Z_-]{8,}\./.test(url.pathname),
               handler: "CacheFirst",
               options: {
-                cacheName: "jimpick-assets",
+                cacheName: "jimpick-assets-v9-ai-access",
                 expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
                 cacheableResponse: { statuses: [200] },
               },

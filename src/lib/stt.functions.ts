@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { z } from "zod";
+import { assertExperimentalFeature } from "@/lib/experimental-features.functions";
 
 /**
  * 녹음된 음성(WAV base64)을 고정확도 AI 음성인식으로 글자로 바꿉니다.
@@ -18,7 +19,8 @@ export const transcribeAudio = createServerFn({ method: "POST" })
       })
       .parse(d),
   )
-  .handler(async ({ data }): Promise<{ text: string; error?: string }> => {
+  .handler(async ({ data, context }): Promise<{ text: string; error?: string }> => {
+    await assertExperimentalFeature(context.userId, "voice_item_input");
     const key = process.env.LOVABLE_API_KEY;
     if (!key) return { text: "", error: "AI 키가 설정되지 않았습니다." };
 

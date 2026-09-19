@@ -22,11 +22,13 @@ import {
   type SpeechEventLike,
   type SpeechErrorLike,
 } from "@/lib/voice";
+import { useExperimentalFeatures } from "@/lib/use-experimental-features";
 
 type Status = "idle" | "listening" | "parsing" | "done" | "error";
 
 export function VoiceFill() {
   const { draft, updateDraft } = useApp();
+  const { features, loaded } = useExperimentalFeatures();
   const [status, setStatus] = useState<Status>("idle");
   const [hint, setHint] = useState("");
   /** 지금까지 들은 말 전체 */
@@ -218,6 +220,8 @@ export function VoiceFill() {
           : status === "error"
             ? "다시 시도"
             : "말로 입력";
+
+  if (!loaded || !features.isSuperAdmin || !features.voiceItemInput) return null;
 
   return (
     <div className="space-y-2">
