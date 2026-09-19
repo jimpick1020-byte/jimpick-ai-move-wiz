@@ -166,7 +166,7 @@ export const findItemIcon = createServerFn({ method: "POST" })
     if (!norm) return { ok: false, error: "품목명을 입력해 주세요." };
     const { data: row, error } = await context.supabase
       .from("item_icons")
-      .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url, status")
+      .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url, status, default_volume")
       .eq("user_id", context.userId)
       .eq("normalized_name", norm)
       .eq("active", true)
@@ -182,6 +182,7 @@ export const findItemIcon = createServerFn({ method: "POST" })
       cat: row.category_group || row.cat,
       subgroup: row.subcategory_group ?? undefined,
       size: row.size_label as "소형" | "중형" | "대형",
+      volume: Number(row.default_volume ?? 0) || undefined,
       room: row.room ?? undefined,
       iconUrl: row.image_url,
     };
@@ -199,11 +200,11 @@ export const listItemIcons = createServerFn({ method: "GET" })
     }): Promise<{
       ok: boolean;
       error?: string;
-       items: { itemId: string; name: string; cat: string; subgroup?: string; size?: "소형" | "중형" | "대형"; room?: string; iconUrl: string }[];
+       items: { itemId: string; name: string; cat: string; subgroup?: string; size?: "소형" | "중형" | "대형"; volume?: number; room?: string; iconUrl: string }[];
     }> => {
       const { data, error } = await context.supabase
         .from("item_icons")
-        .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url, created_at")
+        .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url, created_at, default_volume")
         .eq("user_id", context.userId)
         .eq("active", true)
         .eq("status", "ready")
@@ -219,6 +220,7 @@ export const listItemIcons = createServerFn({ method: "GET" })
             cat: (r.category_group || r.cat) as string,
             subgroup: (r.subcategory_group as string | null) ?? undefined,
             size: r.size_label as "소형" | "중형" | "대형",
+            volume: Number(r.default_volume ?? 0) || undefined,
             room: (r.room as string | null) ?? undefined,
             iconUrl: r.image_url as string,
           })),
