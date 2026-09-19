@@ -369,12 +369,15 @@ export const generateItemIcon = createServerFn({ method: "POST" })
 
 
     const fail = async (message: string): Promise<IconResult> => {
-      await context.supabase
-        .from("item_icons")
-        .update({ status: "failed", active: false })
-        .eq("id", rowId);
+      // 다시 만들기가 실패하면 기존 그림을 그대로 살려 둡니다 (품목이 사라지지 않게)
+      if (!regenRow)
+        await context.supabase
+          .from("item_icons")
+          .update({ status: "failed", active: false })
+          .eq("id", rowId);
       return { ok: false, error: message, remaining: Math.max(0, ICON_DAILY_LIMIT - used - 1) };
     };
+
 
     try {
       const res = await requestImage(key, prompt, data.photo);
