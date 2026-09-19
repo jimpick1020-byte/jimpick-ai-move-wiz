@@ -345,7 +345,7 @@ export const generateItemIcon = createServerFn({ method: "POST" })
     };
 
     try {
-      const res = await requestImage(key, prompt);
+      const res = await requestImage(key, prompt, data.photo);
       if (!res.ok) {
         const text = await res.text().catch(() => "");
         if (res.status === 429) return fail("요청이 많습니다. 잠시 후 다시 시도해 주세요.");
