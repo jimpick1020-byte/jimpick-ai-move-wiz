@@ -32,7 +32,9 @@ export function useExperimentalFeatures() {
     };
     listeners.add(listener);
     if (cached === null) void refreshExperimentalFeatures().then(() => setLoaded(true));
-    return () => listeners.delete(listener);
+    return () => {
+      listeners.delete(listener);
+    };
   }, []);
   const refresh = useCallback(() => refreshExperimentalFeatures(), []);
   return { features, loaded, refresh };
