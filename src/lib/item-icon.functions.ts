@@ -404,7 +404,11 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         .upload(path, bytes, { contentType: "image/png", upsert: true });
       if (up.error) return fail(`이미지 저장 실패: ${up.error.message}`);
 
-      const iconUrl = `/api/public/item-icon/${rowId}.png`;
+      // 다시 만든 경우 브라우저가 옛 그림을 계속 쓰지 않도록 주소 뒤에 버전을 붙입니다
+      const iconUrl = regenRow
+        ? `/api/public/item-icon/${rowId}.png?v=${Date.now()}`
+        : `/api/public/item-icon/${rowId}.png`;
+
       const done = await context.supabase
         .from("item_icons")
         .update({ status: "ready", image_path: path, storage_path: path, image_url: iconUrl })
