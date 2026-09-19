@@ -3567,7 +3567,7 @@ export function Step6() {
                         const it = catalog.find((c) => c.id === itemMenu);
                         const c = (draft.customItems || []).find((x) => x.id === itemMenu);
                         const nm = it?.name || itemNameById(itemMenu) || "품목";
-                        const group = c?.subgroup || itemSubgroup(nm, it?.cat || c?.cat || "기타");
+                        const group = c?.subgroup || it?.sub || itemSubgroup(nm, c?.cat || "기타");
                         const vol = c?.extra ?? it?.extra ?? 0;
                         toast.success(
                           `${nm} · ${group}${vol ? ` · 기본 부피 ${vol}루베` : ""}${
