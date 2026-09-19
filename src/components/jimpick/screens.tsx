@@ -213,6 +213,8 @@ import {
   type IconResult,
 } from "@/lib/item-icon.functions";
 import { itemSubgroup, sortByGroup, itemSubRank } from "@/lib/item-groups";
+import { ITEM_KINDS, kindOf, guessKind } from "@/lib/item-kinds";
+import { shrinkPhoto } from "@/lib/photo-shrink";
 
 /** 공간별 품목 접기·펼치기 상태를 기억하는 자리 */
 const ROOM_OPEN_KEY = "jimpick_step6_open_rooms";
@@ -2023,7 +2025,7 @@ export function Step6() {
           id: c.id,
           name: c.name,
           cat: c.cat,
-          cat5: cat5For(c.cat),
+          cat5: cat5For(c.cat, c.cat),
           sub: c.subgroup || itemSubgroup(c.name, c.cat),
           emoji: "📦",
           extra: c.extra,
@@ -2226,11 +2228,15 @@ export function Step6() {
   /** 만들기 확인 화면 (null 이면 닫힘) */
   const [iconGen, setIconGen] = useState<{
     name: string;
-    cat: string;
-    size: "소형" | "중형" | "대형";
-    /** 크기에 따라 더해지는 부피(루베) — 적재량 계산에 함께 반영됩니다 */
-    extra: number;
+    /** 품목 종류 (= 품목 그룹). 부피는 종류에 따라 자동으로 정해집니다 */
+    kind: string;
+    /** 담을 공간 — 지금 열어 둔 공간이 기본값입니다 */
+    room: string;
+    /** 현장에서 찍은 사진 (없어도 됩니다) */
+    photo?: string;
   } | null>(null);
+  /** 비슷한 이름의 기존 품목이 있을 때 물어봅니다 */
+  const [iconSimilar, setIconSimilar] = useState<{ id: string; name: string } | null>(null);
   const [iconBusy, setIconBusy] = useState(false);
   const [iconError, setIconError] = useState<string | null>(null);
   /** 같은 업체가 전에 만들어 둔 아이콘 (있으면 다시 만들지 않습니다) */
@@ -2244,12 +2250,8 @@ export function Step6() {
       return;
     }
     setIconError(null);
-    setIconGen({
-      name,
-      cat: name ? guessCategory(name) : "가구",
-      size: "소형",
-      extra: 0,
-    });
+    setIconSimilar(null);
+    setIconGen({ name, kind: name ? guessKind(name) : "기타", room: room.name });
   };
 
 
@@ -2326,49 +2328,78 @@ export function Step6() {
     });
     setSavedIcon(null);
     setIconGen(null);
+    setIconSimilar(null);
     setQ("");
     tap("success");
-    toast.success(`「${name}」을(를) ${roomName}에 수량 ${placed}로 담았습니다`);
     return null;
   };
 
-  const runIconGen = async () => {
+  /** 기존 품목을 지금 공간에 1개 담습니다 (중복 생성 대신) */
+  const useExistingItem = (id: string, name: string) => {
+    const target = draft.rooms.find((r) => r.name === (iconGen?.room || room?.name));
+    setQty(id, (target?.items[id] ?? 0) + 1, name);
+    setIconGen(null);
+    setIconSimilar(null);
+    setQ("");
+    toast.success("이미 등록된 품목입니다. 기존 품목을 추가했습니다.");
+  };
+
+  /** 「목록에 없는 품목 추가」 — 저장·이미지 생성·현재 공간 담기를 한 번에 합니다 */
+  const runIconGen = async (opts?: { force?: boolean }) => {
     if (!iconGen || iconBusy) return;
     const name = cleanItemName(iconGen.name);
     if (!name) {
-      setIconError("품목명을 입력해 주세요.");
+      setIconError("품목 이름을 입력해 주세요.");
       return;
     }
-    if (!room?.name) {
+    const roomName = iconGen.room || room?.name || "";
+    if (!roomName) {
       setIconError("품목을 담을 공간을 먼저 선택해 주세요.");
       return;
     }
     const normalized = normItemName(name);
-    const localMatch = catalog.find((item) => normItemName(item.name) === normalized);
-    if (localMatch) {
-      setQty(localMatch.id, (room.items[localMatch.id] ?? 0) + 1, localMatch.name);
-      setIconGen(null);
-      setQ("");
-      toast.success(`이미 있는 「${localMatch.name}」을(를) ${room.name}에 추가했습니다`);
-      return;
-    }
-    setIconBusy(true);
-    setIconError(null);
-    try {
-      const res = await generateItemIcon({
-        data: { name, cat: iconGen.cat, room: room.name, size: iconGen.size },
-      });
-      if (!res.ok || !res.iconUrl) {
-        setIconError(res.error || "아이콘을 만들지 못했습니다. 다시 시도해 주세요.");
+    if (!opts?.force) {
+      const exact = catalog.find((item) => normItemName(item.name) === normalized);
+      if (exact) {
+        useExistingItem(exact.id, exact.name);
         return;
       }
-      const failed = applyGeneratedIcon(res, room.name, {
+      const similar = catalog.find(
+        (item) =>
+          normItemName(item.name).includes(normalized) || normalized.includes(normItemName(item.name)),
+      );
+      if (similar && normalized.length >= 2) {
+        setIconSimilar({ id: similar.id, name: similar.name });
+        return;
+      }
+    }
+    const kind = kindOf(iconGen.kind);
+    setIconBusy(true);
+    setIconError(null);
+    setIconSimilar(null);
+    try {
+      const res = await generateItemIcon({
+        data: {
+          name,
+          cat: kind.cat,
+          room: roomName,
+          kind: kind.label,
+          volume: kind.volume,
+          ...(iconGen.photo ? { photo: iconGen.photo } : {}),
+        },
+      });
+      if (!res.ok || !res.iconUrl) {
+        setIconError(res.error || "이미지 생성에 실패했습니다.");
+        return;
+      }
+      const failed = applyGeneratedIcon(res, roomName, {
         qty: 1,
-        extra: iconGen.extra,
+        extra: res.volume ?? kind.volume,
       });
       if (failed) setIconError(failed);
+      else toast.success("품목이 추가되었습니다.");
     } catch (e) {
-      setIconError(e instanceof Error ? e.message : "아이콘을 만들지 못했습니다.");
+      setIconError(e instanceof Error ? e.message : "네트워크 연결을 확인해 주세요.");
     } finally {
       setIconBusy(false);
     }
@@ -2987,11 +3018,13 @@ export function Step6() {
               </button>
               <button
                 onClick={openIconGen}
-                aria-label="3D 품목 생성"
+                aria-label="목록에 없는 품목 추가"
                 className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-[#3578C8] bg-gradient-to-b from-white to-[#EEF6FF] px-3 py-2 text-[11px] font-black leading-tight text-[#2A6FD6] shadow-[0_5px_0_#DCE9FF,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
               >
-                <Box className="h-5 w-5" />
-                3D 품목 생성
+                <Sofa className="h-5 w-5" />
+                목록에 없는
+                <br />
+                품목 추가
               </button>
             </div>
 
@@ -3194,7 +3227,7 @@ export function Step6() {
                           onClick={openIconGen}
                           className="w-full rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-3 text-[14px] font-black text-white shadow-[0_4px_0_#285C99] active:translate-y-[2px] active:shadow-none"
                         >
-                          3D 아이콘 만들기
+                          목록에 없는 품목 추가
                         </button>
                       </div>
                     </div>

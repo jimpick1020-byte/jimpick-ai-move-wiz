@@ -488,7 +488,9 @@ export type Database = {
           category_group: string
           created_at: string
           created_by: string
+          default_volume: number
           display_name: string
+          from_photo: boolean
           generation_id: string | null
           generation_prompt: string | null
           id: string
@@ -506,6 +508,7 @@ export type Database = {
           room: string | null
           size_label: string
           sort_order: number
+          source: string
           status: string
           storage_path: string | null
           subcategory_group: string | null
@@ -518,7 +521,9 @@ export type Database = {
           category_group: string
           created_at?: string
           created_by: string
+          default_volume?: number
           display_name: string
+          from_photo?: boolean
           generation_id?: string | null
           generation_prompt?: string | null
           id?: string
@@ -536,6 +541,7 @@ export type Database = {
           room?: string | null
           size_label?: string
           sort_order?: number
+          source?: string
           status?: string
           storage_path?: string | null
           subcategory_group?: string | null
@@ -548,7 +554,9 @@ export type Database = {
           category_group?: string
           created_at?: string
           created_by?: string
+          default_volume?: number
           display_name?: string
+          from_photo?: boolean
           generation_id?: string | null
           generation_prompt?: string | null
           id?: string
@@ -566,6 +574,7 @@ export type Database = {
           room?: string | null
           size_label?: string
           sort_order?: number
+          source?: string
           status?: string
           storage_path?: string | null
           subcategory_group?: string | null

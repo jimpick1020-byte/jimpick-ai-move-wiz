@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { itemSubgroup } from "@/lib/item-groups";
+import { kindOf, guessKind } from "@/lib/item-kinds";
 
 /** 한 업체가 하루에 만들 수 있는 3D 아이콘 개수 (비용 폭주 방지) */
 export const ICON_DAILY_LIMIT = 20;
@@ -69,6 +70,8 @@ export interface IconResult {
   cat?: string;
   subgroup?: string;
   size?: "소형" | "중형" | "대형";
+  /** 차량 계산에 쓰는 기본 부피(루베) */
+  volume?: number;
   room?: string;
   /** 화면에서 쓰는 아이콘 주소 */
   iconUrl?: string;
@@ -80,28 +83,70 @@ const inputSchema = z.object({
   name: z.string().min(1).max(40),
   cat: z.string().min(1).max(20),
   room: z.string().min(1).max(20),
-  size: z.enum(["소형", "중형", "대형"]),
+  /** 품목 종류(= 품목 그룹). 없으면 이름으로 자동 분류합니다 */
+  kind: z.string().min(1).max(20).optional(),
+  /** 화면에서는 묻지 않습니다 — 종류별 기본 부피로 서버가 정합니다 */
+  size: z.enum(["소형", "중형", "대형"]).optional(),
+  /** 차량 계산용 기본 부피(루베) — 종류별 기본값 */
+  volume: z.number().min(0).max(5).optional(),
+  /** 사장님이 현장에서 찍은 사진 (data URL). 있으면 이 사진을 참고해 그립니다 */
+  photo: z.string().min(32).max(9_000_000).optional(),
 });
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function requestImage(key: string, prompt: string): Promise<Response> {
+/** data URL → 업로드용 파일 (사진을 참고 이미지로 넘길 때 사용) */
+function photoToBlob(dataUrl: string): { blob: Blob; filename: string } | null {
+  const match = dataUrl.match(/^data:(image\/(png|jpe?g|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) return null;
+  try {
+    const bytes = Uint8Array.from(atob(match[3]), (c) => c.charCodeAt(0));
+    if (bytes.byteLength < 100) return null;
+    const ext = match[1] === "image/png" ? "png" : match[1] === "image/webp" ? "webp" : "jpg";
+    return { blob: new Blob([bytes], { type: match[1] }), filename: `photo.${ext}` };
+  } catch {
+    return null;
+  }
+}
+
+async function requestImage(key: string, prompt: string, photo?: string): Promise<Response> {
+  const file = photo ? photoToBlob(photo) : null;
+  if (photo && !file) return new Response("사진을 불러오지 못했습니다.", { status: 400 });
+
   let last: Response | undefined;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     if (attempt > 0) await wait(700 * 2 ** (attempt - 1) + Math.floor(Math.random() * 250));
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "openai/gpt-image-2.5-sunburst",
-        prompt,
-        size: "1024x1024",
-        quality: "medium",
-        n: 1,
-        background: "transparent",
-        output_format: "png",
-      }),
-    });
+    let response: Response;
+    if (file) {
+      const form = new FormData();
+      form.append("model", "openai/gpt-image-2.5-sunburst");
+      form.append("prompt", prompt);
+      form.append("size", "1024x1024");
+      form.append("quality", "medium");
+      form.append("n", "1");
+      form.append("background", "transparent");
+      form.append("output_format", "png");
+      form.append("image", file.blob, file.filename);
+      response = await fetch("https://ai.gateway.lovable.dev/v1/images/edits", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}` },
+        body: form,
+      });
+    } else {
+      response = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "openai/gpt-image-2.5-sunburst",
+          prompt,
+          size: "1024x1024",
+          quality: "medium",
+          n: 1,
+          background: "transparent",
+          output_format: "png",
+        }),
+      });
+    }
     last = response;
     if (response.status !== 429 && response.status < 500) return response;
     if (attempt < 2) {
@@ -121,7 +166,7 @@ export const findItemIcon = createServerFn({ method: "POST" })
     if (!norm) return { ok: false, error: "품목명을 입력해 주세요." };
     const { data: row, error } = await context.supabase
       .from("item_icons")
-      .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url, status")
+      .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url, status, default_volume")
       .eq("user_id", context.userId)
       .eq("normalized_name", norm)
       .eq("active", true)
@@ -137,6 +182,7 @@ export const findItemIcon = createServerFn({ method: "POST" })
       cat: row.category_group || row.cat,
       subgroup: row.subcategory_group ?? undefined,
       size: row.size_label as "소형" | "중형" | "대형",
+      volume: Number(row.default_volume ?? 0) || undefined,
       room: row.room ?? undefined,
       iconUrl: row.image_url,
     };
@@ -154,11 +200,11 @@ export const listItemIcons = createServerFn({ method: "GET" })
     }): Promise<{
       ok: boolean;
       error?: string;
-       items: { itemId: string; name: string; cat: string; subgroup?: string; size?: "소형" | "중형" | "대형"; room?: string; iconUrl: string }[];
+       items: { itemId: string; name: string; cat: string; subgroup?: string; size?: "소형" | "중형" | "대형"; volume?: number; room?: string; iconUrl: string }[];
     }> => {
       const { data, error } = await context.supabase
         .from("item_icons")
-        .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url, created_at")
+        .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url, created_at, default_volume")
         .eq("user_id", context.userId)
         .eq("active", true)
         .eq("status", "ready")
@@ -174,6 +220,7 @@ export const listItemIcons = createServerFn({ method: "GET" })
             cat: (r.category_group || r.cat) as string,
             subgroup: (r.subcategory_group as string | null) ?? undefined,
             size: r.size_label as "소형" | "중형" | "대형",
+            volume: Number(r.default_volume ?? 0) || undefined,
             room: (r.room as string | null) ?? undefined,
             iconUrl: r.image_url as string,
           })),
@@ -239,12 +286,20 @@ export const generateItemIcon = createServerFn({ method: "POST" })
 
     const prompt = [
       `A single 3D rendered app icon of one Korean household moving item: "${name}".`,
+      data.photo
+        ? "Redraw the object shown in the reference photo as this icon, keeping its real shape, proportion and colour."
+        : "",
       "Style: soft glossy 3D render, white and light-grey body with small blue (#2A6FD6) accents,",
       "isometric three-quarter view, centered, one object only, plain pure white background,",
       "clean silhouette that stays readable at 40px, soft shadow.",
       "No text, no letters, no logo, no watermark, no border, no frame, no people, no extra objects.",
-    ].join(" ");
-    const subgroup = itemSubgroup(name, data.cat);
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const kind = kindOf(data.kind ?? guessKind(name));
+    const subgroup = data.kind ? kind.label : itemSubgroup(name, data.cat);
+    const volume = data.volume ?? kind.volume;
+    const size = data.size ?? (volume >= 1 ? "대형" : volume >= 0.5 ? "중형" : "소형");
 
     // ③ 생성 기록을 먼저 남깁니다 (실패해도 원인이 남습니다)
     const itemId = `ci_ai_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
@@ -261,7 +316,7 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         normalized_name: norm,
         category_group: data.cat,
         subcategory_group: subgroup,
-        size_label: data.size,
+        size_label: size,
         room: data.room,
         status: "pending",
         prompt,
@@ -271,7 +326,10 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         generation_id: itemId,
         is_generated: true,
         sort_order: -Math.floor(Date.now() / 1000),
-        metadata: { display_name: name, room: data.room, size: data.size },
+        source: "company",
+        default_volume: volume,
+        from_photo: !!data.photo,
+        metadata: { display_name: name, room: data.room, size, kind: kind.label, volume },
         active: true,
       })
       .select("id")
@@ -292,7 +350,7 @@ export const generateItemIcon = createServerFn({ method: "POST" })
     };
 
     try {
-      const res = await requestImage(key, prompt);
+      const res = await requestImage(key, prompt, data.photo);
       if (!res.ok) {
         const text = await res.text().catch(() => "");
         if (res.status === 429) return fail("요청이 많습니다. 잠시 후 다시 시도해 주세요.");
@@ -327,9 +385,10 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         ok: true,
         itemId,
         name,
-        cat: data.cat,
+        cat: kind.cat,
         subgroup,
-        size: data.size,
+        size,
+        volume,
         room: data.room,
         iconUrl,
         remaining: Math.max(0, ICON_DAILY_LIMIT - used - 1),
@@ -343,6 +402,8 @@ const updateSchema = z.object({
   itemId: z.string().min(1).max(80),
   name: z.string().min(1).max(40),
   cat: z.string().min(1).max(20).optional(),
+  /** 자리이동(품목 그룹 변경) — 새로고침 후에도 유지됩니다 */
+  subgroup: z.string().min(1).max(20).optional(),
 });
 
 /** 생성 품목의 표시 이름을 업체 소유 행에 영구 저장합니다. */
@@ -364,7 +425,7 @@ export const updateItemIcon = createServerFn({ method: "POST" })
         normalized_name: norm,
         category_group: cat,
         cat,
-        subcategory_group: itemSubgroup(name, cat),
+        subcategory_group: data.subgroup || itemSubgroup(name, cat),
         requested_name: name,
       })
       .eq("user_id", context.userId)
@@ -377,7 +438,14 @@ export const updateItemIcon = createServerFn({ method: "POST" })
       return { ok: false, error: error.message };
     }
     if (!row?.image_url) return { ok: false, error: "수정할 생성 품목을 찾지 못했습니다." };
-    return { ok: true, itemId: row.item_id, name, cat, subgroup: itemSubgroup(name, cat), iconUrl: row.image_url };
+    return {
+      ok: true,
+      itemId: row.item_id,
+      name,
+      cat,
+      subgroup: data.subgroup || itemSubgroup(name, cat),
+      iconUrl: row.image_url,
+    };
   });
 
 /** 생성 품목을 지우지 않고 비활성화하여 지난 견적 기록을 보존합니다. */
