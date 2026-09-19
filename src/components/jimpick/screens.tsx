@@ -4033,6 +4033,17 @@ export function Step6() {
 
 // ============ AI Recognition ============
 export function AIRecognition() {
+  const { features, loaded } = useExperimentalFeatures();
+  const allowed =
+    features.isSuperAdmin &&
+    (features.voiceItemInput || features.aiPhotoScan || features.aiVideoScan);
+  // 메뉴·라우트 가드와 별도로 컴포넌트 자체도 차단합니다.
+  // 권한 확인 전에는 AI 화면을 한 프레임도 렌더링하지 않습니다.
+  if (!loaded || !allowed) return <Step6 />;
+  return <AIRecognitionLab />;
+}
+
+function AIRecognitionLab() {
   const { draft, updateDraft, setScreen, currentRoomId, setCurrentRoom } = useApp();
   const { blocked: entBlocked } = useEntitlement();
   const { features } = useExperimentalFeatures();
