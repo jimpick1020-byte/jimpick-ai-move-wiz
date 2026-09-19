@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { itemSubgroup } from "@/lib/item-groups";
+import { kindOf, guessKind } from "@/lib/item-kinds";
 
 /** 한 업체가 하루에 만들 수 있는 3D 아이콘 개수 (비용 폭주 방지) */
 export const ICON_DAILY_LIMIT = 20;
@@ -69,6 +70,8 @@ export interface IconResult {
   cat?: string;
   subgroup?: string;
   size?: "소형" | "중형" | "대형";
+  /** 차량 계산에 쓰는 기본 부피(루베) */
+  volume?: number;
   room?: string;
   /** 화면에서 쓰는 아이콘 주소 */
   iconUrl?: string;
@@ -397,6 +400,8 @@ const updateSchema = z.object({
   itemId: z.string().min(1).max(80),
   name: z.string().min(1).max(40),
   cat: z.string().min(1).max(20).optional(),
+  /** 자리이동(품목 그룹 변경) — 새로고침 후에도 유지됩니다 */
+  subgroup: z.string().min(1).max(20).optional(),
 });
 
 /** 생성 품목의 표시 이름을 업체 소유 행에 영구 저장합니다. */
@@ -418,7 +423,7 @@ export const updateItemIcon = createServerFn({ method: "POST" })
         normalized_name: norm,
         category_group: cat,
         cat,
-        subcategory_group: itemSubgroup(name, cat),
+        subcategory_group: data.subgroup || itemSubgroup(name, cat),
         requested_name: name,
       })
       .eq("user_id", context.userId)
@@ -431,7 +436,14 @@ export const updateItemIcon = createServerFn({ method: "POST" })
       return { ok: false, error: error.message };
     }
     if (!row?.image_url) return { ok: false, error: "수정할 생성 품목을 찾지 못했습니다." };
-    return { ok: true, itemId: row.item_id, name, cat, subgroup: itemSubgroup(name, cat), iconUrl: row.image_url };
+    return {
+      ok: true,
+      itemId: row.item_id,
+      name,
+      cat,
+      subgroup: data.subgroup || itemSubgroup(name, cat),
+      iconUrl: row.image_url,
+    };
   });
 
 /** 생성 품목을 지우지 않고 비활성화하여 지난 견적 기록을 보존합니다. */
