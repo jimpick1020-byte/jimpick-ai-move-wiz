@@ -2235,7 +2235,11 @@ export function Step6() {
     room: string;
     /** 현장에서 찍은 사진 (없어도 됩니다) */
     photo?: string;
+    /** 같은 이름이 있어도 새로 만듭니다 (이미지 다시 만들기) */
+    force?: boolean;
   } | null>(null);
+  /** 품목 그룹(자리) 이동 창 */
+  const [groupMove, setGroupMove] = useState<{ id: string; name: string } | null>(null);
   /** 비슷한 이름의 기존 품목이 있을 때 물어봅니다 */
   const [iconSimilar, setIconSimilar] = useState<{ id: string; name: string } | null>(null);
   const [iconBusy, setIconBusy] = useState(false);
@@ -2359,7 +2363,7 @@ export function Step6() {
       return;
     }
     const normalized = normItemName(name);
-    if (!opts?.force) {
+    if (!opts?.force && !iconGen.force) {
       const exact = catalog.find((item) => normItemName(item.name) === normalized);
       if (exact) {
         useExistingItem(exact.id, exact.name);
@@ -3558,6 +3562,60 @@ export function Step6() {
                         자리 이동
                       </button>
                     )}
+                    <button
+                      onClick={() => {
+                        const it = catalog.find((c) => c.id === itemMenu);
+                        const c = (draft.customItems || []).find((x) => x.id === itemMenu);
+                        const nm = it?.name || itemNameById(itemMenu) || "품목";
+                        const group = c?.subgroup || itemSubgroup(nm, it?.cat || c?.cat || "기타");
+                        const vol = c?.extra ?? it?.extra ?? 0;
+                        toast.success(
+                          `${nm} · ${group}${vol ? ` · 기본 부피 ${vol}루베` : ""}${
+                            room && itemMenu in room.items ? ` · ${room.name} ${room.items[itemMenu]}개` : ""
+                          }`,
+                        );
+                      }}
+                      className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3.5 font-black text-[14px] text-[#25282D] shadow-[0_3px_0_#F7F8F5]"
+                    >
+                      품목정보 보기
+                    </button>
+                    {itemMenu.startsWith("ci_") && (
+                      <button
+                        onClick={() => {
+                          const nm =
+                            catalog.find((c) => c.id === itemMenu)?.name ||
+                            itemNameById(itemMenu) ||
+                            "품목";
+                          setGroupMove({ id: itemMenu, name: nm });
+                          setItemMenu(null);
+                        }}
+                        className="w-full rounded-2xl border border-[#CFE0F7] bg-white py-3.5 font-black text-[14px] text-[#2A6FD6] shadow-[0_3px_0_#EAF2FC]"
+                      >
+                        품목 그룹 이동
+                      </button>
+                    )}
+                    {itemMenu.startsWith("ci_ai_") && (
+                      <button
+                        onClick={() => {
+                          const nm =
+                            catalog.find((c) => c.id === itemMenu)?.name ||
+                            itemNameById(itemMenu) ||
+                            "품목";
+                          setIconError(null);
+                          setIconSimilar(null);
+                          setIconGen({
+                            name: nm,
+                            kind: guessKind(nm),
+                            room: room?.name || "",
+                            force: true,
+                          });
+                          setItemMenu(null);
+                        }}
+                        className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3.5 font-black text-[14px] text-[#25282D] shadow-[0_3px_0_#F7F8F5]"
+                      >
+                        이미지 다시 만들기
+                      </button>
+                    )}
                     {itemMenu.startsWith("ci_") && (
                       <button
                         onClick={() => openEditItem(itemMenu)}
@@ -3587,6 +3645,60 @@ export function Step6() {
                       닫기
                     </button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* 품목 그룹 이동 — 저장해서 새로고침 후에도 유지합니다 */}
+            {groupMove && (
+              <div className="absolute inset-0 z-30 flex items-end justify-center">
+                <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => setGroupMove(null)} />
+                <div className="relative max-h-[80%] w-full overflow-auto rounded-t-3xl bg-white p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                  <div className="text-[16px] font-black text-[#25282D]">
+                    「{groupMove.name}」 품목 그룹 이동
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {ITEM_KINDS.map((k) => (
+                      <button
+                        key={k.label}
+                        onClick={async () => {
+                          const kind = kindOf(k.label);
+                          const saved = await updateItemIcon({
+                            data: {
+                              itemId: groupMove.id,
+                              name: groupMove.name,
+                              cat: kind.cat,
+                              subgroup: kind.label,
+                            },
+                          });
+                          if (!saved.ok) {
+                            toast.error(saved.error || "자리 이동을 저장하지 못했습니다");
+                            return;
+                          }
+                          updateDraft({
+                            customItems: (draft.customItems || []).map((c) =>
+                              c.id === groupMove.id
+                                ? { ...c, cat: kind.cat, subgroup: kind.label }
+                                : c,
+                            ),
+                          });
+                          setTab(cat5For(kind.cat, kind.cat));
+                          setGroupMove(null);
+                          tap("success");
+                          toast.success(`「${groupMove.name}」을(를) ${kind.label} 그룹으로 옮겼습니다`);
+                        }}
+                        className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2 text-[13px] font-black text-[#25282D] shadow-[0_3px_0_#F7F8F5]"
+                      >
+                        {k.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setGroupMove(null)}
+                    className="mt-3 w-full py-3 text-[14px] font-bold text-[#94A3B8]"
+                  >
+                    닫기
+                  </button>
                 </div>
               </div>
             )}
