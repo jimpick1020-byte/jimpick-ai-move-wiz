@@ -9,8 +9,8 @@
 
 const SW_URL = "/sw.js";
 /** 이번 방문에서 이미 한 번 새로고침했는지 (무한 새로고침 방지) */
-const RELOADED_KEY = "jimpick_sw_reloaded";
 const CACHE_VERSION = "v9-ai-access";
+const RELOADED_KEY = `jimpick_sw_reloaded_${CACHE_VERSION}`;
 
 async function cleanupOldCaches() {
   if (typeof caches === "undefined") return;
