@@ -481,6 +481,36 @@ export type Database = {
           },
         ]
       }
+      experimental_feature_settings: {
+        Row: {
+          ai_photo_scan: boolean
+          ai_video_scan: boolean
+          created_at: string
+          setting_key: string
+          updated_at: string
+          updated_by: string | null
+          voice_item_input: boolean
+        }
+        Insert: {
+          ai_photo_scan?: boolean
+          ai_video_scan?: boolean
+          created_at?: string
+          setting_key?: string
+          updated_at?: string
+          updated_by?: string | null
+          voice_item_input?: boolean
+        }
+        Update: {
+          ai_photo_scan?: boolean
+          ai_video_scan?: boolean
+          created_at?: string
+          setting_key?: string
+          updated_at?: string
+          updated_by?: string | null
+          voice_item_input?: boolean
+        }
+        Relationships: []
+      }
       item_icons: {
         Row: {
           active: boolean
