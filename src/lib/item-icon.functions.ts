@@ -91,6 +91,8 @@ const inputSchema = z.object({
   volume: z.number().min(0).max(5).optional(),
   /** 사장님이 현장에서 찍은 사진 (data URL). 있으면 이 사진을 참고해 그립니다 */
   photo: z.string().min(32).max(9_000_000).optional(),
+  /** 「이미지 다시 만들기」 — 같은 품목의 그림을 새로 만듭니다 */
+  force: z.boolean().optional(),
 });
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
