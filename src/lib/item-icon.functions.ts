@@ -306,44 +306,67 @@ export const generateItemIcon = createServerFn({ method: "POST" })
     const size = data.size ?? (volume >= 1 ? "대형" : volume >= 0.5 ? "중형" : "소형");
 
     // ③ 생성 기록을 먼저 남깁니다 (실패해도 원인이 남습니다)
-    const itemId = `ci_ai_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
-    const inserted = await context.supabase
-      .from("item_icons")
-      .insert({
-        user_id: context.userId,
-        created_by: context.userId,
-        item_id: itemId,
-        name,
-        norm_name: norm,
-        cat: data.cat,
-        display_name: name,
-        normalized_name: norm,
-        category_group: data.cat,
-        subcategory_group: subgroup,
-        size_label: size,
-        room: data.room,
-        status: "pending",
-        prompt,
-        original_name: name,
-        requested_name: name,
-        generation_prompt: prompt,
-        generation_id: itemId,
-        is_generated: true,
-        sort_order: -Math.floor(Date.now() / 1000),
-        source: "company",
-        default_volume: volume,
-        from_photo: !!data.photo,
-        metadata: { display_name: name, room: data.room, size, kind: kind.label, volume },
-        active: true,
-      })
-      .select("id")
-      .single();
-    if (inserted.error) {
-      if (inserted.error.code === "23505" || inserted.error.message.includes("duplicate"))
-        return { ok: false, error: "이미 같은 품목명의 아이콘을 만들고 있습니다. 잠시 후 다시 확인해 주세요." };
-      return { ok: false, error: inserted.error.message };
+    //    다시 만들기는 새 행을 만들지 않고 기존 품목 행의 그림만 바꿉니다
+    let rowId: string;
+    let itemId: string;
+    if (regenRow) {
+      rowId = regenRow.id as string;
+      itemId = regenRow.item_id as string;
+      const marked = await context.supabase
+        .from("item_icons")
+        .update({
+          prompt,
+          generation_prompt: prompt,
+          subcategory_group: subgroup,
+          size_label: size,
+          default_volume: volume,
+          from_photo: !!data.photo,
+          metadata: { display_name: name, room: data.room, size, kind: kind.label, volume },
+        })
+        .eq("id", rowId)
+        .eq("user_id", context.userId);
+      if (marked.error) return { ok: false, error: marked.error.message };
+    } else {
+      itemId = `ci_ai_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+      const inserted = await context.supabase
+        .from("item_icons")
+        .insert({
+          user_id: context.userId,
+          created_by: context.userId,
+          item_id: itemId,
+          name,
+          norm_name: norm,
+          cat: data.cat,
+          display_name: name,
+          normalized_name: norm,
+          category_group: data.cat,
+          subcategory_group: subgroup,
+          size_label: size,
+          room: data.room,
+          status: "pending",
+          prompt,
+          original_name: name,
+          requested_name: name,
+          generation_prompt: prompt,
+          generation_id: itemId,
+          is_generated: true,
+          sort_order: -Math.floor(Date.now() / 1000),
+          source: "company",
+          default_volume: volume,
+          from_photo: !!data.photo,
+          metadata: { display_name: name, room: data.room, size, kind: kind.label, volume },
+          active: true,
+        })
+        .select("id")
+        .single();
+      if (inserted.error) {
+        if (inserted.error.code === "23505" || inserted.error.message.includes("duplicate"))
+          return { ok: false, error: "이미 같은 품목명의 아이콘을 만들고 있습니다. 잠시 후 다시 확인해 주세요." };
+        return { ok: false, error: inserted.error.message };
+      }
+      rowId = inserted.data.id as string;
     }
-    const rowId = inserted.data.id as string;
+
 
     const fail = async (message: string): Promise<IconResult> => {
       await context.supabase
