@@ -281,12 +281,20 @@ export const generateItemIcon = createServerFn({ method: "POST" })
 
     const prompt = [
       `A single 3D rendered app icon of one Korean household moving item: "${name}".`,
+      data.photo
+        ? "Redraw the object shown in the reference photo as this icon, keeping its real shape, proportion and colour."
+        : "",
       "Style: soft glossy 3D render, white and light-grey body with small blue (#2A6FD6) accents,",
       "isometric three-quarter view, centered, one object only, plain pure white background,",
       "clean silhouette that stays readable at 40px, soft shadow.",
       "No text, no letters, no logo, no watermark, no border, no frame, no people, no extra objects.",
-    ].join(" ");
-    const subgroup = itemSubgroup(name, data.cat);
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const kind = kindOf(data.kind ?? guessKind(name));
+    const subgroup = data.kind ? kind.label : itemSubgroup(name, data.cat);
+    const volume = data.volume ?? kind.volume;
+    const size = data.size ?? (volume >= 1 ? "대형" : volume >= 0.5 ? "중형" : "소형");
 
     // ③ 생성 기록을 먼저 남깁니다 (실패해도 원인이 남습니다)
     const itemId = `ci_ai_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
