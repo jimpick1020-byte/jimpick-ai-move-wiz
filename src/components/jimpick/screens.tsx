@@ -234,6 +234,7 @@ import {
   Hand,
   Calculator,
   Box,
+  Sofa,
 } from "lucide-react";
 import houseImg from "@/assets/step6-house.png";
 
@@ -3256,77 +3257,139 @@ export function Step6() {
                   onClick={() => !iconBusy && setIconGen(null)}
                 />
                 <div className="relative max-h-[88%] w-full overflow-auto rounded-t-3xl bg-white p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                  <div className="text-[18px] font-black text-[#25282D]">3D 아이콘 만들기</div>
+                  <div className="text-[18px] font-black text-[#25282D]">목록에 없는 품목 추가</div>
                   <p className="mt-1 text-[12.5px] font-bold text-[#6B7280]">
-                    품목명을 확인하고 만들면 이 품목의 3D 아이콘이 새로 그려집니다
+                    품목 이름과 사진을 등록하면 지금 열어 둔 공간과 알맞은 품목 그룹에 자동으로
+                    들어갑니다
                   </p>
 
                   <div className="mt-3 space-y-3">
-                    <Field label="품목명 — 오타가 있으면 고쳐 주세요">
+                    <Field label="품목 이름">
                       <TextInput
                         value={iconGen.name}
                         maxLength={24}
-                        placeholder="예: 정수기냉장고"
+                        placeholder="예: 흙침대"
                         onChange={(e) => {
                           const name = e.target.value;
-                          setIconGen((f) => (f ? { ...f, name } : f));
+                          setIconGen((f) =>
+                            f ? { ...f, name, kind: f.kind === "기타" ? guessKind(name) : f.kind } : f,
+                          );
                         }}
                       />
                     </Field>
 
+                    {/* 품목 사진 — 촬영하거나 갤러리에서 고릅니다 */}
                     <div>
-                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">품목 분류</div>
+                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">
+                        품목 사진 (없어도 추가할 수 있습니다)
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <label className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-[#3578C8] bg-[#F8FBFF] py-3 text-[13.5px] font-black text-[#2A6FD6] active:translate-y-[1px]">
+                          <CamIcon className="h-5 w-5" />
+                          {iconGen.photo ? "사진 다시 고르기" : "사진 촬영 · 선택"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              if (!file) return;
+                              try {
+                                const photo = await shrinkPhoto(file);
+                                setIconError(null);
+                                setIconGen((f) => (f ? { ...f, photo } : f));
+                              } catch {
+                                setIconError("사진을 불러오지 못했습니다.");
+                              }
+                            }}
+                          />
+                        </label>
+                        {iconGen.photo && (
+                          <img
+                            src={iconGen.photo}
+                            alt="고른 품목 사진"
+                            className="h-14 w-14 rounded-xl border border-[#E5E7EB] object-cover"
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">품목 종류</div>
                       <div className="flex flex-wrap gap-2">
-                        {["가전", "가구", "주방", "생활용품", "특수"].map((c) => (
+                        {ITEM_KINDS.map((k) => (
                           <button
-                            key={c}
-                            onClick={() => setIconGen((f) => (f ? { ...f, cat: c } : f))}
-                            className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black ${
-                              iconGen.cat === c
+                            key={k.label}
+                            onClick={() => setIconGen((f) => (f ? { ...f, kind: k.label } : f))}
+                            className={`rounded-2xl px-3 py-2 text-[13px] font-black ${
+                              iconGen.kind === k.label
                                 ? "bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white shadow-[0_3px_0_#285C99]"
                                 : "border border-[#E5E7EB] bg-white text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
                             }`}
                           >
-                            {c}
+                            {k.label}
                           </button>
                         ))}
                       </div>
                     </div>
 
                     <div>
-                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">
-                        크기 — 부피(루베)에 함께 반영됩니다
-                      </div>
+                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">추가할 공간</div>
                       <div className="flex flex-wrap gap-2">
-                        {[
-                          { label: "소형", extra: 0 },
-                          { label: "중형", extra: 0.5 },
-                          { label: "대형", extra: 1 },
-                        ].map((s) => (
+                        {[...new Set([...sizeRooms, ...draft.rooms.map((r) => r.name)])].map((rn) => (
                           <button
-                            key={s.label}
-                            onClick={() =>
-                              setIconGen((f) =>
-                                f ? { ...f, size: s.label as "소형" | "중형" | "대형", extra: s.extra } : f,
-                              )
-                            }
-                            className={`rounded-2xl px-3.5 py-2 text-[13.5px] font-black ${
-                              iconGen.size === s.label
+                            key={rn}
+                            onClick={() => setIconGen((f) => (f ? { ...f, room: rn } : f))}
+                            className={`rounded-2xl px-3 py-2 text-[13px] font-black ${
+                              iconGen.room === rn
                                 ? "bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white shadow-[0_3px_0_#285C99]"
                                 : "border border-[#E5E7EB] bg-white text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
                             }`}
                           >
-                            {s.label}
+                            {rn}
                           </button>
                         ))}
                       </div>
                     </div>
+
+                    {iconSimilar && !iconBusy && (
+                      <div className="rounded-2xl border border-[#FDE68A] bg-[#FFFBEB] p-3">
+                        <p className="text-[13px] font-black text-[#25282D]">
+                          비슷한 품목이 있습니다. 기존 품목을 사용할까요?
+                        </p>
+                        <p className="mt-1 text-[12.5px] font-bold text-[#6B7280]">
+                          「{iconSimilar.name}」
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button
+                            onClick={() => useExistingItem(iconSimilar.id, iconSimilar.name)}
+                            className="rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] px-3 py-2 text-[13px] font-black text-white"
+                          >
+                            기존 품목 사용
+                          </button>
+                          <button
+                            onClick={() => void runIconGen({ force: true })}
+                            className="rounded-2xl border border-[#3578C8] bg-white px-3 py-2 text-[13px] font-black text-[#2A6FD6]"
+                          >
+                            새 품목으로 추가
+                          </button>
+                          <button
+                            onClick={() => setIconSimilar(null)}
+                            className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2 text-[13px] font-black text-[#6B7280]"
+                          >
+                            취소
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     {iconBusy && (
                       <div className="flex items-center justify-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F8FBFF] py-5">
                         <span className="h-6 w-6 animate-spin rounded-full border-[3px] border-[#E5E7EB] border-t-[#3578C8]" />
                         <span className="text-[13.5px] font-black text-[#25282D]">
-                          3D 아이콘 생성 중
+                          품목을 추가하는 중
                         </span>
                       </div>
                     )}
@@ -3334,7 +3397,7 @@ export function Step6() {
                     {!iconBusy && iconError && (
                       <div className="rounded-2xl border border-[#FBD5D5] bg-[#FFF5F5] p-3">
                         <p className="text-[13px] font-black text-[#D95C5C]">
-                          아이콘을 만들지 못했습니다
+                          품목을 추가하지 못했습니다
                         </p>
                         <p className="mt-1 break-words text-[12.5px] font-bold text-[#7A271A]">
                           {iconError}
@@ -3351,11 +3414,11 @@ export function Step6() {
                         취소
                       </button>
                       <button
-                        onClick={runIconGen}
+                        onClick={() => void runIconGen()}
                         disabled={iconBusy || cleanItemName(iconGen.name).length < 2}
                         className="flex-1 rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-3.5 text-[15px] font-black text-white shadow-[0_4px_0_#285C99] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
                       >
-                        {iconBusy ? "생성 중…" : iconError ? "다시 생성" : "3D 아이콘 생성"}
+                        {iconBusy ? "추가 중…" : iconError ? "다시 시도" : "추가하기"}
                       </button>
                     </div>
                   </div>
