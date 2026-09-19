@@ -215,6 +215,8 @@ import {
 import { itemSubgroup, sortByGroup, itemSubRank } from "@/lib/item-groups";
 import { ITEM_KINDS, kindOf, guessKind } from "@/lib/item-kinds";
 import { shrinkPhoto } from "@/lib/photo-shrink";
+import { useExperimentalFeatures } from "@/lib/use-experimental-features";
+import { ExperimentalFeatureSettings } from "./admin";
 
 /** 공간별 품목 접기·펼치기 상태를 기억하는 자리 */
 const ROOM_OPEN_KEY = "jimpick_step6_open_rooms";
@@ -270,8 +272,10 @@ function itemFamily(name: string, fallback: string) {
 export function Splash() {
   const { setScreen, loggedIn, resetDraft } = useApp();
   // 음성 입력·AI 사진 인식은 아직 시험 기능이라 일반 사장님 화면에서는 감춥니다
-  const { entitlement: splashEnt } = useEntitlement();
-  const showLab = !!splashEnt?.isSuperAdmin;
+  const { features: splashFeatures } = useExperimentalFeatures();
+  const showVoiceLab = splashFeatures.isSuperAdmin && splashFeatures.voiceItemInput;
+  const showVisionLab =
+    splashFeatures.isSuperAdmin && (splashFeatures.aiPhotoScan || splashFeatures.aiVideoScan);
   const [typedText, setTypedText] = useState("");
   const fullText = "AI로 견적을 받아보세요!";
 
@@ -309,9 +313,9 @@ export function Splash() {
   }[] = [
     { icon: FileText, label: "간편한 견적 작성" },
     { icon: Box, label: "목록에 없는 물건도 바로 추가" },
-    ...(showLab
+    ...(showVisionLab ? [{ icon: CamIcon, label: "AI 사진 인식" }] : []),
+    ...(showVoiceLab
       ? [
-          { icon: CamIcon, label: "AI 사진 인식" },
           {
             icon: Mic,
             label: "음성으로 간편 입력",
@@ -1674,12 +1678,15 @@ export function Step3() {
 // ============ Step 4: Vehicles ============
 export function Step4() {
   const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
+  const { features } = useExperimentalFeatures();
   const ladderUnit = getPricing().ladder;
   const goNext = () => {
     const first = draft.rooms[0];
     if (first) setCurrentRoom(first.id);
-    // 차량을 고른 뒤 AI 스캔으로 넘어갑니다 (건너뛰면 바로 5단계)
-    setScreen("ai");
+    const canTestAi =
+      features.isSuperAdmin &&
+      (features.voiceItemInput || features.aiPhotoScan || features.aiVideoScan);
+    setScreen(canTestAi ? "ai" : "step6");
   };
   const vehicles = [
     {
@@ -4028,6 +4035,11 @@ export function Step6() {
 export function AIRecognition() {
   const { draft, updateDraft, setScreen, currentRoomId, setCurrentRoom } = useApp();
   const { blocked: entBlocked } = useEntitlement();
+  const { features } = useExperimentalFeatures();
+  const showVoice = features.isSuperAdmin && features.voiceItemInput;
+  const showPhoto = features.isSuperAdmin && features.aiPhotoScan;
+  const showVideo = features.isSuperAdmin && features.aiVideoScan;
+  const showVision = showPhoto || showVideo;
   const [results, setResults] = useState<DetectedItem[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [photoUrl, setPhotoUrl] = useState<string>("");
@@ -4525,8 +4537,7 @@ export function AIRecognition() {
     <MobileShell className="jp-estimate-flow jp-tone-ai">
       <TopBar title="AI 집 안 스캔" onBack={() => setScreen("step4")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
-        {/* 마스코트가 직접 촬영해 주는 히어로 영역 */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#EDF5FF] to-[#DCEBFF] px-5 pt-4 pb-5 text-center">
+        {showVision && <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#EDF5FF] to-[#DCEBFF] px-5 pt-4 pb-5 text-center">
           <ScanMascot state={mascotState} size={164} className="mx-auto" />
           <div className="mt-1 text-[17px] font-black text-[#25282D]">
             {busy ? "집 안을 살펴보는 중이에요" : "제가 대신 찍어 드릴게요"}
@@ -4536,7 +4547,7 @@ export function AIRecognition() {
               ? "가구·가전을 찾아 수량을 세고 있습니다"
               : "방을 한 바퀴 비추면 AI가 품목을 알아서 담아요"}
           </p>
-        </div>
+        </div>}
 
         {(videoUrl || photoUrl) && (
           <Card className="py-4">
@@ -4581,6 +4592,7 @@ export function AIRecognition() {
           </div>
         </div>
 
+        {showVoice && <>
         {/* 음성으로 바로 담기 — 말하면 그대로 들어갑니다 */}
         <button
           onClick={() => (listening ? stopVoice() : startVoice())}
@@ -4682,14 +4694,17 @@ export function AIRecognition() {
             담기
           </button>
         </div>
+        </>}
 
+        {showVision && <>
         {/* 지금 어느 방에 저장되는지 촬영 버튼 위에 분명히 보여 줍니다 */}
         <div className="rounded-2xl bg-[#F7F8F5] px-4 py-2.5 text-center text-[14px] font-black text-[#25282D]">
           현재 선택: {targetRoom ? targetRoom.name : "공간을 먼저 선택해 주세요"}
         </div>
 
         {/* 촬영 — 사진 / 동영상 */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${showPhoto && showVideo ? "grid-cols-2" : "grid-cols-1"}`}>
+          {showPhoto && (
           <label
             className={`flex flex-col items-center gap-1.5 rounded-3xl py-4 text-white shadow-[0_5px_0_#285C99,inset_0_1px_0_rgba(255,255,255,0.4)] transition-transform active:translate-y-[3px] active:shadow-none ${
               busy ? "pointer-events-none opacity-60" : "cursor-pointer"
@@ -4711,7 +4726,9 @@ export function AIRecognition() {
               }}
             />
           </label>
+          )}
 
+          {showVideo && (
           <label
             className={`flex flex-col items-center gap-1.5 rounded-3xl py-4 text-white shadow-[0_5px_0_#7A1FB0,inset_0_1px_0_rgba(255,255,255,0.4)] transition-transform active:translate-y-[3px] active:shadow-none ${
               busy ? "pointer-events-none opacity-60" : "cursor-pointer"
@@ -4733,9 +4750,11 @@ export function AIRecognition() {
               }}
             />
           </label>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${showPhoto && showVideo ? "grid-cols-2" : "grid-cols-1"}`}>
+          {showPhoto && (
           <label className="py-4 rounded-2xl bg-white border border-[#E5E7EB] font-semibold flex items-center justify-center gap-2 cursor-pointer">
             <ImageIcon className="w-5 h-5" /> 사진 불러오기
             <input
@@ -4748,6 +4767,8 @@ export function AIRecognition() {
               }}
             />
           </label>
+          )}
+          {showVideo && (
           <label className="py-4 rounded-2xl bg-white border border-[#E5E7EB] font-semibold flex items-center justify-center gap-2 cursor-pointer">
             <ImageIcon className="w-5 h-5" /> 동영상 불러오기
             <input
@@ -4760,7 +4781,9 @@ export function AIRecognition() {
               }}
             />
           </label>
+          )}
         </div>
+        </>}
 
         {busy && (
           <Card className="py-5 text-center">
@@ -7322,6 +7345,7 @@ export function SettingsScreen() {
             </div>
           </button>
         )}
+        <ExperimentalFeatureSettings />
         <button
           onClick={() => {
             tap();
