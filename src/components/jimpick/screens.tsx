@@ -269,6 +269,9 @@ function itemFamily(name: string, fallback: string) {
 
 export function Splash() {
   const { setScreen, loggedIn, resetDraft } = useApp();
+  // 음성 입력·AI 사진 인식은 아직 시험 기능이라 일반 사장님 화면에서는 감춥니다
+  const { entitlement: splashEnt } = useEntitlement();
+  const showLab = !!splashEnt?.isSuperAdmin;
   const [typedText, setTypedText] = useState("");
   const fullText = "AI로 견적을 받아보세요!";
 
@@ -305,13 +308,18 @@ export function Splash() {
     ariaLabel?: string;
   }[] = [
     { icon: FileText, label: "간편한 견적 작성" },
-    { icon: CamIcon, label: "AI 사진 인식" },
-    {
-      icon: Mic,
-      label: "음성으로 간편 입력",
-      onClick: goVoiceInput,
-      ariaLabel: "음성으로 간편 입력 — 눌러서 음성 입력 시작",
-    },
+    { icon: Box, label: "목록에 없는 물건도 바로 추가" },
+    ...(showLab
+      ? [
+          { icon: CamIcon, label: "AI 사진 인식" },
+          {
+            icon: Mic,
+            label: "음성으로 간편 입력",
+            onClick: goVoiceInput,
+            ariaLabel: "음성으로 간편 입력 — 눌러서 음성 입력 시작",
+          },
+        ]
+      : []),
     { icon: MapPin, label: "정확한 거리·시간" },
     { icon: Sparkles, label: "맞춤형 견적 제공" },
     { icon: UserCircle, label: "고객 관리 & 기록" },
@@ -3033,6 +3041,11 @@ export function Step6() {
               </button>
             </div>
 
+
+            <p className="px-4 pt-1.5 text-[11.5px] font-bold leading-snug text-[#9AA4B2]">
+              찾는 품목이 없으면 「목록에 없는 품목 추가」를 눌러 품목 이름과 사진을 등록하세요.
+              추가한 품목은 현재 방과 알맞은 품목 그룹에 자동으로 들어갑니다.
+            </p>
 
             {pickerOpen && (
               <div className="flex-1 min-h-[44dvh] overflow-auto px-4 pt-3 space-y-3" {...tabSwipe}>
