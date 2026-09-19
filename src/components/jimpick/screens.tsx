@@ -2316,15 +2316,19 @@ export function Step6() {
             : c,
         )
       : [...list, { id: itemId, name, cat, subgroup: res.subgroup, size: res.size, extra, icon: iconUrl, active: true }];
-    const nextRooms = rooms.map((r) =>
-      r.id === target.id
-        ? { ...r, items: { ...r.items, [itemId]: (r.items[itemId] ?? 0) + addQty } }
-        : r,
-    );
+    const nextRooms =
+      addQty <= 0
+        ? rooms
+        : rooms.map((r) =>
+            r.id === target.id
+              ? { ...r, items: { ...r.items, [itemId]: (r.items[itemId] ?? 0) + addQty } }
+              : r,
+          );
     // 담기 결과가 실제로 반영됐는지 확인한 뒤에만 완료로 처리합니다
     const placed = nextRooms.find((r) => r.id === target.id)?.items[itemId] ?? 0;
-    if (!nextCustom.some((c) => c.id === itemId) || placed < 1)
+    if (!nextCustom.some((c) => c.id === itemId) || (addQty > 0 && placed < 1))
       return "품목을 공간에 담지 못했습니다. 다시 시도해 주세요.";
+
 
     updateDraft({
       customItems: nextCustom,
