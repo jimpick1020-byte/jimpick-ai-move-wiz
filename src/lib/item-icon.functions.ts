@@ -244,15 +244,16 @@ export const generateItemIcon = createServerFn({ method: "POST" })
       return { ok: false, error: "이 품목명으로는 아이콘을 만들 수 없습니다. 이삿짐 품목 이름으로 바꿔 주세요." };
 
     // ① 이미 만들어 둔 아이콘이 있으면 그대로 씁니다
+    //    (「이미지 다시 만들기」인 경우에는 같은 품목 행에 새 그림을 다시 만들어 넣습니다)
     const existing = await context.supabase
       .from("item_icons")
-      .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url")
+      .select("id, item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url")
       .eq("user_id", context.userId)
       .eq("normalized_name", norm)
       .eq("active", true)
       .eq("status", "ready")
       .maybeSingle();
-    if (existing.data?.image_url) {
+    if (existing.data?.image_url && !data.force) {
       return {
         ok: true,
         reused: true,
@@ -265,6 +266,9 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         iconUrl: existing.data.image_url,
       };
     }
+    /** 다시 만들 기존 품목 행 (있으면 같은 품목 id·수량을 그대로 유지합니다) */
+    const regenRow = data.force && existing.data?.id ? existing.data : null;
+
 
     // ② 하루 생성 횟수 제한
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
