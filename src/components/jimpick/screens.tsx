@@ -2354,15 +2354,40 @@ export function Step6() {
     return null;
   };
 
-  /** 기존 품목을 지금 공간에 1개 담습니다 (중복 생성 대신) */
+  /** 기존 품목을 「추가할 공간」으로 고른 공간에 1개 더 담습니다 (중복 생성 대신) */
   const useExistingItem = (id: string, name: string) => {
-    const target = draft.rooms.find((r) => r.name === (iconGen?.room || room?.name));
-    setQty(id, (target?.items[id] ?? 0) + 1, name);
+    const roomName = iconGen?.room || room?.name || "";
+    if (!roomName) {
+      setQty(id, 1, name);
+    } else {
+      // 고른 공간이 목록에 없으면 먼저 만들고, 그 공간의 수량만 1개 올립니다
+      let rooms = draft.rooms;
+      if (!rooms.some((r) => r.name === roomName))
+        rooms = [...rooms, { id: `r_${roomName}`, name: roomName, items: {} as Record<string, number> }];
+      updateDraft({
+        rooms: rooms.map((r) =>
+          r.name === roomName ? { ...r, items: { ...r.items, [id]: (r.items[id] ?? 0) + 1 } } : r,
+        ),
+        recentItems: [id, ...(draft.recentItems || []).filter((x) => x !== id)].slice(0, 12),
+      });
+      setOpenRooms((prev) => {
+        const cur = prev ?? [];
+        if (cur.includes(roomName)) return cur;
+        const next = [...cur, roomName];
+        try {
+          localStorage.setItem(ROOM_OPEN_KEY, JSON.stringify(next));
+        } catch {
+          /* 저장 공간이 없어도 화면 표시는 그대로입니다 */
+        }
+        return next;
+      });
+      toast.success(`「${name}」을(를) ${roomName}에 담았습니다`);
+    }
     setIconGen(null);
     setIconSimilar(null);
     setQ("");
-    toast.success("이미 등록된 품목입니다. 기존 품목을 추가했습니다.");
   };
+
 
   /** 「목록에 없는 품목 추가」 — 저장·이미지 생성·현재 공간 담기를 한 번에 합니다 */
   const runIconGen = async (opts?: { force?: boolean }) => {
