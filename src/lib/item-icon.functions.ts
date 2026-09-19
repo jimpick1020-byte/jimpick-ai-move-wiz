@@ -80,28 +80,70 @@ const inputSchema = z.object({
   name: z.string().min(1).max(40),
   cat: z.string().min(1).max(20),
   room: z.string().min(1).max(20),
-  size: z.enum(["소형", "중형", "대형"]),
+  /** 품목 종류(= 품목 그룹). 없으면 이름으로 자동 분류합니다 */
+  kind: z.string().min(1).max(20).optional(),
+  /** 화면에서는 묻지 않습니다 — 종류별 기본 부피로 서버가 정합니다 */
+  size: z.enum(["소형", "중형", "대형"]).optional(),
+  /** 차량 계산용 기본 부피(루베) — 종류별 기본값 */
+  volume: z.number().min(0).max(5).optional(),
+  /** 사장님이 현장에서 찍은 사진 (data URL). 있으면 이 사진을 참고해 그립니다 */
+  photo: z.string().min(32).max(9_000_000).optional(),
 });
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function requestImage(key: string, prompt: string): Promise<Response> {
+/** data URL → 업로드용 파일 (사진을 참고 이미지로 넘길 때 사용) */
+function photoToBlob(dataUrl: string): { blob: Blob; filename: string } | null {
+  const match = dataUrl.match(/^data:(image\/(png|jpe?g|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) return null;
+  try {
+    const bytes = Uint8Array.from(atob(match[3]), (c) => c.charCodeAt(0));
+    if (bytes.byteLength < 100) return null;
+    const ext = match[1] === "image/png" ? "png" : match[1] === "image/webp" ? "webp" : "jpg";
+    return { blob: new Blob([bytes], { type: match[1] }), filename: `photo.${ext}` };
+  } catch {
+    return null;
+  }
+}
+
+async function requestImage(key: string, prompt: string, photo?: string): Promise<Response> {
+  const file = photo ? photoToBlob(photo) : null;
+  if (photo && !file) return new Response("사진을 불러오지 못했습니다.", { status: 400 });
+
   let last: Response | undefined;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     if (attempt > 0) await wait(700 * 2 ** (attempt - 1) + Math.floor(Math.random() * 250));
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "openai/gpt-image-2.5-sunburst",
-        prompt,
-        size: "1024x1024",
-        quality: "medium",
-        n: 1,
-        background: "transparent",
-        output_format: "png",
-      }),
-    });
+    let response: Response;
+    if (file) {
+      const form = new FormData();
+      form.append("model", "openai/gpt-image-2.5-sunburst");
+      form.append("prompt", prompt);
+      form.append("size", "1024x1024");
+      form.append("quality", "medium");
+      form.append("n", "1");
+      form.append("background", "transparent");
+      form.append("output_format", "png");
+      form.append("image", file.blob, file.filename);
+      response = await fetch("https://ai.gateway.lovable.dev/v1/images/edits", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}` },
+        body: form,
+      });
+    } else {
+      response = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "openai/gpt-image-2.5-sunburst",
+          prompt,
+          size: "1024x1024",
+          quality: "medium",
+          n: 1,
+          background: "transparent",
+          output_format: "png",
+        }),
+      });
+    }
     last = response;
     if (response.status !== 429 && response.status < 500) return response;
     if (attempt < 2) {
