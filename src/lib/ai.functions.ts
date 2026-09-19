@@ -138,6 +138,7 @@ export const recognizeItems = createServerFn({ method: "POST" })
   .handler(
     async ({
       data,
+      context,
     }): Promise<{
       items: DetectedItem[];
       roomGuess: string | null;

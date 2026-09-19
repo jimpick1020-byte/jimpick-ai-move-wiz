@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ExperimentalFeature = "voice_item_input" | "ai_photo_scan" | "ai_video_scan";
 
@@ -18,11 +19,7 @@ export const EXPERIMENTS_OFF: ExperimentalFeatures = {
   aiVideoScan: false,
 };
 
-type AdminClient = Awaited<
-  ReturnType<typeof import("@/integrations/supabase/client.server")>
->["supabaseAdmin"];
-
-async function readForUser(admin: AdminClient, userId: string): Promise<ExperimentalFeatures> {
+async function readForUser(admin: SupabaseClient, userId: string): Promise<ExperimentalFeatures> {
   const { data: isAdmin, error: roleError } = await admin.rpc("is_super_admin", {
     _user_id: userId,
   });
