@@ -3,6 +3,7 @@ import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { generateText, Output, NoObjectGeneratedError } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
+import { assertExperimentalFeature } from "@/lib/experimental-features.functions";
 
 /** AI가 선택할 수 있는 품목 ID (jimpick ITEM_CATALOG와 동일) */
 const CATALOG = [
@@ -144,6 +145,10 @@ export const recognizeItems = createServerFn({ method: "POST" })
       packingEstimate: PackingEstimate | null;
       error?: string;
     }> => {
+    await assertExperimentalFeature(
+      context.userId,
+      data.source === "photo" ? "ai_photo_scan" : "ai_video_scan",
+    );
     const key = process.env.LOVABLE_API_KEY;
     if (!key)
       return { items: [], roomGuess: null, roomConfidence: null, packingEstimate: null, error: "AI 키가 설정되지 않았습니다." };
@@ -354,7 +359,9 @@ export const parseVoiceOrder = createServerFn({ method: "POST" })
   .handler(
     async ({
       data,
+      context,
     }): Promise<{ room: string | null; items: VoiceItem[]; error?: string }> => {
+      await assertExperimentalFeature(context.userId, "voice_item_input");
       const valid = new Map(CATALOG.map(([id, name]) => [id, name] as const));
       // ① 먼저 기기 안에서 바로 찾아 둡니다 — AI가 실패해도 이 결과로 담습니다
       const fallback = {
