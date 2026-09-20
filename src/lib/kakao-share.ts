@@ -308,7 +308,8 @@ export async function shareLinkCardToKakao(card: {
 
   if (typeof navigator !== "undefined" && navigator.share) {
     try {
-      await navigator.share({ title: card.title, text: card.description, url: card.url });
+      // 일부 공유 대상은 url 필드를 버리므로 본문에도 주소를 넣습니다.
+      await navigator.share({ title: card.title, text: `${card.description}\n${card.url}`, url: card.url });
       return { ok: true, method: "web_share" };
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError")
