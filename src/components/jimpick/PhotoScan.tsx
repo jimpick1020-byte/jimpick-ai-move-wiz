@@ -16,6 +16,9 @@ import { registerCustomIcons } from "@/lib/jimpick-icon3d";
 import { segmentPhotoItems, type SegmentedObject } from "@/lib/ai-vision.functions";
 import { generateItemIcon } from "@/lib/item-icon.functions";
 import { matchCatalogItem, guessCategory, normalizeLabel } from "@/lib/item-aliases";
+import { itemGroup } from "@/lib/item-groups";
+import { segmentImage } from "@/lib/segmentation/segmenter";
+import type { SegRunResult } from "@/lib/segmentation/types";
 
 interface ScanObject extends SegmentedObject {
   /** 연결된 기존 품목 id (없으면 새로 만들어야 하는 품목) */
@@ -23,6 +26,10 @@ interface ScanObject extends SegmentedObject {
   /** 화면에 보여 줄 한글 이름 */
   name: string;
   cat: string;
+  /** 추천 품목 그룹 (침대 / 옷장·장롱 / TV / 냉장고 …) */
+  group: string;
+  /** 목록에 없는 새 품목인지 */
+  isNew: boolean;
   /** 사진에서 잘라낸 임시 이미지 */
   crop?: string;
   /** 제외한 품목 (윤곽선을 숨깁니다) */
@@ -100,11 +107,11 @@ function iou(a: SegmentedObject["box"], b: SegmentedObject["box"]): number {
 }
 
 /**
- * 물체 외곽선 그리기 — AI 마스크가 있으면 마스크 경계를 따라 얇게 그리고,
- * 마스크가 없으면 위치 상자를 얇은 선으로만 표시합니다.
- * 사진 원본 크기와 화면 표시 크기가 달라도 어긋나지 않게 표시 크기 기준으로 계산합니다.
+ * 물체 외곽선 그리기.
+ *  - 분할 모델이 준 실제 외곽선(polygon)이 있으면 그 모양을 따라 얇게 그립니다.
+ *  - 외곽선이 없으면 임시로 네모 상자를 그리고 "정밀 외곽선 처리 중" 으로 표시합니다.
  */
-async function drawOutlines(canvas: HTMLCanvasElement, objects: ScanObject[]) {
+function drawOutlines(canvas: HTMLCanvasElement, objects: ScanObject[]) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const W = canvas.width;
@@ -118,50 +125,21 @@ async function drawOutlines(canvas: HTMLCanvasElement, objects: ScanObject[]) {
     const by = o.box.y0 * H;
     const bw = (o.box.x1 - o.box.x0) * W;
     const bh = (o.box.y1 - o.box.y0) * H;
+    const poly = o.polygon ?? [];
 
-    let drewMask = false;
-    if (o.mask) {
-      try {
-        const mask = await loadImage(o.mask);
-        const gw = Math.max(16, Math.min(128, Math.round(bw)));
-        const gh = Math.max(16, Math.min(128, Math.round(bh)));
-        const off = document.createElement("canvas");
-        off.width = gw;
-        off.height = gh;
-        const octx = off.getContext("2d");
-        if (octx) {
-          octx.drawImage(mask, 0, 0, gw, gh);
-          const px = octx.getImageData(0, 0, gw, gh).data;
-          const inside = (x: number, y: number) => {
-            if (x < 0 || y < 0 || x >= gw || y >= gh) return false;
-            const i = (y * gw + x) * 4;
-            const alpha = px[i + 3];
-            const lum = (px[i] + px[i + 1] + px[i + 2]) / 3;
-            return alpha > 40 && lum > 110;
-          };
-          const sx = bw / gw;
-          const sy = bh / gh;
-          ctx.fillStyle = color;
-          let edges = 0;
-          for (let y = 0; y < gh; y += 1) {
-            for (let x = 0; x < gw; x += 1) {
-              if (!inside(x, y)) continue;
-              if (inside(x - 1, y) && inside(x + 1, y) && inside(x, y - 1) && inside(x, y + 1))
-                continue;
-              edges += 1;
-              ctx.fillRect(bx + x * sx, by + y * sy, Math.max(1.6, sx), Math.max(1.6, sy));
-            }
-          }
-          drewMask = edges > 12;
-        }
-      } catch {
-        /* 마스크를 못 읽으면 아래 상자 표시로 갑니다 */
-      }
-    }
-
-    if (!drewMask) {
+    if (poly.length >= 6) {
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(poly[0].x * W, poly[0].y * H);
+      for (const p of poly.slice(1)) ctx.lineTo(p.x * W, p.y * H);
+      ctx.closePath();
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
       ctx.beginPath();
       const r = Math.min(10, bw / 6, bh / 6);
       ctx.moveTo(bx + r, by);
@@ -171,10 +149,12 @@ async function drawOutlines(canvas: HTMLCanvasElement, objects: ScanObject[]) {
       ctx.arcTo(bx, by, bx + bw, by, r);
       ctx.closePath();
       ctx.stroke();
+      ctx.setLineDash([]);
     }
 
-    // 작은 한글 라벨
-    const label = `${o.needConfirm ? `${o.name} 추정` : o.name} ${Math.round(o.confidence * 100)}%`;
+    // 작은 한글 라벨 (외곽선이 없으면 처리 중임을 밝힙니다)
+    const shape = poly.length >= 6 ? "" : " · 정밀 외곽선 처리 중";
+    const label = `${o.needConfirm ? `${o.name} 추정` : o.name} ${Math.round(o.confidence * 100)}%${shape}`;
     ctx.font = "600 13px system-ui, -apple-system, sans-serif";
     const tw = ctx.measureText(label).width + 14;
     const ly = Math.max(0, by - 22);
