@@ -242,21 +242,10 @@ function itemFamily(name: string, fallback: string) {
 }
 
 export function Splash() {
-  const { setScreen, loggedIn, resetDraft } = useApp();
-  // 음성 입력·AI 사진 인식은 아직 시험 기능이라 일반 사장님 화면에서는 감춥니다
-  const { features: splashFeatures } = useExperimentalFeatures();
-  const showVoiceLab = splashFeatures.isSuperAdmin && splashFeatures.voiceItemInput;
-  const showVisionLab =
-    splashFeatures.isSuperAdmin && (splashFeatures.aiPhotoScan || splashFeatures.aiVideoScan);
+  const { setScreen, loggedIn } = useApp();
   const [typedText, setTypedText] = useState("");
   const fullText = "AI로 견적을 받아보세요!";
 
-  /** 음성 입력 화면(AI 인식)으로 바로 이동 — 새 견적을 시작합니다 */
-  const goVoiceInput = (e: ReactMouseEvent) => {
-    e.stopPropagation();
-    resetDraft();
-    setScreen("ai");
-  };
 
   useEffect(() => {
     let idx = 0;
@@ -274,9 +263,8 @@ export function Splash() {
     return () => clearTimeout(t);
   }, [setScreen, loggedIn]);
 
-  // 기능 목록 순서: 간편한 견적 → AI 사진 인식 → 음성으로 간편 입력 →
+  // 기능 목록 순서: 간편한 견적 → 목록에 없는 물건 추가 →
   // 정확한 거리·시간 → 맞춤형 견적 제공 → 고객 관리 & 기록.
-  // '음성으로 간편 입력'은 장식이 아니라 실제 음성 입력 화면으로 연결됩니다.
   const features: {
     icon: typeof FileText;
     label: string;
@@ -285,17 +273,6 @@ export function Splash() {
   }[] = [
     { icon: FileText, label: "간편한 견적 작성" },
     { icon: Box, label: "목록에 없는 물건도 바로 추가" },
-    ...(showVisionLab ? [{ icon: CamIcon, label: "AI 사진 인식" }] : []),
-    ...(showVoiceLab
-      ? [
-          {
-            icon: Mic,
-            label: "음성으로 간편 입력",
-            onClick: goVoiceInput,
-            ariaLabel: "음성으로 간편 입력 — 눌러서 음성 입력 시작",
-          },
-        ]
-      : []),
     { icon: MapPin, label: "정확한 거리·시간" },
     { icon: Sparkles, label: "맞춤형 견적 제공" },
     { icon: UserCircle, label: "고객 관리 & 기록" },
@@ -1743,15 +1720,11 @@ export function Step3() {
 // ============ Step 4: Vehicles ============
 export function Step4() {
   const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
-  const { features } = useExperimentalFeatures();
   const ladderUnit = getPricing().ladder;
   const goNext = () => {
     const first = draft.rooms[0];
     if (first) setCurrentRoom(first.id);
-    const canTestAi =
-      features.isSuperAdmin &&
-      (features.voiceItemInput || features.aiPhotoScan || features.aiVideoScan);
-    setScreen(canTestAi ? "ai" : "step6");
+    setScreen("step6");
   };
   const vehicles = [
     {
