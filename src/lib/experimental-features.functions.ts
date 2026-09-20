@@ -3,20 +3,16 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type ExperimentalFeature = "voice_item_input" | "ai_photo_scan" | "ai_video_scan";
+export type ExperimentalFeature = "voice_item_input";
 
 export interface ExperimentalFeatures {
   isSuperAdmin: boolean;
   voiceItemInput: boolean;
-  aiPhotoScan: boolean;
-  aiVideoScan: boolean;
 }
 
 export const EXPERIMENTS_OFF: ExperimentalFeatures = {
   isSuperAdmin: false,
   voiceItemInput: false,
-  aiPhotoScan: false,
-  aiVideoScan: false,
 };
 
 async function readForUser(admin: SupabaseClient, userId: string): Promise<ExperimentalFeatures> {
@@ -27,15 +23,13 @@ async function readForUser(admin: SupabaseClient, userId: string): Promise<Exper
 
   const { data, error } = await admin
     .from("experimental_feature_settings")
-    .select("voice_item_input, ai_photo_scan, ai_video_scan")
+    .select("voice_item_input")
     .eq("setting_key", "global")
     .maybeSingle();
   if (error || !data) return { ...EXPERIMENTS_OFF, isSuperAdmin: true };
   return {
     isSuperAdmin: true,
     voiceItemInput: data.voice_item_input === true,
-    aiPhotoScan: data.ai_photo_scan === true,
-    aiVideoScan: data.ai_video_scan === true,
   };
 }
 
@@ -49,8 +43,6 @@ export const getMyExperimentalFeatures = createServerFn({ method: "GET" })
 
 const updateSchema = z.object({
   voiceItemInput: z.boolean(),
-  aiPhotoScan: z.boolean(),
-  aiVideoScan: z.boolean(),
 });
 
 /** 최고관리자만 전역 시험 기능 값을 바꿀 수 있습니다. */
@@ -64,8 +56,6 @@ export const updateExperimentalFeatures = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.from("experimental_feature_settings").upsert({
       setting_key: "global",
       voice_item_input: data.voiceItemInput,
-      ai_photo_scan: data.aiPhotoScan,
-      ai_video_scan: data.aiVideoScan,
       updated_by: context.userId,
     });
     if (error) throw new Error(error.message);
@@ -79,12 +69,6 @@ export async function assertExperimentalFeature(
 ): Promise<void> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const enabled = await readForUser(supabaseAdmin, userId);
-  const allowed =
-    enabled.isSuperAdmin &&
-    (feature === "voice_item_input"
-      ? enabled.voiceItemInput
-      : feature === "ai_photo_scan"
-        ? enabled.aiPhotoScan
-        : enabled.aiVideoScan);
+  const allowed = enabled.isSuperAdmin && enabled.voiceItemInput;
   if (!allowed) throw new Error("Forbidden: 이 시험 기능은 사용할 수 없습니다");
 }

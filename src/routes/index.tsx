@@ -11,7 +11,6 @@ import {
   Step3,
   Step4,
   Step6,
-  AIRecognition,
   OptionsScreen,
   Result,
   History,
@@ -27,7 +26,6 @@ import { AuthLoadingScreen } from "@/components/jimpick/AuthUi";
 import { ErrorLogScreen } from "@/components/jimpick/errors";
 import { JimpickErrorBoundary } from "@/components/jimpick/ErrorBoundary";
 import { logAppError } from "@/lib/error-log.functions";
-import { useExperimentalFeatures } from "@/lib/use-experimental-features";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -42,18 +40,8 @@ export const Route = createFileRoute("/")({
 });
 
 function Screens() {
-  const { screen, authChecking, retryAuthCheck, setScreen } = useApp();
-  const { features, loaded: experimentsLoaded } = useExperimentalFeatures();
-  const aiAllowed =
-    features.isSuperAdmin &&
-    (features.voiceItemInput || features.aiPhotoScan || features.aiVideoScan);
-  useEffect(() => {
-    if (screen === "ai" && experimentsLoaded && !aiAllowed) setScreen("step6");
-  }, [screen, experimentsLoaded, aiAllowed, setScreen]);
+  const { screen, authChecking, retryAuthCheck } = useApp();
   if (authChecking) return <AuthLoadingScreen onRetry={retryAuthCheck} />;
-  if (screen === "ai" && (!experimentsLoaded || !aiAllowed)) {
-    return experimentsLoaded ? <Step6 /> : <AuthLoadingScreen onRetry={retryAuthCheck} />;
-  }
   switch (screen) {
     case "splash": return <Splash />;
     case "login": return <Login />;
@@ -64,7 +52,6 @@ function Screens() {
     case "step4": return <Step4 />;
     case "step6": return <Step6 />;
     case "plan": return <OptionsScreen />;
-    case "ai": return <AIRecognition />;
     case "options": return <OptionsScreen />;
     case "result": return <Result />;
     case "history": return <History />;

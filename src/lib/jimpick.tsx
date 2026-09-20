@@ -1544,7 +1544,6 @@ export type Screen =
   | "step4"
   | "step6"
   | "plan"
-  | "ai"
   | "options"
   | "result"
   | "history"
@@ -1753,9 +1752,8 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       const s = (e.state as { jpScreen?: Screen } | null)?.jpScreen;
       setState((prev) => {
         if (!prev.loggedIn) return prev;
-        // 이전 버전의 방문기록에 AI 화면이 남아 있어도 일반 견적 흐름으로 복구합니다.
-        // 최고관리자의 현재 시험 진입은 화면 버튼(setScreen)으로만 허용합니다.
-        return { ...prev, screen: s === "ai" ? "step6" : (s ?? "home") };
+        // 이전 버전의 방문기록에 삭제된 AI 화면이 남아 있어도 일반 견적 흐름으로 복구합니다.
+        return { ...prev, screen: (s as string) === "ai" ? "step6" : (s ?? "home") };
       });
     };
     window.addEventListener("popstate", onPop);
@@ -1915,7 +1913,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       setState((s) => {
         // 5단계(품목 입력) 진입 직전 상태를 스냅샷으로 보관합니다
         const entering5 =
-          screen === "step6" && s.screen !== "step6" && s.screen !== "plan" && s.screen !== "ai";
+          screen === "step6" && s.screen !== "step6" && s.screen !== "plan";
         return {
           ...s,
           screen,
