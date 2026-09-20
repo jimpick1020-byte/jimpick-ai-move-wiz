@@ -187,6 +187,7 @@ import {
   type IconResult,
 } from "@/lib/item-icon.functions";
 import { itemSubgroup, sortByGroup, itemSubRank } from "@/lib/item-groups";
+import { splitItemNames, matchesQuery } from "@/lib/item-search";
 import { ITEM_KINDS, kindOf, guessKind } from "@/lib/item-kinds";
 import { shrinkPhoto } from "@/lib/photo-shrink";
 import { ExperimentalFeatureSettings } from "./admin";
@@ -1964,6 +1965,7 @@ export function Step6() {
   const {
     draft,
     updateDraft,
+    patchDraft,
     setScreen,
     setCurrentRoom,
     estimates,

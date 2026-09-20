@@ -40,21 +40,14 @@ const NEON_GRADIENT =
 export function DraftSaveBadge() {
   const app = useAppSafe();
   const state = app?.draftSaveState ?? "idle";
-  if (!app || state === "idle") return null;
+  // 정상 저장(저장 중·저장 완료)에는 아무 문구도 띄우지 않습니다.
+  // 자동 임시저장과 새로고침 복원은 그대로 동작하고, 문제가 생길 때만 알립니다.
+  if (!app || state === "idle" || state === "saving" || state === "saved") return null;
   const text =
-    state === "saving"
-      ? "임시저장 중…"
-      : state === "saved"
-        ? "임시저장 완료"
-        : state === "offline"
-          ? "인터넷 연결을 기다립니다 · 입력은 그대로 있습니다"
-          : "임시저장 실패 · 연결되면 다시 저장합니다";
-  const tone =
-    state === "saved"
-      ? "bg-[#E7F3EE] text-[#3E9B78]"
-      : state === "saving"
-        ? "bg-[#F7F8F5] text-[#25282D]"
-        : "bg-[#FEF3C7] text-[#B45309]";
+    state === "offline"
+      ? "인터넷 연결을 기다립니다 · 입력은 그대로 있습니다"
+      : "임시저장 실패 · 연결되면 다시 저장합니다";
+  const tone = "bg-[#FEF3C7] text-[#B45309]";
   return (
     <div className="px-4 pt-1" aria-live="polite">
       <span className={`inline-block rounded-full px-2 py-0.5 text-[12px] font-semibold ${tone}`}>
