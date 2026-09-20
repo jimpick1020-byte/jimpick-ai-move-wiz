@@ -10,6 +10,10 @@
 import * as ort from "onnxruntime-web";
 import type { SegInstance } from "./types";
 
+// WASM 실행 파일 위치 (WebGPU 미지원 기기에서 사용)
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/";
+ort.env.wasm.numThreads = 1;
+
 interface RunMessage {
   type: "run";
   jobId: number;
