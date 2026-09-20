@@ -79,6 +79,12 @@ export interface IconResult {
   remaining?: number;
 }
 
+async function signedIconUrl(path: string): Promise<string | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(path, 60 * 60);
+  return error ? null : data.signedUrl;
+}
+
 const inputSchema = z.object({
   name: z.string().min(1).max(40),
   cat: z.string().min(1).max(20),
@@ -168,14 +174,17 @@ export const findItemIcon = createServerFn({ method: "POST" })
     if (!norm) return { ok: false, error: "품목명을 입력해 주세요." };
     const { data: row, error } = await context.supabase
       .from("item_icons")
-      .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url, status, default_volume")
+      .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_path, storage_path, status, default_volume")
       .eq("user_id", context.userId)
       .eq("normalized_name", norm)
       .eq("active", true)
       .eq("status", "ready")
       .maybeSingle();
     if (error) return { ok: false, error: error.message };
-    if (!row?.image_url) return { ok: false };
+    const path = row?.storage_path || row?.image_path;
+    if (!row || !path) return { ok: false };
+    const iconUrl = await signedIconUrl(path);
+    if (!iconUrl) return { ok: false, error: "저장된 품목 이미지를 불러오지 못했습니다." };
     return {
       ok: true,
       reused: true,
@@ -186,7 +195,7 @@ export const findItemIcon = createServerFn({ method: "POST" })
       size: row.size_label as "소형" | "중형" | "대형",
       volume: Number(row.default_volume ?? 0) || undefined,
       room: row.room ?? undefined,
-      iconUrl: row.image_url,
+      iconUrl,
     };
   });
 
@@ -206,17 +215,21 @@ export const listItemIcons = createServerFn({ method: "GET" })
     }> => {
       const { data, error } = await context.supabase
         .from("item_icons")
-        .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url, created_at, default_volume")
+        .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_path, storage_path, created_at, default_volume")
         .eq("user_id", context.userId)
         .eq("active", true)
         .eq("status", "ready")
         .order("created_at", { ascending: true });
       if (error) return { ok: false, error: error.message, items: [] };
+      const rows = (data ?? []).filter((row) => !!(row.storage_path || row.image_path));
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const paths = rows.map((row) => (row.storage_path || row.image_path) as string);
+      const signed = await supabaseAdmin.storage.from(BUCKET).createSignedUrls(paths, 60 * 60);
+      if (signed.error) return { ok: false, error: signed.error.message, items: [] };
       return {
         ok: true,
-        items: (data ?? [])
-          .filter((r) => !!r.image_url)
-          .map((r) => ({
+        items: rows
+          .map((r, index) => ({
             itemId: r.item_id as string,
             name: recoveredDisplayName(r),
             cat: (r.category_group || r.cat) as string,
@@ -224,8 +237,9 @@ export const listItemIcons = createServerFn({ method: "GET" })
             size: r.size_label as "소형" | "중형" | "대형",
             volume: Number(r.default_volume ?? 0) || undefined,
             room: (r.room as string | null) ?? undefined,
-            iconUrl: r.image_url as string,
-          })),
+            iconUrl: signed.data?.[index]?.signedUrl ?? "",
+          }))
+          .filter((item) => !!item.iconUrl),
       };
     },
   );
@@ -407,15 +421,17 @@ export const generateItemIcon = createServerFn({ method: "POST" })
       if (up.error) return fail(`이미지 저장 실패: ${up.error.message}`);
 
       // 다시 만든 경우 브라우저가 옛 그림을 계속 쓰지 않도록 주소 뒤에 버전을 붙입니다
-      const iconUrl = regenRow
+      const snapshotUrl = regenRow
         ? `/api/public/item-icon/${rowId}.png?v=${Date.now()}`
         : `/api/public/item-icon/${rowId}.png`;
 
       const done = await context.supabase
         .from("item_icons")
-        .update({ status: "ready", image_path: path, storage_path: path, image_url: iconUrl })
+        .update({ status: "ready", image_path: path, storage_path: path, image_url: snapshotUrl })
         .eq("id", rowId);
       if (done.error) return fail(`아이콘 등록 실패: ${done.error.message}`);
+      const iconUrl = await signedIconUrl(path);
+      if (!iconUrl) return fail("저장된 품목 이미지를 다시 불러오지 못했습니다.");
 
       return {
         ok: true,

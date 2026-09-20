@@ -188,6 +188,7 @@ import {
 } from "@/lib/item-icon.functions";
 import { itemSubgroup, sortByGroup, itemSubRank } from "@/lib/item-groups";
 import { splitItemNames, matchesQuery } from "@/lib/item-search";
+import { mergeItemCatalog } from "@/lib/item-catalog-merge";
 import { ITEM_KINDS, kindOf, guessKind } from "@/lib/item-kinds";
 import { shrinkPhoto } from "@/lib/photo-shrink";
 import { ExperimentalFeatureSettings } from "./admin";
@@ -1988,6 +1989,8 @@ export function Step6() {
     estimates,
     catalogHidden,
     hideCatalogItem,
+    companyItems,
+    refreshCompanyItems,
   } = useApp();
   const [size, setSize] = useState<string>(() => {
     if (draft.sizeTab) return draft.sizeTab;
@@ -2095,12 +2098,21 @@ export function Step6() {
     [tabRooms, presetRooms],
   );
 
-  // 20카테고리 병합 목록(기존 이미지·요금 보존 + 1,000 신규) + 직접 추가 품목.
+  const selectedCustomItems = useMemo(() => {
+    const selected = new Set(draft.rooms.flatMap((r) => Object.keys(r.items)));
+    return (draft.customItems || []).filter((item) => selected.has(item.id));
+  }, [draft.customItems, draft.rooms]);
+  const persistentCustomItems = useMemo(
+    () => mergeItemCatalog(companyItems, selectedCustomItems),
+    [companyItems, selectedCustomItems],
+  );
+
+  // 기본 품목과 현재 업체의 영구 생성 품목을 안정적인 ID로 병합합니다.
   const catalog = useMemo(
     () =>
       [
         ...BROWSE_ITEMS,
-        ...(draft.customItems || []).map((c) => ({
+        ...persistentCustomItems.map((c) => ({
           id: c.id,
           name: c.name,
           cat: c.cat,
@@ -2112,7 +2124,7 @@ export function Step6() {
       ].filter(
         (i) => !(draft.hiddenItems || []).includes(i.id) && !(catalogHidden || []).includes(i.id),
       ),
-    [draft.customItems, draft.hiddenItems, catalogHidden],
+    [persistentCustomItems, draft.hiddenItems, catalogHidden],
   );
 
   /** 품목이 하나도 없는 카테고리 탭은 감춥니다 (박스 품목 제거 후 빈 탭 방지) */
@@ -2574,6 +2586,21 @@ export function Step6() {
             failed += 1;
             continue;
           }
+          try {
+            const refreshed = await refreshCompanyItems();
+            if (!refreshed.some((item) => item.id === res.itemId)) {
+              mark(i, { state: "failed", error: "저장된 품목을 다시 확인하지 못했습니다." });
+              failed += 1;
+              continue;
+            }
+          } catch (e) {
+            mark(i, {
+              state: "failed",
+              error: e instanceof Error ? e.message : "저장된 품목을 다시 불러오지 못했습니다.",
+            });
+            failed += 1;
+            continue;
+          }
           mark(i, { state: "done" });
           if (res.reused) reused += 1;
           else made += 1;
@@ -2694,6 +2721,7 @@ export function Step6() {
         toast.error(result.error || "품목을 삭제하지 못했습니다");
         return;
       }
+      await refreshCompanyItems().catch(() => {});
     }
     // 앱 전체에서 숨깁니다 (지난 견적의 이름·수량은 보존)
     hideCatalogItem(id);
