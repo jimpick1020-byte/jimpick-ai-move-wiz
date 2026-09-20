@@ -931,6 +931,38 @@ export function Step1() {
     loadBookings();
   }, [loadBookings]);
 
+  /**
+   * 달력에서 계약을 삭제하면 견적 내역·직원 링크·예약 문자까지 함께 삭제 상태가 됩니다.
+   * (서버의 soft_delete_estimate 한 곳에서 처리 → 한쪽만 지워지는 일이 없습니다)
+   */
+  const contractDelete = useDeleteContract({
+    source: "calendar",
+    onDeleted: (estimateId) => {
+      deleteEstimate(estimateId);
+      loadBookings();
+      toast.success("계약을 삭제했습니다", {
+        description: "달력 일정과 견적 내역에서 함께 삭제되었습니다.",
+      });
+    },
+  });
+
+  /** 다른 휴대전화에서 삭제한 견적은 이 기기 목록에서도 감춥니다 */
+  useEffect(() => {
+    let alive = true;
+    listDeletedEstimateIds()
+      .then((r) => {
+        if (!alive || !r?.ok) return;
+        for (const id of r.ids) deleteEstimate(id);
+      })
+      .catch(() => {
+        /* 못 읽으면 이 기기 목록은 그대로 둡니다 */
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const moveTypes: MoveType[] = ["포장이사", "반포장이사", "일반이사", "보관이사", "사무실이사"];
   const next = () => {
     if (!draft.customerName.trim()) return setErr("고객명을 입력해 주세요.");
