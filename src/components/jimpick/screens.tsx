@@ -3468,16 +3468,21 @@ export function Step6() {
 
 
                   <div className="mt-3 space-y-3">
-                    <Field label="품목 이름">
-                      <TextInput
+                    <Field label="만들 품목 이름">
+                      <textarea
                         value={iconGen.name}
-                        maxLength={24}
-                        placeholder="예: 흙침대"
+                        rows={2}
+                        maxLength={160}
+                        placeholder="예: 캣타워, 스타일러, 돌침대, 김치냉장고"
+                        className="w-full resize-none rounded-2xl border border-[#E5E7EB] bg-white px-3.5 py-3 text-[15px] font-bold text-[#25282D] outline-none focus:border-[#3578C8]"
                         onChange={(e) => {
                           const name = e.target.value;
                           setIconGen((f) => (f ? { ...f, name, kind: guessKind(name) } : f));
                         }}
                       />
+                      <p className="mt-1 text-[12px] font-bold text-[#6B7280]">
+                        쉼표 또는 줄바꿈으로 여러 품목을 입력할 수 있습니다.
+                      </p>
                     </Field>
 
                     {/* 품목 사진 — 촬영하거나 갤러리에서 고릅니다 */}
