@@ -112,12 +112,34 @@ export function registerPwa() {
         }
       }
       navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-      // 앱을 실행할 때, 그리고 다시 화면으로 돌아올 때 새 버전을 확인합니다
+
+      /** 새 버전이 대기 중이면 바로 켭니다 (사장님이 따로 누를 필요 없음) */
+      const activateWaiting = () => {
+        try {
+          reg.waiting?.postMessage({ type: "SKIP_WAITING" });
+        } catch {
+          /* 무시 — 다음 확인에서 다시 시도합니다 */
+        }
+      };
+
+      // 앱을 실행할 때, 다시 화면으로 돌아올 때, 그리고 켜 둔 동안 주기적으로 새 버전을 확인합니다
       const check = () => {
-        if (document.visibilityState === "visible") void reg.update().catch(() => {});
+        if (document.visibilityState !== "visible") return;
+        void reg
+          .update()
+          .then(activateWaiting)
+          .catch(() => {});
       };
       check();
+      activateWaiting();
+      reg.addEventListener("updatefound", () => {
+        reg.installing?.addEventListener("statechange", () => {
+          if (reg.waiting) activateWaiting();
+        });
+      });
       document.addEventListener("visibilitychange", check);
+      // 홈 화면 앱은 화면을 오래 켜 두는 경우가 많아 30분마다 한 번 더 확인합니다
+      window.setInterval(check, 30 * 60 * 1000);
     })
     .catch(() => {
       /* 등록 실패해도 앱은 정상 동작합니다 */
