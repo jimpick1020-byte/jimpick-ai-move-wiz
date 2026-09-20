@@ -5,6 +5,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card } from "@/components/jimpick/ui";
 import { listAppErrors, resolveAppError, type ErrorLogRow } from "@/lib/error-log.functions";
+import {
+  getFixNoticeState,
+  saveFixNoticeSettings,
+  sendFixNoticeNow,
+  type FixNoticeRow,
+} from "@/lib/fix-notice.functions";
 import { withRetry } from "@/lib/retry";
 
 const SCREEN_LABEL: Record<string, string> = {

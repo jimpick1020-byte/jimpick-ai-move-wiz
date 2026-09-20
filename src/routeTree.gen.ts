@@ -16,6 +16,7 @@ import { Route as BillingCallbackRouteImport } from './routes/billing.callback'
 import { Route as StaffEstimateTokenRouteImport } from './routes/staff.estimate.$token'
 import { Route as ApiPublicItemIconFileRouteImport } from './routes/api/public/item-icon.$file'
 import { Route as ApiPublicHooksSendMoveRemindersRouteImport } from './routes/api/public/hooks/send-move-reminders'
+import { Route as ApiPublicHooksFixNoticeRouteImport } from './routes/api/public/hooks/fix-notice'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -53,6 +54,11 @@ const ApiPublicHooksSendMoveRemindersRoute =
     path: '/api/public/hooks/send-move-reminders',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksFixNoticeRoute = ApiPublicHooksFixNoticeRouteImport.update({
+  id: '/api/public/hooks/fix-notice',
+  path: '/api/public/hooks/fix-notice',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/billing/callback': typeof BillingCallbackRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
+  '/api/public/hooks/fix-notice': typeof ApiPublicHooksFixNoticeRoute
   '/api/public/hooks/send-move-reminders': typeof ApiPublicHooksSendMoveRemindersRoute
   '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
 }
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/billing/callback': typeof BillingCallbackRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
+  '/api/public/hooks/fix-notice': typeof ApiPublicHooksFixNoticeRoute
   '/api/public/hooks/send-move-reminders': typeof ApiPublicHooksSendMoveRemindersRoute
   '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
 }
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/billing/callback': typeof BillingCallbackRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
+  '/api/public/hooks/fix-notice': typeof ApiPublicHooksFixNoticeRoute
   '/api/public/hooks/send-move-reminders': typeof ApiPublicHooksSendMoveRemindersRoute
   '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
 }
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/billing/callback'
     | '/share/$id'
     | '/staff/estimate/$token'
+    | '/api/public/hooks/fix-notice'
     | '/api/public/hooks/send-move-reminders'
     | '/api/public/item-icon/$file'
   fileRoutesByTo: FileRoutesByTo
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/billing/callback'
     | '/share/$id'
     | '/staff/estimate/$token'
+    | '/api/public/hooks/fix-notice'
     | '/api/public/hooks/send-move-reminders'
     | '/api/public/item-icon/$file'
   id:
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/billing/callback'
     | '/share/$id'
     | '/staff/estimate/$token'
+    | '/api/public/hooks/fix-notice'
     | '/api/public/hooks/send-move-reminders'
     | '/api/public/item-icon/$file'
   fileRoutesById: FileRoutesById
@@ -118,6 +130,7 @@ export interface RootRouteChildren {
   BillingCallbackRoute: typeof BillingCallbackRoute
   ShareIdRoute: typeof ShareIdRoute
   StaffEstimateTokenRoute: typeof StaffEstimateTokenRoute
+  ApiPublicHooksFixNoticeRoute: typeof ApiPublicHooksFixNoticeRoute
   ApiPublicHooksSendMoveRemindersRoute: typeof ApiPublicHooksSendMoveRemindersRoute
   ApiPublicItemIconFileRoute: typeof ApiPublicItemIconFileRoute
 }
@@ -173,6 +186,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSendMoveRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/fix-notice': {
+      id: '/api/public/hooks/fix-notice'
+      path: '/api/public/hooks/fix-notice'
+      fullPath: '/api/public/hooks/fix-notice'
+      preLoaderRoute: typeof ApiPublicHooksFixNoticeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   BillingCallbackRoute: BillingCallbackRoute,
   ShareIdRoute: ShareIdRoute,
   StaffEstimateTokenRoute: StaffEstimateTokenRoute,
+  ApiPublicHooksFixNoticeRoute: ApiPublicHooksFixNoticeRoute,
   ApiPublicHooksSendMoveRemindersRoute: ApiPublicHooksSendMoveRemindersRoute,
   ApiPublicItemIconFileRoute: ApiPublicItemIconFileRoute,
 }
