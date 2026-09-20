@@ -48,8 +48,6 @@ const isNewSignup = (v: string | null) =>
 
 const EXPERIMENT_LABELS: { key: keyof Omit<ExperimentalFeatures, "isSuperAdmin">; label: string }[] = [
   { key: "voiceItemInput", label: "음성 품목입력 시험 기능" },
-  { key: "aiPhotoScan", label: "AI 사진 품목인식 시험 기능" },
-  { key: "aiVideoScan", label: "AI 동영상 품목인식 시험 기능" },
 ];
 
 export function ExperimentalFeatureSettings() {
@@ -64,8 +62,6 @@ export function ExperimentalFeatureSettings() {
       await updateExperimentalFeatures({
         data: {
           voiceItemInput: key === "voiceItemInput" ? !features.voiceItemInput : features.voiceItemInput,
-          aiPhotoScan: key === "aiPhotoScan" ? !features.aiPhotoScan : features.aiPhotoScan,
-          aiVideoScan: key === "aiVideoScan" ? !features.aiVideoScan : features.aiVideoScan,
         },
       });
       await refreshExperimentalFeatures();
