@@ -837,6 +837,86 @@ export type Database = {
         }
         Relationships: []
       }
+      service_fix_notices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          error_log_id: string | null
+          error_message: string | null
+          failed_at: string | null
+          id: string
+          provider_message_id: string | null
+          sent_at: string | null
+          source: string
+          status: string
+          summary: string
+          title: string
+          to_masked: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          error_log_id?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          id?: string
+          provider_message_id?: string | null
+          sent_at?: string | null
+          source?: string
+          status?: string
+          summary: string
+          title: string
+          to_masked?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          error_log_id?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          id?: string
+          provider_message_id?: string | null
+          sent_at?: string | null
+          source?: string
+          status?: string
+          summary?: string
+          title?: string
+          to_masked?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_fix_notices_error_log_id_fkey"
+            columns: ["error_log_id"]
+            isOneToOne: false
+            referencedRelation: "error_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_ops_settings: {
+        Row: {
+          id: boolean
+          notice_phone: string | null
+          notify_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          notice_phone?: string | null
+          notify_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          notice_phone?: string | null
+          notify_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       sms_usage: {
         Row: {
           created_at: string
