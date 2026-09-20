@@ -181,6 +181,9 @@ export function PhotoScan({ onClose }: { onClose: () => void }) {
   const [applying, setApplying] = useState(false);
   const [editing, setEditing] = useState(false);
   const [pendingIcons, setPendingIcons] = useState<string[]>([]);
+  /** 기기 안 분할 모델 상태 — 모델 파일이 없으면 여기서 그대로 알려 드립니다 */
+  const [seg, setSeg] = useState<SegRunResult | null>(null);
+  const [refining, setRefining] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -216,6 +219,34 @@ export function PhotoScan({ onClose }: { onClose: () => void }) {
     else stopCamera();
     return stopCamera;
   }, [phase, startCamera, stopCamera]);
+
+  /**
+   * 촬영 완료 후 원본 사진으로 실제 외곽선을 다시 계산합니다 (기기 안 분할 모델, Web Worker).
+   * 모델 파일이 없으면 네모 상자 표시를 그대로 유지합니다.
+   */
+  const refineOutlines = useCallback(async (full: string, count: number) => {
+    if (count === 0) return;
+    setRefining(true);
+    try {
+      const result = await segmentImage(full, { cacheKey: `${full.length}:${full.slice(-96)}` });
+      setSeg(result);
+      if (result.status !== "ready" || result.instances.length === 0) return;
+      setObjects((prev) =>
+        prev.map((o) => {
+          let best: { polygon: { x: number; y: number }[]; score: number } | null = null;
+          for (const inst of result.instances) {
+            if (inst.polygon.length < 6) continue;
+            const score = iou(o.box, inst.box);
+            if (score > 0.35 && (!best || score > best.score))
+              best = { polygon: inst.polygon, score };
+          }
+          return best ? { ...o, polygon: best.polygon } : o;
+        }),
+      );
+    } finally {
+      setRefining(false);
+    }
+  }, []);
 
   /** 사진 한 장을 실제로 분석합니다 (1차 빠른 → 2차 정밀) */
   const analyze = useCallback(async (full: string) => {
@@ -274,6 +305,8 @@ export function PhotoScan({ onClose }: { onClose: () => void }) {
           matchId: match?.id ?? null,
           name: match?.name ?? o.label,
           cat: match?.cat ?? guessCategory(o.label),
+          group: itemGroup(match?.name ?? o.label, match?.cat).label,
+          isNew: !match,
           crop,
           excluded: false,
           needConfirm: o.confidence < 0.55 || (!match && o.confidence < 0.8),
@@ -282,11 +315,12 @@ export function PhotoScan({ onClose }: { onClose: () => void }) {
       setObjects(mapped);
       setStepIndex(4);
       setPhase("result");
+      void refineOutlines(full, mapped.length);
     } catch {
       setPhase("result");
       toast.error("사진을 분석하지 못했습니다. 다시 촬영해 주세요.");
     }
-  }, [draft.customItems]);
+  }, [draft.customItems, refineOutlines]);
 
   /** 촬영 */
   const capture = useCallback(async () => {
@@ -339,7 +373,7 @@ export function PhotoScan({ onClose }: { onClose: () => void }) {
       canvas.height = Math.round(h * dpr);
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
-      void drawOutlines(canvas, objects);
+      drawOutlines(canvas, objects);
     };
     if (img.complete) paint();
     else img.onload = paint;
@@ -533,6 +567,23 @@ export function PhotoScan({ onClose }: { onClose: () => void }) {
               <h2 className="text-lg font-bold">담을 품목이 없습니다. 다시 촬영해 주세요.</h2>
             )}
 
+            {refining && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                원본 사진으로 정밀 외곽선을 계산하는 중입니다…
+              </p>
+            )}
+            {!refining && seg && seg.status !== "ready" && (
+              <p className="mt-2 rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground">
+                {seg.message} 지금은 물체 위치를 네모 상자로만 표시합니다.
+              </p>
+            )}
+            {!refining && seg?.status === "ready" && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                실제 외곽선 계산 완료 ({seg.backend === "webgpu" ? "WebGPU" : "WASM"} ·{" "}
+                {seg.elapsedMs}ms)
+              </p>
+            )}
+
             <div className="mt-3 grid grid-cols-4 gap-2">
               {objects.map((o) => (
                 <div
@@ -543,6 +594,10 @@ export function PhotoScan({ onClose }: { onClose: () => void }) {
                 >
                   {o.crop && <img src={o.crop} alt={o.name} className="mx-auto h-12 w-12 rounded object-contain" />}
                   <div className="mt-1 truncate text-xs font-semibold">{o.name}</div>
+                  <div className="truncate text-[11px] text-muted-foreground">
+                    {o.group}
+                    {o.isNew ? " · 새 품목" : ""}
+                  </div>
                   <div className="text-xs text-primary">
                     {o.needConfirm ? "확인 필요" : `${Math.round(o.confidence * 100)}%`}
                   </div>
