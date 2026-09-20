@@ -90,6 +90,7 @@ import {
   Field,
   TextInput,
 } from "./ui";
+import { PhotoScan } from "./PhotoScan";
 import { MoveDateCalendar, type CalendarBooking } from "./MoveDateCalendar";
 import {
   DEFAULT_SIZE_PRESETS,
