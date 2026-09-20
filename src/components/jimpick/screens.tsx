@@ -32,7 +32,6 @@ import {
   X,
   ChevronDown,
   ChevronLeft,
-  Mic,
   ShieldCheck,
   ChevronRight,
   CircleDollarSign,
@@ -164,35 +163,12 @@ import {
   isValidBusinessNumber,
 } from "@/lib/business-cert";
 
-/** 음성인식 정확도를 올려 주는 힌트 (자주 쓰는 이사 품목·공간 이름) */
-const VOICE_HINT =
-  "이사 견적 품목: 냉장고, 김치냉장고, 세탁기, 건조기, 스타일러, TV, 에어컨, 공기청정기, 정수기, 전자레인지, 에어프라이어, 식기세척기, 침대, 매트리스, 장롱, 붙박이장, 화장대, 서랍장, 소파, TV장, 식탁, 의자, 책상, 책장, 신발장, 빨래건조대, 청소기, 로봇청소기, 안마의자, 러닝머신, 피아노, 금고, 어항, 옷박스, 대박스, 중박스, 바구니, 이불백. 공간: 안방, 작은방, 입구방, 거실, 부엌, 베란다.";
-
-/*
- * 참고 — 서버 음성인식(src/lib/stt.functions.ts 의 transcribeAudio)은 그대로 있습니다.
- * 다만 브라우저 음성인식과 녹음기(getUserMedia)를 동시에 켜면 마이크를 서로 뺏겨
- * 아무 것도 인식되지 않습니다. 그래서 한 번 누를 때는 브라우저 음성인식만 씁니다.
- */
-import {
-  recognitionCtor,
-  isSecureForMic,
-  speechErrorMessage,
-  bestAlternative,
-  INSECURE_MIC_MESSAGE,
-  type SpeechEventLike,
-  type SpeechErrorLike,
-  type RecognitionLike,
-} from "@/lib/voice";
-
-import { fileToDataUrl, videoToFrames } from "@/lib/media";
-
 // ============ Splash ============
 import charC from "@/assets/jimpick-char-c.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { TruckGauge } from "./TruckGauge";
 import { JimpickCharacter } from "./JimpickCharacter";
-import { tileDataUrl, photoQuality } from "@/lib/media";
 
 import {
   icon3dFor,
@@ -213,14 +189,12 @@ import {
 import { itemSubgroup, sortByGroup, itemSubRank } from "@/lib/item-groups";
 import { ITEM_KINDS, kindOf, guessKind } from "@/lib/item-kinds";
 import { shrinkPhoto } from "@/lib/photo-shrink";
-import { useExperimentalFeatures } from "@/lib/use-experimental-features";
 import { ExperimentalFeatureSettings } from "./admin";
 
 /** 공간별 품목 접기·펼치기 상태를 기억하는 자리 */
 const ROOM_OPEN_KEY = "jimpick_step6_open_rooms";
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
-import { ScanMascot, type MascotState } from "./ScanMascot";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
 import { checkSendable, type MissingField } from "@/lib/send-check";
 import { useEntitlement, TRIAL_EXPIRED_MESSAGE } from "@/lib/use-entitlement";
