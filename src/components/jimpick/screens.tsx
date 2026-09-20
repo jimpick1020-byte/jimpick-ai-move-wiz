@@ -113,6 +113,16 @@ import { setRememberMe } from "@/integrations/supabase/auth-persistence";
 import { AuthField, AuthInput, AuthPrimaryButton, AuthShell } from "./AuthUi";
 import { Button } from "@/components/ui/button";
 import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functions";
+import { DeleteContractDialog } from "./DeleteContractDialog";
+import { useDeleteContract } from "@/lib/use-delete-contract";
+import { listDeletedEstimateIds } from "@/lib/estimate-delete.functions";
+import { getCustomerShareLink } from "@/lib/share-link.functions";
+import {
+  shareTextToKakao,
+  buildCustomerShareText,
+  ensureKakaoSdk,
+  KAKAO_SHARE_MESSAGE,
+} from "@/lib/kakao-share";
 import {
   shareToKakao,
   loadKakaoShareSdk,
@@ -1127,6 +1137,13 @@ export function Step1() {
       <BottomButtonBar>
         <PrimaryButton onClick={next}>다음: 주소 검색</PrimaryButton>
       </BottomButtonBar>
+      <DeleteContractDialog
+        open={contractDelete.open}
+        busy={contractDelete.busy}
+        error={contractDelete.error}
+        onCancel={contractDelete.cancel}
+        onConfirm={contractDelete.confirm}
+      />
     </MobileShell>
   );
 }
