@@ -254,3 +254,75 @@ export function buildCustomerShareText(v: {
   lines.push("", `견적서 확인: ${v.url}`);
   return lines.join("\n");
 }
+
+/**
+ * 링크 카드 한 개만 보냅니다 (직원용 업무지시서).
+ * 긴 본문 텍스트는 보내지 않습니다 — 카카오톡에는 제목·설명·버튼이 있는 카드만 나갑니다.
+ */
+export function openKakaoLinkCard(card: {
+  title: string;
+  description: string;
+  url: string;
+  imageUrl?: string;
+  buttonTitle?: string;
+}): KakaoShareOutcome | null {
+  if (!kakaoReady()) return null;
+  try {
+    window.Kakao.Share.sendDefault({
+      objectType: "feed",
+      content: {
+        title: card.title,
+        description: card.description,
+        imageUrl: card.imageUrl || `${window.location.origin}/apple-touch-icon.png`,
+        link: { mobileWebUrl: card.url, webUrl: card.url },
+      },
+      buttons: [
+        {
+          title: card.buttonTitle || "작업 지시서 보기",
+          link: { mobileWebUrl: card.url, webUrl: card.url },
+        },
+      ],
+    });
+    return { ok: true, method: "kakao" };
+  } catch (err) {
+    console.error("[kakao-share] 링크 카드 공유 실패:", err);
+    const code = codeFromKakaoError(err);
+    return { ok: false, method: "kakao", code, error: KAKAO_SHARE_MESSAGE[code] };
+  }
+}
+
+/** 링크 카드 공유 실행 — 카카오톡 카드 → 시스템 공유(링크) → 링크 복사 */
+export async function shareLinkCardToKakao(card: {
+  title: string;
+  description: string;
+  url: string;
+  imageUrl?: string;
+  buttonTitle?: string;
+}): Promise<KakaoShareOutcome> {
+  const immediate = openKakaoLinkCard(card);
+  if (immediate?.ok) return immediate;
+
+  const ready = await ensureKakaoSdk();
+  if (ready.ok) {
+    const opened = openKakaoLinkCard(card);
+    if (opened?.ok) return opened;
+  }
+
+  if (typeof navigator !== "undefined" && navigator.share) {
+    try {
+      await navigator.share({ title: card.title, text: card.description, url: card.url });
+      return { ok: true, method: "web_share" };
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError")
+        return { ok: false, method: "web_share", code: "canceled", error: KAKAO_SHARE_MESSAGE.canceled };
+    }
+  }
+
+  const copied = await copyShareLink(card.url);
+  if (copied.ok) return copied;
+  return {
+    ...copied,
+    code: ready.ok ? copied.code : ready.code,
+    error: ready.ok ? copied.error : KAKAO_SHARE_MESSAGE[ready.code],
+  };
+}
