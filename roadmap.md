@@ -20,3 +20,8 @@
 - 일시적 통신 오류 지수 백오프 최대 3회 재시도(withRetry) — 실패는 실제 오류 표시
 - 단계 전환마다 안전 상태 백업(safe-state) + "마지막 저장 상태로 되돌리기"
 - 설정 > 오류 관리 화면(미해결 빨간색 표시, 해결됨 표시)
+
+## 물체 분할(외곽선) — 2026-09-20
+- 기기 안 Instance Segmentation 연결 완료 (onnxruntime-web, WebGPU→WASM 자동 전환, Web Worker)
+- 가짜 빈 마스크 제거: 외곽선 없으면 점선 상자 + "정밀 외곽선 처리 중" 표시
+- 남은 작업: public/models/jimpick-furniture-seg.onnx 전용 학습 모델 파일 필요 (캣타워·스타일러·김치냉장고·돌침대)
