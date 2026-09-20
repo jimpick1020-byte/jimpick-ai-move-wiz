@@ -3353,7 +3353,7 @@ export function Step6() {
                   className="absolute inset-0 bg-[#25282D]/45"
                   onClick={() => !iconBusy && setIconGen(null)}
                 />
-                <div className="relative max-h-[88%] w-full overflow-auto rounded-t-3xl bg-gradient-to-b from-white to-[#F7F8F5] p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <div className="relative max-h-[52%] w-full overflow-auto rounded-t-3xl bg-gradient-to-b from-white to-[#F7F8F5] p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
                   <div className="mx-auto mb-3 h-1.5 w-16 rounded-full bg-[#E5E7EB]" />
                   <div className="flex items-center gap-2">
                     <span className="rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] px-3.5 py-1.5 text-[15px] font-black text-white shadow-[0_3px_0_#285C99]">
