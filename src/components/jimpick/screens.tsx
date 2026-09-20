@@ -4181,6 +4181,8 @@ function AIRecognitionLab() {
   const showPhoto = features.isSuperAdmin && features.aiPhotoScan;
   const showVideo = features.isSuperAdmin && features.aiVideoScan;
   const showVision = showPhoto || showVideo;
+  /** 새 「AI 품목 인식」 카메라 화면 열림 여부 */
+  const [scanOpen, setScanOpen] = useState(false);
   const [results, setResults] = useState<DetectedItem[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [photoUrl, setPhotoUrl] = useState<string>("");
