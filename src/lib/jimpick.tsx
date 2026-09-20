@@ -1612,6 +1612,51 @@ interface Ctx extends AppState {
 const AppCtx = createContext<Ctx | null>(null);
 const STORAGE_KEY = "jimpick_v8_state";
 const OAUTH_CONSENT_KEY = "jimpick_pending_oauth_consent";
+/**
+ * 직접 만든 3D 품목만 따로 보관하는 칸.
+ * 견적 전체 저장이 실패해도(저장 공간 부족 등) 만든 품목 그림은 남아 있게 합니다.
+ * 화면을 아래로 당겨 새로고침해도 그대로 보입니다.
+ */
+const CUSTOM_ITEMS_KEY = "jimpick_custom_items_v1";
+
+function readStoredCustomItems(): CustomItem[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_ITEMS_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw) as CustomItem[];
+    return Array.isArray(list) ? list.filter((c) => c && typeof c.id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredCustomItems(items: CustomItem[]): void {
+  try {
+    const byId = new Map(readStoredCustomItems().map((c) => [c.id, c]));
+    for (const c of items) byId.set(c.id, { ...(byId.get(c.id) ?? {}), ...c });
+    localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(Array.from(byId.values())));
+  } catch {
+    /* 저장 공간이 부족하면 서버 복구로 다시 채워집니다 */
+  }
+}
+
+/** 보관해 둔 품목을 현재 목록에 합칩니다 (지운 품목은 되살리지 않습니다) */
+function unionCustomItems(current: CustomItem[], stored: CustomItem[], hidden: Set<string>): CustomItem[] {
+  const merged = [...current];
+  const pos = new Map(merged.map((c, i) => [c.id, i]));
+  for (const c of stored) {
+    if (hidden.has(c.id)) continue;
+    const i = pos.get(c.id);
+    if (i === undefined) {
+      pos.set(c.id, merged.length);
+      merged.push(c);
+    } else if (!merged[i].icon && c.icon) {
+      merged[i] = { ...merged[i], icon: c.icon };
+    }
+  }
+  return merged;
+}
+
 
 async function savePendingOAuthConsent(userId: string): Promise<void> {
   try {
@@ -1665,13 +1710,30 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
+      const stored = readStoredCustomItems();
       if (raw) {
         const s = JSON.parse(raw) as AppState;
-        setState({ ...s, catalogHidden: s.catalogHidden ?? [], loggedIn: false, screen: "splash" });
+        const hidden = new Set([...(s.catalogHidden ?? []), ...(s.draft?.hiddenItems ?? [])]);
+        const draft = s.draft
+          ? { ...s.draft, customItems: unionCustomItems(s.draft.customItems ?? [], stored, hidden) }
+          : s.draft;
+        setState({
+          ...s,
+          draft,
+          catalogHidden: s.catalogHidden ?? [],
+          loggedIn: false,
+          screen: "splash",
+        });
+      } else if (stored.length) {
+        setState((s) => ({
+          ...s,
+          draft: { ...s.draft, customItems: unionCustomItems(s.draft.customItems ?? [], stored, new Set()) },
+        }));
       }
     } catch {}
     setHydrated(true);
   }, []);
+
 
   // 로그인 상태의 유일한 근거 = Supabase Auth 세션.
   //  - 세션이 있으면 loggedIn=true (자동 로그인 유지, refresh token 자동 갱신).
@@ -1728,12 +1790,26 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     };
   }, [authRetry]);
 
+  // 만든 3D 품목은 별도 칸에 먼저 저장합니다.
+  // 전체 저장이 실패해도(저장 공간 부족 등) 새로고침 후 품목 그림이 남습니다.
+  useEffect(() => {
+    if (!hydrated) return;
+    const items = state.draft?.customItems ?? [];
+    if (items.length) writeStoredCustomItems(items);
+  }, [hydrated, state.draft?.customItems]);
+
   useEffect(() => {
     if (!hydrated) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {}
+    } catch {
+      // 저장 공간이 꽉 찬 경우: 무거운 화면 백업을 비우고 다시 저장해 봅니다
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, stepSnapshot: null }));
+      } catch {}
+    }
   }, [state, hydrated]);
+
 
   // 단계가 바뀔 때마다 "마지막으로 정상 작동한 상태"를 따로 백업합니다.
   // 화면 오류가 났을 때 이 백업으로 되돌릴 수 있습니다(저장된 견적 원본은 건드리지 않습니다).
