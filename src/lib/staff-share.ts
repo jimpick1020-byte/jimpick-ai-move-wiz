@@ -12,12 +12,6 @@ import {
   type ShareMethod,
 } from "./kakao-share";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-declare global {
-  interface Window {
-    Kakao?: any;
-  }
-}
 
 /** 직원 업무용 화면에 그리는 내용 (금액은 넣지 않습니다) */
 export interface StaffSheetSnapshot {
