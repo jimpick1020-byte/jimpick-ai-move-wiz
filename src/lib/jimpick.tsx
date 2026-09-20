@@ -1849,12 +1849,24 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   // 서버에 저장해 둔 "직접 만든 3D 품목"을 가져와 품목 목록에 계속 남아 있게 합니다.
   // (새로고침·앱 업그레이드·다른 기기에서도 그대로 보입니다)
   const [iconsLoaded, setIconsLoaded] = useState(false);
+  const [iconsTry, setIconsTry] = useState(0);
   useEffect(() => {
     if (!hydrated || !state.loggedIn || !authChecked || iconsLoaded) return;
-    setIconsLoaded(true);
+    let alive = true;
+    /** 한 번 실패하면 끝내지 않고 잠시 뒤 다시 시도합니다 (게시 직후 로그인 확인 지연 대비) */
+    const retry = () => {
+      if (!alive || iconsTry >= 5) return;
+      const wait = 1200 * (iconsTry + 1);
+      window.setTimeout(() => {
+        if (alive) setIconsTry((n) => n + 1);
+      }, wait);
+    };
     void listItemIcons()
       .then((r) => {
-        if (!r.ok || !r.items.length) return;
+        if (!alive) return;
+        if (!r.ok) return retry();
+        setIconsLoaded(true);
+        if (!r.items.length) return;
         setState((s) => {
           const hidden = new Set([...(s.catalogHidden || []), ...(s.draft.hiddenItems || [])]);
           const list = s.draft.customItems || [];
