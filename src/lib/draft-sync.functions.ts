@@ -44,11 +44,15 @@ export const saveEstimateDraft = createServerFn({ method: "POST" })
 
     const { data: existing } = await context.supabase
       .from("estimate_drafts")
-      .select("id, revision")
+      .select("id, revision, deleted_at")
       .eq("user_id", context.userId)
       .eq("estimate_id", data.estimateId)
       .maybeSingle();
 
+    // 삭제된 견적은 자동 임시저장으로 되살리지 않습니다.
+    if (existing && (existing as { deleted_at?: string | null }).deleted_at) {
+      return { ok: true, stale: true, revision: Number(existing.revision ?? 0) };
+    }
     if (existing && Number(existing.revision ?? 0) >= data.revision) {
       return { ok: true, stale: true, revision: Number(existing.revision ?? 0) };
     }
@@ -100,6 +104,7 @@ export const loadEstimateDraft = createServerFn({ method: "POST" })
       .select("estimate_id, payload, revision, updated_at")
       .eq("user_id", context.userId)
       .eq("estimate_id", data.estimateId)
+      .is("deleted_at", null)
       .maybeSingle();
     if (error) {
       console.error("[loadEstimateDraft]", error.message);
