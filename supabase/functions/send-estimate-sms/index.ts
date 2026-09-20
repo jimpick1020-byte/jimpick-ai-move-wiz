@@ -411,6 +411,13 @@ const handle = async (req: Request): Promise<Response> => {
     test_to?: string;
     /** 사장님 예약확정 알림 — 고객의 보안 링크 토큰 */
     token?: string;
+    /** 수정 통보 — 무엇을 고쳤는지 알리는 제목·내용 */
+    notice_title?: string;
+    notice_summary?: string;
+    /** 통보와 이어지는 오류 기록 */
+    error_log_id?: string;
+    /** 통보를 만든 곳 (auto · manual) */
+    notice_source?: string;
   };
   try {
     body = await req.json();
@@ -503,7 +510,8 @@ const handle = async (req: Request): Promise<Response> => {
   }
 
   // 설정 상태 확인·시험 발송은 서비스 최고관리자(또는 우리 서버)만 할 수 있습니다.
-  const adminOnly = body.checkOnly === true || body.mode === "test";
+  const adminOnly =
+    body.checkOnly === true || body.mode === "test" || body.mode === "fix_notice";
   if (adminOnly && !isServerCall) {
     const admin = await isSuperAdmin(userId, supabaseUrl, serviceKey);
     if (!admin) {
