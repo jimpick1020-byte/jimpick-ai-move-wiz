@@ -116,13 +116,6 @@ import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functi
 import { DeleteContractDialog } from "./DeleteContractDialog";
 import { useDeleteContract } from "@/lib/use-delete-contract";
 import { listDeletedEstimateIds } from "@/lib/estimate-delete.functions";
-import { getCustomerShareLink } from "@/lib/share-link.functions";
-import {
-  shareTextToKakao,
-  buildCustomerShareText,
-  ensureKakaoSdk,
-  KAKAO_SHARE_MESSAGE,
-} from "@/lib/kakao-share";
 import {
   shareToKakao,
   loadKakaoShareSdk,
@@ -617,9 +610,38 @@ export function Login() {
 
 // ============ Home ============
 export function HomeScreen() {
-  const { setScreen, resetDraft, estimates, loadEstimate } = useApp();
+  const { setScreen, resetDraft, estimates, loadEstimate, draft } = useApp();
   /** null = 아직 불러오는 중, "" = 상호명 없음/실패, 그 외 = 상호명 */
   const [companyName, setCompanyName] = useState<string | null>(null);
+  /** 「새 견적 작성」을 눌렀을 때 작성 중 견적을 지울지 물어보는 창 */
+  const [askNewEstimate, setAskNewEstimate] = useState(false);
+
+  /**
+   * 작성 중이던 견적 요약 (없으면 null).
+   * 전화가 와서 나갔다가 새로고침·뒤로가기로 처음 화면에 돌아와도
+   * 적어 둔 내용이 그대로 남아 있는지 여기서 확인해 보여 줍니다.
+   */
+  const wipItemCount = (draft.rooms ?? []).reduce(
+    (sum, r) => sum + Object.values(r.items ?? {}).reduce((a, b) => a + Number(b || 0), 0),
+    0,
+  );
+  const hasWip =
+    draft.status !== "완료" &&
+    Boolean(
+      (draft.customerName ?? "").trim() ||
+        (draft.phone ?? "").trim() ||
+        (draft.moveDate ?? "").trim() ||
+        (draft.fromAddress ?? "").trim() ||
+        (draft.toAddress ?? "").trim() ||
+        wipItemCount > 0,
+    );
+  const wipSummary = hasWip
+    ? [
+        (draft.customerName ?? "").trim() ? `${draft.customerName.trim()} 고객님` : "고객 이름 미입력",
+        (draft.moveDate ?? "").trim() || "이사 날짜 미입력",
+        wipItemCount > 0 ? `품목 ${wipItemCount}개` : "품목 미입력",
+      ].join(" · ")
+    : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -729,11 +751,32 @@ export function HomeScreen() {
               : ""}
           </div>
         )}
+        {wipSummary && (
+          <div className="rounded-2xl border border-[#BFDBFE] bg-white p-4 shadow-[0_6px_20px_rgba(15,23,42,0.06)]">
+            <div className="text-[15px] font-bold text-[#25282D] break-keep">
+              작성 중이던 견적이 있습니다
+            </div>
+            <div className="mt-1 text-[13px] font-semibold text-[#6B7280] break-keep">
+              {wipSummary}
+            </div>
+            <button
+              onClick={() => setScreen("step1")}
+              className="mt-3 w-full rounded-xl bg-[#3578C8] py-3 text-sm font-bold text-white"
+            >
+              이어서 작성하기
+            </button>
+          </div>
+        )}
         <div
           onClick={() => {
             if (blocked) {
               toast.error(TRIAL_EXPIRED_MESSAGE);
               setScreen("subscription");
+              return;
+            }
+            // 작성 중인 내용이 있으면 물어보고, 확인 전에는 절대 지우지 않습니다
+            if (wipSummary) {
+              setAskNewEstimate(true);
               return;
             }
             resetDraft();
@@ -750,6 +793,41 @@ export function HomeScreen() {
             <div className="text-5xl">📋</div>
           </div>
         </div>
+        {askNewEstimate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+            <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => setAskNewEstimate(false)} />
+            <div className="relative w-full max-w-[330px] rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+              <div className="text-center text-[16px] font-black text-[#25282D] break-keep">
+                작성 중이던 견적이 있습니다
+              </div>
+              <p className="mt-1.5 text-center text-[13px] font-bold text-[#6B7280] break-keep">
+                {wipSummary}
+              </p>
+              <div className="mt-4 space-y-2">
+                <button
+                  onClick={() => {
+                    setAskNewEstimate(false);
+                    setScreen("step1");
+                  }}
+                  className="w-full min-h-[52px] rounded-2xl bg-[#3578C8] text-[15px] font-black text-white"
+                >
+                  이어서 작성하기
+                </button>
+                <button
+                  onClick={() => {
+                    setAskNewEstimate(false);
+                    resetDraft();
+                    setScreen("step1");
+                  }}
+                  className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3.5 text-[14px] font-black text-[#6B7280]"
+                >
+                  새로 시작하기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: "견적 내역", icon: ClipboardList, s: "history" as const },
@@ -5189,8 +5267,6 @@ export function Result() {
   const [confirmSheet, setConfirmSheet] = useState(false);
   /** 카카오톡 직원 공유 확인창 */
   const [staffShareOpen, setStaffShareOpen] = useState(false);
-  /** 고객용 카카오톡 공유 진행 중 (버튼 잠금) */
-  const [customerSharing, setCustomerSharing] = useState(false);
   const [staffSharing, setStaffSharing] = useState(false);
   const [staffExpires, setStaffExpires] = useState<string | null>(null);
   const [staffPreparedUrl, setStaffPreparedUrl] = useState<string | null>(null);
@@ -5847,57 +5923,6 @@ export function Result() {
     }
   };
 
-  /**
-   * 고객에게 카카오톡으로 견적서 안내 보내기.
-   *
-   * 링크는 서버에 저장된 보안 토큰과 운영 주소(PUBLIC_APP_URL)로 만듭니다.
-   * 삭제·미발송·다른 업체 견적서는 서버에서 막습니다. 공유창이 열린 것만 알려 주고
-   * 「전송 완료」라고 말하지 않습니다.
-   */
-  const doCustomerShare = async () => {
-    if (customerSharing) return;
-    setCustomerSharing(true);
-    try {
-      const link = await getCustomerShareLink({ data: { estimateId: draft.id } });
-      if (!link.ok || !link.url) {
-        toast.error(link.error ?? KAKAO_SHARE_MESSAGE.link_failed);
-        return;
-      }
-      const ready = await ensureKakaoSdk();
-      if (!ready.ok && (ready.code === "no_js_key" || ready.code === "sdk_load_failed")) {
-        toast.error(KAKAO_SHARE_MESSAGE[ready.code], {
-          description: "기본 공유 또는 링크 복사로 보낼 수 있습니다.",
-        });
-      }
-      const text = buildCustomerShareText({
-        customerName: link.customerName || draft.customerName || "",
-        moveDate: formatMoveDateTime(draft.moveDate, draft.moveTime) || link.moveDate,
-        fromArea: areaOf(draft.fromAddress ?? ""),
-        toArea: areaOf(draft.toAddress ?? ""),
-        total: link.total ?? total,
-        url: link.url,
-        companyName: sheetCompanyName,
-      });
-      const r = await shareTextToKakao({ text, url: link.url });
-      if (!r.ok) {
-        toast.error(r.error ?? KAKAO_SHARE_MESSAGE[r.code ?? "unknown"]);
-        return;
-      }
-      toast.success(
-        r.method === "kakao"
-          ? "카카오톡 공유창을 열었습니다."
-          : r.method === "web_share"
-            ? "공유창을 열었습니다."
-            : "견적서 링크를 복사했습니다.",
-        { description: "전송 여부는 카카오톡에서 확인해 주세요." },
-      );
-    } catch (err) {
-      console.error("[customerShare]", err);
-      toast.error(KAKAO_SHARE_MESSAGE.network);
-    } finally {
-      setCustomerSharing(false);
-    }
-  };
 
   /**
    * 문자 앱을 내용이 채워진 채로 엽니다. 보내기는 사장님이 직접 누릅니다.
@@ -6213,17 +6238,6 @@ export function Result() {
           className="w-full min-h-[56px] py-4 rounded-2xl bg-[#FEE500] text-[#191600] font-black flex items-center justify-center gap-2 shadow-[0_4px_0_#E3CE00] active:translate-y-[2px] active:shadow-[0_2px_0_#E3CE00]"
         >
           <MessageSquare className="w-5 h-5" /> 카카오톡으로 직원 공유
-        </button>
-        <button
-          onClick={() => {
-            tap("soft");
-            void doCustomerShare();
-          }}
-          disabled={customerSharing}
-          className="w-full min-h-[56px] py-4 rounded-2xl bg-[#FEE500] text-[#191600] font-black flex items-center justify-center gap-2 shadow-[0_4px_0_#E3CE00] active:translate-y-[2px] active:shadow-[0_2px_0_#E3CE00] disabled:opacity-60"
-        >
-          <MessageSquare className="w-5 h-5" />
-          {customerSharing ? "공유창 준비 중…" : "카카오톡으로 고객에게 견적서 보내기"}
         </button>
 
         {staffShareOpen && (
