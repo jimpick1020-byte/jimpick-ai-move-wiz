@@ -1807,6 +1807,22 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
           setState((s) => {
             if (s.draft.id !== id) return s;
             const merged = { ...s.draft, ...server } as Estimate;
+            // 직접 만든 3D 품목은 서버 편집본으로 덮어쓰지 않고 합칩니다.
+            // (업그레이드·게시 직후에도 새로 만든 품목 그림이 사라지지 않게)
+            {
+              const union = [...(s.draft.customItems || [])];
+              const pos = new Map(union.map((c, i) => [c.id, i]));
+              for (const c of server.customItems || []) {
+                const i = pos.get(c.id);
+                if (i === undefined) {
+                  pos.set(c.id, union.length);
+                  union.push(c);
+                } else if (!union[i].icon && c.icon) {
+                  union[i] = { ...union[i], ...c };
+                }
+              }
+              merged.customItems = union;
+            }
             // 앱 전체에서 지운 품목(catalogHidden)은 서버 편집본에서도 되살아나지
             // 않도록 방·품목 목록에서 걸러 냅니다. (삭제가 새로고침·업그레이드에도 유지됨)
             const hidden = new Set(s.catalogHidden || []);
@@ -1833,12 +1849,24 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   // 서버에 저장해 둔 "직접 만든 3D 품목"을 가져와 품목 목록에 계속 남아 있게 합니다.
   // (새로고침·앱 업그레이드·다른 기기에서도 그대로 보입니다)
   const [iconsLoaded, setIconsLoaded] = useState(false);
+  const [iconsTry, setIconsTry] = useState(0);
   useEffect(() => {
     if (!hydrated || !state.loggedIn || !authChecked || iconsLoaded) return;
-    setIconsLoaded(true);
+    let alive = true;
+    /** 한 번 실패하면 끝내지 않고 잠시 뒤 다시 시도합니다 (게시 직후 로그인 확인 지연 대비) */
+    const retry = () => {
+      if (!alive || iconsTry >= 5) return;
+      const wait = 1200 * (iconsTry + 1);
+      window.setTimeout(() => {
+        if (alive) setIconsTry((n) => n + 1);
+      }, wait);
+    };
     void listItemIcons()
       .then((r) => {
-        if (!r.ok || !r.items.length) return;
+        if (!alive) return;
+        if (!r.ok) return retry();
+        setIconsLoaded(true);
+        if (!r.items.length) return;
         setState((s) => {
           const hidden = new Set([...(s.catalogHidden || []), ...(s.draft.hiddenItems || [])]);
           const list = s.draft.customItems || [];
@@ -1886,8 +1914,11 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
           return { ...s, draft: { ...s.draft, customItems: merged } };
         });
       })
-      .catch(() => {});
-  }, [hydrated, state.loggedIn, authChecked, iconsLoaded]);
+      .catch(() => retry());
+    return () => {
+      alive = false;
+    };
+  }, [hydrated, state.loggedIn, authChecked, iconsLoaded, iconsTry]);
 
   // 직접 추가·AI 로 만든 품목의 아이콘을 등록해 견적서·공유 화면에서도 같은 그림이 나오게 합니다
   registerCustomIcons(state.draft?.customItems);
