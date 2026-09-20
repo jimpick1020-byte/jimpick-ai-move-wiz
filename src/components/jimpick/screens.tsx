@@ -6215,6 +6215,17 @@ export function Result() {
         >
           <MessageSquare className="w-5 h-5" /> 카카오톡으로 직원 공유
         </button>
+        <button
+          onClick={() => {
+            tap("soft");
+            void doCustomerShare();
+          }}
+          disabled={customerSharing}
+          className="w-full min-h-[56px] py-4 rounded-2xl bg-[#FEE500] text-[#191600] font-black flex items-center justify-center gap-2 shadow-[0_4px_0_#E3CE00] active:translate-y-[2px] active:shadow-[0_2px_0_#E3CE00] disabled:opacity-60"
+        >
+          <MessageSquare className="w-5 h-5" />
+          {customerSharing ? "공유창 준비 중…" : "카카오톡으로 고객에게 견적서 보내기"}
+        </button>
 
         {staffShareOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
