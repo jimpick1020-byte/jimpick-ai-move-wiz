@@ -1034,40 +1034,9 @@ export function Step1() {
                 })
                 .catch(() => toast.error("견적서를 불러오지 못했습니다."));
             }}
-            onCancelBooking={(termsId, estimateId) => {
-              if (!window.confirm("이 예약을 취소하고 견적서도 지울까요?")) return;
-              // 화면에서 먼저 지워 달력에 바로 반영합니다(서버 실패 시 되돌립니다).
-              const prevBookings = bookings;
-              const prevCounts = bookingCounts;
-              const nextBookings: Record<string, CalendarBooking[]> = {};
-              const nextCounts: Record<string, number> = {};
-              for (const [d, list] of Object.entries(bookings)) {
-                const kept = list.filter((b) => b.termsId !== termsId);
-                if (kept.length) nextBookings[d] = kept;
-                nextCounts[d] = kept.length;
-              }
-              for (const [d, n] of Object.entries(bookingCounts)) {
-                if (nextCounts[d] === undefined) nextCounts[d] = n;
-              }
-              setBookings(nextBookings);
-              setBookingCounts(nextCounts);
-              cancelReservation({ data: { termsId } })
-                .then((r) => {
-                  if (r?.ok) {
-                    deleteEstimate(estimateId);
-                    toast.success("예약을 취소하고 견적서를 지웠습니다.");
-                    loadBookings();
-                  } else {
-                    setBookings(prevBookings);
-                    setBookingCounts(prevCounts);
-                    toast.error(r?.error || "예약을 취소하지 못했습니다.");
-                  }
-                })
-                .catch(() => {
-                  setBookings(prevBookings);
-                  setBookingCounts(prevCounts);
-                  toast.error("예약을 취소하지 못했습니다.");
-                });
+            onCancelBooking={(_termsId, estimateId) => {
+              // 달력에서 지우면 견적 내역도 함께 삭제됩니다(서버에서 한 번에 처리).
+              contractDelete.ask(estimateId);
             }}
             onSelect={(date) =>
               updateDraft({
