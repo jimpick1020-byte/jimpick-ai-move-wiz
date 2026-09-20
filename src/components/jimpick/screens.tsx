@@ -2607,7 +2607,7 @@ export function Step6() {
 
   // 검색 결과가 없을 때, 전에 만들어 둔 아이콘이 있으면 먼저 보여 줍니다 (중복 생성 방지)
   const noResult =
-    !!qd.trim() && !catalog.some((i) => matchesQuery(qd, i.name, i.sub, i.cat));
+    !!qd.trim() && !catalog.some((i) => matchesQuery(qd, i.name, i.sub, i.cat5));
   useEffect(() => {
     if (!noResult) {
       setSavedIcon(null);
@@ -2729,7 +2729,7 @@ export function Step6() {
 
   // 검색어가 있으면 전체에서, 없으면 현재 탭에서 보여 주고 같은 종류끼리 정렬합니다.
   const items = catalog
-    .filter((i) => (qd.trim() ? matchesQuery(qd, i.name, i.sub, i.cat) : i.cat5 === tab))
+    .filter((i) => (qd.trim() ? matchesQuery(qd, i.name, i.sub, i.cat5) : i.cat5 === tab))
     .slice()
     .sort((a, b) => {
       const af = itemFamily(a.name, a.sub || "기타");
