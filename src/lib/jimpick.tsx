@@ -1807,6 +1807,22 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
           setState((s) => {
             if (s.draft.id !== id) return s;
             const merged = { ...s.draft, ...server } as Estimate;
+            // 직접 만든 3D 품목은 서버 편집본으로 덮어쓰지 않고 합칩니다.
+            // (업그레이드·게시 직후에도 새로 만든 품목 그림이 사라지지 않게)
+            {
+              const union = [...(s.draft.customItems || [])];
+              const pos = new Map(union.map((c, i) => [c.id, i]));
+              for (const c of server.customItems || []) {
+                const i = pos.get(c.id);
+                if (i === undefined) {
+                  pos.set(c.id, union.length);
+                  union.push(c);
+                } else if (!union[i].icon && c.icon) {
+                  union[i] = { ...union[i], ...c };
+                }
+              }
+              merged.customItems = union;
+            }
             // 앱 전체에서 지운 품목(catalogHidden)은 서버 편집본에서도 되살아나지
             // 않도록 방·품목 목록에서 걸러 냅니다. (삭제가 새로고침·업그레이드에도 유지됨)
             const hidden = new Set(s.catalogHidden || []);
