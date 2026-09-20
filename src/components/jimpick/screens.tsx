@@ -2323,9 +2323,10 @@ export function Step6() {
   const applyGeneratedIcon = (
     res: IconResult,
     roomName: string,
-    opts?: { qty?: number; extra?: number },
+    opts?: { qty?: number; extra?: number; keepOpen?: boolean },
   ): string | null => {
     if (!res.itemId || !res.iconUrl) return "아이콘 주소를 받지 못했습니다.";
+    if (!roomName) return "담을 공간을 고르지 못했습니다. 공간을 다시 선택해 주세요.";
     const itemId = res.itemId;
     const iconUrl = res.iconUrl;
     const name = cleanItemName(res.name || "") || "이름 수정 필요";
@@ -2333,48 +2334,45 @@ export function Step6() {
     const addQty = Math.max(0, Math.min(99, opts?.qty ?? 1));
     const extra = Math.max(0, opts?.extra ?? 0);
 
-
-    // 고른 공간이 아직 없으면 그 공간을 먼저 만듭니다 (기존 공간·품목은 그대로)
-    let rooms = draft.rooms;
-    if (!rooms.some((r) => r.name === roomName)) {
-      if (!roomName) return "담을 공간을 고르지 못했습니다. 공간을 다시 선택해 주세요.";
-      rooms = [
-        ...rooms,
-        { id: `r_${roomName}`, name: roomName, items: {} as Record<string, number> },
-      ];
-    }
-    const target = rooms.find((r) => r.name === roomName);
-    if (!target) return "담을 공간을 찾지 못했습니다. 공간을 다시 선택해 주세요.";
-
     registerCustomIcons([{ id: itemId, icon: iconUrl }]);
-    const list = draft.customItems || [];
-    const exists = list.some((c) => c.id === itemId);
-    const nextCustom = exists
-      ? list.map((c) =>
-          c.id === itemId
-            ? { ...c, name, cat, subgroup: res.subgroup, size: res.size, extra, icon: iconUrl, active: true }
-            : c,
-        )
-      : [...list, { id: itemId, name, cat, subgroup: res.subgroup, size: res.size, extra, icon: iconUrl, active: true }];
-    const nextRooms =
-      addQty <= 0
-        ? rooms
-        : rooms.map((r) =>
-            r.id === target.id
-              ? { ...r, items: { ...r.items, [itemId]: (r.items[itemId] ?? 0) + addQty } }
-              : r,
-          );
-    // 담기 결과가 실제로 반영됐는지 확인한 뒤에만 완료로 처리합니다
-    const placed = nextRooms.find((r) => r.id === target.id)?.items[itemId] ?? 0;
-    if (!nextCustom.some((c) => c.id === itemId) || (addQty > 0 && placed < 1))
-      return "품목을 공간에 담지 못했습니다. 다시 시도해 주세요.";
 
-
-    updateDraft({
-      customItems: nextCustom,
-      hiddenItems: (draft.hiddenItems || []).filter((x) => x !== itemId),
-      rooms: nextRooms,
-      recentItems: [itemId, ...(draft.recentItems || []).filter((x) => x !== itemId)].slice(0, 12),
+    // 항상 「가장 최신 견적」에 합칩니다 —
+    // 품목을 여러 개 잇달아 만들어도 앞서 만든 품목·수량이 지워지지 않습니다.
+    patchDraft((d) => {
+      let rooms = d.rooms;
+      if (!rooms.some((r) => r.name === roomName))
+        rooms = [
+          ...rooms,
+          { id: `r_${roomName}`, name: roomName, items: {} as Record<string, number> },
+        ];
+      const list = d.customItems || [];
+      const entry = {
+        id: itemId,
+        name,
+        cat,
+        subgroup: res.subgroup,
+        size: res.size,
+        extra,
+        icon: iconUrl,
+        active: true,
+      };
+      const nextCustom = list.some((c) => c.id === itemId)
+        ? list.map((c) => (c.id === itemId ? { ...c, ...entry } : c))
+        : [...list, entry];
+      const nextRooms =
+        addQty <= 0
+          ? rooms
+          : rooms.map((r) =>
+              r.name === roomName
+                ? { ...r, items: { ...r.items, [itemId]: (r.items[itemId] ?? 0) + addQty } }
+                : r,
+            );
+      return {
+        customItems: nextCustom,
+        hiddenItems: (d.hiddenItems || []).filter((x) => x !== itemId),
+        rooms: nextRooms,
+        recentItems: [itemId, ...(d.recentItems || []).filter((x) => x !== itemId)].slice(0, 12),
+      };
     });
 
     // 품목 목록에서 바로 보이도록 해당 분류 탭을 열고, 담긴 공간을 펼쳐 둡니다
@@ -2391,9 +2389,11 @@ export function Step6() {
       return next;
     });
     setSavedIcon(null);
-    setIconGen(null);
     setIconSimilar(null);
-    setQ("");
+    if (!opts?.keepOpen) {
+      setIconGen(null);
+      setQ("");
+    }
     tap("success");
     return null;
   };
