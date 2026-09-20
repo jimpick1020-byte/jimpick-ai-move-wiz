@@ -113,6 +113,16 @@ import { setRememberMe } from "@/integrations/supabase/auth-persistence";
 import { AuthField, AuthInput, AuthPrimaryButton, AuthShell } from "./AuthUi";
 import { Button } from "@/components/ui/button";
 import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functions";
+import { DeleteContractDialog } from "./DeleteContractDialog";
+import { useDeleteContract } from "@/lib/use-delete-contract";
+import { listDeletedEstimateIds } from "@/lib/estimate-delete.functions";
+import { getCustomerShareLink } from "@/lib/share-link.functions";
+import {
+  shareTextToKakao,
+  buildCustomerShareText,
+  ensureKakaoSdk,
+  KAKAO_SHARE_MESSAGE,
+} from "@/lib/kakao-share";
 import {
   shareToKakao,
   loadKakaoShareSdk,
@@ -141,7 +151,6 @@ import {
   publishEstimateTerms,
   getTermsStatuses,
   getReservationCounts,
-  cancelReservation,
   getReservationSheet,
   renameReservationCustomer,
   getReservationCustomerName,
@@ -931,6 +940,38 @@ export function Step1() {
     loadBookings();
   }, [loadBookings]);
 
+  /**
+   * 달력에서 계약을 삭제하면 견적 내역·직원 링크·예약 문자까지 함께 삭제 상태가 됩니다.
+   * (서버의 soft_delete_estimate 한 곳에서 처리 → 한쪽만 지워지는 일이 없습니다)
+   */
+  const contractDelete = useDeleteContract({
+    source: "calendar",
+    onDeleted: (estimateId) => {
+      deleteEstimate(estimateId);
+      loadBookings();
+      toast.success("계약을 삭제했습니다", {
+        description: "달력 일정과 견적 내역에서 함께 삭제되었습니다.",
+      });
+    },
+  });
+
+  /** 다른 휴대전화에서 삭제한 견적은 이 기기 목록에서도 감춥니다 */
+  useEffect(() => {
+    let alive = true;
+    listDeletedEstimateIds()
+      .then((r) => {
+        if (!alive || !r?.ok) return;
+        for (const id of r.ids) deleteEstimate(id);
+      })
+      .catch(() => {
+        /* 못 읽으면 이 기기 목록은 그대로 둡니다 */
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const moveTypes: MoveType[] = ["포장이사", "반포장이사", "일반이사", "보관이사", "사무실이사"];
   const next = () => {
     if (!draft.customerName.trim()) return setErr("고객명을 입력해 주세요.");
@@ -1034,40 +1075,9 @@ export function Step1() {
                 })
                 .catch(() => toast.error("견적서를 불러오지 못했습니다."));
             }}
-            onCancelBooking={(termsId, estimateId) => {
-              if (!window.confirm("이 예약을 취소하고 견적서도 지울까요?")) return;
-              // 화면에서 먼저 지워 달력에 바로 반영합니다(서버 실패 시 되돌립니다).
-              const prevBookings = bookings;
-              const prevCounts = bookingCounts;
-              const nextBookings: Record<string, CalendarBooking[]> = {};
-              const nextCounts: Record<string, number> = {};
-              for (const [d, list] of Object.entries(bookings)) {
-                const kept = list.filter((b) => b.termsId !== termsId);
-                if (kept.length) nextBookings[d] = kept;
-                nextCounts[d] = kept.length;
-              }
-              for (const [d, n] of Object.entries(bookingCounts)) {
-                if (nextCounts[d] === undefined) nextCounts[d] = n;
-              }
-              setBookings(nextBookings);
-              setBookingCounts(nextCounts);
-              cancelReservation({ data: { termsId } })
-                .then((r) => {
-                  if (r?.ok) {
-                    deleteEstimate(estimateId);
-                    toast.success("예약을 취소하고 견적서를 지웠습니다.");
-                    loadBookings();
-                  } else {
-                    setBookings(prevBookings);
-                    setBookingCounts(prevCounts);
-                    toast.error(r?.error || "예약을 취소하지 못했습니다.");
-                  }
-                })
-                .catch(() => {
-                  setBookings(prevBookings);
-                  setBookingCounts(prevCounts);
-                  toast.error("예약을 취소하지 못했습니다.");
-                });
+            onCancelBooking={(_termsId, estimateId) => {
+              // 달력에서 지우면 견적 내역도 함께 삭제됩니다(서버에서 한 번에 처리).
+              contractDelete.ask(estimateId);
             }}
             onSelect={(date) =>
               updateDraft({
@@ -1126,6 +1136,13 @@ export function Step1() {
       <BottomButtonBar>
         <PrimaryButton onClick={next}>다음: 주소 검색</PrimaryButton>
       </BottomButtonBar>
+      <DeleteContractDialog
+        open={contractDelete.open}
+        busy={contractDelete.busy}
+        error={contractDelete.error}
+        onCancel={contractDelete.cancel}
+        onConfirm={contractDelete.confirm}
+      />
     </MobileShell>
   );
 }
@@ -5172,6 +5189,8 @@ export function Result() {
   const [confirmSheet, setConfirmSheet] = useState(false);
   /** 카카오톡 직원 공유 확인창 */
   const [staffShareOpen, setStaffShareOpen] = useState(false);
+  /** 고객용 카카오톡 공유 진행 중 (버튼 잠금) */
+  const [customerSharing, setCustomerSharing] = useState(false);
   const [staffSharing, setStaffSharing] = useState(false);
   const [staffExpires, setStaffExpires] = useState<string | null>(null);
   const [staffPreparedUrl, setStaffPreparedUrl] = useState<string | null>(null);
@@ -5829,6 +5848,58 @@ export function Result() {
   };
 
   /**
+   * 고객에게 카카오톡으로 견적서 안내 보내기.
+   *
+   * 링크는 서버에 저장된 보안 토큰과 운영 주소(PUBLIC_APP_URL)로 만듭니다.
+   * 삭제·미발송·다른 업체 견적서는 서버에서 막습니다. 공유창이 열린 것만 알려 주고
+   * 「전송 완료」라고 말하지 않습니다.
+   */
+  const doCustomerShare = async () => {
+    if (customerSharing) return;
+    setCustomerSharing(true);
+    try {
+      const link = await getCustomerShareLink({ data: { estimateId: draft.id } });
+      if (!link.ok || !link.url) {
+        toast.error(link.error ?? KAKAO_SHARE_MESSAGE.link_failed);
+        return;
+      }
+      const ready = await ensureKakaoSdk();
+      if (!ready.ok && (ready.code === "no_js_key" || ready.code === "sdk_load_failed")) {
+        toast.error(KAKAO_SHARE_MESSAGE[ready.code], {
+          description: "기본 공유 또는 링크 복사로 보낼 수 있습니다.",
+        });
+      }
+      const text = buildCustomerShareText({
+        customerName: link.customerName || draft.customerName || "",
+        moveDate: formatMoveDateTime(draft.moveDate, draft.moveTime) || link.moveDate,
+        fromArea: areaOf(draft.fromAddress ?? ""),
+        toArea: areaOf(draft.toAddress ?? ""),
+        total: link.total ?? total,
+        url: link.url,
+        companyName: sheetCompanyName,
+      });
+      const r = await shareTextToKakao({ text, url: link.url });
+      if (!r.ok) {
+        toast.error(r.error ?? KAKAO_SHARE_MESSAGE[r.code ?? "unknown"]);
+        return;
+      }
+      toast.success(
+        r.method === "kakao"
+          ? "카카오톡 공유창을 열었습니다."
+          : r.method === "web_share"
+            ? "공유창을 열었습니다."
+            : "견적서 링크를 복사했습니다.",
+        { description: "전송 여부는 카카오톡에서 확인해 주세요." },
+      );
+    } catch (err) {
+      console.error("[customerShare]", err);
+      toast.error(KAKAO_SHARE_MESSAGE.network);
+    } finally {
+      setCustomerSharing(false);
+    }
+  };
+
+  /**
    * 문자 앱을 내용이 채워진 채로 엽니다. 보내기는 사장님이 직접 누릅니다.
    * 컴퓨터처럼 문자 앱이 없는 기기에서는 내용을 복사해 드립니다.
    */
@@ -6142,6 +6213,17 @@ export function Result() {
           className="w-full min-h-[56px] py-4 rounded-2xl bg-[#FEE500] text-[#191600] font-black flex items-center justify-center gap-2 shadow-[0_4px_0_#E3CE00] active:translate-y-[2px] active:shadow-[0_2px_0_#E3CE00]"
         >
           <MessageSquare className="w-5 h-5" /> 카카오톡으로 직원 공유
+        </button>
+        <button
+          onClick={() => {
+            tap("soft");
+            void doCustomerShare();
+          }}
+          disabled={customerSharing}
+          className="w-full min-h-[56px] py-4 rounded-2xl bg-[#FEE500] text-[#191600] font-black flex items-center justify-center gap-2 shadow-[0_4px_0_#E3CE00] active:translate-y-[2px] active:shadow-[0_2px_0_#E3CE00] disabled:opacity-60"
+        >
+          <MessageSquare className="w-5 h-5" />
+          {customerSharing ? "공유창 준비 중…" : "카카오톡으로 고객에게 견적서 보내기"}
         </button>
 
         {staffShareOpen && (
@@ -6734,10 +6816,31 @@ export function History() {
         if (alive && r.ok) setNoticeRows(r.rows);
       })
       .catch(() => {});
+    // 다른 기기(또는 달력)에서 삭제한 계약은 이 목록에서도 감춥니다.
+    listDeletedEstimateIds()
+      .then((r) => {
+        if (!alive || !r?.ok) return;
+        for (const id of r.ids) deleteEstimate(id);
+      })
+      .catch(() => {});
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** 견적 내역에서 삭제 → 달력 일정도 함께 삭제됩니다(서버에서 한 번에 처리) */
+  const contractDelete = useDeleteContract({
+    source: "history",
+    onDeleted: (estimateId) => {
+      deleteEstimate(estimateId);
+      loadTerms();
+      loadNotices();
+      toast.success("계약을 삭제했습니다", {
+        description: "달력 일정과 견적 내역에서 함께 삭제되었습니다.",
+      });
+    },
+  });
   /** 이 견적의 사장님 알림 기록 (가장 최근) */
   const noticeOf = (id: string) => noticeRows.find((n) => n.estimateId === id) ?? null;
   /** 사장님이 직접 계약완료 처리 — 서버 저장이 성공한 뒤에만 계약완료로 보여 줍니다 */
@@ -7013,7 +7116,7 @@ export function History() {
                           </button>
                           <button
                             onClick={() => {
-                              if (confirm("삭제하시겠습니까?")) deleteEstimate(e.id);
+                              contractDelete.ask(e.id);
                             }}
                             className="px-3 py-2 rounded-xl bg-[#FBEAEA] text-[#D95C5C]"
                           >
@@ -7037,6 +7140,13 @@ export function History() {
         })}
       </div>
       <BottomNav />
+      <DeleteContractDialog
+        open={contractDelete.open}
+        busy={contractDelete.busy}
+        error={contractDelete.error}
+        onCancel={contractDelete.cancel}
+        onConfirm={contractDelete.confirm}
+      />
     </MobileShell>
   );
 }

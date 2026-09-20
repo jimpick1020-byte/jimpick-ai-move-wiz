@@ -119,7 +119,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("estimate_terms")
       .select(
-        "id, user_id, customer_name, move_date, total, contact_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at",
+        "id, user_id, customer_name, move_date, total, contact_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at, deleted_at",
       )
       .eq("access_token", data.token)
       .maybeSingle();
@@ -128,6 +128,9 @@ export const getTermsLink = createServerFn({ method: "POST" })
       return { ok: false, error: "약관 정보를 불러오지 못했습니다." };
     }
     if (!row) return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
+    // 삭제된 계약의 고객용 링크는 더 이상 열리지 않습니다.
+    if ((row as { deleted_at?: string | null }).deleted_at)
+      return { ok: false, error: "삭제된 견적서입니다. 업체에 문의해 주세요." };
 
     const { data: acc } = await supabaseAdmin
       .from("terms_acceptances")
@@ -201,11 +204,14 @@ export const acceptTerms = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: row, error } = await supabaseAdmin
         .from("estimate_terms")
-        .select("id")
+        .select("id, deleted_at")
         .eq("access_token", data.token)
         .maybeSingle();
       if (error || !row) {
         return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
+      }
+      if ((row as { deleted_at?: string | null }).deleted_at) {
+        return { ok: false, error: "삭제된 견적서입니다. 업체에 문의해 주세요." };
       }
 
       // 고객이 어떤 기기로 눌렀는지 남깁니다 (접속 정보). 없으면 빈 값으로 둡니다.
@@ -409,8 +415,9 @@ export const logCustomerView = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row } = await supabaseAdmin
       .from("estimate_terms")
-      .select("id, view_count, first_viewed_at")
+      .select("id, view_count, first_viewed_at, deleted_at")
       .eq("access_token", data.token)
+      .is("deleted_at", null)
       .maybeSingle();
     if (!row) return { ok: false };
     const now = new Date().toISOString();
@@ -452,7 +459,8 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
       .select(
         "id, estimate_id, sheet_version, terms_version, sent_at, viewed_at, first_viewed_at, last_viewed_at, view_count, terms_viewed_at, total, deposit_paid, balance_paid, balance_paid_at, payment_status, payment_note, payment_confirmed_at",
       )
-      .eq("user_id", context.userId);
+      .eq("user_id", context.userId)
+      .is("deleted_at", null);
     if (data?.estimateId) q = q.eq("estimate_id", data.estimateId);
     const { data: rows, error } = await q.order("created_at", { ascending: false }).limit(300);
     if (error || !rows) {
@@ -555,6 +563,7 @@ export const getReservationCounts = createServerFn({ method: "POST" })
         .from("estimate_terms")
         .select("id, estimate_id, move_date, customer_name, total, sheet_no, sheet_version")
         .eq("user_id", context.userId)
+        .is("deleted_at", null)
         .not("move_date", "is", null)
         .limit(2000);
       if (error || !terms) {
@@ -793,6 +802,7 @@ export const getReservationSheet = createServerFn({ method: "POST" })
         .select("estimate_id, customer_name, move_date, total, sheet_no, sheet_snapshot")
         .eq("id", data.termsId)
         .eq("user_id", context.userId)
+        .is("deleted_at", null)
         .maybeSingle();
       if (error) {
         console.error("[getReservationSheet]", error.message);

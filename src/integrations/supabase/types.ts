@@ -281,6 +281,10 @@ export type Database = {
       estimate_drafts: {
         Row: {
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_source: string | null
           estimate_id: string
           id: string
           payload: Json
@@ -290,6 +294,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_source?: string | null
           estimate_id: string
           id?: string
           payload?: Json
@@ -299,6 +307,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_source?: string | null
           estimate_id?: string
           id?: string
           payload?: Json
@@ -374,6 +386,10 @@ export type Database = {
           contact_phone: string | null
           created_at: string
           customer_name: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_source: string | null
           deposit_paid: number
           deposit_paid_at: string | null
           estimate_id: string
@@ -409,6 +425,10 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           customer_name?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_source?: string | null
           deposit_paid?: number
           deposit_paid_at?: string | null
           estimate_id: string
@@ -444,6 +464,10 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           customer_name?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_source?: string | null
           deposit_paid?: number
           deposit_paid_at?: string | null
           estimate_id?: string
@@ -1196,6 +1220,10 @@ export type Database = {
       }
       sms_free_limit: { Args: never; Returns: number }
       sms_quota: { Args: { _user_id?: string }; Returns: Json }
+      soft_delete_estimate: {
+        Args: { _estimate_id: string; _reason?: string; _source?: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "super_admin" | "subscriber"
