@@ -273,7 +273,7 @@ export function PhotoScan({ onClose }: { onClose: () => void }) {
           if (dup) {
             if (o.confidence > dup.confidence) {
               dup.confidence = o.confidence;
-              if (o.mask) dup.mask = o.mask;
+              dup.box = o.box;
             }
             continue;
           }
