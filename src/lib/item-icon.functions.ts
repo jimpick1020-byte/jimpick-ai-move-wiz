@@ -263,13 +263,16 @@ export const generateItemIcon = createServerFn({ method: "POST" })
     //    (「이미지 다시 만들기」인 경우에는 같은 품목 행에 새 그림을 다시 만들어 넣습니다)
     const existing = await context.supabase
       .from("item_icons")
-      .select("id, item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_url")
+      .select("id, item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_path, storage_path")
       .eq("user_id", context.userId)
       .eq("normalized_name", norm)
       .eq("active", true)
       .eq("status", "ready")
       .maybeSingle();
-    if (existing.data?.image_url && !data.force) {
+    const existingPath = existing.data?.storage_path || existing.data?.image_path;
+    if (existing.data && existingPath && !data.force) {
+      const iconUrl = await signedIconUrl(existingPath);
+      if (!iconUrl) return { ok: false, error: "저장된 품목 이미지를 불러오지 못했습니다." };
       return {
         ok: true,
         reused: true,
@@ -279,7 +282,7 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         subgroup: existing.data.subcategory_group ?? undefined,
         size: existing.data.size_label as "소형" | "중형" | "대형",
         room: data.room,
-        iconUrl: existing.data.image_url,
+        iconUrl,
       };
     }
     /** 다시 만들 기존 품목 행 (있으면 같은 품목 id·수량을 그대로 유지합니다) */
