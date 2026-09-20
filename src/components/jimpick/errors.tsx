@@ -140,6 +140,71 @@ export function ErrorLogScreen() {
           </div>
         </Card>
 
+        <Card className="space-y-2">
+          <div className="text-sm font-bold text-[#25282D]">수정 완료 통보</div>
+          <p className="text-xs leading-5 text-[#6B7280] break-keep">
+            문제가 생겼을 때는 알리지 않고 조용히 기록만 남깁니다. 고친 뒤에 아래 번호로 「수정
+            완료」 문자 한 통만 보냅니다.
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              inputMode="numeric"
+              placeholder="통보받을 휴대전화 번호"
+              className="min-w-0 flex-1 rounded-xl border border-[#E5E7EB] px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => void onSaveSettings()}
+              disabled={savingPhone}
+              className="shrink-0 rounded-xl bg-[#3578C8] px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+            >
+              {savingPhone ? "저장 중…" : "저장"}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => void onSaveSettings(!notifyOn)}
+            disabled={savingPhone}
+            className={`w-full rounded-xl py-2 text-xs font-bold disabled:opacity-50 ${
+              notifyOn ? "bg-[#E7F3EE] text-[#3E9B78]" : "bg-[#F3F4F6] text-[#6B7280]"
+            }`}
+          >
+            {notifyOn ? "통보 켜짐 — 누르면 끕니다" : "통보 꺼짐 — 누르면 켭니다"}
+          </button>
+          {noticeMsg && <div className="text-xs font-bold text-[#3E9B78] break-keep">{noticeMsg}</div>}
+          {noticeErr && <div className="text-xs font-bold text-[#D95C5C] break-keep">{noticeErr}</div>}
+        </Card>
+
+        {notices.length > 0 && (
+          <Card className="space-y-2">
+            <div className="text-sm font-bold text-[#25282D]">최근 통보 기록</div>
+            {notices.slice(0, 10).map((n) => (
+              <div key={n.id} className="rounded-xl bg-white px-2.5 py-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="text-xs font-bold text-[#25282D] break-keep">{n.title}</div>
+                  <span
+                    className={`shrink-0 text-[11px] font-bold ${
+                      n.status === "sent" ? "text-[#3E9B78]" : "text-[#D95C5C]"
+                    }`}
+                  >
+                    {n.status === "sent" ? "발송됨" : n.status === "skipped" ? "통보 꺼짐" : "실패"}
+                  </span>
+                </div>
+                <div className="text-[11px] leading-5 text-[#6B7280] break-keep">{n.summary}</div>
+                <div className="text-[11px] text-[#9CA3AF]">
+                  {when(n.sentAt ?? n.createdAt)}
+                  {n.toMasked ? ` · ${n.toMasked}` : ""}
+                </div>
+                {n.errorMessage && (
+                  <div className="text-[11px] text-[#D95C5C] break-keep">{n.errorMessage}</div>
+                )}
+              </div>
+            ))}
+          </Card>
+        )}
+
         {error && <Card className="text-xs text-[#D95C5C] break-keep">{error}</Card>}
         {rows === null && (
           <div className="py-10 text-center text-sm text-[#6B7280]">불러오는 중…</div>
