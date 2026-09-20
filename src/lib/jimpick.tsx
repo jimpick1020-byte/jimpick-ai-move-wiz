@@ -1612,6 +1612,51 @@ interface Ctx extends AppState {
 const AppCtx = createContext<Ctx | null>(null);
 const STORAGE_KEY = "jimpick_v8_state";
 const OAUTH_CONSENT_KEY = "jimpick_pending_oauth_consent";
+/**
+ * 직접 만든 3D 품목만 따로 보관하는 칸.
+ * 견적 전체 저장이 실패해도(저장 공간 부족 등) 만든 품목 그림은 남아 있게 합니다.
+ * 화면을 아래로 당겨 새로고침해도 그대로 보입니다.
+ */
+const CUSTOM_ITEMS_KEY = "jimpick_custom_items_v1";
+
+function readStoredCustomItems(): CustomItem[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_ITEMS_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw) as CustomItem[];
+    return Array.isArray(list) ? list.filter((c) => c && typeof c.id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredCustomItems(items: CustomItem[]): void {
+  try {
+    const byId = new Map(readStoredCustomItems().map((c) => [c.id, c]));
+    for (const c of items) byId.set(c.id, { ...(byId.get(c.id) ?? {}), ...c });
+    localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(Array.from(byId.values())));
+  } catch {
+    /* 저장 공간이 부족하면 서버 복구로 다시 채워집니다 */
+  }
+}
+
+/** 보관해 둔 품목을 현재 목록에 합칩니다 (지운 품목은 되살리지 않습니다) */
+function unionCustomItems(current: CustomItem[], stored: CustomItem[], hidden: Set<string>): CustomItem[] {
+  const merged = [...current];
+  const pos = new Map(merged.map((c, i) => [c.id, i]));
+  for (const c of stored) {
+    if (hidden.has(c.id)) continue;
+    const i = pos.get(c.id);
+    if (i === undefined) {
+      pos.set(c.id, merged.length);
+      merged.push(c);
+    } else if (!merged[i].icon && c.icon) {
+      merged[i] = { ...merged[i], icon: c.icon };
+    }
+  }
+  return merged;
+}
+
 
 async function savePendingOAuthConsent(userId: string): Promise<void> {
   try {
