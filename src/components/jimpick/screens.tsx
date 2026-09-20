@@ -1955,6 +1955,23 @@ function digitsTail(phone: string): string {
  * 아이콘 고르기 후보.
  * 이름으로 추천한 아이콘을 맨 앞에 두고, 그 뒤로 자주 쓰는 아이콘을 붙입니다.
  */
+/** 품목 한 개의 만들기 진행 상태 */
+type IconJobState = "queued" | "generating" | "saving" | "done" | "skipped" | "failed";
+interface IconJob {
+  name: string;
+  state: IconJobState;
+  error?: string;
+}
+/** 진행 상태를 사장님 말로 보여 줍니다 */
+const ICON_JOB_TEXT: Record<IconJobState, string> = {
+  queued: "대기",
+  generating: "만드는 중",
+  saving: "저장 중",
+  done: "저장 완료",
+  skipped: "기존 품목 사용",
+  failed: "실패",
+};
+
 function iconChoices(name: string): string[] {
   const first = name.trim() ? icon3dFor(undefined, name) : DEFAULT_ICON3D;
   const rest = Object.values(ICON3D);
@@ -2301,6 +2318,9 @@ export function Step6() {
   const [iconError, setIconError] = useState<string | null>(null);
   /** 같은 업체가 전에 만들어 둔 아이콘 (있으면 다시 만들지 않습니다) */
   const [savedIcon, setSavedIcon] = useState<IconResult | null>(null);
+  /** 여러 품목을 한 번에 만들 때 품목별 진행 상태 */
+  const [iconJobs, setIconJobs] = useState<IconJob[]>([]);
+
 
   const openIconGen = () => {
     const name = cleanItemName(q);
