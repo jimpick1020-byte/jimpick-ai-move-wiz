@@ -5,7 +5,12 @@
  * - 카카오톡이 없거나 실패하면 navigator.share → 링크 복사 순서로 대체합니다.
  * - 공유창을 연 것은 「전달 완료」가 아닙니다. 화면 문구도 그렇게 씁니다.
  */
-import { getKakaoJsKey } from "./kakao.functions";
+import {
+  ensureKakaoSdk,
+  shareTextToKakao,
+  type KakaoShareCode,
+  type ShareMethod,
+} from "./kakao-share";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
@@ -142,63 +147,20 @@ export function areaOf(address: string): string {
   return [si, parts[1]].filter(Boolean).join(" ");
 }
 
-let sdkPromise: Promise<boolean> | null = null;
-
-/** Kakao JavaScript SDK 로드 + 초기화 */
+/**
+ * Kakao JavaScript SDK 로드 + 1회 초기화 (공통 모듈 kakao-share.ts 사용)
+ */
 export async function loadKakaoShareSdk(): Promise<boolean> {
-  if (typeof window === "undefined") return false;
-  if (window.Kakao?.isInitialized?.()) return true;
-  if (sdkPromise) return sdkPromise;
-
-  sdkPromise = (async () => {
-    let key = (import.meta.env.VITE_KAKAO_JAVASCRIPT_KEY as string | undefined) ?? "";
-    if (!key) {
-      // 지도용으로 등록해 둔 JavaScript 키를 그대로 씁니다 (같은 키입니다)
-      try {
-        key = (await getKakaoJsKey()).key ?? "";
-      } catch {
-        key = "";
-      }
-    }
-    if (!key) throw new Error("missing kakao javascript key");
-
-    if (!window.Kakao) {
-      let script = document.querySelector<HTMLScriptElement>("script[data-kakao-share-sdk]");
-      if (!script) {
-        script = document.createElement("script");
-        script.dataset.kakaoShareSdk = "1";
-        script.async = true;
-        script.src = "https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js";
-        script.integrity = "sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4";
-        script.crossOrigin = "anonymous";
-        const done = new Promise<void>((resolve, reject) => {
-          script!.onload = () => resolve();
-          script!.onerror = () => reject(new Error("kakao sdk load failed"));
-        });
-        document.head.appendChild(script);
-        await done;
-      } else {
-        for (let i = 0; i < 40 && !window.Kakao; i++) await new Promise((r) => setTimeout(r, 100));
-      }
-    }
-    if (!window.Kakao) throw new Error("kakao sdk missing");
-    if (!window.Kakao.isInitialized()) window.Kakao.init(key);
-    return true;
-  })().catch((err) => {
-    console.error("[staff-share] 카카오 SDK 준비 실패:", err);
-    sdkPromise = null;
-    return false;
-  });
-
-  return sdkPromise;
+  const r = await ensureKakaoSdk();
+  return r.ok;
 }
 
-export type ShareMethod = "kakao" | "web_share" | "copy_link";
+export type { ShareMethod };
 
-/** 카카오톡 공유창 열기 → 실패 시 navigator.share → 링크 복사 */
+/** 직원용 업무지시서 공유 — 카카오톡 → 기본 공유 → 링크 복사 */
 export async function shareToKakao(
   card: StaffShareCard,
-): Promise<{ ok: boolean; method: ShareMethod; error?: string }> {
+): Promise<{ ok: boolean; method: ShareMethod; error?: string; code?: KakaoShareCode }> {
   const lines =
     card.lines && card.lines.length > 0
       ? card.lines
@@ -212,67 +174,5 @@ export async function shareToKakao(
         ];
 
   const full = `[짐픽 이사정보]\n\n${lines.join("\n")}`;
-  const tooLongForKakao = full.length > 190;
-
-  /** 시스템 공유 시트 — 카카오톡을 골라 직원을 선택할 수 있고 본문이 잘리지 않습니다 */
-  const viaWebShare = async (): Promise<{ ok: boolean; method: ShareMethod; error?: string } | null> => {
-    if (typeof navigator === "undefined" || !navigator.share) return null;
-    try {
-      await navigator.share({ title: "짐픽 직원용 이사정보", text: full });
-      return { ok: true, method: "web_share" };
-    } catch (err) {
-      const aborted = err instanceof Error && err.name === "AbortError";
-      if (aborted) return { ok: false, method: "web_share", error: "공유를 취소했습니다." };
-      return null;
-    }
-  };
-
-  // 카카오 텍스트 템플릿 한도를 넘는 업무지시서는 전체 본문을 보낼 수 있는 공유 시트를 우선합니다.
-  // 이 호출은 사용자 클릭 흐름의 첫 await 전에 시작되어 모바일 공유창 차단도 피합니다.
-  if (tooLongForKakao) {
-    const shared = await viaWebShare();
-    if (shared) return shared;
-  }
-
-  /** 준비된 SDK는 사용자 클릭 순간 동기적으로 호출해야 모바일 브라우저가 공유창을 막지 않습니다. */
-  const openKakao = (): { ok: boolean; method: ShareMethod } | null => {
-    if (!window.Kakao?.isInitialized?.() || !window.Kakao?.Share?.sendDefault) return null;
-    try {
-      window.Kakao.Share.sendDefault({
-        objectType: "text",
-        text: tooLongForKakao ? `${full.slice(0, 187)}…` : full,
-        link: { mobileWebUrl: card.url, webUrl: card.url },
-        buttonTitle: "직원용 견적서 확인",
-      });
-      return { ok: true, method: "kakao" };
-    } catch (err) {
-      console.error("[staff-share] 카카오톡 공유 실패:", err);
-      return null;
-    }
-  };
-
-  // 모달을 여는 동안 미리 준비된 경우, 첫 await 전에 바로 실행합니다.
-  const openedImmediately = openKakao();
-  if (openedImmediately) return openedImmediately;
-
-  const ready = await loadKakaoShareSdk();
-  if (ready) {
-    const opened = openKakao();
-    if (opened) return opened;
-  }
-
-  const r = await viaWebShare();
-  if (r) return r;
-
-
-  try {
-    await navigator.clipboard.writeText(card.url);
-    return { ok: true, method: "copy_link" };
-  } catch {
-    return {
-      ok: false,
-      method: "copy_link",
-      error: "카카오톡 공유와 링크 복사가 모두 되지 않았습니다.",
-    };
-  }
+  return shareTextToKakao({ text: full, url: card.url, title: "짐픽 직원용 이사정보" });
 }
