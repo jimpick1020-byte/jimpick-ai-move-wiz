@@ -3573,12 +3573,40 @@ export function Step6() {
                       </div>
                     )}
 
-                    {iconBusy && (
-                      <div className="flex items-center justify-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F8FBFF] py-5">
-                        <span className="h-6 w-6 animate-spin rounded-full border-[3px] border-[#E5E7EB] border-t-[#3578C8]" />
-                        <span className="text-[13.5px] font-black text-[#25282D]">
-                          품목을 추가하는 중
-                        </span>
+                    {iconJobs.length > 0 && (
+                      <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8FBFF] p-3">
+                        <div className="flex items-center gap-2">
+                          {iconBusy && (
+                            <span className="h-5 w-5 animate-spin rounded-full border-[3px] border-[#E5E7EB] border-t-[#3578C8]" />
+                          )}
+                          <span className="text-[13.5px] font-black text-[#25282D]">
+                            전체 {iconJobs.length}개 중{" "}
+                            {iconJobs.filter((j) => j.state === "done" || j.state === "skipped").length}개
+                            완료
+                          </span>
+                        </div>
+                        <ul className="mt-2 space-y-1">
+                          {iconJobs.map((j, i) => (
+                            <li
+                              key={`${j.name}_${i}`}
+                              className="flex items-start justify-between gap-2 text-[12.5px] font-bold"
+                            >
+                              <span className="text-[#25282D]">{j.name}</span>
+                              <span
+                                className={
+                                  j.state === "failed"
+                                    ? "text-[#D95C5C]"
+                                    : j.state === "done"
+                                      ? "text-[#3E9B78]"
+                                      : "text-[#6B7280]"
+                                }
+                              >
+                                {ICON_JOB_TEXT[j.state]}
+                                {j.error ? ` · ${j.error}` : ""}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
                     )}
 
@@ -3603,7 +3631,10 @@ export function Step6() {
                       </button>
                       <button
                         onClick={() => void runIconGen()}
-                        disabled={iconBusy || cleanItemName(iconGen.name).length < 2}
+                        disabled={
+                          iconBusy ||
+                          !splitItemNames(iconGen.name).some((n) => cleanItemName(n).length >= 2)
+                        }
                         className="flex-1 rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-3.5 text-[15px] font-black text-white shadow-[0_4px_0_#285C99] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
                       >
                         {iconBusy ? "추가 중…" : iconError ? "다시 시도" : "추가하기"}
