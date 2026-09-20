@@ -1586,6 +1586,11 @@ interface Ctx extends AppState {
   login: (id: string, remember: boolean) => void;
   logout: () => void;
   updateDraft: (patch: Partial<Estimate>) => void;
+  /**
+   * 항상 「가장 최신 견적」을 기준으로 값을 바꿉니다.
+   * 품목 여러 개를 잇달아 만들 때 앞서 만든 품목이 지워지지 않게 합니다.
+   */
+  patchDraft: (make: (current: Estimate) => Partial<Estimate>) => void;
   resetDraft: () => void;
   saveDraft: () => void;
   deleteEstimate: (id: string) => void;
@@ -2047,6 +2052,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       setState((s) => ({ ...s, loggedIn: false, screen: "login" }));
     },
     updateDraft: (patch) => setState((s) => ({ ...s, draft: { ...s.draft, ...patch } })),
+    patchDraft: (make) => setState((s) => ({ ...s, draft: { ...s.draft, ...make(s.draft) } })),
     resetDraft: () => setState((s) => ({ ...s, draft: newEstimate(), currentRoomId: "" })),
     saveDraft: () =>
       setState((s) => {
