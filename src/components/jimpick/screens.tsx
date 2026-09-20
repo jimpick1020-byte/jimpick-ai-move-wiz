@@ -90,7 +90,6 @@ import {
   Field,
   TextInput,
 } from "./ui";
-import { PhotoScan } from "./PhotoScan";
 import { MoveDateCalendar, type CalendarBooking } from "./MoveDateCalendar";
 import {
   DEFAULT_SIZE_PRESETS,
@@ -104,10 +103,6 @@ import { toast } from "sonner";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
-import { recognizeItems, type DetectedItem } from "@/lib/ai.functions";
-import { parseVoice, type ItemMatch } from "@/lib/voice-parse";
-import { mergeTranscript } from "@/lib/voice-fields";
-import { WavRecorder } from "@/lib/recorder";
 import { sendSmsViaEdge, resendManagerNotice, type EdgeSmsResult } from "@/lib/sms.edge";
 import { hasSession, signIn, signOut } from "@/lib/auth";
 import { setRememberMe } from "@/integrations/supabase/auth-persistence";
