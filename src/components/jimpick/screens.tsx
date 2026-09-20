@@ -1998,6 +1998,12 @@ export function Step6() {
   const [openRoom, setOpenRoom] = useState<string | null>(null);
   const [tab, setTab] = useState<string>(CATS5[0]);
   const [q, setQ] = useState("");
+  /** 타이핑이 멈춘 뒤 검색합니다 (글자마다 목록을 다시 그리지 않아 빠릅니다) */
+  const [qd, setQd] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setQd(q), 200);
+    return () => clearTimeout(timer);
+  }, [q]);
   const [pickerOpen, setPickerOpen] = useState(false);
   /** 직접 품목 선택 중 위로 드래그하면 담은 품목 영역을 접어 목록을 넓게 봅니다 */
   const [pickedCollapsed, setPickedCollapsed] = useState(false);
@@ -2599,7 +2605,8 @@ export function Step6() {
   };
 
   // 검색 결과가 없을 때, 전에 만들어 둔 아이콘이 있으면 먼저 보여 줍니다 (중복 생성 방지)
-  const noResult = !!q.trim() && !catalog.some((i) => i.name.includes(q));
+  const noResult =
+    !!qd.trim() && !catalog.some((i) => matchesQuery(qd, i.name, i.sub, i.cat));
   useEffect(() => {
     if (!noResult) {
       setSavedIcon(null);
@@ -2721,7 +2728,7 @@ export function Step6() {
 
   // 검색어가 있으면 전체에서, 없으면 현재 탭에서 보여 주고 같은 종류끼리 정렬합니다.
   const items = catalog
-    .filter((i) => (q ? i.name.includes(q) : i.cat5 === tab))
+    .filter((i) => (qd.trim() ? matchesQuery(qd, i.name, i.sub, i.cat) : i.cat5 === tab))
     .slice()
     .sort((a, b) => {
       const af = itemFamily(a.name, a.sub || "기타");
