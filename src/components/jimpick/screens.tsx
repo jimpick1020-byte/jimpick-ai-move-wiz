@@ -3353,12 +3353,19 @@ export function Step6() {
                   className="absolute inset-0 bg-[#25282D]/45"
                   onClick={() => !iconBusy && setIconGen(null)}
                 />
-                <div className="relative max-h-[88%] w-full overflow-auto rounded-t-3xl bg-white p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                  <div className="text-[18px] font-black text-[#25282D]">목록에 없는 품목 추가</div>
-                  <p className="mt-1 text-[12.5px] font-bold text-[#6B7280]">
+                <div className="relative max-h-[88%] w-full overflow-auto rounded-t-3xl bg-gradient-to-b from-white to-[#F7F8F5] p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                  <div className="mx-auto mb-3 h-1.5 w-16 rounded-full bg-[#E5E7EB]" />
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] px-3.5 py-1.5 text-[15px] font-black text-white shadow-[0_3px_0_#285C99]">
+                      {iconGen.room || room?.name}
+                    </span>
+                    <span className="text-[18px] font-black text-[#25282D]">목록에 없는 품목 추가</span>
+                  </div>
+                  <p className="mt-1.5 text-[12.5px] font-bold text-[#6B7280]">
                     품목 이름과 사진을 등록하면 지금 열어 둔 공간과 알맞은 품목 그룹에 자동으로
                     들어갑니다
                   </p>
+
 
                   <div className="mt-3 space-y-3">
                     <Field label="품목 이름">
@@ -3368,9 +3375,7 @@ export function Step6() {
                         placeholder="예: 흙침대"
                         onChange={(e) => {
                           const name = e.target.value;
-                          setIconGen((f) =>
-                            f ? { ...f, name, kind: f.kind === "기타" ? guessKind(name) : f.kind } : f,
-                          );
+                          setIconGen((f) => (f ? { ...f, name, kind: guessKind(name) } : f));
                         }}
                       />
                     </Field>
@@ -3410,25 +3415,6 @@ export function Step6() {
                             className="h-14 w-14 rounded-xl border border-[#E5E7EB] object-cover"
                           />
                         )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">품목 종류</div>
-                      <div className="flex flex-wrap gap-2">
-                        {ITEM_KINDS.map((k) => (
-                          <button
-                            key={k.label}
-                            onClick={() => setIconGen((f) => (f ? { ...f, kind: k.label } : f))}
-                            className={`rounded-2xl px-3 py-2 text-[13px] font-black ${
-                              iconGen.kind === k.label
-                                ? "bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white shadow-[0_3px_0_#285C99]"
-                                : "border border-[#E5E7EB] bg-white text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
-                            }`}
-                          >
-                            {k.label}
-                          </button>
-                        ))}
                       </div>
                     </div>
 
