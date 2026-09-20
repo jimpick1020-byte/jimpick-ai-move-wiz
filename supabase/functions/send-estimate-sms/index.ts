@@ -449,9 +449,40 @@ const handle = async (req: Request): Promise<Response> => {
   const jwt = auth.replace(/^Bearer\s+/i, "").trim();
   const serverSecret = (Deno.env.get("JIMPICK_PROXY_SECRET") ?? "").trim();
   const serverHeader = (req.headers.get("x-jimpick-server") ?? "").trim();
-  const isServerCall =
+  let isServerCall =
     (!!serviceKey && jwt === serviceKey) ||
     (!!serverSecret && serverHeader.length === serverSecret.length && serverHeader === serverSecret);
+
+  /**
+   * 열쇠가 바뀌어 값이 서로 달라졌을 때에도 우리 서버를 알아봅니다.
+   *
+   * 들어온 열쇠가 「관리자 열쇠 모양」이면, 인증 서버에 실제로 물어
+   * 관리자 권한이 있는 참된 열쇠인지 확인합니다.
+   * 흉내낸 열쇠는 이 확인을 통과하지 못합니다.
+   */
+  if (!isServerCall && jwt) {
+    const looksAdminKey =
+      jwt.startsWith("sb_secret_") ||
+      (() => {
+        try {
+          const p = JSON.parse(atob(jwt.split(".")[1] ?? ""));
+          return p?.role === "service_role";
+        } catch {
+          return false;
+        }
+      })();
+    if (looksAdminKey) {
+      try {
+        const probe = await fetch(`${supabaseUrl}/auth/v1/admin/users?per_page=1`, {
+          headers: { Authorization: `Bearer ${jwt}`, apikey: jwt },
+        });
+        if (probe.ok) isServerCall = true;
+        else console.error("[send-estimate-sms] 관리자 열쇠 확인 실패", probe.status);
+      } catch (e) {
+        console.error("[send-estimate-sms] 관리자 열쇠 확인 오류", e instanceof Error ? e.message : e);
+      }
+    }
+  }
   let userId = "";
   if (jwt && !isServerCall) {
     // 토큰 내용을 그대로 믿지 않고, 인증 서버에 직접 물어 확인합니다.
