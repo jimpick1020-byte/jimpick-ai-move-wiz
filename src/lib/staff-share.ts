@@ -151,22 +151,17 @@ export async function loadKakaoShareSdk(): Promise<boolean> {
 
 export type { ShareMethod };
 
-/** 직원용 업무지시서 공유 — 카카오톡 → 기본 공유 → 링크 복사 */
+/**
+ * 직원용 업무지시서 공유 — 카카오톡에는 링크 카드 한 개만 보냅니다.
+ * (긴 노란색 텍스트 메시지는 보내지 않습니다. 실제 작업 내용은 링크를 열어 봅니다.)
+ */
 export async function shareToKakao(
   card: StaffShareCard,
 ): Promise<{ ok: boolean; method: ShareMethod; error?: string; code?: KakaoShareCode }> {
-  const lines =
-    card.lines && card.lines.length > 0
-      ? card.lines
-      : [
-          `견적번호 ${card.sheetNo || "-"}`,
-          `이사일 ${card.moveDate || "미정"}`,
-          `고객 ${card.maskedCustomer}`,
-          `${card.fromArea} → ${card.toArea}`,
-          `${card.truckText || "차량 미정"} · ${card.moveType}`,
-          `담당 ${card.staffName || "-"}`,
-        ];
-
-  const full = `[짐픽 이사정보]\n\n${lines.join("\n")}`;
-  return shareTextToKakao({ text: full, url: card.url, title: "짐픽 직원용 이사정보" });
+  return shareLinkCardToKakao({
+    title: "JIMPICK 직원용 작업 지시서",
+    description: "현장 작업에 필요한 이사 정보를 확인하세요.",
+    url: card.url,
+    buttonTitle: "작업 지시서 보기",
+  });
 }
