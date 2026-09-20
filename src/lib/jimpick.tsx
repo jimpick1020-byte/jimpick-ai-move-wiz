@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { ITEMS_1000, CATS20 } from "./items-catalog-1000";
 import { useDraftAutosave, type DraftSaveState } from "./use-draft-autosave";
 import { loadEstimateDraft } from "./draft-sync.functions";
-import { listItemIcons } from "./item-icon.functions";
 import { registerCustomIcons } from "./jimpick-icon3d";
+import { mergeItemCatalog } from "./item-catalog-merge";
+import { usePersistentItemCatalog } from "./use-persistent-item-catalog";
 import { FEATURED_HOUSEHOLD_100 } from "./featured-household-100";
 import { saveSafeSnapshot } from "./safe-state";
 
@@ -1581,6 +1582,9 @@ interface Ctx extends AppState {
   draftSaveState: DraftSaveState;
   /** 마지막으로 임시저장이 끝난 시각 */
   draftSavedAt: number | null;
+  /** 현재 로그인 업체가 보유한 영구 생성 품목 */
+  companyItems: CustomItem[];
+  refreshCompanyItems: () => Promise<CustomItem[]>;
 
   setScreen: (s: Screen) => void;
   login: (id: string, remember: boolean) => void;
@@ -1622,47 +1626,6 @@ const OAUTH_CONSENT_KEY = "jimpick_pending_oauth_consent";
  * 견적 전체 저장이 실패해도(저장 공간 부족 등) 만든 품목 그림은 남아 있게 합니다.
  * 화면을 아래로 당겨 새로고침해도 그대로 보입니다.
  */
-const CUSTOM_ITEMS_KEY = "jimpick_custom_items_v1";
-
-function readStoredCustomItems(): CustomItem[] {
-  try {
-    const raw = localStorage.getItem(CUSTOM_ITEMS_KEY);
-    if (!raw) return [];
-    const list = JSON.parse(raw) as CustomItem[];
-    return Array.isArray(list) ? list.filter((c) => c && typeof c.id === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeStoredCustomItems(items: CustomItem[]): void {
-  try {
-    const byId = new Map(readStoredCustomItems().map((c) => [c.id, c]));
-    for (const c of items) byId.set(c.id, { ...(byId.get(c.id) ?? {}), ...c });
-    localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(Array.from(byId.values())));
-  } catch {
-    /* 저장 공간이 부족하면 서버 복구로 다시 채워집니다 */
-  }
-}
-
-/** 보관해 둔 품목을 현재 목록에 합칩니다 (지운 품목은 되살리지 않습니다) */
-function unionCustomItems(current: CustomItem[], stored: CustomItem[], hidden: Set<string>): CustomItem[] {
-  const merged = [...current];
-  const pos = new Map(merged.map((c, i) => [c.id, i]));
-  for (const c of stored) {
-    if (hidden.has(c.id)) continue;
-    const i = pos.get(c.id);
-    if (i === undefined) {
-      pos.set(c.id, merged.length);
-      merged.push(c);
-    } else if (!merged[i].icon && c.icon) {
-      merged[i] = { ...merged[i], icon: c.icon };
-    }
-  }
-  return merged;
-}
-
-
 async function savePendingOAuthConsent(userId: string): Promise<void> {
   try {
     const raw = localStorage.getItem(OAUTH_CONSENT_KEY);
@@ -1707,6 +1670,11 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [authRetry, setAuthRetry] = useState(0);
+  const [authUserId, setAuthUserId] = useState("");
+  const companyCatalog = usePersistentItemCatalog(
+    hydrated && state.loggedIn && authChecked,
+    authUserId,
+  );
 
   // 하이드레이션 이후에 저장된 상태를 불러옵니다 (SSR 불일치 방지).
   // 로그인 여부는 저장된 값을 믿지 않고 Supabase 세션으로만 판단합니다(아래 세션 효과).
@@ -1715,25 +1683,14 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      const stored = readStoredCustomItems();
       if (raw) {
         const s = JSON.parse(raw) as AppState;
-        const hidden = new Set([...(s.catalogHidden ?? []), ...(s.draft?.hiddenItems ?? [])]);
-        const draft = s.draft
-          ? { ...s.draft, customItems: unionCustomItems(s.draft.customItems ?? [], stored, hidden) }
-          : s.draft;
         setState({
           ...s,
-          draft,
           catalogHidden: s.catalogHidden ?? [],
           loggedIn: false,
           screen: "splash",
         });
-      } else if (stored.length) {
-        setState((s) => ({
-          ...s,
-          draft: { ...s.draft, customItems: unionCustomItems(s.draft.customItems ?? [], stored, new Set()) },
-        }));
       }
     } catch {}
     setHydrated(true);
@@ -1748,6 +1705,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     let alive = true;
     const apply = (hasSession: boolean, userId?: string) => {
       if (hasSession && userId) void savePendingOAuthConsent(userId);
+      setAuthUserId(hasSession && userId ? userId : "");
       setState((s) => {
         if (hasSession) {
           return { ...s, loggedIn: true, screen: s.screen === "splash" ? "home" : s.screen };
@@ -1794,14 +1752,6 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       sub.subscription.unsubscribe();
     };
   }, [authRetry]);
-
-  // 만든 3D 품목은 별도 칸에 먼저 저장합니다.
-  // 전체 저장이 실패해도(저장 공간 부족 등) 새로고침 후 품목 그림이 남습니다.
-  useEffect(() => {
-    if (!hydrated) return;
-    const items = state.draft?.customItems ?? [];
-    if (items.length) writeStoredCustomItems(items);
-  }, [hydrated, state.draft?.customItems]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -1927,79 +1877,15 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, [hydrated, state.loggedIn, authChecked, state.draft?.id, recoveredFor]);
 
-  // 서버에 저장해 둔 "직접 만든 3D 품목"을 가져와 품목 목록에 계속 남아 있게 합니다.
-  // (새로고침·앱 업그레이드·다른 기기에서도 그대로 보입니다)
-  const [iconsLoaded, setIconsLoaded] = useState(false);
-  const [iconsTry, setIconsTry] = useState(0);
+  // 업체 영구 품목은 견적과 별도로 읽고, 현재 견적에는 스냅샷으로 합칩니다.
+  // 새 견적·기존 견적 전환이 이 목록을 지우지 못합니다.
   useEffect(() => {
-    if (!hydrated || !state.loggedIn || !authChecked || iconsLoaded) return;
-    let alive = true;
-    /** 한 번 실패하면 끝내지 않고 잠시 뒤 다시 시도합니다 (게시 직후 로그인 확인 지연 대비) */
-    const retry = () => {
-      if (!alive || iconsTry >= 5) return;
-      const wait = 1200 * (iconsTry + 1);
-      window.setTimeout(() => {
-        if (alive) setIconsTry((n) => n + 1);
-      }, wait);
-    };
-    void listItemIcons()
-      .then((r) => {
-        if (!alive) return;
-        if (!r.ok) return retry();
-        setIconsLoaded(true);
-        if (!r.items.length) return;
-        setState((s) => {
-          const hidden = new Set([...(s.catalogHidden || []), ...(s.draft.hiddenItems || [])]);
-          const list = s.draft.customItems || [];
-          const byId = new Map(list.map((c) => [c.id, c]));
-          let changed = false;
-          const merged = [...list];
-          for (const it of r.items) {
-            if (hidden.has(it.itemId)) continue;
-            const cur = byId.get(it.itemId);
-            if (!cur) {
-              merged.push({
-                id: it.itemId,
-                name: it.name,
-                cat: it.cat,
-                extra: it.size === "대형" ? 1 : it.size === "중형" ? 0.5 : 0,
-                icon: it.iconUrl,
-                subgroup: it.subgroup,
-                size: it.size,
-                active: true,
-              });
-              changed = true;
-            } else if (
-              cur.icon !== it.iconUrl ||
-              cur.name !== it.name ||
-              cur.cat !== it.cat ||
-              cur.subgroup !== it.subgroup ||
-              cur.size !== it.size ||
-              cur.active === false
-            ) {
-              const i = merged.findIndex((c) => c.id === it.itemId);
-              merged[i] = {
-                ...cur,
-                name: it.name,
-                cat: it.cat,
-                extra: it.size === "대형" ? 1 : it.size === "중형" ? 0.5 : 0,
-                icon: it.iconUrl,
-                subgroup: it.subgroup,
-                size: it.size,
-                active: true,
-              };
-              changed = true;
-            }
-          }
-          if (!changed) return s;
-          return { ...s, draft: { ...s.draft, customItems: merged } };
-        });
-      })
-      .catch(() => retry());
-    return () => {
-      alive = false;
-    };
-  }, [hydrated, state.loggedIn, authChecked, iconsLoaded, iconsTry]);
+    if (!companyCatalog.items.length) return;
+    setState((s) => {
+      const merged = mergeItemCatalog(companyCatalog.items, s.draft.customItems || []);
+      return { ...s, draft: { ...s.draft, customItems: merged } };
+    });
+  }, [companyCatalog.items]);
 
   // 직접 추가·AI 로 만든 품목의 아이콘을 등록해 견적서·공유 화면에서도 같은 그림이 나오게 합니다
   registerCustomIcons(state.draft?.customItems);
@@ -2009,6 +1895,8 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     authChecking: !hydrated || !authChecked,
     draftSaveState: autosave.state,
     draftSavedAt: autosave.savedAt,
+    companyItems: companyCatalog.items,
+    refreshCompanyItems: companyCatalog.refresh,
 
     retryAuthCheck: () => setAuthRetry((value) => value + 1),
     setScreen: (screen) => {
@@ -2053,7 +1941,12 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     },
     updateDraft: (patch) => setState((s) => ({ ...s, draft: { ...s.draft, ...patch } })),
     patchDraft: (make) => setState((s) => ({ ...s, draft: { ...s.draft, ...make(s.draft) } })),
-    resetDraft: () => setState((s) => ({ ...s, draft: newEstimate(), currentRoomId: "" })),
+    resetDraft: () =>
+      setState((s) => ({
+        ...s,
+        draft: { ...newEstimate(), customItems: companyCatalog.items },
+        currentRoomId: "",
+      })),
     saveDraft: () =>
       setState((s) => {
         const { total } = calcEstimate(s.draft);
@@ -2125,7 +2018,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       setState((s) => ({
         ...s,
         // 저장된 견적·고객정보(estimates)는 그대로 두고 작성 중 상태만 정리합니다
-        draft: newEstimate(),
+        draft: { ...newEstimate(), customItems: companyCatalog.items },
         currentRoomId: "",
         stepSnapshot: null,
         screen: "home",
