@@ -5190,6 +5190,8 @@ export function Result() {
   const [confirmSheet, setConfirmSheet] = useState(false);
   /** 카카오톡 직원 공유 확인창 */
   const [staffShareOpen, setStaffShareOpen] = useState(false);
+  /** 고객용 카카오톡 공유 진행 중 (버튼 잠금) */
+  const [customerSharing, setCustomerSharing] = useState(false);
   const [staffSharing, setStaffSharing] = useState(false);
   const [staffExpires, setStaffExpires] = useState<string | null>(null);
   const [staffPreparedUrl, setStaffPreparedUrl] = useState<string | null>(null);
@@ -5843,6 +5845,58 @@ export function Result() {
       toast.error("직원 공유 중 오류가 발생했습니다");
     } finally {
       setStaffSharing(false);
+    }
+  };
+
+  /**
+   * 고객에게 카카오톡으로 견적서 안내 보내기.
+   *
+   * 링크는 서버에 저장된 보안 토큰과 운영 주소(PUBLIC_APP_URL)로 만듭니다.
+   * 삭제·미발송·다른 업체 견적서는 서버에서 막습니다. 공유창이 열린 것만 알려 주고
+   * 「전송 완료」라고 말하지 않습니다.
+   */
+  const doCustomerShare = async () => {
+    if (customerSharing) return;
+    setCustomerSharing(true);
+    try {
+      const link = await getCustomerShareLink({ data: { estimateId: draft.id } });
+      if (!link.ok || !link.url) {
+        toast.error(link.error ?? KAKAO_SHARE_MESSAGE.link_failed);
+        return;
+      }
+      const ready = await ensureKakaoSdk();
+      if (!ready.ok && (ready.code === "no_js_key" || ready.code === "sdk_load_failed")) {
+        toast.error(KAKAO_SHARE_MESSAGE[ready.code], {
+          description: "기본 공유 또는 링크 복사로 보낼 수 있습니다.",
+        });
+      }
+      const text = buildCustomerShareText({
+        customerName: link.customerName || draft.customerName || "",
+        moveDate: formatMoveDateTime(draft.moveDate, draft.moveTime) || link.moveDate,
+        fromArea: areaOf(draft.fromAddress ?? ""),
+        toArea: areaOf(draft.toAddress ?? ""),
+        total: link.total ?? total,
+        url: link.url,
+        companyName: sheetCompanyName,
+      });
+      const r = await shareTextToKakao({ text, url: link.url });
+      if (!r.ok) {
+        toast.error(r.error ?? KAKAO_SHARE_MESSAGE[r.code ?? "unknown"]);
+        return;
+      }
+      toast.success(
+        r.method === "kakao"
+          ? "카카오톡 공유창을 열었습니다."
+          : r.method === "web_share"
+            ? "공유창을 열었습니다."
+            : "견적서 링크를 복사했습니다.",
+        { description: "전송 여부는 카카오톡에서 확인해 주세요." },
+      );
+    } catch (err) {
+      console.error("[customerShare]", err);
+      toast.error(KAKAO_SHARE_MESSAGE.network);
+    } finally {
+      setCustomerSharing(false);
     }
   };
 
