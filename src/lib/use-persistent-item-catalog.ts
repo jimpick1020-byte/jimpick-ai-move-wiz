@@ -58,5 +58,18 @@ export function usePersistentItemCatalog(enabled: boolean, userId: string) {
     void refresh().catch(() => {});
   }, [enabled, userId, refresh]);
 
+  useEffect(() => {
+    if (!enabled || !userId) return;
+    const refreshVisible = () => {
+      if (document.visibilityState === "visible") void refresh().catch(() => {});
+    };
+    const timer = window.setInterval(refreshVisible, 50 * 60 * 1000);
+    document.addEventListener("visibilitychange", refreshVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshVisible);
+    };
+  }, [enabled, userId, refresh]);
+
   return { items, error, refresh };
 }

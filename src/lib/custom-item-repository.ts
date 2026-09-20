@@ -1,7 +1,17 @@
-import { listItemIcons, type IconResult } from "./item-icon.functions";
+import { listItemIcons } from "./item-icon.functions";
 import type { CustomItem } from "./jimpick";
 
-export function iconResultToCustomItem(item: IconResult): CustomItem | null {
+interface StoredIconItem {
+  itemId: string;
+  name: string;
+  cat: string;
+  subgroup?: string;
+  size?: "소형" | "중형" | "대형";
+  volume?: number;
+  iconUrl: string;
+}
+
+export function iconResultToCustomItem(item: StoredIconItem): CustomItem | null {
   if (!item.itemId || !item.name || !item.cat || !item.iconUrl) return null;
   return {
     id: item.itemId,
