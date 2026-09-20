@@ -4834,7 +4834,12 @@ export function Result() {
     staffPhone: draft.staffPhone ?? "",
     rooms: sheetRooms.map((r) => ({
       name: r.name,
-      items: r.items.map((i) => ({ name: i.name, qty: i.qty })),
+      items: r.items.map((i) => ({
+        id: i.id,
+        name: i.name,
+        qty: i.qty,
+        icon: draft.customItems.find((custom) => custom.id === i.id)?.icon,
+      })),
     })),
   });
 
