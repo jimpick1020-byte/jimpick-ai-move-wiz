@@ -1,8 +1,8 @@
 /**
- * 사진 품목 인식 (실제 AI) — 물체별 외곽 마스크까지 받아옵니다.
+ * 사진 품목 인식 (실제 AI) — 물체 종류와 위치를 받아옵니다.
+ *  실제 외곽선은 기기 안 분할 모델(src/lib/segmentation)이 계산합니다. 여기서 가짜 마스크를 만들지 않습니다.
  *
- *  - Gemini 비전 모델에게 물체마다 위치(box)와 외곽 마스크(mask PNG)를 요청합니다.
- *  - 마스크를 주지 못한 물체는 위치만 씁니다 (가짜 결과를 만들지 않습니다).
+ *  - 비전 모델에게 물체마다 한글 품목명·신뢰도·위치(box)를 요청합니다.
  *  - 벽·바닥·창문·천장 같은 배경은 제외합니다.
  *  - AI 키는 서버에서만 읽습니다.
  */
@@ -23,8 +23,8 @@ export interface SegmentedObject {
   confidence: number;
   /** 0~1 로 정규화된 화면 좌표 */
   box: { x0: number; y0: number; x1: number; y1: number };
-  /** box 영역을 덮는 흑백 마스크 PNG (data URL). 없으면 위치만 씁니다 */
-  mask?: string;
+  /** 실제 물체 외곽선 (0~1 좌표). 기기 안 분할 모델이 채웁니다. 없으면 위치만 씁니다 */
+  polygon?: { x: number; y: number }[];
 }
 
 const RawSchema = z.object({
@@ -32,7 +32,6 @@ const RawSchema = z.object({
   label_en: z.string().max(40).optional().nullable(),
   confidence: z.number().optional().nullable(),
   box_2d: z.array(z.number()).length(4),
-  mask: z.string().optional().nullable(),
 });
 
 const PROMPT = `You analyse a photo of a Korean home for a moving-company estimate.
@@ -43,14 +42,12 @@ would have to carry. For EACH object instance (count two identical plants as two
 - "label_en": the English name
 - "confidence": 0..1 how sure you are of the item type
 - "box_2d": [ymin, xmin, ymax, xmax] normalised to 0-1000
-- "mask": a base64 PNG segmentation mask (probability/binary mask) covering exactly that box region,
-  as a data URL string, following the real outline of the object.
 
 Rules:
 - Never return walls, floor, ceiling, windows, curtains-on-wall, doors, lights on the ceiling, people, or empty space.
 - Do not merge separate objects into one box. A TV and the TV stand under it are two objects.
 - Output ONLY a JSON array, no prose, no code fences:
-  [{"label_ko":"소파(2인)","label_en":"two seater sofa","confidence":0.92,"box_2d":[520,10,780,390],"mask":"data:image/png;base64,..."}]`;
+  [{"label_ko":"소파(2인)","label_en":"two seater sofa","confidence":0.92,"box_2d":[520,10,780,390]}]`;
 
 function extractArray(text: string): unknown[] {
   const start = text.indexOf("[");
@@ -62,15 +59,6 @@ function extractArray(text: string): unknown[] {
   } catch {
     return [];
   }
-}
-
-/** 마스크 문자열을 data URL 로 정리합니다 (순수 base64 만 오는 경우 대비) */
-function normalizeMask(raw?: string | null): string | undefined {
-  const v = (raw ?? "").trim();
-  if (!v || v.length < 80) return undefined;
-  if (v.startsWith("data:image/")) return v;
-  if (/^[A-Za-z0-9+/=\s]+$/.test(v)) return `data:image/png;base64,${v.replace(/\s+/g, "")}`;
-  return undefined;
 }
 
 export const segmentPhotoItems = createServerFn({ method: "POST" })
@@ -141,7 +129,6 @@ small appliances on the floor, and items at the edges of the photo.${
               x1: Math.max(0, Math.min(1, x1)),
               y1: Math.max(0, Math.min(1, y1)),
             },
-            mask: normalizeMask(parsed.data.mask),
           });
         }
         if (objects.length === 0)
