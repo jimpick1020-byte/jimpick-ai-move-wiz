@@ -7,7 +7,7 @@
  */
 import {
   ensureKakaoSdk,
-  shareTextToKakao,
+  shareLinkCardToKakao,
   type KakaoShareCode,
   type ShareMethod,
 } from "./kakao-share";
