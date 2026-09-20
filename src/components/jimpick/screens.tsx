@@ -2331,6 +2331,7 @@ export function Step6() {
   const openIconGen = () => {
     const name = cleanItemName(q);
     tap("soft");
+    setIconJobs([]);
     if (!room?.name) {
       toast.error("품목을 담을 공간을 먼저 선택해 주세요.");
       return;
@@ -2612,7 +2613,7 @@ export function Step6() {
       setSavedIcon(null);
       return;
     }
-    const name = cleanItemName(q);
+    const name = cleanItemName(qd);
     if (name.length < 2) {
       setSavedIcon(null);
       return;
@@ -2630,7 +2631,7 @@ export function Step6() {
       alive = false;
       clearTimeout(timer);
     };
-  }, [q, noResult]);
+  }, [qd, noResult]);
 
   const openEditItem = (id: string) => {
     const c = (draft.customItems || []).find((x) => x.id === id);
@@ -3469,8 +3470,8 @@ export function Step6() {
                     <span className="text-[18px] font-black text-[#25282D]">목록에 없는 품목 추가</span>
                   </div>
                   <p className="mt-1.5 text-[12.5px] font-bold text-[#6B7280]">
-                    품목 이름과 사진을 등록하면 지금 열어 둔 공간과 알맞은 품목 그룹에 자동으로
-                    들어갑니다
+                    품목 이름(여러 개 가능)과 사진을 등록하면 고른 공간과 알맞은 품목 그룹에
+                    자동으로 들어갑니다
                   </p>
 
 
@@ -3644,7 +3645,7 @@ export function Step6() {
                         }
                         className="flex-1 rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-3.5 text-[15px] font-black text-white shadow-[0_4px_0_#285C99] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
                       >
-                        {iconBusy ? "추가 중…" : iconError ? "다시 시도" : "추가하기"}
+                        {iconBusy ? "만드는 중…" : iconError ? "다시 시도" : "품목 생성"}
                       </button>
                     </div>
                   </div>
