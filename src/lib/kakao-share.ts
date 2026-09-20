@@ -256,8 +256,12 @@ export function buildCustomerShareText(v: {
 }
 
 /**
- * 링크 카드 한 개만 보냅니다 (직원용 업무지시서).
- * 긴 본문 텍스트는 보내지 않습니다 — 카카오톡에는 제목·설명·버튼이 있는 카드만 나갑니다.
+ * 직원용 업무지시서 공유 — 카카오톡에 카드 한 개만 보냅니다.
+ *
+ * 중요: 카카오 개발자 콘솔에 등록되지 않은 도메인은 카카오가 카드의 링크·버튼을
+ * 오류 없이 조용히 제거해 버립니다(받는 사람이 카드를 눌러도 아무 반응 없음).
+ * 그래서 본문 텍스트 안에 주소를 그대로 넣습니다. 카카오톡은 텍스트 속 주소를
+ * 자동으로 누를 수 있는 링크로 바꿔 주기 때문에 도메인 등록과 무관하게 열립니다.
  */
 export function openKakaoLinkCard(card: {
   title: string;
@@ -267,21 +271,15 @@ export function openKakaoLinkCard(card: {
   buttonTitle?: string;
 }): KakaoShareOutcome | null {
   if (!kakaoReady()) return null;
+  // 본문은 카카오 템플릿 한도(약 190자) 안으로 맞춥니다.
+  const head = `${card.title}\n${card.description}`.slice(0, 140);
+  const text = `${head}\n\n${card.url}`;
   try {
     window.Kakao.Share.sendDefault({
-      objectType: "feed",
-      content: {
-        title: card.title,
-        description: card.description,
-        imageUrl: card.imageUrl || `${window.location.origin}/apple-touch-icon.png`,
-        link: { mobileWebUrl: card.url, webUrl: card.url },
-      },
-      buttons: [
-        {
-          title: card.buttonTitle || "작업 지시서 보기",
-          link: { mobileWebUrl: card.url, webUrl: card.url },
-        },
-      ],
+      objectType: "text",
+      text,
+      link: { mobileWebUrl: card.url, webUrl: card.url },
+      buttonTitle: card.buttonTitle || "작업 지시서 보기",
     });
     return { ok: true, method: "kakao" };
   } catch (err) {
@@ -310,7 +308,8 @@ export async function shareLinkCardToKakao(card: {
 
   if (typeof navigator !== "undefined" && navigator.share) {
     try {
-      await navigator.share({ title: card.title, text: card.description, url: card.url });
+      // 일부 공유 대상은 url 필드를 버리므로 본문에도 주소를 넣습니다.
+      await navigator.share({ title: card.title, text: `${card.description}\n${card.url}`, url: card.url });
       return { ok: true, method: "web_share" };
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError")
