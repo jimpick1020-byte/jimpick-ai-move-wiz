@@ -42,6 +42,12 @@ export function ErrorLogScreen() {
   const [rows, setRows] = useState<ErrorLogRow[] | null>(null);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [notices, setNotices] = useState<FixNoticeRow[]>([]);
+  const [phone, setPhone] = useState("");
+  const [notifyOn, setNotifyOn] = useState(true);
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [noticeMsg, setNoticeMsg] = useState("");
+  const [noticeErr, setNoticeErr] = useState("");
 
   const load = useCallback(async () => {
     setError("");
@@ -51,16 +57,38 @@ export function ErrorLogScreen() {
       setRows([]);
       setError(r.error ?? "오류 기록을 읽지 못했습니다");
     }
+    const n = await withRetry(() => getFixNoticeState());
+    if (n.ok && n.data) {
+      setNotices(n.data.notices);
+      setPhone(n.data.settings.phone);
+      setNotifyOn(n.data.settings.enabled);
+    }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  const onSaveSettings = async (nextOn?: boolean) => {
+    const enabled = nextOn ?? notifyOn;
+    setSavingPhone(true);
+    setNoticeErr("");
+    setNoticeMsg("");
+    const r = await withRetry(() => saveFixNoticeSettings({ data: { phone, enabled } }));
+    setSavingPhone(false);
+    if (r.ok && r.data?.ok) {
+      setNotifyOn(enabled);
+      setNoticeMsg("통보 설정을 저장했습니다.");
+    } else {
+      setNoticeErr(r.data?.error ?? r.error ?? "통보 설정을 저장하지 못했습니다");
+    }
+  };
+
   const onResolve = async (row: ErrorLogRow) => {
     setBusyId(row.id);
+    setNoticeErr("");
+    setNoticeMsg("");
     const r = await withRetry(() => resolveAppError({ data: { id: row.id, recovery: "manual" } }));
-    setBusyId(null);
     if (r.ok && r.data?.ok) {
       setRows((prev) =>
         prev
@@ -71,9 +99,30 @@ export function ErrorLogScreen() {
             )
           : prev,
       );
+      // 고쳐진 뒤에만 통보 문자를 보냅니다 (오류가 났을 때는 보내지 않습니다)
+      const label = SCREEN_LABEL[row.screen] ?? row.screen;
+      const n = await withRetry(() =>
+        sendFixNoticeNow({
+          data: {
+            title: `${label} 문제 수정 완료`.slice(0, 60),
+            summary: `${row.message}`.slice(0, 280),
+            errorLogId: row.id,
+          },
+        }),
+      );
+      if (n.ok && n.data?.ok) {
+        setNoticeMsg(
+          `수정 완료 문자를 보냈습니다. (받는 번호 ****${n.data.recipientLast4 ?? ""})`,
+        );
+      } else {
+        setNoticeErr(n.data?.error ?? n.error ?? "수정 완료 문자를 보내지 못했습니다");
+      }
+      const refreshed = await withRetry(() => getFixNoticeState());
+      if (refreshed.ok && refreshed.data) setNotices(refreshed.data.notices);
     } else {
       setError(r.error ?? "해결 표시를 저장하지 못했습니다");
     }
+    setBusyId(null);
   };
 
   const unresolved = rows?.filter((r) => !r.resolved).length ?? 0;
