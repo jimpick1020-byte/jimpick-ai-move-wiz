@@ -1710,13 +1710,30 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
+      const stored = readStoredCustomItems();
       if (raw) {
         const s = JSON.parse(raw) as AppState;
-        setState({ ...s, catalogHidden: s.catalogHidden ?? [], loggedIn: false, screen: "splash" });
+        const hidden = new Set([...(s.catalogHidden ?? []), ...(s.draft?.hiddenItems ?? [])]);
+        const draft = s.draft
+          ? { ...s.draft, customItems: unionCustomItems(s.draft.customItems ?? [], stored, hidden) }
+          : s.draft;
+        setState({
+          ...s,
+          draft,
+          catalogHidden: s.catalogHidden ?? [],
+          loggedIn: false,
+          screen: "splash",
+        });
+      } else if (stored.length) {
+        setState((s) => ({
+          ...s,
+          draft: { ...s.draft, customItems: unionCustomItems(s.draft.customItems ?? [], stored, new Set()) },
+        }));
       }
     } catch {}
     setHydrated(true);
   }, []);
+
 
   // 로그인 상태의 유일한 근거 = Supabase Auth 세션.
   //  - 세션이 있으면 loggedIn=true (자동 로그인 유지, refresh token 자동 갱신).
