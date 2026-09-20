@@ -90,6 +90,7 @@ import {
   Field,
   TextInput,
 } from "./ui";
+import { PhotoScan } from "./PhotoScan";
 import { MoveDateCalendar, type CalendarBooking } from "./MoveDateCalendar";
 import {
   DEFAULT_SIZE_PRESETS,
@@ -4181,6 +4182,8 @@ function AIRecognitionLab() {
   const showPhoto = features.isSuperAdmin && features.aiPhotoScan;
   const showVideo = features.isSuperAdmin && features.aiVideoScan;
   const showVision = showPhoto || showVideo;
+  /** 새 「AI 품목 인식」 카메라 화면 열림 여부 */
+  const [scanOpen, setScanOpen] = useState(false);
   const [results, setResults] = useState<DetectedItem[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [photoUrl, setPhotoUrl] = useState<string>("");
@@ -4674,10 +4677,21 @@ function AIRecognitionLab() {
     };
   }, []);
 
+  // 카메라로 바로 찍어 외곽선까지 인식하는 화면 (실제 카메라 + 실제 AI)
+  if (scanOpen) return <PhotoScan onClose={() => { setScanOpen(false); setScreen("step6"); }} />;
+
   return (
     <MobileShell className="jp-estimate-flow jp-tone-ai">
       <TopBar title="AI 집 안 스캔" onBack={() => setScreen("step4")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
+        {showPhoto && (
+          <button
+            onClick={() => setScanOpen(true)}
+            className="w-full rounded-2xl bg-[#1E6BFF] py-4 text-[16px] font-black text-white"
+          >
+            AI 품목 인식 (카메라로 바로 찍기)
+          </button>
+        )}
         {showVision && <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#EDF5FF] to-[#DCEBFF] px-5 pt-4 pb-5 text-center">
           <ScanMascot state={mascotState} size={164} className="mx-auto" />
           <div className="mt-1 text-[17px] font-black text-[#25282D]">
