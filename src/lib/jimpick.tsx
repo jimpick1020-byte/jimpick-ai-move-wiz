@@ -1790,12 +1790,26 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     };
   }, [authRetry]);
 
+  // 만든 3D 품목은 별도 칸에 먼저 저장합니다.
+  // 전체 저장이 실패해도(저장 공간 부족 등) 새로고침 후 품목 그림이 남습니다.
+  useEffect(() => {
+    if (!hydrated) return;
+    const items = state.draft?.customItems ?? [];
+    if (items.length) writeStoredCustomItems(items);
+  }, [hydrated, state.draft?.customItems]);
+
   useEffect(() => {
     if (!hydrated) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {}
+    } catch {
+      // 저장 공간이 꽉 찬 경우: 무거운 화면 백업을 비우고 다시 저장해 봅니다
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, stepSnapshot: null }));
+      } catch {}
+    }
   }, [state, hydrated]);
+
 
   // 단계가 바뀔 때마다 "마지막으로 정상 작동한 상태"를 따로 백업합니다.
   // 화면 오류가 났을 때 이 백업으로 되돌릴 수 있습니다(저장된 견적 원본은 건드리지 않습니다).
