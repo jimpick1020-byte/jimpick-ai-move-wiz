@@ -1955,6 +1955,23 @@ function digitsTail(phone: string): string {
  * 아이콘 고르기 후보.
  * 이름으로 추천한 아이콘을 맨 앞에 두고, 그 뒤로 자주 쓰는 아이콘을 붙입니다.
  */
+/** 품목 한 개의 만들기 진행 상태 */
+type IconJobState = "queued" | "generating" | "saving" | "done" | "skipped" | "failed";
+interface IconJob {
+  name: string;
+  state: IconJobState;
+  error?: string;
+}
+/** 진행 상태를 사장님 말로 보여 줍니다 */
+const ICON_JOB_TEXT: Record<IconJobState, string> = {
+  queued: "대기",
+  generating: "만드는 중",
+  saving: "저장 중",
+  done: "저장 완료",
+  skipped: "기존 품목 사용",
+  failed: "실패",
+};
+
 function iconChoices(name: string): string[] {
   const first = name.trim() ? icon3dFor(undefined, name) : DEFAULT_ICON3D;
   const rest = Object.values(ICON3D);
@@ -1981,6 +1998,12 @@ export function Step6() {
   const [openRoom, setOpenRoom] = useState<string | null>(null);
   const [tab, setTab] = useState<string>(CATS5[0]);
   const [q, setQ] = useState("");
+  /** 타이핑이 멈춘 뒤 검색합니다 (글자마다 목록을 다시 그리지 않아 빠릅니다) */
+  const [qd, setQd] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setQd(q), 200);
+    return () => clearTimeout(timer);
+  }, [q]);
   const [pickerOpen, setPickerOpen] = useState(false);
   /** 직접 품목 선택 중 위로 드래그하면 담은 품목 영역을 접어 목록을 넓게 봅니다 */
   const [pickedCollapsed, setPickedCollapsed] = useState(false);
@@ -2301,10 +2324,14 @@ export function Step6() {
   const [iconError, setIconError] = useState<string | null>(null);
   /** 같은 업체가 전에 만들어 둔 아이콘 (있으면 다시 만들지 않습니다) */
   const [savedIcon, setSavedIcon] = useState<IconResult | null>(null);
+  /** 여러 품목을 한 번에 만들 때 품목별 진행 상태 */
+  const [iconJobs, setIconJobs] = useState<IconJob[]>([]);
+
 
   const openIconGen = () => {
     const name = cleanItemName(q);
     tap("soft");
+    setIconJobs([]);
     if (!room?.name) {
       toast.error("품목을 담을 공간을 먼저 선택해 주세요.");
       return;
@@ -2323,9 +2350,10 @@ export function Step6() {
   const applyGeneratedIcon = (
     res: IconResult,
     roomName: string,
-    opts?: { qty?: number; extra?: number },
+    opts?: { qty?: number; extra?: number; keepOpen?: boolean },
   ): string | null => {
     if (!res.itemId || !res.iconUrl) return "아이콘 주소를 받지 못했습니다.";
+    if (!roomName) return "담을 공간을 고르지 못했습니다. 공간을 다시 선택해 주세요.";
     const itemId = res.itemId;
     const iconUrl = res.iconUrl;
     const name = cleanItemName(res.name || "") || "이름 수정 필요";
@@ -2333,48 +2361,45 @@ export function Step6() {
     const addQty = Math.max(0, Math.min(99, opts?.qty ?? 1));
     const extra = Math.max(0, opts?.extra ?? 0);
 
-
-    // 고른 공간이 아직 없으면 그 공간을 먼저 만듭니다 (기존 공간·품목은 그대로)
-    let rooms = draft.rooms;
-    if (!rooms.some((r) => r.name === roomName)) {
-      if (!roomName) return "담을 공간을 고르지 못했습니다. 공간을 다시 선택해 주세요.";
-      rooms = [
-        ...rooms,
-        { id: `r_${roomName}`, name: roomName, items: {} as Record<string, number> },
-      ];
-    }
-    const target = rooms.find((r) => r.name === roomName);
-    if (!target) return "담을 공간을 찾지 못했습니다. 공간을 다시 선택해 주세요.";
-
     registerCustomIcons([{ id: itemId, icon: iconUrl }]);
-    const list = draft.customItems || [];
-    const exists = list.some((c) => c.id === itemId);
-    const nextCustom = exists
-      ? list.map((c) =>
-          c.id === itemId
-            ? { ...c, name, cat, subgroup: res.subgroup, size: res.size, extra, icon: iconUrl, active: true }
-            : c,
-        )
-      : [...list, { id: itemId, name, cat, subgroup: res.subgroup, size: res.size, extra, icon: iconUrl, active: true }];
-    const nextRooms =
-      addQty <= 0
-        ? rooms
-        : rooms.map((r) =>
-            r.id === target.id
-              ? { ...r, items: { ...r.items, [itemId]: (r.items[itemId] ?? 0) + addQty } }
-              : r,
-          );
-    // 담기 결과가 실제로 반영됐는지 확인한 뒤에만 완료로 처리합니다
-    const placed = nextRooms.find((r) => r.id === target.id)?.items[itemId] ?? 0;
-    if (!nextCustom.some((c) => c.id === itemId) || (addQty > 0 && placed < 1))
-      return "품목을 공간에 담지 못했습니다. 다시 시도해 주세요.";
 
-
-    updateDraft({
-      customItems: nextCustom,
-      hiddenItems: (draft.hiddenItems || []).filter((x) => x !== itemId),
-      rooms: nextRooms,
-      recentItems: [itemId, ...(draft.recentItems || []).filter((x) => x !== itemId)].slice(0, 12),
+    // 항상 「가장 최신 견적」에 합칩니다 —
+    // 품목을 여러 개 잇달아 만들어도 앞서 만든 품목·수량이 지워지지 않습니다.
+    patchDraft((d) => {
+      let rooms = d.rooms;
+      if (!rooms.some((r) => r.name === roomName))
+        rooms = [
+          ...rooms,
+          { id: `r_${roomName}`, name: roomName, items: {} as Record<string, number> },
+        ];
+      const list = d.customItems || [];
+      const entry = {
+        id: itemId,
+        name,
+        cat,
+        subgroup: res.subgroup,
+        size: res.size,
+        extra,
+        icon: iconUrl,
+        active: true,
+      };
+      const nextCustom = list.some((c) => c.id === itemId)
+        ? list.map((c) => (c.id === itemId ? { ...c, ...entry } : c))
+        : [...list, entry];
+      const nextRooms =
+        addQty <= 0
+          ? rooms
+          : rooms.map((r) =>
+              r.name === roomName
+                ? { ...r, items: { ...r.items, [itemId]: (r.items[itemId] ?? 0) + addQty } }
+                : r,
+            );
+      return {
+        customItems: nextCustom,
+        hiddenItems: (d.hiddenItems || []).filter((x) => x !== itemId),
+        rooms: nextRooms,
+        recentItems: [itemId, ...(d.recentItems || []).filter((x) => x !== itemId)].slice(0, 12),
+      };
     });
 
     // 품목 목록에서 바로 보이도록 해당 분류 탭을 열고, 담긴 공간을 펼쳐 둡니다
@@ -2391,28 +2416,39 @@ export function Step6() {
       return next;
     });
     setSavedIcon(null);
-    setIconGen(null);
     setIconSimilar(null);
-    setQ("");
+    if (!opts?.keepOpen) {
+      setIconGen(null);
+      setQ("");
+    }
     tap("success");
     return null;
   };
 
   /** 기존 품목을 「추가할 공간」으로 고른 공간에 1개 더 담습니다 (중복 생성 대신) */
-  const useExistingItem = (id: string, name: string) => {
+  const useExistingItem = (
+    id: string,
+    name: string,
+    opts?: { keepOpen?: boolean; silent?: boolean },
+  ) => {
     const roomName = iconGen?.room || room?.name || "";
     if (!roomName) {
       setQty(id, 1, name);
     } else {
       // 고른 공간이 목록에 없으면 먼저 만들고, 그 공간의 수량만 1개 올립니다
-      let rooms = draft.rooms;
-      if (!rooms.some((r) => r.name === roomName))
-        rooms = [...rooms, { id: `r_${roomName}`, name: roomName, items: {} as Record<string, number> }];
-      updateDraft({
-        rooms: rooms.map((r) =>
-          r.name === roomName ? { ...r, items: { ...r.items, [id]: (r.items[id] ?? 0) + 1 } } : r,
-        ),
-        recentItems: [id, ...(draft.recentItems || []).filter((x) => x !== id)].slice(0, 12),
+      patchDraft((d) => {
+        let rooms = d.rooms;
+        if (!rooms.some((r) => r.name === roomName))
+          rooms = [
+            ...rooms,
+            { id: `r_${roomName}`, name: roomName, items: {} as Record<string, number> },
+          ];
+        return {
+          rooms: rooms.map((r) =>
+            r.name === roomName ? { ...r, items: { ...r.items, [id]: (r.items[id] ?? 0) + 1 } } : r,
+          ),
+          recentItems: [id, ...(d.recentItems || []).filter((x) => x !== id)].slice(0, 12),
+        };
       });
       setOpenRooms((prev) => {
         const cur = prev ?? [];
@@ -2425,29 +2461,39 @@ export function Step6() {
         }
         return next;
       });
-      toast.success(`「${name}」을(를) ${roomName}에 담았습니다`);
+      if (!opts?.silent) toast.success(`「${name}」을(를) ${roomName}에 담았습니다`);
     }
-    setIconGen(null);
     setIconSimilar(null);
-    setQ("");
+    if (!opts?.keepOpen) {
+      setIconGen(null);
+      setQ("");
+    }
   };
 
 
-  /** 「목록에 없는 품목 추가」 — 저장·이미지 생성·현재 공간 담기를 한 번에 합니다 */
+  /**
+   * 「목록에 없는 품목 추가」 — 저장·이미지 생성·고른 공간 담기를 한 번에 합니다.
+   * 쉼표·줄바꿈으로 여러 품목을 적으면 한 번에 만듭니다 (모바일 성능을 위해 2개씩).
+   */
   const runIconGen = async (opts?: { force?: boolean }) => {
     if (!iconGen || iconBusy) return;
-    const name = cleanItemName(iconGen.name);
-    if (!name) {
-      setIconError("품목 이름을 입력해 주세요.");
-      return;
-    }
     const roomName = iconGen.room || room?.name || "";
     if (!roomName) {
       setIconError("품목을 담을 공간을 먼저 선택해 주세요.");
       return;
     }
-    const normalized = normItemName(name);
-    if (!opts?.force && !iconGen.force) {
+    const regen = !!(opts?.force || iconGen.force);
+    const names = regen
+      ? [cleanItemName(iconGen.name)].filter(Boolean)
+      : splitItemNames(iconGen.name);
+    if (!names.length) {
+      setIconError("품목 이름을 입력해 주세요.");
+      return;
+    }
+
+    // 한 개만 적었을 때는 비슷한 이름의 기존 품목을 먼저 물어봅니다 (중복 생성 방지)
+    if (names.length === 1 && !regen) {
+      const normalized = normItemName(names[0]);
       const exact = catalog.find((item) => normItemName(item.name) === normalized);
       if (exact) {
         useExistingItem(exact.id, exact.name);
@@ -2455,59 +2501,119 @@ export function Step6() {
       }
       const similar = catalog.find(
         (item) =>
-          normItemName(item.name).includes(normalized) || normalized.includes(normItemName(item.name)),
+          normItemName(item.name).includes(normalized) ||
+          normalized.includes(normItemName(item.name)),
       );
       if (similar && normalized.length >= 2) {
         setIconSimilar({ id: similar.id, name: similar.name });
         return;
       }
     }
-    const kind = kindOf(iconGen.kind);
-    const regen = !!(opts?.force || iconGen.force);
+
     setIconBusy(true);
     setIconError(null);
     setIconSimilar(null);
-    try {
-      const res = await generateItemIcon({
-        data: {
-          name,
-          cat: kind.cat,
-          room: roomName,
-          kind: kind.label,
-          volume: kind.volume,
-          ...(regen ? { force: true } : {}),
-          ...(iconGen.photo ? { photo: iconGen.photo } : {}),
-        },
-      });
-      if (!res.ok || !res.iconUrl) {
-        setIconError(res.error || "이미지 생성에 실패했습니다.");
-        return;
-      }
-      // 이미 담겨 있는 품목의 그림만 다시 만든 경우에는 수량을 올리지 않습니다
-      const already =
-        regen && draft.rooms.some((r) => (r.items[res.itemId ?? ""] ?? 0) > 0);
-      const failed = applyGeneratedIcon(res, roomName, {
-        qty: already ? 0 : 1,
-        extra: res.volume ?? kind.volume,
-      });
-      if (failed) setIconError(failed);
-      else toast.success(already ? "이미지를 새로 만들었습니다." : "품목이 추가되었습니다.");
+    setIconJobs(names.map((name) => ({ name, state: "queued" as IconJobState })));
+    const mark = (i: number, patch: Partial<IconJob>) =>
+      setIconJobs((js) => js.map((j, k) => (k === i ? { ...j, ...patch } : j)));
 
-    } catch (e) {
-      setIconError(e instanceof Error ? e.message : "네트워크 연결을 확인해 주세요.");
+    let made = 0;
+    let reused = 0;
+    let failed = 0;
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < names.length) {
+        const i = cursor;
+        cursor += 1;
+        const name = cleanItemName(names[i]);
+        const normalized = normItemName(name);
+        if (!name || !normalized) {
+          mark(i, { state: "failed", error: "품목 이름을 확인해 주세요." });
+          failed += 1;
+          continue;
+        }
+        // 이미 있는 품목이면 이미지를 새로 만들지 않고 그대로 씁니다
+        if (!regen) {
+          const exact = catalog.find((item) => normItemName(item.name) === normalized);
+          if (exact) {
+            useExistingItem(exact.id, exact.name, { keepOpen: true, silent: true });
+            mark(i, { state: "skipped" });
+            reused += 1;
+            continue;
+          }
+        }
+        const kind = kindOf(names.length > 1 ? guessKind(name) : iconGen.kind);
+        mark(i, { state: "generating" });
+        try {
+          const res = await generateItemIcon({
+            data: {
+              name,
+              cat: kind.cat,
+              room: roomName,
+              kind: kind.label,
+              volume: kind.volume,
+              ...(regen ? { force: true } : {}),
+              ...(iconGen.photo && names.length === 1 ? { photo: iconGen.photo } : {}),
+            },
+          });
+          if (!res.ok || !res.iconUrl) {
+            mark(i, { state: "failed", error: res.error || "이미지 생성에 실패했습니다." });
+            failed += 1;
+            continue;
+          }
+          mark(i, { state: "saving" });
+          // 이미 담겨 있는 품목의 그림만 다시 만든 경우에는 수량을 올리지 않습니다
+          const already = regen && draft.rooms.some((r) => (r.items[res.itemId ?? ""] ?? 0) > 0);
+          const fail = applyGeneratedIcon(res, roomName, {
+            qty: already ? 0 : 1,
+            extra: res.volume ?? kind.volume,
+            keepOpen: true,
+          });
+          if (fail) {
+            mark(i, { state: "failed", error: fail });
+            failed += 1;
+            continue;
+          }
+          mark(i, { state: "done" });
+          if (res.reused) reused += 1;
+          else made += 1;
+        } catch (e) {
+          mark(i, {
+            state: "failed",
+            error: e instanceof Error ? e.message : "네트워크 연결을 확인해 주세요.",
+          });
+          failed += 1;
+        }
+      }
+    };
+
+    try {
+      await Promise.all([worker(), worker()]);
     } finally {
       setIconBusy(false);
     }
+
+    if (failed > 0) {
+      setIconError(`생성 ${made}개 · 기존 품목 사용 ${reused}개 · 실패 ${failed}개`);
+      return;
+    }
+    toast.success(
+      `${made > 0 ? `${made}개 만들었습니다` : "기존 품목을 담았습니다"}${reused > 0 && made > 0 ? ` · 기존 품목 ${reused}개` : ""}`,
+    );
+    setIconGen(null);
+    setIconJobs([]);
+    setQ("");
   };
 
   // 검색 결과가 없을 때, 전에 만들어 둔 아이콘이 있으면 먼저 보여 줍니다 (중복 생성 방지)
-  const noResult = !!q.trim() && !catalog.some((i) => i.name.includes(q));
+  const noResult =
+    !!qd.trim() && !catalog.some((i) => matchesQuery(qd, i.name, i.sub, i.cat5));
   useEffect(() => {
     if (!noResult) {
       setSavedIcon(null);
       return;
     }
-    const name = cleanItemName(q);
+    const name = cleanItemName(qd);
     if (name.length < 2) {
       setSavedIcon(null);
       return;
@@ -2525,7 +2631,7 @@ export function Step6() {
       alive = false;
       clearTimeout(timer);
     };
-  }, [q, noResult]);
+  }, [qd, noResult]);
 
   const openEditItem = (id: string) => {
     const c = (draft.customItems || []).find((x) => x.id === id);
@@ -2623,7 +2729,7 @@ export function Step6() {
 
   // 검색어가 있으면 전체에서, 없으면 현재 탭에서 보여 주고 같은 종류끼리 정렬합니다.
   const items = catalog
-    .filter((i) => (q ? i.name.includes(q) : i.cat5 === tab))
+    .filter((i) => (qd.trim() ? matchesQuery(qd, i.name, i.sub, i.cat5) : i.cat5 === tab))
     .slice()
     .sort((a, b) => {
       const af = itemFamily(a.name, a.sub || "기타");
@@ -3364,22 +3470,27 @@ export function Step6() {
                     <span className="text-[18px] font-black text-[#25282D]">목록에 없는 품목 추가</span>
                   </div>
                   <p className="mt-1.5 text-[12.5px] font-bold text-[#6B7280]">
-                    품목 이름과 사진을 등록하면 지금 열어 둔 공간과 알맞은 품목 그룹에 자동으로
-                    들어갑니다
+                    품목 이름(여러 개 가능)과 사진을 등록하면 고른 공간과 알맞은 품목 그룹에
+                    자동으로 들어갑니다
                   </p>
 
 
                   <div className="mt-3 space-y-3">
-                    <Field label="품목 이름">
-                      <TextInput
+                    <Field label="만들 품목 이름">
+                      <textarea
                         value={iconGen.name}
-                        maxLength={24}
-                        placeholder="예: 흙침대"
+                        rows={2}
+                        maxLength={160}
+                        placeholder="예: 캣타워, 스타일러, 돌침대, 김치냉장고"
+                        className="w-full resize-none rounded-2xl border border-[#E5E7EB] bg-white px-3.5 py-3 text-[15px] font-bold text-[#25282D] outline-none focus:border-[#3578C8]"
                         onChange={(e) => {
                           const name = e.target.value;
                           setIconGen((f) => (f ? { ...f, name, kind: guessKind(name) } : f));
                         }}
                       />
+                      <p className="mt-1 text-[12px] font-bold text-[#6B7280]">
+                        쉼표 또는 줄바꿈으로 여러 품목을 입력할 수 있습니다.
+                      </p>
                     </Field>
 
                     {/* 품목 사진 — 촬영하거나 갤러리에서 고릅니다 */}
@@ -3470,12 +3581,40 @@ export function Step6() {
                       </div>
                     )}
 
-                    {iconBusy && (
-                      <div className="flex items-center justify-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F8FBFF] py-5">
-                        <span className="h-6 w-6 animate-spin rounded-full border-[3px] border-[#E5E7EB] border-t-[#3578C8]" />
-                        <span className="text-[13.5px] font-black text-[#25282D]">
-                          품목을 추가하는 중
-                        </span>
+                    {iconJobs.length > 0 && (
+                      <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8FBFF] p-3">
+                        <div className="flex items-center gap-2">
+                          {iconBusy && (
+                            <span className="h-5 w-5 animate-spin rounded-full border-[3px] border-[#E5E7EB] border-t-[#3578C8]" />
+                          )}
+                          <span className="text-[13.5px] font-black text-[#25282D]">
+                            전체 {iconJobs.length}개 중{" "}
+                            {iconJobs.filter((j) => j.state === "done" || j.state === "skipped").length}개
+                            완료
+                          </span>
+                        </div>
+                        <ul className="mt-2 space-y-1">
+                          {iconJobs.map((j, i) => (
+                            <li
+                              key={`${j.name}_${i}`}
+                              className="flex items-start justify-between gap-2 text-[12.5px] font-bold"
+                            >
+                              <span className="text-[#25282D]">{j.name}</span>
+                              <span
+                                className={
+                                  j.state === "failed"
+                                    ? "text-[#D95C5C]"
+                                    : j.state === "done"
+                                      ? "text-[#3E9B78]"
+                                      : "text-[#6B7280]"
+                                }
+                              >
+                                {ICON_JOB_TEXT[j.state]}
+                                {j.error ? ` · ${j.error}` : ""}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
                     )}
 
@@ -3500,10 +3639,13 @@ export function Step6() {
                       </button>
                       <button
                         onClick={() => void runIconGen()}
-                        disabled={iconBusy || cleanItemName(iconGen.name).length < 2}
+                        disabled={
+                          iconBusy ||
+                          !splitItemNames(iconGen.name).some((n) => cleanItemName(n).length >= 2)
+                        }
                         className="flex-1 rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-3.5 text-[15px] font-black text-white shadow-[0_4px_0_#285C99] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
                       >
-                        {iconBusy ? "추가 중…" : iconError ? "다시 시도" : "추가하기"}
+                        {iconBusy ? "만드는 중…" : iconError ? "다시 시도" : "품목 생성"}
                       </button>
                     </div>
                   </div>
