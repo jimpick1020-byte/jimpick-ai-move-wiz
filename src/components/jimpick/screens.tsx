@@ -6752,10 +6752,31 @@ export function History() {
         if (alive && r.ok) setNoticeRows(r.rows);
       })
       .catch(() => {});
+    // 다른 기기(또는 달력)에서 삭제한 계약은 이 목록에서도 감춥니다.
+    listDeletedEstimateIds()
+      .then((r) => {
+        if (!alive || !r?.ok) return;
+        for (const id of r.ids) deleteEstimate(id);
+      })
+      .catch(() => {});
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** 견적 내역에서 삭제 → 달력 일정도 함께 삭제됩니다(서버에서 한 번에 처리) */
+  const contractDelete = useDeleteContract({
+    source: "history",
+    onDeleted: (estimateId) => {
+      deleteEstimate(estimateId);
+      loadTerms();
+      loadNotices();
+      toast.success("계약을 삭제했습니다", {
+        description: "달력 일정과 견적 내역에서 함께 삭제되었습니다.",
+      });
+    },
+  });
   /** 이 견적의 사장님 알림 기록 (가장 최근) */
   const noticeOf = (id: string) => noticeRows.find((n) => n.estimateId === id) ?? null;
   /** 사장님이 직접 계약완료 처리 — 서버 저장이 성공한 뒤에만 계약완료로 보여 줍니다 */
@@ -7031,7 +7052,7 @@ export function History() {
                           </button>
                           <button
                             onClick={() => {
-                              if (confirm("삭제하시겠습니까?")) deleteEstimate(e.id);
+                              contractDelete.ask(e.id);
                             }}
                             className="px-3 py-2 rounded-xl bg-[#FBEAEA] text-[#D95C5C]"
                           >
@@ -7055,6 +7076,13 @@ export function History() {
         })}
       </div>
       <BottomNav />
+      <DeleteContractDialog
+        open={contractDelete.open}
+        busy={contractDelete.busy}
+        error={contractDelete.error}
+        onCancel={contractDelete.cancel}
+        onConfirm={contractDelete.confirm}
+      />
     </MobileShell>
   );
 }
