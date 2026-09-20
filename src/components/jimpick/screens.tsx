@@ -151,7 +151,6 @@ import {
   publishEstimateTerms,
   getTermsStatuses,
   getReservationCounts,
-  cancelReservation,
   getReservationSheet,
   renameReservationCustomer,
   getReservationCustomerName,

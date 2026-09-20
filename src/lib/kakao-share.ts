@@ -66,7 +66,9 @@ export function kakaoReady(): boolean {
 }
 
 /** SDK 로드 + 1회 초기화. 실패 원인을 코드로 돌려줍니다. */
-export async function ensureKakaoSdk(): Promise<{ ok: true } | { ok: false; code: KakaoShareCode }> {
+export async function ensureKakaoSdk(): Promise<
+  { ok: true } | { ok: false; code: KakaoShareCode }
+> {
   if (typeof window === "undefined") return { ok: false, code: "sdk_missing" };
   if (kakaoReady()) return { ok: true };
   if (sdkPromise) return sdkPromise;
@@ -89,7 +91,8 @@ export async function ensureKakaoSdk(): Promise<{ ok: true } | { ok: false; code
         script.dataset.kakaoShareSdk = "1";
         script.async = true;
         script.src = "https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js";
-        script.integrity = "sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4";
+        script.integrity =
+          "sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4";
         script.crossOrigin = "anonymous";
         const done = new Promise<void>((resolve, reject) => {
           script!.onload = () => resolve();
@@ -163,7 +166,12 @@ export async function openWebShare(
     return { ok: true, method: "web_share" };
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError")
-      return { ok: false, method: "web_share", code: "canceled", error: KAKAO_SHARE_MESSAGE.canceled };
+      return {
+        ok: false,
+        method: "web_share",
+        code: "canceled",
+        error: KAKAO_SHARE_MESSAGE.canceled,
+      };
     return null;
   }
 }
@@ -239,7 +247,8 @@ export function buildCustomerShareText(v: {
   const lines = ["[JIMPICK 이사 견적 안내]", ""];
   if (v.customerName) lines.push(`고객: ${v.customerName} 고객님`);
   if (v.moveDate) lines.push(`이사 날짜: ${v.moveDate}`);
-  if (v.fromArea || v.toArea) lines.push(`이사 구간: ${v.fromArea || "미정"} → ${v.toArea || "미정"}`);
+  if (v.fromArea || v.toArea)
+    lines.push(`이사 구간: ${v.fromArea || "미정"} → ${v.toArea || "미정"}`);
   if (v.total && v.total > 0) lines.push(`총 견적금액: ${v.total.toLocaleString("ko-KR")}원`);
   if (v.companyName) lines.push(`업체: ${v.companyName}`);
   lines.push("", `견적서 확인: ${v.url}`);
