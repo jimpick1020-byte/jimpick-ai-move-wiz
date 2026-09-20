@@ -1914,8 +1914,11 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
           return { ...s, draft: { ...s.draft, customItems: merged } };
         });
       })
-      .catch(() => {});
-  }, [hydrated, state.loggedIn, authChecked, iconsLoaded]);
+      .catch(() => retry());
+    return () => {
+      alive = false;
+    };
+  }, [hydrated, state.loggedIn, authChecked, iconsLoaded, iconsTry]);
 
   // 직접 추가·AI 로 만든 품목의 아이콘을 등록해 견적서·공유 화면에서도 같은 그림이 나오게 합니다
   registerCustomIcons(state.draft?.customItems);
