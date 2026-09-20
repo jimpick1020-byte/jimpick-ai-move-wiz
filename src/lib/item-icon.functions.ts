@@ -222,6 +222,7 @@ export const listItemIcons = createServerFn({ method: "GET" })
         .order("created_at", { ascending: true });
       if (error) return { ok: false, error: error.message, items: [] };
       const rows = (data ?? []).filter((row) => !!(row.storage_path || row.image_path));
+      if (!rows.length) return { ok: true, items: [] };
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const paths = rows.map((row) => (row.storage_path || row.image_path) as string);
       const signed = await supabaseAdmin.storage.from(BUCKET).createSignedUrls(paths, 60 * 60);
