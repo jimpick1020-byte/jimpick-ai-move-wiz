@@ -659,6 +659,102 @@ const handle = async (req: Request): Promise<Response> => {
     });
   }
 
+  // ── 수정 통보 ──
+  // 오류가 났을 때 관리자를 부르지 않고, 고친 뒤에 「이렇게 고쳤습니다」만 한 통 보냅니다.
+  // 받는 번호는 관리자 화면에 저장된 연락처만 씁니다 (코드에 번호를 넣지 않습니다).
+  if (body.mode === "fix_notice") {
+    const title = String(body.notice_title ?? "").trim().slice(0, 60);
+    const summary = String(body.notice_summary ?? "").trim().slice(0, 300);
+    if (!title || !summary) {
+      return json({ ok: false, error: "통보할 제목과 내용이 필요합니다." }, 400);
+    }
+
+    const sq = new URLSearchParams({
+      select: "notice_phone,notify_enabled",
+      id: "eq.true",
+      limit: "1",
+    });
+    const sres = await db(`service_ops_settings?${sq}`, { supabaseUrl, serviceKey });
+    const srow = sres.ok ? ((await sres.json()) as Array<Record<string, unknown>>)?.[0] : null;
+    const noticeTo = normalizePhone(String(srow?.notice_phone ?? ""));
+    const enabled = srow?.notify_enabled !== false;
+    const nowF = new Date().toISOString();
+
+    const recordNotice = async (fields: Record<string, unknown>) => {
+      try {
+        await db("service_fix_notices", {
+          supabaseUrl,
+          serviceKey,
+          method: "POST",
+          body: JSON.stringify({
+            error_log_id: String(body.error_log_id ?? "").trim() || null,
+            title,
+            summary,
+            source: String(body.notice_source ?? "auto").slice(0, 20),
+            created_by: userId || null,
+            ...fields,
+          }),
+        });
+      } catch (e) {
+        console.error("[fix_notice] 기록 실패", e instanceof Error ? e.message : e);
+      }
+    };
+
+    if (!enabled) {
+      await recordNotice({ status: "skipped", to_masked: "****", error_message: "통보 끄기 상태" });
+      return json({ ok: false, error: "수정 통보가 꺼져 있습니다.", status: "skipped" }, 200);
+    }
+    if (!isKoreanMobile(noticeTo)) {
+      await recordNotice({
+        status: "failed",
+        to_masked: "****",
+        failed_at: nowF,
+        error_message: "통보받을 연락처가 저장되어 있지 않습니다.",
+      });
+      return json(
+        { ok: false, error: "통보받을 연락처가 저장되어 있지 않습니다.", status: "failed" },
+        400,
+      );
+    }
+
+    const text = `[JIMPICK 짐픽]\n수정 완료 통보\n${title}\n${summary}`;
+    const sent = await sendViaAligo({
+      to: noticeTo,
+      text,
+      title: "짐픽 수정 완료",
+      msgType: text.length > 90 ? "LMS" : "SMS",
+      aligoUserId: aligoUserId!,
+      apiKey: apiKey!,
+      sender: sender!,
+      proxyUrl,
+      proxySecret,
+      viaProxy,
+      userId: userId || "server",
+    });
+    await recordNotice({
+      to_masked: `****${last4(noticeTo)}`,
+      status: sent.ok ? "sent" : "failed",
+      provider_message_id: sent.msgId ?? null,
+      sent_at: sent.ok ? nowF : null,
+      failed_at: sent.ok ? null : nowF,
+      error_message: sent.ok ? null : (sent.error ?? "").slice(0, 500),
+    });
+    if (!sent.ok) {
+      return json(
+        { ok: false, error: sent.error ?? "문자 발송에 실패했습니다.", status: "failed" },
+        502,
+      );
+    }
+    return json({
+      ok: true,
+      msgId: sent.msgId ?? null,
+      msgType: sent.msgType ?? "SMS",
+      status: "sent",
+      recipientLast4: last4(noticeTo),
+      sentAt: nowF,
+    });
+  }
+
   // ── 사장님 예약확정 알림 ──
   // 고객이 「동의하고 예약 확정」 저장에 성공한 뒤에만 우리 서버가 이 경로를 부릅니다.
   // 관리자 화면에서 실패한 알림을 다시 보낼 때도 같은 경로를 씁니다.
