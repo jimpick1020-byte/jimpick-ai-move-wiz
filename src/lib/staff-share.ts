@@ -44,7 +44,10 @@ export interface StaffSheetSnapshot {
   note: string;
   staffName: string;
   staffPhone: string;
-  rooms: { name: string; items: { name: string; qty: number }[] }[];
+  rooms: {
+    name: string;
+    items: { id?: string; name: string; qty: number; icon?: string }[];
+  }[];
 }
 
 /** 카카오톡 미리보기에 넣는 값 (민감정보 없음) */

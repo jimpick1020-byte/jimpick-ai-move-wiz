@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "@tanstack/react-router";
 import { openStaffShare } from "@/lib/staff-share.functions";
 import type { StaffSheetSnapshot } from "@/lib/staff-share";
+import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   Phone,
   MapPin,
@@ -217,22 +218,52 @@ export function StaffSheet() {
             </Card>
 
             {state.snap.rooms.length > 0 && (
-              <Card title="공간별 품목">
-                {state.snap.rooms.map((r) => (
-                  <div key={r.name} className="border-b border-[#EEF3FB] py-3 last:border-0">
-                    <div className="text-[15px] font-black text-[#25282D]">
-                      {r.name}{" "}
-                      <span className="text-[13px] font-bold text-[#6B7280]">
-                        품목 {r.items.length}종 · 총 {r.items.reduce((s, i) => s + (i.qty || 0), 0)}
-                        개
-                      </span>
+              <section aria-labelledby="staff-room-items-title">
+                <h2
+                  id="staff-room-items-title"
+                  className="mb-2 px-1 text-[17px] font-black text-[#25282D]"
+                >
+                  공간별 품목
+                </h2>
+                <div className="space-y-2">
+                  {state.snap.rooms.map((room) => (
+                    <div
+                      key={room.name}
+                      className="flex items-stretch gap-2 rounded-[14px] border border-[#E5E7EB] bg-white p-2.5"
+                    >
+                      <div className="flex w-[64px] shrink-0 items-center justify-center">
+                        <span className="break-keep text-center text-[17px] font-black text-[#25282D]">
+                          {room.name}
+                        </span>
+                      </div>
+                      <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-2 gap-y-2 border-l border-[#E5E7EB] pl-2.5">
+                        {room.items.map((item, index) => (
+                          <div
+                            key={`${item.id ?? item.name}-${index}`}
+                            className="flex min-w-0 items-center gap-1.5"
+                          >
+                            <span className="flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-[#F7F8F5]">
+                              <Icon3D
+                                src={item.icon || icon3dFor(item.id, item.name)}
+                                alt={item.name}
+                                size={40}
+                              />
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block break-words text-[15px] font-medium leading-tight text-[#25282D]">
+                                {item.name}
+                              </span>
+                              <span className="mt-0.5 block text-[15px] font-bold text-[#25282D]">
+                                {item.qty}
+                              </span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="mt-1 break-words text-[14.5px] text-[#6B7280]">
-                      {r.items.map((i) => `${i.name} ${i.qty}`).join(" · ")}
-                    </div>
-                  </div>
-                ))}
-              </Card>
+                  ))}
+                </div>
+              </section>
             )}
 
             {state.snap.extraWork.length > 0 && (
