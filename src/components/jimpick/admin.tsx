@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card } from "@/components/jimpick/ui";
+import { ReminderBoard } from "@/components/jimpick/ReminderBoard";
 import {
   listCompanyAccounts,
   deleteCompanyAccount,
