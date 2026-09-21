@@ -79,10 +79,13 @@ export interface IconResult {
   remaining?: number;
 }
 
-async function signedIconUrl(path: string): Promise<string | null> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(path, 60 * 60);
-  return error ? null : data.signedUrl;
+/**
+ * 만료되지 않는 그림 주소.
+ * 서명 주소(1시간 제한)를 쓰면 저장된 견적서·직원 작업지시서에서 그림이 사라지므로
+ * 항상 이 영구 주소를 씁니다.
+ */
+function stableIconUrl(rowId: string): string {
+  return `/api/public/item-icon/${rowId}.png`;
 }
 
 const inputSchema = z.object({
