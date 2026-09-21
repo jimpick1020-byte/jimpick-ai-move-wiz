@@ -269,9 +269,8 @@ export const generateItemIcon = createServerFn({ method: "POST" })
       .eq("status", "ready")
       .maybeSingle();
     const existingPath = existing.data?.storage_path || existing.data?.image_path;
-    if (existing.data && existingPath && !data.force) {
-      const iconUrl = await signedIconUrl(existingPath);
-      if (!iconUrl) return { ok: false, error: "저장된 품목 이미지를 불러오지 못했습니다." };
+    if (existing.data && existingPath && existing.data.id && !data.force) {
+      const iconUrl = stableIconUrl(existing.data.id as string);
       return {
         ok: true,
         reused: true,
