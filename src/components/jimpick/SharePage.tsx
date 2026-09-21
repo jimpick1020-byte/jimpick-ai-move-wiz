@@ -96,9 +96,18 @@ function Row({ children }: { children: React.ReactNode }) {
 
 export function SharePage() {
   const { id } = useParams({ from: "/share/$id" });
-  const search = useSearch({ from: "/share/$id" }) as { staff?: string; t?: string };
+  const search = useSearch({ from: "/share/$id" }) as { staff?: string; t?: string; rm?: string };
   const staffMode = String(search?.staff ?? "") === "1";
   const token = String(search?.t ?? id).slice(0, 40);
+  const reminderToken = String(search?.rm ?? "").slice(0, 80);
+
+  // 이사 전날 안내 문자의 링크로 들어온 경우, 고객이 확인했다는 기록을 남깁니다
+  useEffect(() => {
+    if (reminderToken.length < 16) return;
+    void import("@/lib/reminder.functions")
+      .then(({ markReminderViewed }) => markReminderViewed({ data: { token: reminderToken } }))
+      .catch(() => undefined);
+  }, [reminderToken]);
 
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [link, setLink] = useState<TermsLinkInfo | null>(null);
