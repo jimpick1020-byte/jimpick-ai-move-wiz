@@ -5,6 +5,8 @@ export const Route = createFileRoute("/share/$id")({
   validateSearch: (search: Record<string, unknown>) => ({
     staff: typeof search.staff === "string" ? search.staff : undefined,
     t: typeof search.t === "string" ? search.t : undefined,
+    // 이사 전날 안내 문자로 보낸 확인용 토큰
+    rm: typeof search.rm === "string" ? search.rm : undefined,
   }),
 
   head: () => ({
