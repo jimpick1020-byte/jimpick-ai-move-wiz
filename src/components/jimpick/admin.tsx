@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card } from "@/components/jimpick/ui";
+import { ReminderBoard } from "@/components/jimpick/ReminderBoard";
 import {
   listCompanyAccounts,
   deleteCompanyAccount,
@@ -157,6 +158,7 @@ export function AdminAccountsScreen() {
           </Card>
         )}
         {deleteError && <Card className="text-xs text-[#D95C5C] break-keep">{deleteError}</Card>}
+        {!error && <ReminderBoard />}
         {!error && rows === null && (
           <div className="py-10 text-center text-sm text-[#6B7280]">불러오는 중…</div>
         )}

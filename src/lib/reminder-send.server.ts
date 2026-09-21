@@ -1,9 +1,12 @@
 /**
  * 이사 전날 안내 문자 실제 발송 (서버 전용).
  *
- * 크론이 부르는 /api/public/hooks/send-move-reminders 에서만 씁니다.
+ * 크론이 부르는 /api/public/hooks/send-move-reminders 와
+ * 사장님의 「다시 발송」에서만 씁니다.
+ *
  * 알리고 키·중계 비밀값은 이 파일 안에서만 읽고, 응답·기록에 남기지 않습니다.
- * 알리고가 접수(result_code >= 1)했다고 답한 경우에만 성공으로 기록합니다.
+ * 알리고가 접수(result_code >= 1)했다고 답하면 accepted(문자업체 접수)로만 기록하고,
+ * 통신사 전달 완료는 발송결과 조회(reminder-result.server.ts)로 확인한 뒤에만 표시합니다.
  */
 
 const ALIGO_ENDPOINT = "https://apis.aligo.in/send/";
@@ -13,14 +16,19 @@ const SENDER = "01075662542";
 interface Reminder {
   id: string;
   estimate_id: string;
+  estimate_terms_id: string | null;
+  company_id: string;
   user_id: string;
   customer_name: string;
   customer_phone: string;
   move_date: string;
   start_time: string | null;
   from_address: string | null;
+  to_address: string | null;
   company_phone: string | null;
   retry_count: number;
+  view_token: string | null;
+  auto_retried?: boolean;
 }
 
 interface AligoResponse {
@@ -38,11 +46,20 @@ function last4(d: string): string {
   return d.length >= 4 ? d.slice(-4) : "";
 }
 
+/** 다시 시도해도 될 오류인지 (설정을 고쳐야 하는 오류는 자동 재시도하지 않습니다) */
+function isRetryable(code?: number, message?: string): boolean {
+  if (code === undefined || code === null) return /연결|네트워크|시간/.test(message ?? "");
+  if (code === 0 || code === -1) return true;
+  if (code === 401 || code === 403) return false;
+  if (code >= 500) return true;
+  return false;
+}
+
 function aligoError(code: number, message: string): string {
   const raw = (message || "").trim();
   const known: Record<number, string> = {
     [-101]: "알리고 API 인증정보(user_id/API Key)를 확인해 주세요.",
-    [-102]: "알리고 API 인증정보(user_id/API Key)를 확인해 주세요.",
+    [-102]: "등록되지 않은 발신번호입니다. 알리고에서 발신번호 사전등록을 마쳐 주세요.",
     [-103]: "발송 요청 형식이 올바르지 않습니다.",
     [-111]: "문자 잔액이 부족합니다. 알리고에서 충전해 주세요.",
     [-201]: "문자 보유건수가 부족합니다. 알리고에서 충전해 주세요.",
@@ -51,24 +68,36 @@ function aligoError(code: number, message: string): string {
   return `${known[code] ?? "문자 발송에 실패했습니다."} / 알리고 안내: ${raw || "(내용 없음)"} / 코드 ${code}`;
 }
 
+/** 주소를 너무 길지 않게 줄입니다 (동·건물명 정도까지) */
+function shortAddress(v: string | null): string {
+  const s = String(v ?? "").trim();
+  if (!s) return "";
+  return s.length > 40 ? `${s.slice(0, 40)}…` : s;
+}
+
 /** 안내 문자 내용 — 값이 없는 줄은 넣지 않습니다 */
 export function reminderText(r: {
   customer_name: string;
-  move_date: string;
   start_time: string | null;
   from_address: string | null;
+  to_address: string | null;
   company_phone: string | null;
+  link?: string | null;
 }): string {
   const lines: string[] = [
     "[JIMPICK 짐픽]",
+    "",
     `${(r.customer_name || "고객").trim()} 고객님, 내일은 예약하신 이사일입니다.`,
     "",
   ];
-  if (r.move_date) lines.push(`이사일: ${r.move_date}`);
-  if (r.start_time) lines.push(`시작 시간: ${r.start_time}`);
-  if (r.from_address) lines.push(`출발지: ${r.from_address}`);
-  lines.push("", "일정이나 현장 조건이 변경된 경우 연락해 주세요.");
-  if (r.company_phone) lines.push(`문의: ${r.company_phone}`);
+  if (r.start_time) lines.push(`이사 예정 시간: ${r.start_time}`);
+  const from = shortAddress(r.from_address);
+  if (from) lines.push(`출발지: ${from}`);
+  const to = shortAddress(r.to_address);
+  if (to) lines.push(`도착지: ${to}`);
+  lines.push("", "원활한 이사를 위해 귀중품과 개인 소지품을 미리 확인해 주세요.");
+  if (r.link) lines.push("", "이사 내용 확인:", r.link);
+  if (r.company_phone) lines.push("", `문의: ${r.company_phone}`);
   return lines.join("\n");
 }
 
@@ -158,12 +187,224 @@ async function sendViaAligo(v: {
   }
 }
 
+/** 이 예약에 넣을 고객 확인 링크 (기존 견적 보안 링크 + 확인 토큰) */
+async function customerLink(row: Reminder): Promise<string | null> {
+  const base = String(process.env["PUBLIC_APP_URL"] ?? "").trim().replace(/\/$/, "");
+  if (!base || !row.view_token) return null;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  let token: string | null = null;
+  if (row.estimate_terms_id) {
+    const { data } = await supabaseAdmin
+      .from("estimate_terms")
+      .select("access_token")
+      .eq("id", row.estimate_terms_id)
+      .maybeSingle();
+    token = (data as { access_token?: string } | null)?.access_token ?? null;
+  }
+  if (!token) {
+    const { data } = await supabaseAdmin
+      .from("estimate_terms")
+      .select("access_token")
+      .eq("estimate_id", row.estimate_id)
+      .eq("user_id", row.company_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    token = (data as { access_token?: string } | null)?.access_token ?? null;
+  }
+  if (!token) return null;
+  return `${base}/share/${encodeURIComponent(row.estimate_id)}?t=${encodeURIComponent(token)}&rm=${encodeURIComponent(row.view_token)}`;
+}
+
+interface Creds {
+  aligoUserId: string;
+  apiKey: string;
+  proxyUrl?: string;
+  proxySecret?: string;
+}
+
+function readCreds(): Creds | null {
+  const aligoUserId = String(process.env["ALIGO_USER_ID"] ?? "").trim();
+  const apiKey = String(process.env["ALIGO_API_KEY"] ?? "").trim();
+  if (!aligoUserId || !apiKey) return null;
+  return {
+    aligoUserId,
+    apiKey,
+    proxyUrl: process.env["SMS_PROXY_URL"],
+    proxySecret: process.env["JIMPICK_PROXY_SECRET"],
+  };
+}
+
+/** 한 건을 실제로 보내고 결과를 저장합니다. 성공하면 accepted(접수 완료)입니다. */
+async function sendOne(row: Reminder, creds: Creds): Promise<{ sent: boolean }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const to = String(row.customer_phone ?? "").replace(/[^0-9]/g, "");
+  const now = new Date().toISOString();
+
+  if (!isKoreanMobile(to)) {
+    await supabaseAdmin
+      .from("move_reminders")
+      .update({
+        status: "failed",
+        failed_at: now,
+        error_code: "invalid_phone",
+        error_reason: "고객 휴대전화번호 형식이 올바르지 않습니다.",
+        retry_count: Number(row.retry_count ?? 0) + 1,
+      } as never)
+      .eq("id", row.id);
+    return { sent: false };
+  }
+
+  const link = await customerLink(row);
+  const text = reminderText({ ...row, link });
+  // 90바이트를 넘으면 자동으로 장문(LMS)으로 보냅니다
+  const msgType = new TextEncoder().encode(text).length > 90 ? "LMS" : "SMS";
+
+  // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).
+  const usageKey = `usage:move-reminder:${row.id}:${Number(row.retry_count ?? 0)}`;
+  const { data: reserved } = (await (
+    supabaseAdmin as unknown as {
+      rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: Record<string, unknown> | null }>;
+    }
+  ).rpc("reserve_free_sms", { _user_id: row.user_id, _key: usageKey, _count: 1 })) ?? { data: null };
+  if (reserved?.["allowed"] !== true) {
+    const reason =
+      reserved?.["reason"] === "duplicate"
+        ? "이미 처리된 발송 요청입니다."
+        : "무료체험이 종료되었습니다. 구독 후 다시 발송할 수 있습니다.";
+    await supabaseAdmin
+      .from("move_reminders")
+      .update({
+        status: "failed",
+        failed_at: now,
+        error_code: String(reserved?.["reason"] ?? "quota"),
+        error_reason: reason,
+        retry_count: Number(row.retry_count ?? 0) + 1,
+      } as never)
+      .eq("id", row.id);
+    return { sent: false };
+  }
+
+  await supabaseAdmin
+    .from("move_reminders")
+    .update({ requested_at: now, message_snapshot: text, message_type: msgType } as never)
+    .eq("id", row.id);
+
+  let out = await sendViaAligo({
+    to,
+    text,
+    title: "이사 하루 전 안내",
+    msgType,
+    ...creds,
+  });
+
+  // 네트워크·서버 오류만 한 번 더 시도합니다 (설정 오류는 다시 보내지 않습니다)
+  let autoRetried = row.auto_retried === true;
+  if (!out.ok && !autoRetried && isRetryable(out.code, out.error)) {
+    autoRetried = true;
+    out = await sendViaAligo({ to, text, title: "이사 하루 전 안내", msgType, ...creds });
+  }
+
+  // 실패는 무료 문자에서 차감하지 않습니다.
+  const usageRpc = supabaseAdmin as unknown as {
+    rpc: (n: string, a: Record<string, unknown>) => Promise<unknown>;
+  };
+  await usageRpc
+    .rpc(out.ok ? "confirm_free_sms" : "release_free_sms", {
+      _user_id: row.user_id,
+      _key: usageKey,
+    })
+    .catch(() => undefined);
+
+  await supabaseAdmin
+    .from("move_reminders")
+    .update(
+      (out.ok
+        ? {
+            // 접수까지만 확인된 상태입니다. 전달 완료는 결과 조회로만 바꿉니다.
+            status: "accepted",
+            accepted_at: now,
+            sent_at: now,
+            provider_message_id: out.msgId ?? null,
+            aligo_message_id: out.msgId ?? null,
+            message_type: out.msgType ?? msgType,
+            to_masked: `010-****-${last4(to)}`,
+            error_reason: null,
+            error_code: null,
+            failed_at: null,
+            missed_reason: null,
+            auto_retried: autoRetried,
+            provider_response: { accepted_at: now, result_code: out.code ?? null },
+          }
+        : {
+            status: "failed",
+            failed_at: now,
+            error_code: out.code != null ? String(out.code) : "send_error",
+            error_reason: (out.error ?? "문자 발송에 실패했습니다.").slice(0, 500),
+            retry_count: Number(row.retry_count ?? 0) + 1,
+            auto_retried: autoRetried,
+            to_masked: `010-****-${last4(to)}`,
+            provider_response: { failed_at: now, result_code: out.code ?? null },
+          }) as never,
+    )
+    .eq("id", row.id);
+
+  // 발송 이력에도 남깁니다 (전체 번호는 남기지 않습니다)
+  const { error: logErr } = await supabaseAdmin.from("estimate_deliveries").insert({
+    estimate_id: row.estimate_id,
+    user_id: row.company_id,
+    company_id: row.company_id,
+    to_masked: `010-****-${last4(to)}`,
+    delivery_method: "move_reminder",
+    provider: "aligo",
+    provider_message_id: out.msgId ?? null,
+    msg_id: out.msgId ?? null,
+    msg_type: out.msgType ?? msgType,
+    status: out.ok ? "accepted" : "failed",
+    requested_at: now,
+    sent_at: out.ok ? now : null,
+    failed_at: out.ok ? null : now,
+    error_code: out.ok ? null : String(out.code ?? ""),
+    error_message: out.ok ? null : (out.error ?? "").slice(0, 500),
+    idempotency_key: `move-reminder-${row.id}-${Number(row.retry_count ?? 0)}`,
+  } as never);
+  if (logErr) console.error("[move-reminders] 이력 기록 실패", logErr.message);
+
+  return { sent: out.ok };
+}
+
 export interface RunResult {
   ok: boolean;
   picked: number;
   sent: number;
   failed: number;
   error?: string;
+}
+
+/** 작업이 돌았다는 기록을 남깁니다 (0건인 날도 남깁니다) */
+async function logJobRun(v: {
+  job: string;
+  picked?: number;
+  sent?: number;
+  failed?: number;
+  missed?: number;
+  checked?: number;
+  note?: string;
+}): Promise<void> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("reminder_job_runs").insert({
+      job: v.job,
+      picked: v.picked ?? 0,
+      sent: v.sent ?? 0,
+      failed: v.failed ?? 0,
+      missed: v.missed ?? 0,
+      checked: v.checked ?? 0,
+      note: v.note ?? null,
+    } as never);
+  } catch (e) {
+    console.error("[move-reminders] 작업기록 실패", e instanceof Error ? e.message : e);
+  }
 }
 
 /**
@@ -173,11 +414,9 @@ export interface RunResult {
  * 한 건을 한 번만 넘겨 주므로 같은 문자가 두 번 나가지 않습니다.
  */
 export async function runDueMoveReminders(limit = 20): Promise<RunResult> {
-  const aligoUserId = String(process.env["ALIGO_USER_ID"] ?? "").trim();
-  const apiKey = String(process.env["ALIGO_API_KEY"] ?? "").trim();
-  const proxyUrl = process.env["SMS_PROXY_URL"];
-  const proxySecret = process.env["JIMPICK_PROXY_SECRET"];
-  if (!aligoUserId || !apiKey) {
+  const creds = readCreds();
+  if (!creds) {
+    await logJobRun({ job: "send", note: "문자 발송 설정(알리고)이 없어 실행하지 못했습니다." });
     return { ok: false, picked: 0, sent: 0, failed: 0, error: "문자 발송 설정(알리고)이 필요합니다." };
   }
 
@@ -191,131 +430,129 @@ export async function runDueMoveReminders(limit = 20): Promise<RunResult> {
   const { data: claimed, error: claimErr } = await rpc.rpc("claim_move_reminders", { _limit: limit });
   if (claimErr) {
     console.error("[move-reminders] 예약을 집어 오지 못했습니다", claimErr.message);
+    await logJobRun({ job: "send", note: "예약을 불러오지 못했습니다." });
     return { ok: false, picked: 0, sent: 0, failed: 0, error: "예약을 불러오지 못했습니다." };
   }
   const rows = claimed ?? [];
-  if (!rows.length) return { ok: true, picked: 0, sent: 0, failed: 0 };
+  if (!rows.length) {
+    await logJobRun({ job: "send", note: "보낼 차례가 된 안내 문자가 없습니다." });
+    return { ok: true, picked: 0, sent: 0, failed: 0 };
+  }
 
   let sent = 0;
   let failed = 0;
-
   for (const row of rows) {
-    const to = String(row.customer_phone ?? "").replace(/[^0-9]/g, "");
-    const now = new Date().toISOString();
-
-    if (!isKoreanMobile(to)) {
-      failed++;
-      await supabaseAdmin
-        .from("move_reminders")
-        .update({
-          status: "failed",
-          error_reason: "고객 휴대전화번호 형식이 올바르지 않습니다.",
-          retry_count: Number(row.retry_count ?? 0) + 1,
-        } as never)
-        .eq("id", row.id);
-      continue;
-    }
-
-    const text = reminderText(row);
-    // 90바이트를 넘으면 자동으로 장문(LMS)으로 보냅니다
-    const msgType = new TextEncoder().encode(text).length > 90 ? "LMS" : "SMS";
-
-    // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).
-    const usageKey = `usage:move-reminder:${row.id}`;
-    const { data: reserved } = (await (
-      supabaseAdmin as unknown as {
-        rpc: (
-          n: string,
-          a: Record<string, unknown>,
-        ) => Promise<{ data: Record<string, unknown> | null }>;
-      }
-    ).rpc("reserve_free_sms", {
-      _user_id: row.user_id,
-      _key: usageKey,
-      _count: 1,
-    })) ?? { data: null };
-    const allowed = reserved?.["allowed"] === true;
-    if (!allowed) {
-      failed++;
-      const reason =
-        reserved?.["reason"] === "limit"
-          ? "무료체험이 종료되었습니다. 구독 후 다시 발송할 수 있습니다."
-          : reserved?.["reason"] === "duplicate"
-            ? "이미 처리된 발송 요청입니다."
-            : "무료체험이 종료되었습니다. 구독 후 다시 발송할 수 있습니다.";
-      await supabaseAdmin
-        .from("move_reminders")
-        .update({
-          status: "failed",
-          error_reason: reason,
-          retry_count: Number(row.retry_count ?? 0) + 1,
-        } as never)
-        .eq("id", row.id);
-      continue;
-    }
-
-    const out = await sendViaAligo({
-      to,
-      text,
-      title: "이사 하루 전 안내",
-      msgType,
-      aligoUserId,
-      apiKey,
-      proxyUrl,
-      proxySecret,
-    });
-
-    // 실패는 무료 문자에서 차감하지 않습니다.
-    const usageRpc = supabaseAdmin as unknown as {
-      rpc: (n: string, a: Record<string, unknown>) => Promise<unknown>;
-    };
-    await usageRpc
-      .rpc(out.ok ? "confirm_free_sms" : "release_free_sms", {
-        _user_id: row.user_id,
-        _key: usageKey,
-      })
-      .catch(() => undefined);
-
-    if (out.ok) sent++;
+    const r = await sendOne(row, creds);
+    if (r.sent) sent++;
     else failed++;
-
-    await supabaseAdmin
-      .from("move_reminders")
-      .update(
-        (out.ok
-          ? {
-              status: "success",
-              sent_at: now,
-              aligo_message_id: out.msgId ?? null,
-              error_reason: null,
-            }
-          : {
-              status: "failed",
-              error_reason: (out.error ?? "문자 발송에 실패했습니다.").slice(0, 500),
-              retry_count: Number(row.retry_count ?? 0) + 1,
-            }) as never,
-      )
-      .eq("id", row.id);
-
-    // 발송 이력에도 남깁니다 (전체 번호는 남기지 않습니다)
-    const { error: logErr } = await supabaseAdmin.from("estimate_deliveries").insert({
-      estimate_id: row.estimate_id,
-      to_masked: `****${last4(to)}`,
-      delivery_method: "move_reminder",
-      provider: "aligo",
-      provider_message_id: out.msgId ?? null,
-      msg_id: out.msgId ?? null,
-      msg_type: out.msgType ?? msgType,
-      status: out.ok ? "sent" : "failed",
-      requested_at: now,
-      sent_at: out.ok ? now : null,
-      failed_at: out.ok ? null : now,
-      error_code: out.ok ? null : String(out.code ?? ""),
-      error_message: out.ok ? null : (out.error ?? "").slice(0, 500),
-      idempotency_key: `move-reminder-${row.id}`,
-    } as never);
-    if (logErr) console.error("[move-reminders] 이력 기록 실패", logErr.message);
   }
 
+  await logJobRun({ job: "send", picked: rows.length, sent, failed });
   return { ok: true, picked: rows.length, sent, failed };
+}
+
+/** 사장님의 「다시 발송」 — 지금 한 건만 즉시 보냅니다 */
+export async function resendReminderNow(
+  id: string,
+  companyId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const creds = readCreds();
+  if (!creds) return { ok: false, error: "문자 발송 설정(알리고)이 필요합니다." };
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // 잠금: 처리 중으로 바꾸는 데 성공한 요청만 실제로 보냅니다 (중복 클릭 차단)
+  const { data: locked, error } = await supabaseAdmin
+    .from("move_reminders")
+    .update({ status: "processing", processing_at: new Date().toISOString() } as never)
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .in("status", ["scheduled", "failed", "unknown", "canceled", "accepted", "delivered", "success"])
+    .select(
+      "id, estimate_id, estimate_terms_id, company_id, user_id, customer_name, customer_phone, move_date, start_time, from_address, to_address, company_phone, retry_count, view_token, auto_retried",
+    )
+    .maybeSingle();
+  if (error || !locked) {
+    return { ok: false, error: "지금 발송 중이거나 예약을 찾지 못했습니다." };
+  }
+  const out = await sendOne(locked as unknown as Reminder, creds);
+  return out.sent ? { ok: true } : { ok: false, error: "문자 발송에 실패했습니다. 실패 사유를 확인해 주세요." };
+}
+
+/**
+ * 누락 점검 (한국시간 18:10).
+ *
+ * 내일 이사 예정인 확정 계약 중 전날 안내 문자가 만들어지지 않았거나
+ * 아직 보내지지 않은 건을 찾아 한 번만 다시 처리합니다.
+ * 실패를 성공으로 바꾸지 않습니다.
+ */
+export async function sweepMissedReminders(): Promise<{
+  ok: boolean;
+  candidates: number;
+  repaired: number;
+  missed: number;
+  sent: number;
+  failed: number;
+}> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // 한국시간 기준 '내일' 날짜
+  const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const tomorrow = new Date(kstNow.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const { data: terms } = await supabaseAdmin
+    .from("estimate_terms")
+    .select("id, estimate_id, user_id, move_date, deleted_at")
+    .eq("move_date", tomorrow)
+    .is("deleted_at", null);
+
+  const list = (terms ?? []) as { id: string; estimate_id: string }[];
+  let repaired = 0;
+  let missed = 0;
+
+  for (const t of list) {
+    const { data: rem } = await supabaseAdmin
+      .from("move_reminders")
+      .select("id, status")
+      .eq("estimate_terms_id", t.id)
+      .maybeSingle();
+    const status = String((rem as { status?: string } | null)?.status ?? "");
+    if (["accepted", "delivered", "success", "processing", "sending"].includes(status)) continue;
+    if (status === "canceled") continue;
+
+    // 예약이 없거나 아직 발송 예정이면 다시 만들어 즉시 보낼 수 있게 합니다
+    const { syncMoveReminder } = await import("./reminder.server");
+    const r = await syncMoveReminder(t.id);
+    if (r.ok && (r.action === "created" || r.action === "updated")) repaired++;
+    else if (!rem) missed++;
+  }
+
+  const run = await runDueMoveReminders(50);
+  await logJobRun({
+    job: "sweep",
+    picked: list.length,
+    sent: run.sent,
+    failed: run.failed,
+    missed,
+    note: `내일(${tomorrow}) 확정 계약 ${list.length}건 점검 · 다시 예약 ${repaired}건`,
+  });
+
+  return {
+    ok: true,
+    candidates: list.length,
+    repaired,
+    missed,
+    sent: run.sent,
+    failed: run.failed,
+  };
+}
+
+/** 발송결과 조회 실행 + 작업기록 */
+export async function checkReminderResults(limit = 30) {
+  const { refreshReminderResults } = await import("./reminder-result.server");
+  const out = await refreshReminderResults(limit);
+  await logJobRun({
+    job: "result-check",
+    checked: out.checked,
+    note: `전달 ${out.delivered} · 실패 ${out.failed} · 확인필요 ${out.unknown}`,
+  });
+  return out;
 }

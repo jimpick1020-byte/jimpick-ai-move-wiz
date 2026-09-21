@@ -639,70 +639,136 @@ export type Database = {
       }
       move_reminders: {
         Row: {
+          accepted_at: string | null
           aligo_message_id: string | null
+          auto_retried: boolean
           company_id: string
           company_phone: string | null
           created_at: string
           customer_name: string
           customer_phone: string
+          customer_viewed_at: string | null
+          delivered_at: string | null
+          delivery_type: string
+          error_code: string | null
           error_reason: string | null
           estimate_id: string
           estimate_terms_id: string | null
+          failed_at: string | null
           from_address: string | null
           id: string
           idempotency_key: string
+          last_checked_at: string | null
+          last_viewed_at: string | null
+          message_snapshot: string | null
+          message_type: string | null
+          missed_reason: string | null
           move_date: string
+          processing_at: string | null
+          provider: string
+          provider_message_id: string | null
+          provider_response: Json | null
+          requested_at: string | null
           retry_count: number
           scheduled_at: string
+          scheduled_date: string
           sent_at: string | null
           start_time: string | null
           status: string
+          to_address: string | null
+          to_masked: string | null
           updated_at: string
           user_id: string
+          view_count: number
+          view_token: string | null
         }
         Insert: {
+          accepted_at?: string | null
           aligo_message_id?: string | null
+          auto_retried?: boolean
           company_id: string
           company_phone?: string | null
           created_at?: string
           customer_name?: string
           customer_phone?: string
+          customer_viewed_at?: string | null
+          delivered_at?: string | null
+          delivery_type?: string
+          error_code?: string | null
           error_reason?: string | null
           estimate_id: string
           estimate_terms_id?: string | null
+          failed_at?: string | null
           from_address?: string | null
           id?: string
           idempotency_key: string
+          last_checked_at?: string | null
+          last_viewed_at?: string | null
+          message_snapshot?: string | null
+          message_type?: string | null
+          missed_reason?: string | null
           move_date: string
+          processing_at?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          provider_response?: Json | null
+          requested_at?: string | null
           retry_count?: number
           scheduled_at: string
+          scheduled_date: string
           sent_at?: string | null
           start_time?: string | null
           status?: string
+          to_address?: string | null
+          to_masked?: string | null
           updated_at?: string
           user_id: string
+          view_count?: number
+          view_token?: string | null
         }
         Update: {
+          accepted_at?: string | null
           aligo_message_id?: string | null
+          auto_retried?: boolean
           company_id?: string
           company_phone?: string | null
           created_at?: string
           customer_name?: string
           customer_phone?: string
+          customer_viewed_at?: string | null
+          delivered_at?: string | null
+          delivery_type?: string
+          error_code?: string | null
           error_reason?: string | null
           estimate_id?: string
           estimate_terms_id?: string | null
+          failed_at?: string | null
           from_address?: string | null
           id?: string
           idempotency_key?: string
+          last_checked_at?: string | null
+          last_viewed_at?: string | null
+          message_snapshot?: string | null
+          message_type?: string | null
+          missed_reason?: string | null
           move_date?: string
+          processing_at?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          provider_response?: Json | null
+          requested_at?: string | null
           retry_count?: number
           scheduled_at?: string
+          scheduled_date?: string
           sent_at?: string | null
           start_time?: string | null
           status?: string
+          to_address?: string | null
+          to_masked?: string | null
           updated_at?: string
           user_id?: string
+          view_count?: number
+          view_token?: string | null
         }
         Relationships: [
           {
@@ -834,6 +900,45 @@ export type Database = {
           staff_phone?: string | null
           terms_accepted_at?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      reminder_job_runs: {
+        Row: {
+          checked: number
+          created_at: string
+          failed: number
+          id: string
+          job: string
+          missed: number
+          note: string | null
+          picked: number
+          ran_at: string
+          sent: number
+        }
+        Insert: {
+          checked?: number
+          created_at?: string
+          failed?: number
+          id?: string
+          job: string
+          missed?: number
+          note?: string | null
+          picked?: number
+          ran_at?: string
+          sent?: number
+        }
+        Update: {
+          checked?: number
+          created_at?: string
+          failed?: number
+          id?: string
+          job?: string
+          missed?: number
+          note?: string | null
+          picked?: number
+          ran_at?: string
+          sent?: number
         }
         Relationships: []
       }
@@ -1218,26 +1323,48 @@ export type Database = {
       claim_move_reminders: {
         Args: { _limit?: number }
         Returns: {
+          accepted_at: string | null
           aligo_message_id: string | null
+          auto_retried: boolean
           company_id: string
           company_phone: string | null
           created_at: string
           customer_name: string
           customer_phone: string
+          customer_viewed_at: string | null
+          delivered_at: string | null
+          delivery_type: string
+          error_code: string | null
           error_reason: string | null
           estimate_id: string
           estimate_terms_id: string | null
+          failed_at: string | null
           from_address: string | null
           id: string
           idempotency_key: string
+          last_checked_at: string | null
+          last_viewed_at: string | null
+          message_snapshot: string | null
+          message_type: string | null
+          missed_reason: string | null
           move_date: string
+          processing_at: string | null
+          provider: string
+          provider_message_id: string | null
+          provider_response: Json | null
+          requested_at: string | null
           retry_count: number
           scheduled_at: string
+          scheduled_date: string
           sent_at: string | null
           start_time: string | null
           status: string
+          to_address: string | null
+          to_masked: string | null
           updated_at: string
           user_id: string
+          view_count: number
+          view_token: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -1277,6 +1404,7 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
+      mark_reminder_viewed: { Args: { _token: string }; Returns: Json }
       owner_confirm_contract: {
         Args: {
           _contact_phone?: string
