@@ -177,7 +177,7 @@ export const findItemIcon = createServerFn({ method: "POST" })
     if (!norm) return { ok: false, error: "품목명을 입력해 주세요." };
     const { data: row, error } = await context.supabase
       .from("item_icons")
-      .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_path, storage_path, status, default_volume")
+      .select("id, item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_path, storage_path, status, default_volume")
       .eq("user_id", context.userId)
       .eq("normalized_name", norm)
       .eq("active", true)
@@ -185,9 +185,8 @@ export const findItemIcon = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) return { ok: false, error: error.message };
     const path = row?.storage_path || row?.image_path;
-    if (!row || !path) return { ok: false };
-    const iconUrl = await signedIconUrl(path);
-    if (!iconUrl) return { ok: false, error: "저장된 품목 이미지를 불러오지 못했습니다." };
+    if (!row || !path || !row.id) return { ok: false };
+    const iconUrl = stableIconUrl(row.id as string);
     return {
       ok: true,
       reused: true,
@@ -218,22 +217,18 @@ export const listItemIcons = createServerFn({ method: "GET" })
     }> => {
       const { data, error } = await context.supabase
         .from("item_icons")
-        .select("item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_path, storage_path, created_at, default_volume")
+        .select("id, item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_path, storage_path, created_at, default_volume")
         .eq("user_id", context.userId)
         .eq("active", true)
         .eq("status", "ready")
         .order("created_at", { ascending: true });
       if (error) return { ok: false, error: error.message, items: [] };
-      const rows = (data ?? []).filter((row) => !!(row.storage_path || row.image_path));
+      const rows = (data ?? []).filter((row) => !!row.id && !!(row.storage_path || row.image_path));
       if (!rows.length) return { ok: true, items: [] };
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const paths = rows.map((row) => (row.storage_path || row.image_path) as string);
-      const signed = await supabaseAdmin.storage.from(BUCKET).createSignedUrls(paths, 60 * 60);
-      if (signed.error) return { ok: false, error: signed.error.message, items: [] };
       return {
         ok: true,
         items: rows
-          .map((r, index) => ({
+          .map((r) => ({
             itemId: r.item_id as string,
             name: recoveredDisplayName(r),
             cat: (r.category_group || r.cat) as string,
@@ -241,7 +236,7 @@ export const listItemIcons = createServerFn({ method: "GET" })
             size: r.size_label as "소형" | "중형" | "대형",
             volume: Number(r.default_volume ?? 0) || undefined,
             room: (r.room as string | null) ?? undefined,
-            iconUrl: signed.data?.[index]?.signedUrl ?? "",
+            iconUrl: stableIconUrl(r.id as string),
           }))
           .filter((item) => !!item.iconUrl),
       };
