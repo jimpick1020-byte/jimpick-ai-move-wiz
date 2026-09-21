@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.mark_reminder_viewed(text) FROM anon, authenticated;
