@@ -431,8 +431,7 @@ export const generateItemIcon = createServerFn({ method: "POST" })
         .update({ status: "ready", image_path: path, storage_path: path, image_url: snapshotUrl })
         .eq("id", rowId);
       if (done.error) return fail(`아이콘 등록 실패: ${done.error.message}`);
-      const iconUrl = await signedIconUrl(path);
-      if (!iconUrl) return fail("저장된 품목 이미지를 다시 불러오지 못했습니다.");
+      const iconUrl = snapshotUrl;
 
       return {
         ok: true,
