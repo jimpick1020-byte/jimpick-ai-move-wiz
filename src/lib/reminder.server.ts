@@ -35,6 +35,14 @@ function isKoreanMobile(d: string): boolean {
   return /^01[016789][0-9]{7,8}$/.test(d);
 }
 
+/** 고객 확인용 무작위 토큰 (추측할 수 없는 64자) */
+export function newViewToken(): string {
+  return (
+    globalThis.crypto.randomUUID().replace(/-/g, "") +
+    globalThis.crypto.randomUUID().replace(/-/g, "")
+  );
+}
+
 export interface SyncResult {
   ok: boolean;
   /** created · updated · unchanged · canceled · skipped */
