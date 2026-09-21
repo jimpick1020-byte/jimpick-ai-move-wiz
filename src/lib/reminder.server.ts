@@ -108,7 +108,12 @@ export async function syncMoveReminder(estimateTermsId: string): Promise<SyncRes
   }
 
   const fromAddress = [sv("fromAddress"), sv("fromDetail")].filter(Boolean).join(" ");
+  const toAddress = [sv("toAddress"), sv("toDetail")].filter(Boolean).join(" ");
   const idempotencyKey = `move-reminder-${estimateId}-${moveDate}`;
+  // 이사 전날(한국시간) 날짜 — 같은 업체·견적·날짜에는 한 건만 만들어집니다
+  const scheduledDate = new Date(new Date(scheduledAt).getTime() + 9 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
 
   // 날짜가 바뀌었으면 예전 예약(아직 안 보낸 것)은 취소합니다
   await supabaseAdmin
@@ -121,10 +126,11 @@ export async function syncMoveReminder(estimateTermsId: string): Promise<SyncRes
 
   const { data: existing } = await supabaseAdmin
     .from("move_reminders")
-    .select("id, status")
+    .select("id, status, view_token")
     .eq("idempotency_key", idempotencyKey)
     .maybeSingle();
 
+  const phoneLast4 = phone.slice(-4);
   const payload = {
     company_id: ownerId,
     user_id: ownerId,
@@ -135,20 +141,33 @@ export async function syncMoveReminder(estimateTermsId: string): Promise<SyncRes
     move_date: moveDate,
     start_time: sv("moveTime") || null,
     from_address: fromAddress || null,
+    to_address: toAddress || null,
     company_phone: String(r["company_phone"] ?? "").trim() || null,
     scheduled_at: scheduledAt,
+    scheduled_date: scheduledDate,
+    delivery_type: "move_day_reminder",
+    provider: "aligo",
+    to_masked: `010-****-${phoneLast4}`,
     idempotency_key: idempotencyKey,
   };
 
   if (existing) {
     const status = String((existing as { status?: string }).status ?? "");
-    // 이미 보낸 문자는 다시 만들지 않습니다
-    if (status === "success" || status === "sending") {
+    // 이미 보낸·보내는 중인 문자는 다시 만들지 않습니다
+    if (["success", "sending", "processing", "accepted", "delivered"].includes(status)) {
       return { ok: true, action: "unchanged", scheduledAt };
     }
     const { error: upErr } = await supabaseAdmin
       .from("move_reminders")
-      .update({ ...payload, status: "scheduled", error_reason: null } as never)
+      .update({
+        ...payload,
+        status: "scheduled",
+        error_reason: null,
+        error_code: null,
+        missed_reason: null,
+        view_token:
+          (existing as { view_token?: string | null }).view_token || newViewToken(),
+      } as never)
       .eq("id", (existing as { id: string }).id);
     if (upErr) {
       console.error("[syncMoveReminder] update", upErr.message);
@@ -159,7 +178,7 @@ export async function syncMoveReminder(estimateTermsId: string): Promise<SyncRes
 
   const { error: insErr } = await supabaseAdmin
     .from("move_reminders")
-    .insert({ ...payload, status: "scheduled" } as never);
+    .insert({ ...payload, status: "scheduled", view_token: newViewToken() } as never);
   if (insErr) {
     // 같은 열쇠가 이미 있으면(동시 실행) 그대로 둡니다
     if (/duplicate key/i.test(insErr.message)) return { ok: true, action: "unchanged", scheduledAt };
