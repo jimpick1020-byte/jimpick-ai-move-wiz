@@ -129,7 +129,7 @@ import {
   archiveCalendarSelected,
   listArchivedContracts,
   normalizePaymentStatus,
-  paymentStatusFromAmounts,
+  isFullyPaid,
   PAYMENT_STATUS_CLASS,
   PAYMENT_STATUS_LABEL,
   type ArchivedContractRow,
