@@ -697,6 +697,7 @@ export const getReservationCounts = createServerFn({ method: "POST" })
             r.truck = typeof truck === "string" ? truck : null;
             const staff = d["staffName"] ?? d["manager"];
             r.staffName = typeof staff === "string" ? staff : null;
+            r.sizeTab = typeof d["sizeTab"] === "string" ? (d["sizeTab"] as string) : null;
           } catch {
             /* 스냅샷이 깨졌으면 표시용 정보만 비웁니다 */
           }
