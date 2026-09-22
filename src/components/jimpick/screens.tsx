@@ -893,7 +893,11 @@ export function HomeScreen() {
                   <div className="min-w-0">
                     <div className="truncate text-[16px] font-bold">
                       {e.customerName || "이름 없음"}
-                      <span className="ml-1.5 font-normal text-[#6B7280]">{e.status}</span>
+                      {e.sizeTab?.trim() && (
+                        <span className="ml-1.5 font-normal text-[#6B7280]">
+                          {e.sizeTab.trim()}
+                        </span>
+                      )}
                     </div>
                     <div className="truncate text-[15px] text-[#6B7280]">
                       {new Date(e.createdAt).toLocaleDateString("ko-KR")}
