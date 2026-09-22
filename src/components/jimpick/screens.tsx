@@ -6498,9 +6498,37 @@ export function History() {
 export function Customers() {
   const { estimates, setScreen, loadEstimate } = useApp();
   const [q, setQ] = useState("");
+  /** 계약(예약 확정)된 견적 상태 — 고객 카드에 계약완료 표시를 붙입니다 */
+  const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
+  useEffect(() => {
+    let alive = true;
+    getTermsStatuses({ data: {} })
+      .then((r) => {
+        if (alive && r.ok) setTermsRows(r.rows);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const contractOf = (estimateId: string) => {
+    const r = termsRows.find((t) => t.estimateId === estimateId);
+    if (!r) return null;
+    const confirmed = Boolean(r.acceptedAt) || r.reservationStatus === "confirmed";
+    if (!confirmed) return null;
+    return { pay: normalizePaymentStatus(r.paymentStatus) };
+  };
   const map = new Map<
     string,
-    { id: string; name: string; phone: string; last: number; count: number; lastAmount: number }
+    {
+      id: string;
+      name: string;
+      phone: string;
+      last: number;
+      count: number;
+      lastAmount: number;
+      ids: string[];
+    }
   >();
   for (const e of estimates) {
     if (!e.phone) continue;
@@ -6514,9 +6542,11 @@ export function Customers() {
         last: e.createdAt,
         count: (cur?.count || 0) + 1,
         lastAmount: e.total,
+        ids: [...(cur?.ids ?? []), e.id],
       });
     } else {
       cur.count += 1;
+      cur.ids.push(e.id);
     }
   }
   const list = Array.from(map.values()).filter(
@@ -6530,7 +6560,10 @@ export function Customers() {
         {list.length === 0 && (
           <div className="text-center text-[#6B7280] py-16">고객 정보가 없습니다.</div>
         )}
-        {list.map((c) => (
+        {list.map((c) => {
+          // 이 고객의 견적 중 계약(예약 확정)된 건이 있으면 계약완료로 표시합니다
+          const contract = c.ids.map((id) => contractOf(id)).find(Boolean) ?? null;
+          return (
           // 카드를 누르면 이 고객의 최근 견적서를 바로 엽니다
           <Card
             key={c.phone}
@@ -6542,7 +6575,21 @@ export function Customers() {
           >
             <div className="flex justify-between">
               <div>
-                <div className="font-bold">{c.name}</div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-bold">{c.name}</span>
+                  {contract && (
+                    <>
+                      <span className="rounded-full bg-[#E7F3EE] px-1.5 py-[1px] text-[10.5px] font-black text-[#3E9B78]">
+                        계약완료
+                      </span>
+                      <span
+                        className={`rounded-full px-1.5 py-[1px] text-[10.5px] font-black ${PAYMENT_STATUS_CLASS[contract.pay]}`}
+                      >
+                        {PAYMENT_STATUS_LABEL[contract.pay]}
+                      </span>
+                    </>
+                  )}
+                </div>
                 <div className="text-xs text-[#6B7280]">{c.phone}</div>
                 <div className="text-xs text-[#6B7280] mt-1">
                   최근: {new Date(c.last).toLocaleDateString("ko-KR")} · {c.count}회
@@ -6571,7 +6618,8 @@ export function Customers() {
               </div>
             </div>
           </Card>
-        ))}
+          );
+        })}
       </div>
       <BottomNav />
     </MobileShell>
