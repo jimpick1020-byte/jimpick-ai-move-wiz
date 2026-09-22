@@ -6036,6 +6036,16 @@ export function History() {
   /** 카드 전체 펼침 상태 (기본 접힘 → 금액까지만 보임, 누르면 펼쳐짐) */
   const [openCard, setOpenCard] = useState<Record<string, boolean>>({});
   const toggleCard = (id: string) => setOpenCard((p) => ({ ...p, [id]: !p[id] }));
+  /** 완료 보관함 — 달력에서 정리한 결제완료 계약 (자료는 그대로 남아 있습니다) */
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archived, setArchived] = useState<ArchivedContractRow[]>([]);
+  const loadArchived = () => {
+    listArchivedContracts()
+      .then((r) => {
+        if (r.ok) setArchived(r.rows);
+      })
+      .catch(() => {});
+  };
   const loadNotices = () => {
     getManagerNotices()
       .then((r) => {
