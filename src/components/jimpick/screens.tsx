@@ -123,6 +123,7 @@ import {
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { SmsNoticeCard } from "./SmsNoticeCard";
 import { DepositPanel } from "./DepositPanel";
+import { DepositClaimBox } from "./DepositClaimBox";
 import { PaymentPanel } from "./PaymentPanel";
 import {
   setCalendarSelected,
