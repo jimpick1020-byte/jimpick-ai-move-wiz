@@ -630,19 +630,25 @@ export function HomeScreen() {
   // 예약금만 받은 견적은 「진행 중」, 잔금까지 전액 받은 견적만 「완료」입니다.
   const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
   const [archivedRows, setArchivedRows] = useState<ArchivedContractRow[]>([]);
+  /** 서버(실제 결제 기록)를 다 읽기 전에는 숫자를 보여 주지 않습니다 */
+  const [statsReady, setStatsReady] = useState(false);
   useEffect(() => {
     let alive = true;
     const load = () => {
-      getTermsStatuses({ data: {} })
-        .then((r) => {
-          if (alive && r.ok) setTermsRows(r.rows);
-        })
-        .catch(() => {});
-      listArchivedContracts()
-        .then((rows) => {
-          if (alive) setArchivedRows(rows);
-        })
-        .catch(() => {});
+      void Promise.all([
+        getTermsStatuses({ data: {} })
+          .then((r) => {
+            if (alive && r.ok) setTermsRows(r.rows);
+          })
+          .catch(() => {}),
+        listArchivedContracts()
+          .then((rows) => {
+            if (alive) setArchivedRows(rows);
+          })
+          .catch(() => {}),
+      ]).then(() => {
+        if (alive) setStatsReady(true);
+      });
     };
     load();
     window.addEventListener("jimpick:payment-updated", load);
