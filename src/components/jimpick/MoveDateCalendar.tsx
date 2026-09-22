@@ -53,6 +53,12 @@ export interface CalendarBooking {
   moveType?: string | null;
   truck?: string | null;
   staffName?: string | null;
+  /** 평수 (견적서에 저장된 값) */
+  sizeTab?: string | null;
+  /** 결제 진행 상태 */
+  paymentStatus?: string | null;
+  /** 완료 보관 대상으로 체크했는지 */
+  calendarSelected?: boolean;
 }
 
 export function MoveDateCalendar({
