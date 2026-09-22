@@ -129,6 +129,7 @@ import {
   archiveCalendarSelected,
   listArchivedContracts,
   normalizePaymentStatus,
+  isFullyPaid,
   PAYMENT_STATUS_CLASS,
   PAYMENT_STATUS_LABEL,
   type ArchivedContractRow,
@@ -620,14 +621,36 @@ export function HomeScreen() {
   const greetingName =
     companyName === null ? "…" : companyName ? `${companyName} 사장님 👋` : "사장님 👋";
 
-  const total = estimates.length;
-  const done = estimates.filter((e) => e.status === "완료").length;
-  const inProg = total - done;
-  const pct = total ? Math.round((done / total) * 100) : 0;
-
   // 아래 숫자는 모두 저장된 견적에서 바로 계산합니다 (예시 숫자를 쓰지 않습니다)
   const phoneKey = (e: (typeof estimates)[number]) =>
     (e.phone || "").replace(/[^0-9]/g, "") || `이름:${e.customerName || ""}`;
+
+  // 견적 현황 — 실제 결제 기록(예약금·잔금)으로 진행 중/완료를 계산합니다.
+  // 예약금만 받은 고객은 「진행 중」, 잔금까지 전액 받은 고객만 「완료」입니다.
+  const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
+  useEffect(() => {
+    let alive = true;
+    getTermsStatuses({ data: {} })
+      .then((r) => {
+        if (alive && r.ok) setTermsRows(r.rows);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const countable = new Map<string, { id: string; paid: boolean }>();
+  for (const e of [...estimates].sort((a, b) => a.createdAt - b.createdAt)) {
+    const row = termsRows.find((t) => t.estimateId === e.id) ?? null;
+    const status = row ? normalizePaymentStatus(row.paymentStatus) : "unpaid";
+    // 취소·환불된 건은 집계에서 빼고, 같은 고객은 한 건으로 셉니다
+    if (status === "canceled" || status === "refunded") continue;
+    countable.set(phoneKey(e), { id: e.id, paid: row ? isFullyPaid(row) : false });
+  }
+  const total = countable.size;
+  const done = Array.from(countable.values()).filter((c) => c.paid).length;
+  const inProg = total - done;
+  const pct = total ? Math.round((done / total) * 100) : 0;
   const customerCount = new Set(estimates.filter((e) => e.customerName || e.phone).map(phoneKey))
     .size;
   const monthStart = new Date();
@@ -6144,10 +6167,9 @@ export function History() {
       loadNotices();
     }
   };
+  // 잔금까지 전액 받은 계약만 완료 보관함으로 옮깁니다 (예약금만 받은 건은 목록에 남습니다)
   const completedIds = new Set(
-    termsRows
-      .filter((row) => normalizePaymentStatus(row.paymentStatus) === "completed")
-      .map((row) => row.estimateId),
+    termsRows.filter((row) => isFullyPaid(row)).map((row) => row.estimateId),
   );
   const list = estimates.filter(
     (e) =>
