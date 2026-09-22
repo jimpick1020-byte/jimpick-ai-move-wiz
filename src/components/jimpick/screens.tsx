@@ -124,6 +124,16 @@ import { SmsConnectionCard } from "./SmsConnectionCard";
 import { SmsNoticeCard } from "./SmsNoticeCard";
 import { DepositPanel } from "./DepositPanel";
 import { PaymentPanel } from "./PaymentPanel";
+import {
+  setCalendarSelected,
+  archiveCalendarSelected,
+  restoreCalendarArchived,
+  listArchivedContracts,
+  normalizePaymentStatus,
+  PAYMENT_STATUS_CLASS,
+  PAYMENT_STATUS_LABEL,
+  type ArchivedContractRow,
+} from "@/lib/payment.functions";
 import { ReminderPanel } from "./ReminderPanel";
 
 import {
@@ -883,7 +893,11 @@ export function HomeScreen() {
                   <div className="min-w-0">
                     <div className="truncate text-[16px] font-bold">
                       {e.customerName || "이름 없음"}
-                      <span className="ml-1.5 font-normal text-[#6B7280]">{e.status}</span>
+                      {e.sizeTab?.trim() && (
+                        <span className="ml-1.5 font-normal text-[#6B7280]">
+                          {e.sizeTab.trim()}
+                        </span>
+                      )}
                     </div>
                     <div className="truncate text-[15px] text-[#6B7280]">
                       {new Date(e.createdAt).toLocaleDateString("ko-KR")}
@@ -954,6 +968,9 @@ export function Step1() {
                 moveType: b.moveType,
                 truck: b.truck,
                 staffName: b.staffName,
+                sizeTab: b.sizeTab,
+                paymentStatus: b.paymentStatus,
+                calendarSelected: b.calendarSelected,
               })),
             ]),
           ),
@@ -1105,6 +1122,31 @@ export function Step1() {
             onCancelBooking={(_termsId, estimateId) => {
               // 달력에서 지우면 견적 내역도 함께 삭제됩니다(서버에서 한 번에 처리).
               contractDelete.ask(estimateId);
+            }}
+            onToggleSelect={(termsId, next) => {
+              setCalendarSelected({ data: { termsId, selected: next } })
+                .then((r) => {
+                  if (!r.ok) {
+                    toast.error(r.error ?? "체크 상태를 저장하지 못했습니다");
+                    return;
+                  }
+                  loadBookings();
+                })
+                .catch(() => toast.error("체크 상태를 저장하지 못했습니다"));
+            }}
+            onArchiveSelected={(termsIds) => {
+              archiveCalendarSelected({ data: { termsIds } })
+                .then((r) => {
+                  if (!r.ok) {
+                    toast.error(r.error ?? "보관 처리에 실패했습니다");
+                    return;
+                  }
+                  toast.success(`${r.archived}건을 완료 보관함으로 옮겼습니다`, {
+                    description: "자료는 그대로 남아 있고, 달력에서만 정리되었습니다.",
+                  });
+                  loadBookings();
+                })
+                .catch(() => toast.error("보관 처리에 실패했습니다"));
             }}
             onSelect={(date) =>
               updateDraft({
@@ -4962,6 +5004,7 @@ export function Result() {
     moveDate: draft.moveDate ?? "",
     moveTime: draft.moveTime ?? "",
     moveType: String(draft.moveType ?? ""),
+    sizeTab: draft.sizeTab ?? "",
     fromAddress: draft.fromAddress ?? "",
     fromDetail: draft.fromDetail ?? "",
     toAddress: draft.toAddress ?? "",
@@ -5008,6 +5051,7 @@ export function Result() {
       customerPhone: draft.phone ?? "",
       moveDateText: formatMoveDateTime(draft.moveDate, draft.moveTime),
       moveType: String(draft.moveType ?? ""),
+      sizeTab: draft.sizeTab ?? "",
       fromAddress: `${draft.fromAddress ?? ""} ${draft.fromDetail ?? ""}`.trim(),
       fromEnv: sideConditionText(draft, "from"),
       toAddress: `${draft.toAddress ?? ""} ${draft.toDetail ?? ""}`.trim(),
@@ -5992,6 +6036,14 @@ export function History() {
   /** 카드 전체 펼침 상태 (기본 접힘 → 금액까지만 보임, 누르면 펼쳐짐) */
   const [openCard, setOpenCard] = useState<Record<string, boolean>>({});
   const toggleCard = (id: string) => setOpenCard((p) => ({ ...p, [id]: !p[id] }));
+  /** 완료 보관함 — 달력에서 정리한 결제완료 계약 (자료는 그대로 남아 있습니다) */
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archived, setArchived] = useState<ArchivedContractRow[]>([]);
+  const loadArchived = () => {
+    listArchivedContracts()
+      .then((rows) => setArchived(rows))
+      .catch(() => {});
+  };
   const loadNotices = () => {
     getManagerNotices()
       .then((r) => {
@@ -6123,6 +6175,75 @@ export function History() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
+
+        {/* 완료 보관함 — 달력에서 정리한 결제완료 계약(자료는 그대로 남아 있습니다) */}
+        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3">
+          <button
+            type="button"
+            onClick={() => {
+              const next = !archiveOpen;
+              setArchiveOpen(next);
+              if (next) loadArchived();
+            }}
+            className="flex w-full items-center justify-between text-[14px] font-bold text-[#25282D]"
+          >
+            <span>완료 보관함</span>
+            <span className="text-[13px] font-semibold text-[#6B7280]">
+              {archiveOpen ? "닫기 ▲" : "열기 ▾"}
+            </span>
+          </button>
+          {archiveOpen && (
+            <div className="mt-2 space-y-2">
+              {archived.length === 0 && (
+                <div className="py-4 text-center text-[13px] text-[#6B7280]">
+                  보관한 일정이 없습니다.
+                </div>
+              )}
+              {archived.map((a) => (
+                <div key={a.termsId} className="rounded-xl border border-[#E5E7EB] p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-[14px] font-bold text-[#25282D]">
+                        {a.customerName || "이름 없음"}
+                      </div>
+                      <div className="text-[12.5px] font-semibold text-[#6B7280]">
+                        {a.moveDate || "날짜 미정"}
+                        {a.sizeTab ? ` · ${a.sizeTab}` : ""}
+                      </div>
+                      <div className="text-[12.5px] font-bold text-[#25282D] tabular-nums">
+                        {won(a.total)}
+                      </div>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-1 text-[11.5px] font-bold ${PAYMENT_STATUS_CLASS[a.paymentStatus]}`}
+                    >
+                      {PAYMENT_STATUS_LABEL[a.paymentStatus]}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      restoreCalendarArchived({ data: { termsId: a.termsId } })
+                        .then((r) => {
+                          if (!r.ok) {
+                            toast.error(r.error ?? "달력으로 되돌리지 못했습니다");
+                            return;
+                          }
+                          toast.success("달력으로 되돌렸습니다");
+                          loadArchived();
+                        })
+                        .catch(() => toast.error("달력으로 되돌리지 못했습니다"));
+                    }}
+                    className="mt-2 w-full rounded-lg border border-[#D9E7FA] bg-white py-2 text-[12.5px] font-bold text-[#1D4ED8]"
+                  >
+                    달력으로 되돌리기
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {list.length === 0 && (
           <div className="text-center text-[#6B7280] py-16">저장된 견적이 없습니다.</div>
         )}
@@ -6144,12 +6265,26 @@ export function History() {
                           <div className="font-bold">{e.customerName || "이름 없음"}</div>
                           <div className="text-xs text-[#6B7280]">{e.phone}</div>
                         </div>
-                        <span className="text-xs px-2 py-1 rounded-full bg-[#F7F8F5] text-[#25282D] font-semibold">
-                          {e.status}
-                        </span>
+                        {/* 결제상태만 한 개 표시합니다 (독립적인 '완료' 문구는 쓰지 않습니다) */}
+                        {(() => {
+                          const pay = normalizePaymentStatus(ts.row?.paymentStatus);
+                          return (
+                            <span
+                              className={`text-xs px-2 py-1 rounded-full font-semibold ${PAYMENT_STATUS_CLASS[pay]}`}
+                            >
+                              {PAYMENT_STATUS_LABEL[pay]}
+                            </span>
+                          );
+                        })()}
                       </div>
                       <div className="text-sm text-[#6B7280] mt-2">
                         {e.moveDate || "-"} · {e.fromAddress || "?"} → {e.toAddress || "?"}
+                      </div>
+                      <div className="text-sm text-[#6B7280]">
+                        평수{" "}
+                        <b className={e.sizeTab?.trim() ? "text-[#25282D]" : "text-[#D95C5C]"}>
+                          {e.sizeTab?.trim() || "평수 미입력"}
+                        </b>
                       </div>
                       <div className="mt-1 flex items-center justify-between">
                         <span className="text-lg font-black text-[#25282D]">{won(e.total)}</span>

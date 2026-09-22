@@ -3,6 +3,7 @@
  *
  * 자동으로 금액을 바꾸지 않습니다. 사장님이 직접 확인한 값만 저장합니다.
  * 예약금은 「예약금 입금」 칸에서 확인한 금액을 그대로 보여 줍니다.
+ * 「결제완료」는 실제 확인된 금액이 총액과 맞을 때만, 확인창을 거쳐 저장됩니다.
  */
 import { useState } from "react";
 import { toast } from "sonner";
@@ -10,6 +11,8 @@ import {
   setPaymentState,
   PAYMENT_STATUSES,
   PAYMENT_STATUS_LABEL,
+  PAYMENT_STATUS_CLASS,
+  normalizePaymentStatus,
   type PaymentStatus,
 } from "@/lib/payment.functions";
 import type { TermsStatusRow } from "@/lib/terms.functions";
@@ -28,28 +31,28 @@ export function PaymentPanel({
   onSaved?: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<PaymentStatus>(
-    (PAYMENT_STATUSES as readonly string[]).includes(row.paymentStatus)
-      ? (row.paymentStatus as PaymentStatus)
-      : "unpaid",
-  );
+  const [status, setStatus] = useState<PaymentStatus>(normalizePaymentStatus(row.paymentStatus));
   const [balance, setBalance] = useState(String(row.balancePaid || ""));
   const [note, setNote] = useState(row.paymentNote ?? "");
+  const [method, setMethod] = useState(row.paymentMethod ?? "");
   const [busy, setBusy] = useState(false);
+  const [askComplete, setAskComplete] = useState(false);
 
   const deposit = row.depositPaid;
   const balanceNum = Number(String(balance).replace(/[^\d]/g, "")) || 0;
   const remain = Math.max(0, total - deposit - balanceNum);
+  const shortOfTotal = total > 0 && deposit + balanceNum < total;
 
   const save = async () => {
     if (busy) return;
     setBusy(true);
     try {
       const r = await setPaymentState({
-        data: { estimateId, status, balancePaid: balanceNum, note },
+        data: { estimateId, status, balancePaid: balanceNum, note, method },
       });
       if (r.ok) {
         toast.success("결제 상태를 저장했습니다");
+        setAskComplete(false);
         onSaved?.();
       } else {
         toast.error("저장 실패", { description: r.error ?? "다시 시도해 주세요" });
@@ -61,24 +64,30 @@ export function PaymentPanel({
     }
   };
 
+  const onSaveClick = () => {
+    if (status === "completed") {
+      if (shortOfTotal) {
+        toast.error("결제완료로 저장할 수 없습니다", {
+          description: `확인된 금액 ${won(deposit + balanceNum)} · 총액 ${won(total)}`,
+        });
+        return;
+      }
+      setAskComplete(true);
+      return;
+    }
+    void save();
+  };
+
   return (
     <div className="mt-2 rounded-xl bg-[#F7F8F5] p-2.5">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between text-[12.5px] font-bold text-[#6B7280]"
       >
-        <span>
-          결제 상태{" "}
+        <span className="flex items-center gap-1.5">
+          결제 상태
           <span
-            className={
-              status === "completed"
-                ? "text-[#3E9B78]"
-                : status === "canceled" || status === "refunded"
-                  ? "text-[#D95C5C]"
-                  : status === "unpaid"
-                    ? "text-[#6B7280]"
-                    : "text-[#25282D]"
-            }
+            className={`rounded-full px-1.5 py-[1px] text-[11px] font-black ${PAYMENT_STATUS_CLASS[status]}`}
           >
             {PAYMENT_STATUS_LABEL[status]}
           </span>
@@ -130,6 +139,21 @@ export function PaymentPanel({
 
           <label
             className="block text-[12.5px] font-bold text-[#6B7280]"
+            htmlFor={`method-${estimateId}`}
+          >
+            결제 수단 (선택)
+          </label>
+          <input
+            id={`method-${estimateId}`}
+            name="paymentMethod"
+            value={method}
+            onChange={(e) => setMethod(e.target.value)}
+            placeholder="예) 계좌이체, 현금, 카드"
+            className="w-full rounded-xl border border-[#E5E7EB] bg-white p-2.5 text-[13px] outline-none focus:border-[#3578C8]"
+          />
+
+          <label
+            className="block text-[12.5px] font-bold text-[#6B7280]"
             htmlFor={`note-${estimateId}`}
           >
             결제 메모
@@ -151,13 +175,45 @@ export function PaymentPanel({
             </div>
           )}
 
+          {status === "completed" && shortOfTotal && (
+            <div className="rounded-xl bg-[#FEECEC] p-2 text-[12px] font-bold text-[#B91C1C]">
+              확인된 금액 {won(deposit + balanceNum)}이 총액 {won(total)}보다 적습니다. 잔금을 먼저
+              확인해 주세요.
+            </div>
+          )}
+
           <button
-            onClick={() => void save()}
+            onClick={onSaveClick}
             disabled={busy}
             className="w-full rounded-xl bg-[#3578C8] py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
           >
             {busy ? "저장 중…" : "결제 상태 저장"}
           </button>
+
+          {askComplete && (
+            <div className="rounded-xl border border-[#3E9B78] bg-white p-2.5">
+              <div className="text-[13px] font-bold text-[#25282D]">결제완료로 저장할까요?</div>
+              <div className="mt-1 text-[12px] text-[#6B7280]">
+                총 {won(total)} · 예약금 {won(deposit)} · 잔금 {won(balanceNum)} 으로 확인합니다.
+                달력에서 체크한 일정은 이후 완료 보관함으로 정리할 수 있습니다.
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-1.5">
+                <button
+                  onClick={() => setAskComplete(false)}
+                  className="rounded-xl bg-white py-2 text-[12.5px] font-bold text-[#6B7280] ring-1 ring-[#E5E7EB]"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => void save()}
+                  disabled={busy}
+                  className="rounded-xl bg-[#3E9B78] py-2 text-[12.5px] font-bold text-white disabled:opacity-50"
+                >
+                  {busy ? "저장 중…" : "결제완료 저장"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

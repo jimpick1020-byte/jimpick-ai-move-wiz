@@ -548,6 +548,13 @@ export function SharePage() {
               <span className="text-[#6B7280]">이사일</span>
               <span className="font-bold">{moveDate}</span>
             </div>
+            {estimate?.sizeTab?.trim() && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[#6B7280]">평수</span>
+                <span className="font-bold">{estimate.sizeTab.trim()}</span>
+              </div>
+            )}
+
             {sheetNo && (
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[#6B7280]">견적번호</span>

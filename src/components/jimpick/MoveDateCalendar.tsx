@@ -2,6 +2,11 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import KoreanLunarCalendar from "korean-lunar-calendar";
 import { tap } from "@/lib/feedback";
+import {
+  PAYMENT_STATUS_CLASS,
+  PAYMENT_STATUS_LABEL,
+  normalizePaymentStatus,
+} from "@/lib/payment.functions";
 
 /** YYYY-MM-DD 문자열 만들기 (시간대 영향 없음) */
 function ymd(y: number, m: number, d: number) {
@@ -53,6 +58,12 @@ export interface CalendarBooking {
   moveType?: string | null;
   truck?: string | null;
   staffName?: string | null;
+  /** 평수 (견적서에 저장된 값) */
+  sizeTab?: string | null;
+  /** 결제 진행 상태 */
+  paymentStatus?: string | null;
+  /** 완료 보관 대상으로 체크했는지 */
+  calendarSelected?: boolean;
 }
 
 export function MoveDateCalendar({
@@ -62,6 +73,8 @@ export function MoveDateCalendar({
   bookings,
   onOpenBooking,
   onCancelBooking,
+  onToggleSelect,
+  onArchiveSelected,
 }: {
   /** YYYY-MM-DD (없으면 빈 문자열) */
   value: string;
@@ -72,6 +85,10 @@ export function MoveDateCalendar({
   bookings?: Record<string, CalendarBooking[]>;
   onOpenBooking?: (estimateId: string, customerName: string, termsId: string) => void;
   onCancelBooking?: (termsId: string, estimateId: string) => void;
+  /** 완료 보관 대상 체크 (결제완료인 일정만 체크할 수 있습니다) */
+  onToggleSelect?: (termsId: string, next: boolean) => void;
+  /** 체크한 일정을 완료 보관함으로 옮깁니다 */
+  onArchiveSelected?: (termsIds: string[]) => void;
 }) {
   const today = todayYmd();
   const [openDate, setOpenDate] = useState("");
@@ -256,11 +273,13 @@ export function MoveDateCalendar({
           <div className="space-y-2">
             {(bookings?.[openDate] ?? []).map((b) => {
               const owner = b.confirmedBy === "company_admin" || b.confirmedBy === "company_staff";
+              const pay = normalizePaymentStatus(b.paymentStatus);
+              const done = pay === "completed";
               return (
                 <div key={b.termsId} className="rounded-xl border border-[#E5E7EB] bg-white p-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <span className="truncate text-[14px] font-bold text-[#25282D]">
                           {b.customerName || "이름 없음"}
                         </span>
@@ -273,15 +292,21 @@ export function MoveDateCalendar({
                         >
                           {owner ? "업체 확정" : "고객 확정"}
                         </span>
+                        <span
+                          className={`shrink-0 rounded-full px-1.5 py-[1px] text-[10.5px] font-black ${PAYMENT_STATUS_CLASS[pay]}`}
+                        >
+                          {PAYMENT_STATUS_LABEL[pay]}
+                        </span>
                       </div>
                       <div className="mt-0.5 text-[12.5px] font-semibold text-[#6B7280]">
                         {[
                           b.moveTime || null,
                           b.moveType || null,
+                          b.sizeTab || null,
                           b.truck ? `차량 ${b.truck}` : null,
                         ]
                           .filter(Boolean)
-                          .join(" · ") || "계약완료"}
+                          .join(" · ") || "이사 정보 미입력"}
                       </div>
                       {(b.fromArea || b.toArea) && (
                         <div className="text-[12.5px] font-semibold text-[#6B7280]">
@@ -304,6 +329,30 @@ export function MoveDateCalendar({
                       견적서 보기
                     </button>
                   </div>
+
+                  {/* 결제완료인 일정만 체크해서 완료 보관함으로 옮길 수 있습니다 */}
+                  {onToggleSelect && (
+                    <label
+                      className={`mt-2 flex items-center gap-2 text-[12.5px] font-bold ${
+                        done ? "text-[#25282D]" : "text-[#9CA3AF]"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(b.calendarSelected)}
+                        disabled={!done}
+                        onChange={(e) => {
+                          tap("soft");
+                          onToggleSelect(b.termsId, e.target.checked);
+                        }}
+                        className="h-4 w-4 accent-[#3578C8]"
+                      />
+                      {done
+                        ? "이 일정 완료 보관함으로 정리"
+                        : "결제완료로 저장한 뒤 정리할 수 있습니다"}
+                    </label>
+                  )}
+
                   {onCancelBooking && (
                     <button
                       type="button"
@@ -320,6 +369,30 @@ export function MoveDateCalendar({
               );
             })}
           </div>
+
+          {/* 체크한 일정만 달력에서 정리합니다. 자료는 지우지 않고 보관함으로 옮깁니다. */}
+          {onArchiveSelected &&
+            (() => {
+              const picked = (bookings?.[openDate] ?? [])
+                .filter(
+                  (b) =>
+                    b.calendarSelected && normalizePaymentStatus(b.paymentStatus) === "completed",
+                )
+                .map((b) => b.termsId);
+              if (picked.length === 0) return null;
+              return (
+                <button
+                  type="button"
+                  onClick={() => {
+                    tap("click");
+                    onArchiveSelected(picked);
+                  }}
+                  className="mt-2 w-full rounded-xl bg-[#25282D] py-2.5 text-[13px] font-bold text-white active:translate-y-[1px]"
+                >
+                  체크한 {picked.length}건 완료 보관함으로 정리
+                </button>
+              );
+            })()}
         </div>
       )}
 
