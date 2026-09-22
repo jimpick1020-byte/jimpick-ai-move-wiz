@@ -382,6 +382,10 @@ export type Database = {
           access_token: string
           balance_paid: number
           balance_paid_at: string | null
+          calendar_archived: boolean
+          calendar_archived_at: string | null
+          calendar_archived_by: string | null
+          calendar_selected: boolean
           company_phone: string | null
           contact_phone: string | null
           created_at: string
@@ -397,8 +401,10 @@ export type Database = {
           id: string
           last_viewed_at: string | null
           move_date: string | null
+          paid_at: string | null
           payment_confirmed_at: string | null
           payment_confirmed_by: string | null
+          payment_method: string | null
           payment_note: string | null
           payment_status: string
           sent_at: string | null
@@ -421,6 +427,10 @@ export type Database = {
           access_token: string
           balance_paid?: number
           balance_paid_at?: string | null
+          calendar_archived?: boolean
+          calendar_archived_at?: string | null
+          calendar_archived_by?: string | null
+          calendar_selected?: boolean
           company_phone?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -436,8 +446,10 @@ export type Database = {
           id?: string
           last_viewed_at?: string | null
           move_date?: string | null
+          paid_at?: string | null
           payment_confirmed_at?: string | null
           payment_confirmed_by?: string | null
+          payment_method?: string | null
           payment_note?: string | null
           payment_status?: string
           sent_at?: string | null
@@ -460,6 +472,10 @@ export type Database = {
           access_token?: string
           balance_paid?: number
           balance_paid_at?: string | null
+          calendar_archived?: boolean
+          calendar_archived_at?: string | null
+          calendar_archived_by?: string | null
+          calendar_selected?: boolean
           company_phone?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -475,8 +491,10 @@ export type Database = {
           id?: string
           last_viewed_at?: string | null
           move_date?: string | null
+          paid_at?: string | null
           payment_confirmed_at?: string | null
           payment_confirmed_by?: string | null
+          payment_method?: string | null
           payment_note?: string | null
           payment_status?: string
           sent_at?: string | null
