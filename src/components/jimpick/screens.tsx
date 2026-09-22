@@ -6167,10 +6167,9 @@ export function History() {
       loadNotices();
     }
   };
+  // 잔금까지 전액 받은 계약만 완료 보관함으로 옮깁니다 (예약금만 받은 건은 목록에 남습니다)
   const completedIds = new Set(
-    termsRows
-      .filter((row) => normalizePaymentStatus(row.paymentStatus) === "completed")
-      .map((row) => row.estimateId),
+    termsRows.filter((row) => isFullyPaid(row)).map((row) => row.estimateId),
   );
   const list = estimates.filter(
     (e) =>
