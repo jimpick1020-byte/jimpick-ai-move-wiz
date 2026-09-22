@@ -4,12 +4,12 @@
  *
  * 기준 (모든 화면 공통):
  * - 견적 한 건은 estimate_id 하나입니다 (고객 수가 아니라 견적 수, 중복 id는 한 번만 셉니다)
- * - 진행 중 = 삭제·취소·환불이 아니고 전액 결제가 아닌 견적
- * - 완료 = 실제 확인된 금액이 총액 이상인(전액 결제) 견적 → 완료 보관함
- * - 예약금만 받은 견적은 「진행 중」입니다
+ * - 진행 중 = 삭제·취소·환불이 아니고 결제완료가 아닌 견적
+ * - 완료 = 결제상태가 「결제완료」인 견적 → 완료 보관함
+ * - 예약금 완료·미결제·결제대기·일부결제는 모두 「진행 중」입니다
  * - 총 견적 = 진행 중 + 완료
  */
-import { isFullyPaid, normalizePaymentStatus } from "./payment.functions";
+import { normalizePaymentStatus } from "./payment.functions";
 import type { TermsStatusRow } from "./terms.functions";
 import type { ArchivedContractRow } from "./payment.functions";
 
@@ -61,19 +61,14 @@ export function buildEstimateStats(input: {
       excludedIds.add(id);
       continue;
     }
-    if (isFullyPaid(row)) completedIds.add(id);
+    // 「결제완료」로 저장된 견적만 완료입니다.
+    // 예약금 완료·미결제·결제대기·일부결제는 금액과 상관없이 진행 중입니다.
+    if (status === "completed") completedIds.add(id);
   }
   for (const a of input.archived ?? []) {
     if (!a.estimateId) continue;
     if (excludedIds.has(a.estimateId)) continue;
-    if (
-      isFullyPaid({
-        total: a.total,
-        depositPaid: a.depositPaid,
-        balancePaid: a.balancePaid,
-        paymentStatus: a.paymentStatus,
-      })
-    ) {
+    if (normalizePaymentStatus(a.paymentStatus) === "completed") {
       completedIds.add(a.estimateId);
     }
   }

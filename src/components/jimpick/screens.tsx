@@ -135,6 +135,7 @@ import {
   type ArchivedContractRow,
 } from "@/lib/payment.functions";
 import { buildEstimateStats } from "@/lib/estimate-stats";
+import { floorLabel, parseFloorFromDetail } from "@/lib/floor-parse";
 import { ReminderPanel } from "./ReminderPanel";
 
 import {
@@ -630,19 +631,25 @@ export function HomeScreen() {
   // 예약금만 받은 견적은 「진행 중」, 잔금까지 전액 받은 견적만 「완료」입니다.
   const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
   const [archivedRows, setArchivedRows] = useState<ArchivedContractRow[]>([]);
+  /** 서버(실제 결제 기록)를 다 읽기 전에는 숫자를 보여 주지 않습니다 */
+  const [statsReady, setStatsReady] = useState(false);
   useEffect(() => {
     let alive = true;
     const load = () => {
-      getTermsStatuses({ data: {} })
-        .then((r) => {
-          if (alive && r.ok) setTermsRows(r.rows);
-        })
-        .catch(() => {});
-      listArchivedContracts()
-        .then((rows) => {
-          if (alive) setArchivedRows(rows);
-        })
-        .catch(() => {});
+      void Promise.all([
+        getTermsStatuses({ data: {} })
+          .then((r) => {
+            if (alive && r.ok) setTermsRows(r.rows);
+          })
+          .catch(() => {}),
+        listArchivedContracts()
+          .then((rows) => {
+            if (alive) setArchivedRows(rows);
+          })
+          .catch(() => {}),
+      ]).then(() => {
+        if (alive) setStatsReady(true);
+      });
     };
     load();
     window.addEventListener("jimpick:payment-updated", load);
@@ -652,10 +659,10 @@ export function HomeScreen() {
     };
   }, []);
   const stats = buildEstimateStats({ estimates, termsRows, archived: archivedRows });
-  const total = stats.total;
-  const done = stats.completed;
-  const inProg = stats.inProgress;
-  const pct = stats.pct;
+  const total = statsReady ? String(stats.total) : "…";
+  const done = statsReady ? String(stats.completed) : "…";
+  const inProg = statsReady ? String(stats.inProgress) : "…";
+  const pct = statsReady ? stats.pct : 0;
   const customerCount = new Set(estimates.filter((e) => e.customerName || e.phone).map(phoneKey))
     .size;
   const monthStart = new Date();
@@ -1415,6 +1422,18 @@ export function Step2() {
     };
   }, [from?.x, from?.y, to?.x, to?.y, hasBoth, tick]);
 
+  /**
+   * 상세주소에서 찾은 층수를 해당 장소의 층수 칸에만 넣습니다.
+   * 사장님이 직접 고친 층수는 덮어쓰지 않고, 층·호 정보가 없으면 그대로 둡니다.
+   */
+  const autoFloor = (side: "from" | "to", detail: string) => {
+    const edited = side === "from" ? draft.fromFloorEdited : draft.toFloorEdited;
+    if (edited) return {};
+    const n = parseFloorFromDetail(detail);
+    if (n === null) return {};
+    return side === "from" ? { fromFloor: n } : { toFloor: n };
+  };
+
   const swipe = useSwipeNav(
     () => setScreen("step1"),
     hasBoth ? () => setScreen("step3") : undefined,
@@ -1437,7 +1456,7 @@ export function Step2() {
               fromY: c.y || null,
             });
           }}
-          onDetail={(d) => updateDraft({ fromDetail: d })}
+          onDetail={(d) => updateDraft({ fromDetail: d, ...autoFloor("from", d) })}
         />
         <AddressSearch
           label="도착지"
@@ -1453,7 +1472,7 @@ export function Step2() {
               toY: c.y || null,
             });
           }}
-          onDetail={(d) => updateDraft({ toDetail: d })}
+          onDetail={(d) => updateDraft({ toDetail: d, ...autoFloor("to", d) })}
         />
         {(from || to) && (
           <Card className="pb-5">
@@ -1663,11 +1682,17 @@ export function Step3() {
     }
   };
 
-  /** 층수 입력 — 1~100 정수만 저장(빈값·소수·범위 밖은 저장하지 않음). 출발지·도착지 독립. */
+  /**
+   * 층수 입력 — 지하 5층 ~ 100층 정수만 저장. 출발지·도착지 독립.
+   * 직접 고치면 주소에서 찾은 층수로 다시 덮어쓰지 않습니다.
+   */
   const setSideFloor = (side: "from" | "to", raw: number) => {
     if (!Number.isFinite(raw)) return;
-    const n = Math.min(100, Math.max(1, Math.floor(raw)));
-    updateDraft(side === "from" ? { fromFloor: n } : { toFloor: n });
+    const n = Math.min(100, Math.max(-5, Math.floor(raw)));
+    if (n === 0) return;
+    updateDraft(
+      side === "from" ? { fromFloor: n, fromFloorEdited: true } : { toFloor: n, toFloorEdited: true },
+    );
   };
 
   /** 출발지/도착지 사다리차 사용 — 각각 독립(4단계 차량 화면과 같은 필드를 씁니다). */
@@ -1768,11 +1793,17 @@ export function Step3() {
                 <div className="h-3" />
                 <Card>
                   <div className="flex items-center justify-between">
-                    <div className="text-[17px] font-black text-[#25282D]">{place} 층수</div>
+                    <div>
+                      <div className="text-[17px] font-black text-[#25282D]">{place} 층수</div>
+                      <div className="mt-0.5 text-[14px] font-semibold text-[#6B7280]">
+                        {floorLabel(floor)}
+                      </div>
+                    </div>
                     <FloorStepper
                       value={floor}
                       onChange={(n) => setSideFloor(side, n)}
                       label={`${place} 층수`}
+                      min={-5}
                     />
                   </div>
                 </Card>
