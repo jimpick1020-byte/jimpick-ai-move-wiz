@@ -1421,6 +1421,18 @@ export function Step2() {
     };
   }, [from?.x, from?.y, to?.x, to?.y, hasBoth, tick]);
 
+  /**
+   * 상세주소에서 찾은 층수를 해당 장소의 층수 칸에만 넣습니다.
+   * 사장님이 직접 고친 층수는 덮어쓰지 않고, 층·호 정보가 없으면 그대로 둡니다.
+   */
+  const autoFloor = (side: "from" | "to", detail: string) => {
+    const edited = side === "from" ? draft.fromFloorEdited : draft.toFloorEdited;
+    if (edited) return {};
+    const n = parseFloorFromDetail(detail);
+    if (n === null) return {};
+    return side === "from" ? { fromFloor: n } : { toFloor: n };
+  };
+
   const swipe = useSwipeNav(
     () => setScreen("step1"),
     hasBoth ? () => setScreen("step3") : undefined,
