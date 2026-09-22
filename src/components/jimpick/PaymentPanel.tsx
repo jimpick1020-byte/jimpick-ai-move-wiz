@@ -52,6 +52,8 @@ export function PaymentPanel({
         toast.success("결제 상태를 저장했습니다");
         setAskComplete(false);
         onSaved?.();
+        // 서버 저장이 성공한 뒤에만 다른 화면(홈 견적 현황·견적 내역·완료 보관함)을 새로 읽게 합니다
+        window.dispatchEvent(new Event("jimpick:payment-updated"));
       } else {
         toast.error("저장 실패", { description: r.error ?? "다시 시도해 주세요" });
       }
