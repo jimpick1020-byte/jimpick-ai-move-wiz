@@ -70,6 +70,25 @@ export function paymentStatusFromAmounts(
   return "deposit_paid";
 }
 
+/**
+ * 실제 확인된 금액으로 「전액 결제 완료」인지 판단합니다.
+ * 예약금만 받은 고객은 완료가 아닙니다. 예전에 예약금만 받고
+ * 결제완료로 잘못 저장된 기록도 이 기준으로 다시 계산됩니다.
+ */
+export function isFullyPaid(row: {
+  total?: number | null;
+  depositPaid?: number | null;
+  balancePaid?: number | null;
+  paymentStatus?: string | null;
+}): boolean {
+  const status = normalizePaymentStatus(row.paymentStatus);
+  if (status === "canceled" || status === "refunded") return false;
+  const total = Math.max(0, Number(row.total ?? 0));
+  const paid = Math.max(0, Number(row.depositPaid ?? 0)) + Math.max(0, Number(row.balancePaid ?? 0));
+  if (total <= 0) return false;
+  return paid >= total;
+}
+
 /** 사장님이 확인한 결제 상태를 저장합니다 */
 export const setPaymentState = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
