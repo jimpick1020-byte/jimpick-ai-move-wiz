@@ -135,6 +135,7 @@ import {
   type ArchivedContractRow,
 } from "@/lib/payment.functions";
 import { buildEstimateStats } from "@/lib/estimate-stats";
+import { floorLabel, parseFloorFromDetail } from "@/lib/floor-parse";
 import { ReminderPanel } from "./ReminderPanel";
 
 import {
