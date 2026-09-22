@@ -480,7 +480,12 @@ export async function resendReminderNow(
   if (error || !locked) {
     return { ok: false, error: "지금 발송 중이거나 예약을 찾지 못했습니다." };
   }
-  const out = await sendOne(locked as unknown as Reminder, creds);
+  // 「다시 발송」은 매번 새로운 시도로 보냅니다 (이미 보낸 건도 중복으로 막히지 않게)
+  const out = await sendOne(
+    locked as unknown as Reminder,
+    creds,
+    `resend-${Date.now().toString(36)}`,
+  );
   return out.sent ? { ok: true } : { ok: false, error: "문자 발송에 실패했습니다. 실패 사유를 확인해 주세요." };
 }
 
