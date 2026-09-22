@@ -17,6 +17,7 @@ import {
   ClipboardList,
   ShieldAlert,
   Navigation,
+  Package,
 } from "lucide-react";
 
 function Row({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {

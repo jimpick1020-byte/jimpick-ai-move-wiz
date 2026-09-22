@@ -299,6 +299,17 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                 </span>
               </span>
             </div>
+            <div className="flex min-w-0 items-center gap-2">
+              <Package className="h-[19px] w-[19px] shrink-0 text-[#25282D]" strokeWidth={2} />
+              <span className="min-w-0 truncate text-[16px] text-[#6B7280]">
+                평수{" "}
+                <span
+                  className={`font-bold ${draft.sizeTab?.trim() ? "text-[#25282D]" : "text-[#D95C5C]"}`}
+                >
+                  {draft.sizeTab?.trim() || "평수 미입력"}
+                </span>
+              </span>
+            </div>
           </div>
         </div>
 
