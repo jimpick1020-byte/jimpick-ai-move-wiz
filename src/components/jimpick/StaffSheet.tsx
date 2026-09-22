@@ -145,6 +145,11 @@ export function StaffSheet() {
                 label="이사 유형"
                 value={state.snap.moveType}
               />
+              <Row
+                icon={<Package className="h-5 w-5" />}
+                label="평수"
+                value={state.snap.sizeTab || "평수 미입력"}
+              />
             </Card>
 
             {state.snap.customerPhone && (
