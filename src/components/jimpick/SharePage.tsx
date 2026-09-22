@@ -619,6 +619,7 @@ export function SharePage() {
             parts={sentSheet.parts}
             total={sentSheet.total}
             paidDeposit={paidDeposit}
+            depositClaimSlot={depositClaimSlot}
             companyName={companyName}
             companyPhone={contactPhone}
             acceptedAt={accepted ? new Date(accepted.acceptedAt).toISOString() : null}
