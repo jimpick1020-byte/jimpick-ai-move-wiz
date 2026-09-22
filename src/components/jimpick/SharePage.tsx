@@ -308,6 +308,63 @@ export function SharePage() {
   const paidDeposit = Math.max(0, (link?.ok ? (link.depositPaid ?? 0) : 0) || 0);
   const balanceDue = Math.max(0, total - paidDeposit);
 
+  /**
+   * 「입금 계좌」 카드 바로 아래에 붙는 예약금 입금 알림 영역.
+   * 상태는 서버(Supabase)에 저장된 실제 기록으로 판단해서
+   * 새로고침해도 그대로 유지됩니다.
+   */
+  const depositClaimSlot = (() => {
+    if (!hasData) return null;
+    // 업체가 입금을 확인한 뒤 — 실제 저장된 예약금으로 표시합니다
+    if (paidDeposit > 0) {
+      return (
+        <div className="rounded-[14px] border border-[#BFE7CE] bg-[#F1FBF4] px-4 py-3.5">
+          <div className="text-center text-[16px] font-black text-[#3E9B78]">
+            예약금 {won(paidDeposit)} 입금 확인 완료
+          </div>
+        </div>
+      );
+    }
+    // 고객이 「입금했습니다」를 누른 뒤, 업체가 통장을 확인하기 전
+    const pending =
+      claimSent || (link?.ok ? link.depositClaimPending === true : false);
+    if (pending) {
+      return (
+        <div className="rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
+          <div className="text-center text-[15.5px] font-bold leading-snug text-[#B45309]">
+            입금 확인 대기 · 업체에서 통장을 확인한 뒤 알려드립니다
+          </div>
+          {claimError && (
+            <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">
+              {claimError}
+            </div>
+          )}
+        </div>
+      );
+    }
+    // 아직 알리기 전 — 입금 계좌 아래에서 바로 알릴 수 있게 합니다
+    return (
+      <div className="rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
+        <button
+          type="button"
+          onClick={() => void sendDepositClaim()}
+          disabled={claiming}
+          className="w-full rounded-[14px] bg-[#B45309] py-3.5 text-[17px] font-black text-white disabled:opacity-50"
+        >
+          {claiming ? "알리는 중…" : "입금했습니다"}
+        </button>
+        <div className="mt-1.5 text-center text-[14px] font-semibold text-[#8A6D1B]">
+          예약금을 보내셨으면 눌러 주세요. 업체가 통장을 확인한 뒤 확정됩니다.
+        </div>
+        {claimError && (
+          <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">
+            {claimError}
+          </div>
+        )}
+      </div>
+    );
+  })();
+
   const selectedItems = (estimate?.rooms ?? []).flatMap((room) =>
     Object.entries(room.items)
       .filter(([, qty]) => qty > 0)
@@ -543,39 +600,6 @@ export function SharePage() {
           </div>
         </div>
       )}
-
-      {/* 고객이 예약금을 보낸 뒤 알려 주는 버튼 — 금액은 사장님이 통장을 확인한 뒤에 반영됩니다 */}
-      {hasData && paidDeposit <= 0 && (
-        <div className="mt-4 rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
-          {claimSent ? (
-            <div className="text-center text-[16px] font-bold text-[#B45309]">
-              입금 확인 대기 · 업체에서 통장을 확인한 뒤 알려 드립니다
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => void sendDepositClaim()}
-                disabled={claiming}
-                className="w-full rounded-[14px] bg-[#B45309] py-3.5 text-[17px] font-black text-white disabled:opacity-50"
-              >
-                {claiming ? "알리는 중…" : "입금했습니다"}
-              </button>
-              <div className="mt-1.5 text-center text-[14px] font-semibold text-[#8A6D1B]">
-                예약금을 보내셨으면 눌러 주세요. 업체가 통장을 확인한 뒤 확정됩니다.
-              </div>
-            </>
-          )}
-          {claimError && (
-            <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">
-              {claimError}
-            </div>
-          )}
-        </div>
-      )}
-
-
-
       {/* 정보를 못 불러온 경우에만 안내합니다 */}
       {!hasData && (
         <div className="mt-4 rounded-[14px] bg-white px-4 py-6 text-center text-[16px] font-bold text-[#6B7280] shadow-[0_2px_12px_rgba(17,24,39,0.10)]">
@@ -595,6 +619,7 @@ export function SharePage() {
             parts={sentSheet.parts}
             total={sentSheet.total}
             paidDeposit={paidDeposit}
+            depositClaimSlot={depositClaimSlot}
             companyName={companyName}
             companyPhone={contactPhone}
             acceptedAt={accepted ? new Date(accepted.acceptedAt).toISOString() : null}
@@ -779,6 +804,9 @@ export function SharePage() {
               </span>
             </div>
           </Card>
+
+          {/* 입금 계좌 카드 바로 아래 — 예약금 입금 알림 영역 */}
+          {depositClaimSlot}
         </div>
       )}
 

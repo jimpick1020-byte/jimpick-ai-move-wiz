@@ -165,6 +165,8 @@ export interface EstimateSheetProps {
   showTerms?: boolean;
   /** 실제로 입금이 확인된 예약금 (원). 있으면 이 금액을 예약금으로 보여 줍니다 */
   paidDeposit?: number;
+  /** 「입금 계좌」 카드 바로 아래에 붙는 예약금 입금 알림 영역 (고객 화면 전용) */
+  depositClaimSlot?: React.ReactNode;
   /** 고객이 약관을 펼쳐 볼 때 한 번 알려 줍니다 (열람 기록용) */
   onTermsOpen?: () => void;
 }
@@ -183,6 +185,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     forCustomer = false,
     showTerms = true,
     paidDeposit = 0,
+    depositClaimSlot,
     onTermsOpen,
   },
 
@@ -491,6 +494,9 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             )}
           </div>
         )}
+
+        {/* 「입금 계좌」 카드 바로 아래 — 고객 예약금 입금 알림 영역 */}
+        {depositClaimSlot}
 
         {/* 담당자 · 연락처 */}
         <div className="flex divide-x divide-[#E5E7EB] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
