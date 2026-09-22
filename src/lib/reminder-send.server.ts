@@ -236,7 +236,12 @@ function readCreds(): Creds | null {
 }
 
 /** 한 건을 실제로 보내고 결과를 저장합니다. 성공하면 accepted(접수 완료)입니다. */
-async function sendOne(row: Reminder, creds: Creds): Promise<{ sent: boolean }> {
+async function sendOne(
+  row: Reminder,
+  creds: Creds,
+  /** 같은 건을 한 번 더 보낼 때 중복으로 막히지 않도록 쓰는 시도 구분값 */
+  attempt?: string,
+): Promise<{ sent: boolean }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const to = String(row.customer_phone ?? "").replace(/[^0-9]/g, "");
   const now = new Date().toISOString();
