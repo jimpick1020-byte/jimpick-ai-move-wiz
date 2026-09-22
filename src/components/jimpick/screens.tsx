@@ -6220,6 +6220,12 @@ export function History() {
           onChange={(e) => setQ(e.target.value)}
         />
 
+        {/* 건수 요약 — 홈 견적 현황과 같은 공통 집계 결과입니다 */}
+        <div className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2 text-[13px] font-semibold text-[#25282D]">
+          총 견적 {stats.total}건 · 진행 중 {stats.inProgress}건 · 완료 {stats.completed}건 · 완료율{" "}
+          {stats.pct}%
+        </div>
+
         {/* 완료 보관함 — 달력에서 정리한 결제완료 계약(자료는 그대로 남아 있습니다) */}
         <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3">
           <button
@@ -6231,7 +6237,7 @@ export function History() {
             }}
             className="flex w-full items-center justify-between text-[14px] font-bold text-[#25282D]"
           >
-            <span>완료 보관함</span>
+            <span>완료 보관함 {stats.completed}건</span>
             <span className="text-[13px] font-semibold text-[#6B7280]">
               {archiveOpen ? "닫기 ▲" : "열기 ▾"}
             </span>
