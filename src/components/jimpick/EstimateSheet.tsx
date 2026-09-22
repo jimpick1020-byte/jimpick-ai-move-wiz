@@ -495,6 +495,9 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           </div>
         )}
 
+        {/* 「입금 계좌」 카드 바로 아래 — 고객 예약금 입금 알림 영역 */}
+        {depositClaimSlot}
+
         {/* 담당자 · 연락처 */}
         <div className="flex divide-x divide-[#E5E7EB] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
           <Stat
