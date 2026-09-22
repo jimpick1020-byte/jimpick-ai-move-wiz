@@ -298,6 +298,7 @@ export const listArchivedContracts = createServerFn({ method: "GET" })
       .eq("user_id", context.userId)
       .eq("payment_status", "completed")
       .is("deleted_at", null)
+
       .order("paid_at", { ascending: false })
       .limit(300);
     if (error) {
