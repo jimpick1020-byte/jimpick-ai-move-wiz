@@ -634,6 +634,10 @@ export const getReservationCounts = createServerFn({ method: "POST" })
         total: number | null;
         sheet_no: string | null;
         sheet_version: number | null;
+        payment_status: string | null;
+        deposit_paid: number | null;
+        balance_paid: number | null;
+        calendar_selected: boolean | null;
       }[]) {
         if (!row.move_date) continue;
         const conf = confirmed.get(String(row.id));
@@ -658,6 +662,11 @@ export const getReservationCounts = createServerFn({ method: "POST" })
           moveType: null,
           truck: null,
           staffName: null,
+          sizeTab: null,
+          paymentStatus: String(row.payment_status ?? "unpaid"),
+          depositPaid: Number(row.deposit_paid ?? 0),
+          balancePaid: Number(row.balance_paid ?? 0),
+          calendarSelected: Boolean(row.calendar_selected),
         });
       }
 
