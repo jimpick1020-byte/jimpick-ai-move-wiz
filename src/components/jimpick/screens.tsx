@@ -6041,9 +6041,7 @@ export function History() {
   const [archived, setArchived] = useState<ArchivedContractRow[]>([]);
   const loadArchived = () => {
     listArchivedContracts()
-      .then((r) => {
-        if (r.ok) setArchived(r.rows);
-      })
+      .then((rows) => setArchived(rows))
       .catch(() => {});
   };
   const loadNotices = () => {
