@@ -125,6 +125,43 @@ export function SharePage() {
   const sheetRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState<"" | "pdf" | "png">("");
   const [exportError, setExportError] = useState<string | null>(null);
+  /** 「입금했습니다」 알림 상태 — 이 기기에도 기억해 두어 새로고침해도 유지됩니다 */
+  const [claimSent, setClaimSent] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      setClaimSent(localStorage.getItem(`jimpick.deposit.claim.${token}`) === "1");
+    } catch {
+      /* 저장할 수 없는 브라우저는 그냥 넘어갑니다 */
+    }
+  }, [token]);
+
+  /** 고객이 예약금을 보냈다고 알립니다 (금액 반영은 사장님 확인 후) */
+  const sendDepositClaim = async () => {
+    if (claiming || claimSent) return;
+    setClaiming(true);
+    setClaimError(null);
+    try {
+      const { claimCustomerDeposit } = await import("@/lib/deposit.functions");
+      const r = await claimCustomerDeposit({ data: { token } });
+      if (r.ok) {
+        setClaimSent(true);
+        try {
+          localStorage.setItem(`jimpick.deposit.claim.${token}`, "1");
+        } catch {
+          /* 저장할 수 없는 브라우저는 그냥 넘어갑니다 */
+        }
+      } else {
+        setClaimError(r.error ?? "알리지 못했습니다. 다시 시도해 주세요.");
+      }
+    } catch (e) {
+      setClaimError(e instanceof Error ? e.message : "알리지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setClaiming(false);
+    }
+  };
+
 
   /** PDF 저장 — 브라우저 인쇄에서 「PDF로 저장」을 고르면 파일로 남습니다 */
   const savePdf = async () => {
@@ -506,6 +543,38 @@ export function SharePage() {
           </div>
         </div>
       )}
+
+      {/* 고객이 예약금을 보낸 뒤 알려 주는 버튼 — 금액은 사장님이 통장을 확인한 뒤에 반영됩니다 */}
+      {hasData && paidDeposit <= 0 && (
+        <div className="mt-4 rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
+          {claimSent ? (
+            <div className="text-center text-[16px] font-bold text-[#B45309]">
+              입금 확인 대기 · 업체에서 통장을 확인한 뒤 알려 드립니다
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => void sendDepositClaim()}
+                disabled={claiming}
+                className="w-full rounded-[14px] bg-[#B45309] py-3.5 text-[17px] font-black text-white disabled:opacity-50"
+              >
+                {claiming ? "알리는 중…" : "입금했습니다"}
+              </button>
+              <div className="mt-1.5 text-center text-[14px] font-semibold text-[#8A6D1B]">
+                예약금을 보내셨으면 눌러 주세요. 업체가 통장을 확인한 뒤 확정됩니다.
+              </div>
+            </>
+          )}
+          {claimError && (
+            <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">
+              {claimError}
+            </div>
+          )}
+        </div>
+      )}
+
+
 
       {/* 정보를 못 불러온 경우에만 안내합니다 */}
       {!hasData && (

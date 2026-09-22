@@ -400,6 +400,12 @@ export interface TermsStatusRow {
   /** 완료 보관함으로 옮겼는지 */
   calendarArchived: boolean;
   calendarArchivedAt: string | null;
+  /** 고객이 「입금했습니다」를 누른 확인 대기 기록의 id (없으면 null) */
+  depositClaimId: string | null;
+  /** 고객이 알린 예약금 금액 (사장님 확인 전에는 금액에 넣지 않습니다) */
+  depositClaimAmount: number;
+  /** 고객이 「입금했습니다」를 누른 일시 */
+  depositClaimedAt: string | null;
 }
 
 /** 고객 열람 기록 — 어떤 행동을 남길지 */
@@ -489,11 +495,31 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
       : { data: [] as never[] };
     const byId = new Map((accs ?? []).map((a) => [a.estimate_terms_id, a]));
 
+    // 고객이 「입금했습니다」를 누른 확인 대기 기록 (금액은 여기서 반영하지 않습니다)
+    const estimateIds = Array.from(
+      new Set(rows.map((r) => String((r as Record<string, unknown>)["estimate_id"] ?? ""))),
+    ).filter(Boolean);
+    const { data: claims } = estimateIds.length
+      ? await context.supabase
+          .from("deposit_records")
+          .select("id, estimate_id, amount, created_at")
+          .eq("user_id", context.userId)
+          .eq("source", "customer_claim")
+          .eq("status", "pending_review")
+          .in("estimate_id", estimateIds)
+      : { data: [] as never[] };
+    const claimByEstimate = new Map(
+      (claims ?? []).map((c) => [String((c as Record<string, unknown>)["estimate_id"]), c]),
+    );
+
     return {
       ok: true,
       rows: rows.map((raw) => {
         const r = raw as Record<string, unknown>;
         const a = byId.get(String(r["id"]));
+        const claim = claimByEstimate.get(String(r["estimate_id"] ?? "")) as
+          | { id: string; amount: number | null; created_at: string }
+          | undefined;
         return {
           estimateId: String(r["estimate_id"] ?? ""),
           sheetVersion: Number(r["sheet_version"] ?? 1),
@@ -521,6 +547,9 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
           calendarSelected: Boolean(r["calendar_selected"]),
           calendarArchived: Boolean(r["calendar_archived"]),
           calendarArchivedAt: (r["calendar_archived_at"] as string | null) ?? null,
+          depositClaimId: claim?.id ?? null,
+          depositClaimAmount: Number(claim?.amount ?? 0) || 0,
+          depositClaimedAt: claim?.created_at ?? null,
         };
       }),
     };

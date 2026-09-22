@@ -123,6 +123,7 @@ import {
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { SmsNoticeCard } from "./SmsNoticeCard";
 import { DepositPanel } from "./DepositPanel";
+import { DepositClaimBox } from "./DepositClaimBox";
 import { PaymentPanel } from "./PaymentPanel";
 import {
   setCalendarSelected,
@@ -6348,11 +6349,15 @@ export function History() {
                         {/* 결제상태만 한 개 표시합니다 (독립적인 '완료' 문구는 쓰지 않습니다) */}
                         {(() => {
                           const pay = normalizePaymentStatus(ts.row?.paymentStatus);
+                          // 고객이 입금했다고 알렸지만 사장님이 통장을 확인하기 전 상태
+                          const waiting = !!ts.row?.depositClaimId && (ts.row?.depositPaid ?? 0) <= 0;
                           return (
                             <span
-                              className={`text-xs px-2 py-1 rounded-full font-semibold ${PAYMENT_STATUS_CLASS[pay]}`}
+                              className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                                waiting ? "bg-[#FEF3C7] text-[#B45309]" : PAYMENT_STATUS_CLASS[pay]
+                              }`}
                             >
-                              {PAYMENT_STATUS_LABEL[pay]}
+                              {waiting ? "입금 확인 대기" : PAYMENT_STATUS_LABEL[pay]}
                             </span>
                           );
                         })()}
@@ -6508,6 +6513,7 @@ export function History() {
                               </div>
                             );
                           })()}
+                        {ts.row && <DepositClaimBox row={ts.row} onSaved={loadTerms} />}
                         {ts.row && (
                           <DepositPanel
                             estimateId={e.id}

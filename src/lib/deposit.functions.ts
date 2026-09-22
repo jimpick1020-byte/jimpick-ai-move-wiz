@@ -120,13 +120,120 @@ async function recalcAndSave(
     (s: number, r: { amount: number | null }) => s + (Number(r.amount) || 0),
     0,
   );
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = {
+    deposit_paid: paid,
+    deposit_paid_at: paid > 0 ? now : null,
+  };
+  // 예약금이 확인되면 결제 상태도 「예약금 완료」로 올려 줍니다.
+  // 이미 결제완료·환불·취소 등으로 저장된 상태는 건드리지 않습니다.
+  if (paid > 0) {
+    const { data: cur } = await context.supabase
+      .from("estimate_terms")
+      .select("payment_status")
+      .eq("user_id", context.userId)
+      .eq("estimate_id", estimateId)
+      .order("sheet_version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const s = String((cur as { payment_status?: string } | null)?.payment_status ?? "unpaid");
+    if (s === "unpaid" || s === "pending" || s === "awaiting_confirm") {
+      patch["payment_status"] = "deposit_paid";
+      patch["payment_confirmed_by"] = context.userId;
+      patch["payment_confirmed_at"] = now;
+    }
+  }
   await context.supabase
     .from("estimate_terms")
-    .update({ deposit_paid: paid, deposit_paid_at: paid > 0 ? new Date().toISOString() : null })
+    .update(patch)
     .eq("user_id", context.userId)
     .eq("estimate_id", estimateId);
   return paid;
 }
+
+/**
+ * 고객용 — 고객이 견적서에서 「입금했습니다」를 누른 기록을 남깁니다.
+ *
+ * 이 기록만으로 금액이 반영되지는 않습니다. 사장님이 통장을 보고
+ * 「확인하기 → 입금 확인 완료」를 눌러야 예약금이 반영됩니다.
+ */
+export const claimCustomerDeposit = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ token: z.string().min(8).max(80) }).parse(d))
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: boolean; error?: string; already?: boolean; amount?: number }> => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: row } = await supabaseAdmin
+        .from("estimate_terms")
+        .select(
+          "id, user_id, estimate_id, sheet_no, sheet_version, customer_name, total, deposit_paid, sheet_snapshot",
+        )
+        .eq("access_token", data.token)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (!row) return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
+
+      const t = row as {
+        user_id: string;
+        estimate_id: string;
+        sheet_no: string | null;
+        sheet_version: number | null;
+        customer_name: string | null;
+        total: number | null;
+        deposit_paid: number | null;
+        sheet_snapshot: string | null;
+      };
+
+      // 예약금은 사장님이 보낸 견적서 원본에 적힌 금액을 씁니다.
+      let amount = 0;
+      try {
+        const snap = t.sheet_snapshot ? JSON.parse(t.sheet_snapshot) : null;
+        const v = Number(snap?.draft?.deposit ?? 0);
+        if (Number.isFinite(v) && v > 0) amount = Math.round(v);
+      } catch {
+        /* 원본을 읽지 못하면 금액은 0원으로 두고 사장님이 직접 확인합니다 */
+      }
+      const total = Number(t.total ?? 0);
+      if (total > 0 && amount > total) amount = total;
+
+      const { data: exist } = await supabaseAdmin
+        .from("deposit_records")
+        .select("id, status")
+        .eq("user_id", t.user_id)
+        .eq("estimate_id", t.estimate_id)
+        .eq("source", "customer_claim")
+        .in("status", ["pending_review", "confirmed"])
+        .limit(1)
+        .maybeSingle();
+      if (exist) return { ok: true, already: true, amount };
+
+      const { error } = await supabaseAdmin.from("deposit_records").insert({
+        user_id: t.user_id,
+        estimate_id: t.estimate_id,
+        sheet_no: t.sheet_no ?? null,
+        estimate_version: Number(t.sheet_version ?? 1),
+        depositor_name: String(t.customer_name ?? ""),
+        customer_name: String(t.customer_name ?? ""),
+        amount,
+        deposited_at: new Date().toISOString(),
+        source: "customer_claim",
+        raw_text: null,
+        name_matched: true,
+        status: "pending_review",
+        review_note: "고객이 견적서에서 「입금했습니다」를 눌렀습니다. 통장 확인이 필요합니다.",
+        dedupe_key: `claim|${t.estimate_id}|${Number(t.sheet_version ?? 1)}`,
+      } as never);
+      if (error) {
+        if (/duplicate key|unique/i.test(error.message)) {
+          return { ok: true, already: true, amount };
+        }
+        console.error("[claimCustomerDeposit]", error.message);
+        return { ok: false, error: "입금 알림을 저장하지 못했습니다. 다시 시도해 주세요." };
+      }
+      return { ok: true, amount };
+    },
+  );
 
 export interface RegisterDepositResult {
   ok: boolean;
