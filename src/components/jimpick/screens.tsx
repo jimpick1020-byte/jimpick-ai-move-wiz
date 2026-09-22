@@ -6175,6 +6175,75 @@ export function History() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
+
+        {/* 완료 보관함 — 달력에서 정리한 결제완료 계약(자료는 그대로 남아 있습니다) */}
+        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3">
+          <button
+            type="button"
+            onClick={() => {
+              const next = !archiveOpen;
+              setArchiveOpen(next);
+              if (next) loadArchived();
+            }}
+            className="flex w-full items-center justify-between text-[14px] font-bold text-[#25282D]"
+          >
+            <span>완료 보관함</span>
+            <span className="text-[13px] font-semibold text-[#6B7280]">
+              {archiveOpen ? "닫기 ▲" : "열기 ▾"}
+            </span>
+          </button>
+          {archiveOpen && (
+            <div className="mt-2 space-y-2">
+              {archived.length === 0 && (
+                <div className="py-4 text-center text-[13px] text-[#6B7280]">
+                  보관한 일정이 없습니다.
+                </div>
+              )}
+              {archived.map((a) => (
+                <div key={a.termsId} className="rounded-xl border border-[#E5E7EB] p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-[14px] font-bold text-[#25282D]">
+                        {a.customerName || "이름 없음"}
+                      </div>
+                      <div className="text-[12.5px] font-semibold text-[#6B7280]">
+                        {a.moveDate || "날짜 미정"}
+                        {a.sizeTab ? ` · ${a.sizeTab}` : ""}
+                      </div>
+                      <div className="text-[12.5px] font-bold text-[#25282D] tabular-nums">
+                        {won(a.total)}
+                      </div>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-1 text-[11.5px] font-bold ${PAYMENT_STATUS_CLASS[a.paymentStatus]}`}
+                    >
+                      {PAYMENT_STATUS_LABEL[a.paymentStatus]}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      restoreCalendarArchived({ data: { termsId: a.termsId } })
+                        .then((r) => {
+                          if (!r.ok) {
+                            toast.error(r.error ?? "달력으로 되돌리지 못했습니다");
+                            return;
+                          }
+                          toast.success("달력으로 되돌렸습니다");
+                          loadArchived();
+                        })
+                        .catch(() => toast.error("달력으로 되돌리지 못했습니다"));
+                    }}
+                    className="mt-2 w-full rounded-lg border border-[#D9E7FA] bg-white py-2 text-[12.5px] font-bold text-[#1D4ED8]"
+                  >
+                    달력으로 되돌리기
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {list.length === 0 && (
           <div className="text-center text-[#6B7280] py-16">저장된 견적이 없습니다.</div>
         )}
