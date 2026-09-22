@@ -6618,7 +6618,8 @@ export function Customers() {
               </div>
             </div>
           </Card>
-        ))}
+          );
+        })}
       </div>
       <BottomNav />
     </MobileShell>
