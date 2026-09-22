@@ -372,7 +372,7 @@ async function sendOne(
     failed_at: out.ok ? null : now,
     error_code: out.ok ? null : String(out.code ?? ""),
     error_message: out.ok ? null : (out.error ?? "").slice(0, 500),
-    idempotency_key: `move-reminder-${row.id}-${Number(row.retry_count ?? 0)}`,
+    idempotency_key: `move-reminder-${row.id}-${attemptTag}`,
   } as never);
   if (logErr) console.error("[move-reminders] 이력 기록 실패", logErr.message);
 
