@@ -547,6 +547,9 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
           calendarSelected: Boolean(r["calendar_selected"]),
           calendarArchived: Boolean(r["calendar_archived"]),
           calendarArchivedAt: (r["calendar_archived_at"] as string | null) ?? null,
+          depositClaimId: claim?.id ?? null,
+          depositClaimAmount: Number(claim?.amount ?? 0) || 0,
+          depositClaimedAt: claim?.created_at ?? null,
         };
       }),
     };
