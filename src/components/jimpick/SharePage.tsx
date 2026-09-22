@@ -125,6 +125,43 @@ export function SharePage() {
   const sheetRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState<"" | "pdf" | "png">("");
   const [exportError, setExportError] = useState<string | null>(null);
+  /** 「입금했습니다」 알림 상태 — 이 기기에도 기억해 두어 새로고침해도 유지됩니다 */
+  const [claimSent, setClaimSent] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      setClaimSent(localStorage.getItem(`jimpick.deposit.claim.${token}`) === "1");
+    } catch {
+      /* 저장할 수 없는 브라우저는 그냥 넘어갑니다 */
+    }
+  }, [token]);
+
+  /** 고객이 예약금을 보냈다고 알립니다 (금액 반영은 사장님 확인 후) */
+  const sendDepositClaim = async () => {
+    if (claiming || claimSent) return;
+    setClaiming(true);
+    setClaimError(null);
+    try {
+      const { claimCustomerDeposit } = await import("@/lib/deposit.functions");
+      const r = await claimCustomerDeposit({ data: { token } });
+      if (r.ok) {
+        setClaimSent(true);
+        try {
+          localStorage.setItem(`jimpick.deposit.claim.${token}`, "1");
+        } catch {
+          /* 저장할 수 없는 브라우저는 그냥 넘어갑니다 */
+        }
+      } else {
+        setClaimError(r.error ?? "알리지 못했습니다. 다시 시도해 주세요.");
+      }
+    } catch (e) {
+      setClaimError(e instanceof Error ? e.message : "알리지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setClaiming(false);
+    }
+  };
+
 
   /** PDF 저장 — 브라우저 인쇄에서 「PDF로 저장」을 고르면 파일로 남습니다 */
   const savePdf = async () => {
