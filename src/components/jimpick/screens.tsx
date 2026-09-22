@@ -6512,6 +6512,7 @@ export function History() {
                               </div>
                             );
                           })()}
+                        {ts.row && <DepositClaimBox row={ts.row} onSaved={loadTerms} />}
                         {ts.row && (
                           <DepositPanel
                             estimateId={e.id}
