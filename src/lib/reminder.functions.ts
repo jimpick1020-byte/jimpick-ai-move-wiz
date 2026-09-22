@@ -147,7 +147,9 @@ export const listReminderDashboard = createServerFn({ method: "POST" })
       rows: MoveReminderRow[];
       lastRuns: { job: string; ranAt: string; picked: number; sent: number; failed: number; note: string | null }[];
     }> => {
-      const { data: isAdminRaw } = await context.supabase.rpc("is_super_admin", {
+      // 관리자 여부는 서버 전용 계정으로 확인합니다 (로그인 계정 권한과 무관하게 항상 동작)
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: isAdminRaw } = await supabaseAdmin.rpc("is_super_admin", {
         _user_id: context.userId,
       });
       const isAdmin = isAdminRaw === true;
