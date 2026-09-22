@@ -6088,11 +6088,20 @@ export function History() {
 
   useEffect(() => {
     let alive = true;
-    getTermsStatuses({ data: {} })
-      .then((r) => {
-        if (alive && r.ok) setTermsRows(r.rows);
-      })
-      .catch(() => {});
+    // 완료 보관함은 접혀 있어도 미리 읽습니다 (홈 견적 현황과 건수를 맞추기 위해)
+    const load = () => {
+      getTermsStatuses({ data: {} })
+        .then((r) => {
+          if (alive && r.ok) setTermsRows(r.rows);
+        })
+        .catch(() => {});
+      listArchivedContracts()
+        .then((rows) => {
+          if (alive) setArchived(rows);
+        })
+        .catch(() => {});
+    };
+    load();
     getManagerNotices()
       .then((r) => {
         if (alive && r.ok) setNoticeRows(r.rows);
@@ -6105,8 +6114,10 @@ export function History() {
         for (const id of r.ids) deleteEstimate(id);
       })
       .catch(() => {});
+    window.addEventListener("jimpick:payment-updated", load);
     return () => {
       alive = false;
+      window.removeEventListener("jimpick:payment-updated", load);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
