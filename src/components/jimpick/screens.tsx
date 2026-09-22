@@ -1780,11 +1780,17 @@ export function Step3() {
                 <div className="h-3" />
                 <Card>
                   <div className="flex items-center justify-between">
-                    <div className="text-[17px] font-black text-[#25282D]">{place} 층수</div>
+                    <div>
+                      <div className="text-[17px] font-black text-[#25282D]">{place} 층수</div>
+                      <div className="mt-0.5 text-[14px] font-semibold text-[#6B7280]">
+                        {floorLabel(floor)}
+                      </div>
+                    </div>
                     <FloorStepper
                       value={floor}
                       onChange={(n) => setSideFloor(side, n)}
                       label={`${place} 층수`}
+                      min={-5}
                     />
                   </div>
                 </Card>
