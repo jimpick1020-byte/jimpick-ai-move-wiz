@@ -78,6 +78,9 @@ export interface Estimate {
   toEnv?: WorkMethod;
   fromFloor: number;
   toFloor: number;
+  /** 사장님이 층수를 직접 고친 경우 표시 — 주소에서 찾은 층수로 덮어쓰지 않습니다 */
+  fromFloorEdited?: boolean;
+  toFloorEdited?: boolean;
   workers: number;
   kitchenStaff: number;
   truck1t: number;
