@@ -266,7 +266,8 @@ async function sendOne(
   const msgType = new TextEncoder().encode(text).length > 90 ? "LMS" : "SMS";
 
   // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).
-  const usageKey = `usage:move-reminder:${row.id}:${Number(row.retry_count ?? 0)}`;
+  const attemptTag = attempt ?? String(Number(row.retry_count ?? 0));
+  const usageKey = `usage:move-reminder:${row.id}:${attemptTag}`;
   const { data: reserved } = (await (
     supabaseAdmin as unknown as {
       rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: Record<string, unknown> | null }>;
