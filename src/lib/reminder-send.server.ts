@@ -236,7 +236,12 @@ function readCreds(): Creds | null {
 }
 
 /** 한 건을 실제로 보내고 결과를 저장합니다. 성공하면 accepted(접수 완료)입니다. */
-async function sendOne(row: Reminder, creds: Creds): Promise<{ sent: boolean }> {
+async function sendOne(
+  row: Reminder,
+  creds: Creds,
+  /** 같은 건을 한 번 더 보낼 때 중복으로 막히지 않도록 쓰는 시도 구분값 */
+  attempt?: string,
+): Promise<{ sent: boolean }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const to = String(row.customer_phone ?? "").replace(/[^0-9]/g, "");
   const now = new Date().toISOString();
@@ -261,7 +266,8 @@ async function sendOne(row: Reminder, creds: Creds): Promise<{ sent: boolean }> 
   const msgType = new TextEncoder().encode(text).length > 90 ? "LMS" : "SMS";
 
   // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).
-  const usageKey = `usage:move-reminder:${row.id}:${Number(row.retry_count ?? 0)}`;
+  const attemptTag = attempt ?? String(Number(row.retry_count ?? 0));
+  const usageKey = `usage:move-reminder:${row.id}:${attemptTag}`;
   const { data: reserved } = (await (
     supabaseAdmin as unknown as {
       rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: Record<string, unknown> | null }>;
@@ -366,7 +372,7 @@ async function sendOne(row: Reminder, creds: Creds): Promise<{ sent: boolean }> 
     failed_at: out.ok ? null : now,
     error_code: out.ok ? null : String(out.code ?? ""),
     error_message: out.ok ? null : (out.error ?? "").slice(0, 500),
-    idempotency_key: `move-reminder-${row.id}-${Number(row.retry_count ?? 0)}`,
+    idempotency_key: `move-reminder-${row.id}-${attemptTag}`,
   } as never);
   if (logErr) console.error("[move-reminders] 이력 기록 실패", logErr.message);
 
@@ -474,7 +480,12 @@ export async function resendReminderNow(
   if (error || !locked) {
     return { ok: false, error: "지금 발송 중이거나 예약을 찾지 못했습니다." };
   }
-  const out = await sendOne(locked as unknown as Reminder, creds);
+  // 「다시 발송」은 매번 새로운 시도로 보냅니다 (이미 보낸 건도 중복으로 막히지 않게)
+  const out = await sendOne(
+    locked as unknown as Reminder,
+    creds,
+    `resend-${Date.now().toString(36)}`,
+  );
   return out.sent ? { ok: true } : { ok: false, error: "문자 발송에 실패했습니다. 실패 사유를 확인해 주세요." };
 }
 
