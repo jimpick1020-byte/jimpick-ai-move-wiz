@@ -9,7 +9,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   setPaymentState,
-  PAYMENT_STATUSES,
+  PAYMENT_STATUS_CHOICES,
   PAYMENT_STATUS_LABEL,
   PAYMENT_STATUS_CLASS,
   normalizePaymentStatus,
@@ -101,7 +101,7 @@ export function PaymentPanel({
       {open && (
         <div className="mt-2 space-y-2">
           <div className="grid grid-cols-2 gap-1.5">
-            {PAYMENT_STATUSES.map((s) => (
+            {PAYMENT_STATUS_CHOICES.map((s) => (
               <button
                 key={s}
                 onClick={() => setStatus(s)}

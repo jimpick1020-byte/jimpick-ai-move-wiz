@@ -21,6 +21,14 @@ export const PAYMENT_STATUSES = [
 
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
+/** 화면에서 사장님이 고를 수 있는 상태 (미결제·결제대기·일부결제는 표시하지 않습니다) */
+export const PAYMENT_STATUS_CHOICES = [
+  "deposit_paid",
+  "completed",
+  "refunded",
+  "canceled",
+] as const satisfies readonly PaymentStatus[];
+
 export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
   unpaid: "미결제",
   pending: "결제대기",
