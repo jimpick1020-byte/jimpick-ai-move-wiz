@@ -2,6 +2,11 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import KoreanLunarCalendar from "korean-lunar-calendar";
 import { tap } from "@/lib/feedback";
+import {
+  PAYMENT_STATUS_CLASS,
+  PAYMENT_STATUS_LABEL,
+  normalizePaymentStatus,
+} from "@/lib/payment.functions";
 
 /** YYYY-MM-DD 문자열 만들기 (시간대 영향 없음) */
 function ymd(y: number, m: number, d: number) {
