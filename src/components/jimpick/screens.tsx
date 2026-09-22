@@ -6498,9 +6498,37 @@ export function History() {
 export function Customers() {
   const { estimates, setScreen, loadEstimate } = useApp();
   const [q, setQ] = useState("");
+  /** 계약(예약 확정)된 견적 상태 — 고객 카드에 계약완료 표시를 붙입니다 */
+  const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
+  useEffect(() => {
+    let alive = true;
+    getTermsStatuses({ data: {} })
+      .then((r) => {
+        if (alive && r.ok) setTermsRows(r.rows);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const contractOf = (estimateId: string) => {
+    const r = termsRows.find((t) => t.estimateId === estimateId);
+    if (!r) return null;
+    const confirmed = Boolean(r.acceptedAt) || r.reservationStatus === "confirmed";
+    if (!confirmed) return null;
+    return { pay: normalizePaymentStatus(r.paymentStatus) };
+  };
   const map = new Map<
     string,
-    { id: string; name: string; phone: string; last: number; count: number; lastAmount: number }
+    {
+      id: string;
+      name: string;
+      phone: string;
+      last: number;
+      count: number;
+      lastAmount: number;
+      ids: string[];
+    }
   >();
   for (const e of estimates) {
     if (!e.phone) continue;
@@ -6514,9 +6542,11 @@ export function Customers() {
         last: e.createdAt,
         count: (cur?.count || 0) + 1,
         lastAmount: e.total,
+        ids: [...(cur?.ids ?? []), e.id],
       });
     } else {
       cur.count += 1;
+      cur.ids.push(e.id);
     }
   }
   const list = Array.from(map.values()).filter(
