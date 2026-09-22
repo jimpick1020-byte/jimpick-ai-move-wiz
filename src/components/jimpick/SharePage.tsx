@@ -51,6 +51,7 @@ import {
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
 import { saveSheetAsPng } from "@/lib/sheet-image";
+import { BankAccountActions } from "./BankAccountActions";
 
 /** 이 기기에 남기는 동의 기록 (새로고침해도 상태가 유지됩니다) */
 interface LocalAcceptance {
@@ -687,10 +688,16 @@ export function SharePage() {
               <span className="inline-flex items-center gap-2 whitespace-nowrap text-[#6B7280]">
                 <Landmark className="h-4 w-4 text-[#25282D]" /> 입금 계좌
               </span>
-              <span className="text-right font-bold">
+              <span className="min-w-0 text-right font-bold">
                 {estimate.bankAccount?.trim() ? (
                   <>
-                    {estimate.bankName?.trim()} {estimate.bankAccount.trim()}
+                    <div>{estimate.bankName?.trim()}</div>
+                    <BankAccountActions
+                      bankName={estimate.bankName?.trim() ?? ""}
+                      accountNumber={estimate.bankAccount.trim()}
+                      accountHolder={estimate.bankHolder?.trim() ?? ""}
+                      className="text-[16px] text-[#25282D]"
+                    />
                     {estimate.bankHolder?.trim() && (
                       <div className="text-[15px] font-semibold text-[#6B7280]">
                         예금주 {estimate.bankHolder.trim()}

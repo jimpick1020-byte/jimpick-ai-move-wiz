@@ -32,14 +32,12 @@ export function PaymentPanel({
 }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<PaymentStatus>(normalizePaymentStatus(row.paymentStatus));
-  const [balance, setBalance] = useState(String(row.balancePaid || ""));
   const [note, setNote] = useState(row.paymentNote ?? "");
-  const [method, setMethod] = useState(row.paymentMethod ?? "");
   const [busy, setBusy] = useState(false);
   const [askComplete, setAskComplete] = useState(false);
 
   const deposit = row.depositPaid;
-  const balanceNum = Number(String(balance).replace(/[^\d]/g, "")) || 0;
+  const balanceNum = row.balancePaid;
   const remain = Math.max(0, total - deposit - balanceNum);
   const shortOfTotal = total > 0 && deposit + balanceNum < total;
 
@@ -48,7 +46,7 @@ export function PaymentPanel({
     setBusy(true);
     try {
       const r = await setPaymentState({
-        data: { estimateId, status, balancePaid: balanceNum, note, method },
+        data: { estimateId, status, note },
       });
       if (r.ok) {
         toast.success("결제 상태를 저장했습니다");
@@ -96,7 +94,7 @@ export function PaymentPanel({
       </button>
 
       <div className="mt-1 text-[12px] text-[#6B7280]">
-        총 {won(total)} · 예약금 {won(deposit)} · 잔금 {won(row.balancePaid)} · 남은 금액{" "}
+        총 {won(total)} · 예약금 {won(deposit)} · 남은 금액{" "}
         <b>{won(Math.max(0, total - deposit - row.balancePaid))}</b>
       </div>
 
@@ -118,39 +116,9 @@ export function PaymentPanel({
             ))}
           </div>
 
-          <label
-            className="block text-[12.5px] font-bold text-[#6B7280]"
-            htmlFor={`bal-${estimateId}`}
-          >
-            확인한 잔금 (원)
-          </label>
-          <input
-            id={`bal-${estimateId}`}
-            name="balancePaid"
-            inputMode="numeric"
-            value={balance}
-            onChange={(e) => setBalance(e.target.value.replace(/[^\d]/g, ""))}
-            placeholder="0"
-            className="w-full rounded-xl border border-[#E5E7EB] bg-white p-2.5 text-[13px] outline-none focus:border-[#3578C8]"
-          />
           <div className="text-[12px] text-[#6B7280]">
-            입력한 잔금 {won(balanceNum)} · 남은 금액 {won(remain)}
+            실제 남은 금액 {won(remain)}
           </div>
-
-          <label
-            className="block text-[12.5px] font-bold text-[#6B7280]"
-            htmlFor={`method-${estimateId}`}
-          >
-            결제 수단 (선택)
-          </label>
-          <input
-            id={`method-${estimateId}`}
-            name="paymentMethod"
-            value={method}
-            onChange={(e) => setMethod(e.target.value)}
-            placeholder="예) 계좌이체, 현금, 카드"
-            className="w-full rounded-xl border border-[#E5E7EB] bg-white p-2.5 text-[13px] outline-none focus:border-[#3578C8]"
-          />
 
           <label
             className="block text-[12.5px] font-bold text-[#6B7280]"
@@ -195,7 +163,7 @@ export function PaymentPanel({
               <div className="text-[13px] font-bold text-[#25282D]">결제완료로 저장할까요?</div>
               <div className="mt-1 text-[12px] text-[#6B7280]">
                 총 {won(total)} · 예약금 {won(deposit)} · 잔금 {won(balanceNum)} 으로 확인합니다.
-                달력에서 체크한 일정은 이후 완료 보관함으로 정리할 수 있습니다.
+                저장하면 일반 견적내역에서 빠지고 완료 보관함에 안전하게 보존됩니다.
               </div>
               <div className="mt-2 grid grid-cols-2 gap-1.5">
                 <button

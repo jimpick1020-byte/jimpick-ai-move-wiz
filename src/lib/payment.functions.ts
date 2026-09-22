@@ -117,11 +117,17 @@ export const setPaymentState = createServerFn({ method: "POST" })
       const patch: Record<string, unknown> = {
         payment_status: data.status,
         payment_note: data.note?.trim() ? data.note.trim() : null,
-        payment_method: data.method?.trim() ? data.method.trim() : null,
         payment_confirmed_by: context.userId,
         payment_confirmed_at: now,
         paid_at: data.status === "completed" ? now : null,
+        calendar_archived: data.status === "completed",
+        calendar_archived_at: data.status === "completed" ? now : null,
+        calendar_archived_by: data.status === "completed" ? context.userId : null,
+        calendar_selected: false,
       };
+      if (typeof data.method === "string") {
+        patch["payment_method"] = data.method.trim() ? data.method.trim() : null;
+      }
       if (typeof balance === "number") {
         patch["balance_paid"] = balance;
         patch["balance_paid_at"] = balance > 0 ? now : null;
@@ -239,28 +245,6 @@ export const archiveCalendarSelected = createServerFn({ method: "POST" })
     },
   );
 
-/** 완료 보관함의 일정을 달력으로 되돌립니다 */
-export const restoreCalendarArchived = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ termsId: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
-    const { error } = await context.supabase
-      .from("estimate_terms")
-      .update({
-        calendar_archived: false,
-        calendar_archived_at: null,
-        calendar_archived_by: null,
-        calendar_selected: false,
-      } as never)
-      .eq("id", data.termsId)
-      .eq("user_id", context.userId);
-    if (error) {
-      console.error("[restoreCalendarArchived]", error.message);
-      return { ok: false, error: "달력으로 되돌리지 못했습니다." };
-    }
-    return { ok: true };
-  });
-
 export interface ArchivedContractRow {
   termsId: string;
   estimateId: string;
@@ -272,6 +256,7 @@ export interface ArchivedContractRow {
   paymentStatus: PaymentStatus;
   sizeTab: string;
   archivedAt: string | null;
+  accessToken: string;
 }
 
 /** 완료 보관함 목록 (본인 업체 기록만) */
@@ -281,12 +266,12 @@ export const listArchivedContracts = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("estimate_terms")
       .select(
-        "id, estimate_id, customer_name, move_date, total, deposit_paid, balance_paid, payment_status, calendar_archived_at, sheet_snapshot",
+        "id, estimate_id, customer_name, move_date, total, deposit_paid, balance_paid, payment_status, calendar_archived_at, paid_at, access_token, sheet_snapshot",
       )
       .eq("user_id", context.userId)
-      .eq("calendar_archived", true)
+      .eq("payment_status", "completed")
       .is("deleted_at", null)
-      .order("calendar_archived_at", { ascending: false })
+      .order("paid_at", { ascending: false })
       .limit(300);
     if (error) {
       console.error("[listArchivedContracts]", error.message);
@@ -312,6 +297,7 @@ export const listArchivedContracts = createServerFn({ method: "GET" })
         paymentStatus: normalizePaymentStatus(r["payment_status"] as string | null),
         sizeTab,
         archivedAt: (r["calendar_archived_at"] as string | null) ?? null,
+        accessToken: String(r["access_token"] ?? ""),
       };
     });
   });

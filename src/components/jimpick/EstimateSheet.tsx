@@ -27,6 +27,7 @@ import {
 import type { Estimate } from "@/lib/jimpick";
 import { won, sideConditionText } from "@/lib/jimpick";
 import { ItemArt } from "@/lib/jimpick-art";
+import { BankAccountActions } from "./BankAccountActions";
 import {
   TERMS_EFFECTIVE_AT,
   TERMS_FULL,
@@ -472,9 +473,12 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             {bank.account && (
               <div className="flex items-start justify-between gap-3 py-1">
                 <span className="shrink-0 text-[16px] text-[#6B7280]">계좌번호</span>
-                <span className="min-w-0 break-words text-right text-[16px] font-bold tabular-nums text-[#25282D]">
-                  {bank.account}
-                </span>
+                <BankAccountActions
+                  bankName={bank.name}
+                  accountNumber={bank.account}
+                  accountHolder={bank.holder}
+                  className="text-[16px] tabular-nums text-[#25282D]"
+                />
               </div>
             )}
             {bank.holder && (
