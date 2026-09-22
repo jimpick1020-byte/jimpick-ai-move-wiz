@@ -517,6 +517,9 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
       rows: rows.map((raw) => {
         const r = raw as Record<string, unknown>;
         const a = byId.get(String(r["id"]));
+        const claim = claimByEstimate.get(String(r["estimate_id"] ?? "")) as
+          | { id: string; amount: number | null; created_at: string }
+          | undefined;
         return {
           estimateId: String(r["estimate_id"] ?? ""),
           sheetVersion: Number(r["sheet_version"] ?? 1),
