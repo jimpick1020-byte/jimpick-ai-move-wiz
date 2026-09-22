@@ -37,6 +37,8 @@ export interface TermsLinkInfo {
   depositPaid?: number;
   /** 예약금 입금이 확인된 일시 */
   depositPaidAt?: string | null;
+  /** 고객이 「입금했습니다」를 눌렀고 사장님이 아직 확인하지 않은 상태인지 (서버 기록 기준) */
+  depositClaimPending?: boolean;
 }
 
 /** 업체가 견적서·약관 문자를 보낼 때 기록합니다 */
@@ -119,7 +121,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("estimate_terms")
       .select(
-        "id, user_id, customer_name, move_date, total, contact_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at, deleted_at",
+        "id, user_id, estimate_id, customer_name, move_date, total, contact_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at, deleted_at",
       )
       .eq("access_token", data.token)
       .maybeSingle();
@@ -145,6 +147,22 @@ export const getTermsLink = createServerFn({ method: "POST" })
       .select("company_name")
       .eq("id", (row as { user_id?: string }).user_id ?? "")
       .maybeSingle();
+
+    // 고객이 「입금했습니다」를 누른 기록 — 서버에 저장된 실제 기록만 봅니다.
+    // 새로고침해도 이 기록으로 「입금 확인 대기」 상태가 그대로 유지됩니다.
+    let depositClaimPending = false;
+    {
+      const { data: claim } = await supabaseAdmin
+        .from("deposit_records")
+        .select("id, status")
+        .eq("user_id", (row as { user_id?: string }).user_id ?? "")
+        .eq("estimate_id", (row as { estimate_id?: string }).estimate_id ?? "")
+        .eq("source", "customer_claim")
+        .in("status", ["pending_review", "confirmed"])
+        .limit(1)
+        .maybeSingle();
+      depositClaimPending = !!claim;
+    }
 
     // 고객 이름은 계약에 저장된 최신 이름이 정답입니다.
     // 보낼 때 저장한 견적서 원본(스냅샷)의 이름도 최신 이름으로 맞춰 보여 줍니다.
@@ -181,6 +199,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
       sheetSnapshot: snapshot,
       depositPaid: Number((row as { deposit_paid?: number | null }).deposit_paid ?? 0) || 0,
       depositPaidAt: (row as { deposit_paid_at?: string | null }).deposit_paid_at ?? null,
+      depositClaimPending,
     };
   });
 
