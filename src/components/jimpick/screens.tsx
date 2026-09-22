@@ -127,7 +127,6 @@ import { PaymentPanel } from "./PaymentPanel";
 import {
   setCalendarSelected,
   archiveCalendarSelected,
-  restoreCalendarArchived,
   listArchivedContracts,
   normalizePaymentStatus,
   PAYMENT_STATUS_CLASS,
@@ -6145,8 +6144,15 @@ export function History() {
       loadNotices();
     }
   };
+  const completedIds = new Set(
+    termsRows
+      .filter((row) => normalizePaymentStatus(row.paymentStatus) === "completed")
+      .map((row) => row.estimateId),
+  );
   const list = estimates.filter(
-    (e) => !q || e.customerName.includes(q) || e.phone.includes(q) || e.moveDate.includes(q),
+    (e) =>
+      !completedIds.has(e.id) &&
+      (!q || e.customerName.includes(q) || e.phone.includes(q) || e.moveDate.includes(q)),
   );
   /** 약관 진행 상태 — 발송 성공과 고객 열람·동의는 서로 다른 상태로 표시합니다 */
   const termsState = (id: string) => {
@@ -6223,20 +6229,19 @@ export function History() {
                   <button
                     type="button"
                     onClick={() => {
-                      restoreCalendarArchived({ data: { termsId: a.termsId } })
-                        .then((r) => {
-                          if (!r.ok) {
-                            toast.error(r.error ?? "달력으로 되돌리지 못했습니다");
-                            return;
-                          }
-                          toast.success("달력으로 되돌렸습니다");
-                          loadArchived();
-                        })
-                        .catch(() => toast.error("달력으로 되돌리지 못했습니다"));
+                      if (!a.accessToken) {
+                        toast.error("보관된 견적서 링크를 찾지 못했습니다");
+                        return;
+                      }
+                      window.open(
+                        `/share/${encodeURIComponent(a.estimateId)}?t=${encodeURIComponent(a.accessToken)}`,
+                        "_blank",
+                        "noopener,noreferrer",
+                      );
                     }}
                     className="mt-2 w-full rounded-lg border border-[#D9E7FA] bg-white py-2 text-[12.5px] font-bold text-[#1D4ED8]"
                   >
-                    달력으로 되돌리기
+                    견적서 보기
                   </button>
                 </div>
               ))}
