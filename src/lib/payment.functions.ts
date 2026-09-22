@@ -304,14 +304,9 @@ export const listArchivedContracts = createServerFn({ method: "GET" })
       console.error("[listArchivedContracts]", error.message);
       return [];
     }
-    // 예약금만 받았는데 결제완료로 잘못 저장된 기록은 보관함에서 제외합니다
-    const rows = ((data ?? []) as Record<string, unknown>[]).filter((r) =>
-      isFullyPaid({
-        total: Number(r["total"] ?? 0),
-        depositPaid: Number(r["deposit_paid"] ?? 0),
-        balancePaid: Number(r["balance_paid"] ?? 0),
-        paymentStatus: r["payment_status"] as string | null,
-      }),
+    // 보관함은 결제상태가 「결제완료」인 계약만 보여 줍니다 (조회 조건과 같은 기준)
+    const rows = ((data ?? []) as Record<string, unknown>[]).filter(
+      (r) => normalizePaymentStatus(r["payment_status"] as string | null) === "completed",
     );
     return rows.map((r) => {
       let sizeTab = "";
