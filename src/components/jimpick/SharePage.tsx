@@ -804,6 +804,9 @@ export function SharePage() {
               </span>
             </div>
           </Card>
+
+          {/* 입금 계좌 카드 바로 아래 — 예약금 입금 알림 영역 */}
+          {depositClaimSlot}
         </div>
       )}
 
