@@ -6172,10 +6172,10 @@ export function History() {
       loadNotices();
     }
   };
+  // 홈 견적 현황과 같은 공통 집계 함수를 씁니다 (총 견적 = 진행 중 + 완료).
   // 잔금까지 전액 받은 계약만 완료 보관함으로 옮깁니다 (예약금만 받은 건은 목록에 남습니다)
-  const completedIds = new Set(
-    termsRows.filter((row) => isFullyPaid(row)).map((row) => row.estimateId),
-  );
+  const stats = buildEstimateStats({ estimates, termsRows, archived });
+  const completedIds = stats.completedIds;
   const list = estimates.filter(
     (e) =>
       !completedIds.has(e.id) &&
