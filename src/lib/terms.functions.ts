@@ -495,6 +495,23 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
       : { data: [] as never[] };
     const byId = new Map((accs ?? []).map((a) => [a.estimate_terms_id, a]));
 
+    // 고객이 「입금했습니다」를 누른 확인 대기 기록 (금액은 여기서 반영하지 않습니다)
+    const estimateIds = Array.from(
+      new Set(rows.map((r) => String((r as Record<string, unknown>)["estimate_id"] ?? ""))),
+    ).filter(Boolean);
+    const { data: claims } = estimateIds.length
+      ? await context.supabase
+          .from("deposit_records")
+          .select("id, estimate_id, amount, created_at")
+          .eq("user_id", context.userId)
+          .eq("source", "customer_claim")
+          .eq("status", "pending_review")
+          .in("estimate_id", estimateIds)
+      : { data: [] as never[] };
+    const claimByEstimate = new Map(
+      (claims ?? []).map((c) => [String((c as Record<string, unknown>)["estimate_id"]), c]),
+    );
+
     return {
       ok: true,
       rows: rows.map((raw) => {
