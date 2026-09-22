@@ -6184,12 +6184,26 @@ export function History() {
                           <div className="font-bold">{e.customerName || "이름 없음"}</div>
                           <div className="text-xs text-[#6B7280]">{e.phone}</div>
                         </div>
-                        <span className="text-xs px-2 py-1 rounded-full bg-[#F7F8F5] text-[#25282D] font-semibold">
-                          {e.status}
-                        </span>
+                        {/* 결제상태만 한 개 표시합니다 (독립적인 '완료' 문구는 쓰지 않습니다) */}
+                        {(() => {
+                          const pay = normalizePaymentStatus(ts.row?.paymentStatus);
+                          return (
+                            <span
+                              className={`text-xs px-2 py-1 rounded-full font-semibold ${PAYMENT_STATUS_CLASS[pay]}`}
+                            >
+                              {PAYMENT_STATUS_LABEL[pay]}
+                            </span>
+                          );
+                        })()}
                       </div>
                       <div className="text-sm text-[#6B7280] mt-2">
                         {e.moveDate || "-"} · {e.fromAddress || "?"} → {e.toAddress || "?"}
+                      </div>
+                      <div className="text-sm text-[#6B7280]">
+                        평수{" "}
+                        <b className={e.sizeTab?.trim() ? "text-[#25282D]" : "text-[#D95C5C]"}>
+                          {e.sizeTab?.trim() || "평수 미입력"}
+                        </b>
                       </div>
                       <div className="mt-1 flex items-center justify-between">
                         <span className="text-lg font-black text-[#25282D]">{won(e.total)}</span>
