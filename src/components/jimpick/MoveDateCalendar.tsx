@@ -68,6 +68,8 @@ export function MoveDateCalendar({
   bookings,
   onOpenBooking,
   onCancelBooking,
+  onToggleSelect,
+  onArchiveSelected,
 }: {
   /** YYYY-MM-DD (없으면 빈 문자열) */
   value: string;
@@ -78,6 +80,10 @@ export function MoveDateCalendar({
   bookings?: Record<string, CalendarBooking[]>;
   onOpenBooking?: (estimateId: string, customerName: string, termsId: string) => void;
   onCancelBooking?: (termsId: string, estimateId: string) => void;
+  /** 완료 보관 대상 체크 (결제완료인 일정만 체크할 수 있습니다) */
+  onToggleSelect?: (termsId: string, next: boolean) => void;
+  /** 체크한 일정을 완료 보관함으로 옮깁니다 */
+  onArchiveSelected?: (termsIds: string[]) => void;
 }) {
   const today = todayYmd();
   const [openDate, setOpenDate] = useState("");
