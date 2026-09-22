@@ -583,9 +583,13 @@ export const getReservationCounts = createServerFn({ method: "POST" })
     }> => {
       const { data: terms, error } = await context.supabase
         .from("estimate_terms")
-        .select("id, estimate_id, move_date, customer_name, total, sheet_no, sheet_version")
+        .select(
+          "id, estimate_id, move_date, customer_name, total, sheet_no, sheet_version, payment_status, deposit_paid, balance_paid, calendar_selected",
+        )
         .eq("user_id", context.userId)
         .is("deleted_at", null)
+        // 완료 보관함으로 옮긴 일정은 달력에서 감춥니다 (데이터는 그대로 남습니다)
+        .eq("calendar_archived", false)
         .not("move_date", "is", null)
         .limit(2000);
       if (error || !terms) {
