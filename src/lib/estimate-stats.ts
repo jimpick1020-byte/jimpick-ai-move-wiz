@@ -61,19 +61,14 @@ export function buildEstimateStats(input: {
       excludedIds.add(id);
       continue;
     }
-    if (isFullyPaid(row)) completedIds.add(id);
+    // 「결제완료」로 저장된 견적만 완료입니다.
+    // 예약금 완료·미결제·결제대기·일부결제는 금액과 상관없이 진행 중입니다.
+    if (status === "completed") completedIds.add(id);
   }
   for (const a of input.archived ?? []) {
     if (!a.estimateId) continue;
     if (excludedIds.has(a.estimateId)) continue;
-    if (
-      isFullyPaid({
-        total: a.total,
-        depositPaid: a.depositPaid,
-        balancePaid: a.balancePaid,
-        paymentStatus: a.paymentStatus,
-      })
-    ) {
+    if (normalizePaymentStatus(a.paymentStatus) === "completed") {
       completedIds.add(a.estimateId);
     }
   }
