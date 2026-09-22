@@ -516,6 +516,11 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
           paymentStatus: String(r["payment_status"] ?? "unpaid"),
           paymentNote: (r["payment_note"] as string | null) ?? null,
           paymentConfirmedAt: (r["payment_confirmed_at"] as string | null) ?? null,
+          paymentMethod: (r["payment_method"] as string | null) ?? null,
+          paidAt: (r["paid_at"] as string | null) ?? null,
+          calendarSelected: Boolean(r["calendar_selected"]),
+          calendarArchived: Boolean(r["calendar_archived"]),
+          calendarArchivedAt: (r["calendar_archived_at"] as string | null) ?? null,
         };
       }),
     };
