@@ -124,6 +124,16 @@ import { SmsConnectionCard } from "./SmsConnectionCard";
 import { SmsNoticeCard } from "./SmsNoticeCard";
 import { DepositPanel } from "./DepositPanel";
 import { PaymentPanel } from "./PaymentPanel";
+import {
+  setCalendarSelected,
+  archiveCalendarSelected,
+  restoreCalendarArchived,
+  listArchivedContracts,
+  normalizePaymentStatus,
+  PAYMENT_STATUS_CLASS,
+  PAYMENT_STATUS_LABEL,
+  type ArchivedContractRow,
+} from "@/lib/payment.functions";
 import { ReminderPanel } from "./ReminderPanel";
 
 import {
