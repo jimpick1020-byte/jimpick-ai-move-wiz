@@ -1109,6 +1109,31 @@ export function Step1() {
               // 달력에서 지우면 견적 내역도 함께 삭제됩니다(서버에서 한 번에 처리).
               contractDelete.ask(estimateId);
             }}
+            onToggleSelect={(termsId, next) => {
+              setCalendarSelected({ data: { termsId, selected: next } })
+                .then((r) => {
+                  if (!r.ok) {
+                    toast.error(r.error ?? "체크 상태를 저장하지 못했습니다");
+                    return;
+                  }
+                  loadBookings();
+                })
+                .catch(() => toast.error("체크 상태를 저장하지 못했습니다"));
+            }}
+            onArchiveSelected={(termsIds) => {
+              archiveCalendarSelected({ data: { termsIds } })
+                .then((r) => {
+                  if (!r.ok) {
+                    toast.error(r.error ?? "보관 처리에 실패했습니다");
+                    return;
+                  }
+                  toast.success(`${r.archived}건을 완료 보관함으로 옮겼습니다`, {
+                    description: "자료는 그대로 남아 있고, 달력에서만 정리되었습니다.",
+                  });
+                  loadBookings();
+                })
+                .catch(() => toast.error("보관 처리에 실패했습니다"));
+            }}
             onSelect={(date) =>
               updateDraft({
                 moveDate: date,
