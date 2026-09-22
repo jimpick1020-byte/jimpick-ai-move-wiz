@@ -400,6 +400,12 @@ export interface TermsStatusRow {
   /** 완료 보관함으로 옮겼는지 */
   calendarArchived: boolean;
   calendarArchivedAt: string | null;
+  /** 고객이 「입금했습니다」를 누른 확인 대기 기록의 id (없으면 null) */
+  depositClaimId: string | null;
+  /** 고객이 알린 예약금 금액 (사장님 확인 전에는 금액에 넣지 않습니다) */
+  depositClaimAmount: number;
+  /** 고객이 「입금했습니다」를 누른 일시 */
+  depositClaimedAt: string | null;
 }
 
 /** 고객 열람 기록 — 어떤 행동을 남길지 */
