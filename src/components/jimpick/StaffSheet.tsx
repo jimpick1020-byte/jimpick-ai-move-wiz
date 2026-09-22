@@ -17,6 +17,7 @@ import {
   ClipboardList,
   ShieldAlert,
   Navigation,
+  Package,
 } from "lucide-react";
 
 function Row({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
@@ -144,6 +145,11 @@ export function StaffSheet() {
                 icon={<Truck className="h-5 w-5" />}
                 label="이사 유형"
                 value={state.snap.moveType}
+              />
+              <Row
+                icon={<Package className="h-5 w-5" />}
+                label="평수"
+                value={state.snap.sizeTab || "평수 미입력"}
               />
             </Card>
 

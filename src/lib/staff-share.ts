@@ -21,6 +21,8 @@ export interface StaffSheetSnapshot {
   moveDate: string;
   moveTime: string;
   moveType: string;
+  /** 평수 (예: 30~40평) — 5단계에서 고른 값 */
+  sizeTab?: string;
   fromAddress: string;
   fromDetail: string;
   toAddress: string;
@@ -72,6 +74,8 @@ export interface StaffKakaoInput {
   /** "2026년 9월 26일 오전 08:00" 처럼 이미 만들어 둔 문구 */
   moveDateText?: string;
   moveType?: string;
+  /** 평수 (예: 30~40평) */
+  sizeTab?: string;
   fromAddress?: string;
   fromEnv?: string;
   toAddress?: string;
@@ -100,6 +104,7 @@ export function buildStaffKakaoLines(v: StaffKakaoInput): string[] {
   add("연락처", v.customerPhone);
   add("이사일", v.moveDateText);
   add("이사 유형", v.moveType);
+  add("평수", v.sizeTab);
   add("출발지", v.fromAddress);
   add("출발지 조건", v.fromEnv);
   add("도착지", v.toAddress);
