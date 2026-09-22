@@ -1443,7 +1443,7 @@ export function Step2() {
               fromY: c.y || null,
             });
           }}
-          onDetail={(d) => updateDraft({ fromDetail: d })}
+          onDetail={(d) => updateDraft({ fromDetail: d, ...autoFloor("from", d) })}
         />
         <AddressSearch
           label="도착지"
@@ -1459,7 +1459,7 @@ export function Step2() {
               toY: c.y || null,
             });
           }}
-          onDetail={(d) => updateDraft({ toDetail: d })}
+          onDetail={(d) => updateDraft({ toDetail: d, ...autoFloor("to", d) })}
         />
         {(from || to) && (
           <Card className="pb-5">
