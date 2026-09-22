@@ -1669,11 +1669,17 @@ export function Step3() {
     }
   };
 
-  /** 층수 입력 — 1~100 정수만 저장(빈값·소수·범위 밖은 저장하지 않음). 출발지·도착지 독립. */
+  /**
+   * 층수 입력 — 지하 5층 ~ 100층 정수만 저장. 출발지·도착지 독립.
+   * 직접 고치면 주소에서 찾은 층수로 다시 덮어쓰지 않습니다.
+   */
   const setSideFloor = (side: "from" | "to", raw: number) => {
     if (!Number.isFinite(raw)) return;
-    const n = Math.min(100, Math.max(1, Math.floor(raw)));
-    updateDraft(side === "from" ? { fromFloor: n } : { toFloor: n });
+    const n = Math.min(100, Math.max(-5, Math.floor(raw)));
+    if (n === 0) return;
+    updateDraft(
+      side === "from" ? { fromFloor: n, fromFloorEdited: true } : { toFloor: n, toFloorEdited: true },
+    );
   };
 
   /** 출발지/도착지 사다리차 사용 — 각각 독립(4단계 차량 화면과 같은 필드를 씁니다). */
