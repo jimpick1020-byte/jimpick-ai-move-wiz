@@ -391,6 +391,15 @@ export interface TermsStatusRow {
   paymentStatus: string;
   paymentNote: string | null;
   paymentConfirmedAt: string | null;
+  /** 결제 수단 (사장님이 적은 값) */
+  paymentMethod: string | null;
+  /** 결제완료로 확인한 시각 */
+  paidAt: string | null;
+  /** 달력에서 정리 대상으로 체크했는지 */
+  calendarSelected: boolean;
+  /** 완료 보관함으로 옮겼는지 */
+  calendarArchived: boolean;
+  calendarArchivedAt: string | null;
 }
 
 /** 고객 열람 기록 — 어떤 행동을 남길지 */
@@ -457,7 +466,7 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
     let q = context.supabase
       .from("estimate_terms")
       .select(
-        "id, estimate_id, sheet_version, terms_version, sent_at, viewed_at, first_viewed_at, last_viewed_at, view_count, terms_viewed_at, total, deposit_paid, balance_paid, balance_paid_at, payment_status, payment_note, payment_confirmed_at",
+        "id, estimate_id, sheet_version, terms_version, sent_at, viewed_at, first_viewed_at, last_viewed_at, view_count, terms_viewed_at, total, deposit_paid, balance_paid, balance_paid_at, payment_status, payment_note, payment_confirmed_at, payment_method, paid_at, calendar_selected, calendar_archived, calendar_archived_at",
       )
       .eq("user_id", context.userId)
       .is("deleted_at", null);
@@ -539,6 +548,14 @@ export interface ReservationRow {
   moveType: string | null;
   truck: string | null;
   staffName: string | null;
+  /** 평수 (견적서에 저장된 값, 없으면 null) */
+  sizeTab: string | null;
+  /** 결제 진행 상태 */
+  paymentStatus: string;
+  depositPaid: number;
+  balancePaid: number;
+  /** 달력에서 정리 대상으로 체크했는지 */
+  calendarSelected: boolean;
 }
 
 /** 주소에서 시·구 정도만 남깁니다 (상세주소는 달력에 노출하지 않습니다) */
