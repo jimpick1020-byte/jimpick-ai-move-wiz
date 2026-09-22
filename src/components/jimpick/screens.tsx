@@ -134,6 +134,7 @@ import {
   PAYMENT_STATUS_LABEL,
   type ArchivedContractRow,
 } from "@/lib/payment.functions";
+import { buildEstimateStats } from "@/lib/estimate-stats";
 import { ReminderPanel } from "./ReminderPanel";
 
 import {
@@ -625,32 +626,36 @@ export function HomeScreen() {
   const phoneKey = (e: (typeof estimates)[number]) =>
     (e.phone || "").replace(/[^0-9]/g, "") || `이름:${e.customerName || ""}`;
 
-  // 견적 현황 — 실제 결제 기록(예약금·잔금)으로 진행 중/완료를 계산합니다.
-  // 예약금만 받은 고객은 「진행 중」, 잔금까지 전액 받은 고객만 「완료」입니다.
+  // 견적 현황 — 견적 내역·완료 보관함과 같은 공통 집계 함수(buildEstimateStats)를 씁니다.
+  // 예약금만 받은 견적은 「진행 중」, 잔금까지 전액 받은 견적만 「완료」입니다.
   const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
+  const [archivedRows, setArchivedRows] = useState<ArchivedContractRow[]>([]);
   useEffect(() => {
     let alive = true;
-    getTermsStatuses({ data: {} })
-      .then((r) => {
-        if (alive && r.ok) setTermsRows(r.rows);
-      })
-      .catch(() => {});
+    const load = () => {
+      getTermsStatuses({ data: {} })
+        .then((r) => {
+          if (alive && r.ok) setTermsRows(r.rows);
+        })
+        .catch(() => {});
+      listArchivedContracts()
+        .then((rows) => {
+          if (alive) setArchivedRows(rows);
+        })
+        .catch(() => {});
+    };
+    load();
+    window.addEventListener("jimpick:payment-updated", load);
     return () => {
       alive = false;
+      window.removeEventListener("jimpick:payment-updated", load);
     };
   }, []);
-  const countable = new Map<string, { id: string; paid: boolean }>();
-  for (const e of [...estimates].sort((a, b) => a.createdAt - b.createdAt)) {
-    const row = termsRows.find((t) => t.estimateId === e.id) ?? null;
-    const status = row ? normalizePaymentStatus(row.paymentStatus) : "unpaid";
-    // 취소·환불된 건은 집계에서 빼고, 같은 고객은 한 건으로 셉니다
-    if (status === "canceled" || status === "refunded") continue;
-    countable.set(phoneKey(e), { id: e.id, paid: row ? isFullyPaid(row) : false });
-  }
-  const total = countable.size;
-  const done = Array.from(countable.values()).filter((c) => c.paid).length;
-  const inProg = total - done;
-  const pct = total ? Math.round((done / total) * 100) : 0;
+  const stats = buildEstimateStats({ estimates, termsRows, archived: archivedRows });
+  const total = stats.total;
+  const done = stats.completed;
+  const inProg = stats.inProgress;
+  const pct = stats.pct;
   const customerCount = new Set(estimates.filter((e) => e.customerName || e.phone).map(phoneKey))
     .size;
   const monthStart = new Date();
@@ -6083,11 +6088,20 @@ export function History() {
 
   useEffect(() => {
     let alive = true;
-    getTermsStatuses({ data: {} })
-      .then((r) => {
-        if (alive && r.ok) setTermsRows(r.rows);
-      })
-      .catch(() => {});
+    // 완료 보관함은 접혀 있어도 미리 읽습니다 (홈 견적 현황과 건수를 맞추기 위해)
+    const load = () => {
+      getTermsStatuses({ data: {} })
+        .then((r) => {
+          if (alive && r.ok) setTermsRows(r.rows);
+        })
+        .catch(() => {});
+      listArchivedContracts()
+        .then((rows) => {
+          if (alive) setArchived(rows);
+        })
+        .catch(() => {});
+    };
+    load();
     getManagerNotices()
       .then((r) => {
         if (alive && r.ok) setNoticeRows(r.rows);
@@ -6100,8 +6114,10 @@ export function History() {
         for (const id of r.ids) deleteEstimate(id);
       })
       .catch(() => {});
+    window.addEventListener("jimpick:payment-updated", load);
     return () => {
       alive = false;
+      window.removeEventListener("jimpick:payment-updated", load);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -6167,10 +6183,10 @@ export function History() {
       loadNotices();
     }
   };
+  // 홈 견적 현황과 같은 공통 집계 함수를 씁니다 (총 견적 = 진행 중 + 완료).
   // 잔금까지 전액 받은 계약만 완료 보관함으로 옮깁니다 (예약금만 받은 건은 목록에 남습니다)
-  const completedIds = new Set(
-    termsRows.filter((row) => isFullyPaid(row)).map((row) => row.estimateId),
-  );
+  const stats = buildEstimateStats({ estimates, termsRows, archived });
+  const completedIds = stats.completedIds;
   const list = estimates.filter(
     (e) =>
       !completedIds.has(e.id) &&
@@ -6204,6 +6220,12 @@ export function History() {
           onChange={(e) => setQ(e.target.value)}
         />
 
+        {/* 건수 요약 — 홈 견적 현황과 같은 공통 집계 결과입니다 */}
+        <div className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2 text-[13px] font-semibold text-[#25282D]">
+          총 견적 {stats.total}건 · 진행 중 {stats.inProgress}건 · 완료 {stats.completed}건 · 완료율{" "}
+          {stats.pct}%
+        </div>
+
         {/* 완료 보관함 — 달력에서 정리한 결제완료 계약(자료는 그대로 남아 있습니다) */}
         <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3">
           <button
@@ -6215,7 +6237,7 @@ export function History() {
             }}
             className="flex w-full items-center justify-between text-[14px] font-bold text-[#25282D]"
           >
-            <span>완료 보관함</span>
+            <span>완료 보관함 {stats.completed}건</span>
             <span className="text-[13px] font-semibold text-[#6B7280]">
               {archiveOpen ? "닫기 ▲" : "열기 ▾"}
             </span>
