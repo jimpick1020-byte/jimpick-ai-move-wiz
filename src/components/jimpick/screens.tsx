@@ -658,10 +658,10 @@ export function HomeScreen() {
     };
   }, []);
   const stats = buildEstimateStats({ estimates, termsRows, archived: archivedRows });
-  const total = stats.total;
-  const done = stats.completed;
-  const inProg = stats.inProgress;
-  const pct = stats.pct;
+  const total = statsReady ? String(stats.total) : "…";
+  const done = statsReady ? String(stats.completed) : "…";
+  const inProg = statsReady ? String(stats.inProgress) : "…";
+  const pct = statsReady ? stats.pct : 0;
   const customerCount = new Set(estimates.filter((e) => e.customerName || e.phone).map(phoneKey))
     .size;
   const monthStart = new Date();
