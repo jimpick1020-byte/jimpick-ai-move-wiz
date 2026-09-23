@@ -152,27 +152,6 @@ async function sendViaAligo(v: {
     }
 
     return { ok: false, error: "그림문자 중계 서버가 준비되지 않아 발송하지 않았습니다." };
-    /* const form = new FormData();
-    form.append("user_id", v.aligoUserId);
-    form.append("key", v.apiKey);
-    form.append("sender", SENDER);
-    form.append("receiver", v.to);
-    form.append("msg", v.text);
-    form.append("msg_type", v.msgType);
-    form.append("title", v.title);
-    const r = await fetch(ALIGO_ENDPOINT, { method: "POST", body: form });
-    const data = (await r.json().catch(() => null)) as AligoResponse | null;
-    if (!data) return { ok: false, error: "알리고 응답을 읽지 못했습니다." };
-    const code = Number(data.result_code ?? -1);
-    if (code >= 1) {
-      return {
-        ok: true,
-        msgId: data.msg_id != null ? String(data.msg_id) : undefined,
-        msgType: data.msg_type || v.msgType,
-        code,
-      };
-    }
-    return { ok: false, code, error: aligoError(code, data.message ?? "") }; */
   } catch (e) {
     console.error("[move-reminders] 발송 오류", e instanceof Error ? e.message : e);
     return { ok: false, error: "문자 발송 중 연결 오류가 났습니다." };
@@ -253,9 +232,24 @@ async function sendOne(
   }
 
   const link = await customerLink(row);
-  const text = reminderText({ ...row, link });
-  // 90바이트를 넘으면 자동으로 장문(LMS)으로 보냅니다
-  const msgType = new TextEncoder().encode(text).length > 90 ? "LMS" : "SMS";
+  const [{ data: profile, error: profileErr }, { data: senderRow, error: senderErr }] = await Promise.all([
+    supabaseAdmin.from("profiles").select("company_name,phone").eq("id", row.company_id).maybeSingle(),
+    supabaseAdmin.from("company_sms_senders").select("sender_number").eq("company_id", row.company_id).eq("provider", "aligo").maybeSingle(),
+  ]);
+  const companyName = String(profile?.company_name ?? "").trim();
+  const sender = String(senderRow?.sender_number ?? "").trim();
+  const setupError = profileErr || senderErr
+    ? "업체 발신정보를 확인하지 못했습니다."
+    : !companyName ? "업체 정보가 필요합니다." : !/^0[0-9]{8,10}$/.test(sender)
+      ? "알리고 승인 발신번호가 등록되지 않았습니다." : !link ? "고객 보안 링크를 확인하지 못했습니다." : null;
+  if (setupError) {
+    await supabaseAdmin.from("move_reminders").update({ status: "failed", failed_at: now, error_code: "sender_setup", error_reason: setupError } as never).eq("id", row.id);
+    return { sent: false };
+  }
+  const text = reminderText({ ...row, company_name: companyName, link });
+  const msgType = "MMS";
+  const sendArgs = { to, text, title: "이사 하루 전 안내", msgType, ...creds, sender, companyId: row.company_id,
+    cardData: { companyName, customerName: row.customer_name, moveDate: row.move_date, amount: "", companyPhone: String(profile?.phone ?? row.company_phone ?? "").trim() } };
 
   // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).
   const attemptTag = attempt ?? String(Number(row.retry_count ?? 0));
@@ -288,19 +282,13 @@ async function sendOne(
     .update({ requested_at: now, message_snapshot: text, message_type: msgType } as never)
     .eq("id", row.id);
 
-  let out = await sendViaAligo({
-    to,
-    text,
-    title: "이사 하루 전 안내",
-    msgType,
-    ...creds,
-  });
+  let out = await sendViaAligo(sendArgs);
 
   // 네트워크·서버 오류만 한 번 더 시도합니다 (설정 오류는 다시 보내지 않습니다)
   let autoRetried = row.auto_retried === true;
   if (!out.ok && !autoRetried && isRetryable(out.code, out.error)) {
     autoRetried = true;
-    out = await sendViaAligo({ to, text, title: "이사 하루 전 안내", msgType, ...creds });
+    out = await sendViaAligo(sendArgs);
   }
 
   // 실패는 무료 문자에서 차감하지 않습니다.
