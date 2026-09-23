@@ -16,6 +16,7 @@ import { z } from "zod";
 export interface TermsLinkInfo {
   ok: boolean;
   error?: string;
+  estimateId?: string;
   customerName?: string;
   moveDate?: string | null;
   total?: number;
@@ -183,6 +184,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
 
     return {
       ok: true,
+      estimateId: row.estimate_id,
       customerName: row.customer_name,
       moveDate: row.move_date,
       total: row.total,

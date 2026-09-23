@@ -97,18 +97,20 @@ function Row({ children }: { children: React.ReactNode }) {
 
 export function SharePage() {
   const { id } = useParams({ from: "/share/$id" });
-  const search = useSearch({ from: "/share/$id" }) as { staff?: string; t?: string; rm?: string };
+  const search = useSearch({ from: "/share/$id" }) as { staff?: string; t?: string; rm?: string; card?: string };
   const staffMode = String(search?.staff ?? "") === "1";
-  const token = String(search?.t ?? id).slice(0, 40);
+  const token = String(search?.t ?? "").slice(0, 80);
   const reminderToken = String(search?.rm ?? "").slice(0, 80);
+  const isReminder = search.card === "reminder" || Boolean(reminderToken);
+  const isDeposit = search.card === "deposit";
 
   // 이사 전날 안내 문자의 링크로 들어온 경우, 고객이 확인했다는 기록을 남깁니다
   useEffect(() => {
-    if (reminderToken.length < 16) return;
+    if (!link?.ok || link.estimateId !== id || reminderToken.length < 16) return;
     void import("@/lib/reminder.functions")
       .then(({ markReminderViewed }) => markReminderViewed({ data: { token: reminderToken } }))
       .catch(() => undefined);
-  }, [reminderToken]);
+  }, [id, link, reminderToken]);
 
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [link, setLink] = useState<TermsLinkInfo | null>(null);
@@ -237,7 +239,7 @@ export function SharePage() {
       .then((info) => {
         setLink(info);
         // 고객이 실제로 링크를 연 것만 기록합니다 (직원용 화면은 세지 않습니다)
-        if (info.ok && !staffMode) {
+        if (info.ok && info.estimateId === id && !staffMode) {
           void logCustomerView({ data: { token, event: "sheet" } }).catch(() => {});
         }
         if (info.ok && info.acceptedAt) {
@@ -290,22 +292,23 @@ export function SharePage() {
   }, [link]);
 
   // 실제 데이터: 서버(토큰 조회) 우선, 없으면 이 기기에 저장된 견적
-  const customerName = (link?.ok ? link.customerName : "") || estimate?.customerName || "";
-  const moveDate = ymd(link?.ok ? link.moveDate : estimate?.moveDate);
+  const validLink = link?.ok === true && link.estimateId === id;
+  const customerName = validLink ? link.customerName ?? "" : "";
+  const moveDate = ymd(validLink ? link.moveDate : null);
   // 위쪽 요약 금액과 아래 견적서 금액이 서로 다르면 안 됩니다.
   // 사장님이 보낸 견적서 원본이 있으면 그 금액을 먼저 씁니다.
   const total =
     sentSheet && sentSheet.total > 0
       ? sentSheet.total
-      : link?.ok && typeof link.total === "number" && link.total > 0
+      : validLink && typeof link.total === "number" && link.total > 0
         ? link.total
-        : (localCalc?.total ?? 0);
-  const contactPhone = ((link?.ok ? link.contactPhone : "") || estimate?.staffPhone || "").trim();
-  const companyName = (link?.ok ? link.companyName : "")?.trim() ?? "";
+        : 0;
+  const contactPhone = (validLink ? link.contactPhone ?? "" : "").trim();
+  const companyName = (validLink ? link.companyName ?? "" : "").trim();
   /** 견적서 번호와 차수 — 서버(토큰) 값을 먼저 씁니다 */
   const sheetNo = ((link?.ok ? link.sheetNo : "") || estimate?.sheetNo || "").trim();
   const sheetVersion = (link?.ok ? link.sheetVersion : null) ?? estimate?.sheetVersion ?? 1;
-  const hasData = Boolean(customerName && moveDate && total > 0);
+  const hasData = Boolean(validLink && customerName && moveDate && total > 0);
   /** 실제로 입금 확인된 예약금 — 사장님이 확인한 금액만 들어옵니다 */
   const paidDeposit = Math.max(0, (link?.ok ? (link.depositPaid ?? 0) : 0) || 0);
 
@@ -549,7 +552,7 @@ export function SharePage() {
 
   /* ───────── 링크가 맞지 않을 때 ─────────
      토큰이 없거나 만료·폐기된 링크에서는 고객 정보와 동의 화면을 아예 보여 주지 않습니다. */
-  if (!link?.ok && !estimate) {
+  if (!validLink || (isReminder && reminderToken.length < 16)) {
     return shell(
       <div className="py-20 text-center">
         <div className="text-[18px] font-black text-[#25282D]">
@@ -575,8 +578,28 @@ export function SharePage() {
 
       {/* 제목 */}
       <h1 className="mt-4 mb-1 text-center text-[26px] font-black leading-tight text-[#25282D] sm:text-[30px]">
-        이사 견적서 · 표준약관
+        {isReminder ? "내일 이사 일정 안내" : isDeposit ? "예약금 및 예약 확인" : "이사 견적서 · 표준약관"}
       </h1>
+
+      {isReminder && (
+        <div className="mt-4 space-y-2 border-y border-border py-5 text-[16px] text-foreground">
+          {customerName && <p className="font-bold">{customerName} 고객님, 내일은 예약하신 이사일입니다.</p>}
+          {moveDate && <p>이사일: {moveDate}</p>}
+          {sentSheet?.draft.moveTime?.trim() && <p>이사 예정 시간: {sentSheet.draft.moveTime.trim()}</p>}
+          {sentSheet?.draft.fromAddress?.trim() && <p>출발지: {[sentSheet.draft.fromAddress, sentSheet.draft.fromDetail].filter(Boolean).join(" ")}</p>}
+          {sentSheet?.draft.toAddress?.trim() && <p>도착지: {[sentSheet.draft.toAddress, sentSheet.draft.toDetail].filter(Boolean).join(" ")}</p>}
+          <p>원활한 이사를 위해 귀중품과 개인 소지품을 미리 확인해 주세요.</p>
+        </div>
+      )}
+      {isDeposit && hasData && (
+        <div className="mt-4 space-y-2 border-y border-border py-5 text-[16px] text-foreground">
+          {customerName && <p className="font-bold">{customerName} 고객님, 예약금 입금 및 예약 내용을 확인해 주세요.</p>}
+          {(link.depositPaid ?? 0) > 0 && <p>예약금: {won(link.depositPaid ?? 0)}</p>}
+          {total > 0 && <p>총 견적금액: {won(total)}</p>}
+          {total > 0 && <p>잔금: {won(Math.max(0, total - (link.depositPaid ?? 0)))}</p>}
+          {moveDate && <p>이사일: {moveDate}</p>}
+        </div>
+      )}
 
       {/* 정보를 못 불러온 경우에만 안내합니다 */}
       {!hasData && (
