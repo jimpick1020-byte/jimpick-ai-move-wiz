@@ -39,14 +39,17 @@ export function PaymentPanel({
   const deposit = row.depositPaid;
   const balanceNum = row.balancePaid;
   const remain = Math.max(0, total - deposit - balanceNum);
-  const shortOfTotal = total > 0 && deposit + balanceNum < total;
 
   const save = async () => {
     if (busy) return;
     setBusy(true);
     try {
+      // 「결제완료」로 저장할 때는 남은 금액을 사장님이 직접 확인한 잔금으로 기록합니다.
       const r = await setPaymentState({
-        data: { estimateId, status, note },
+        data:
+          status === "completed" && remain > 0
+            ? { estimateId, status, note, balancePaid: balanceNum + remain }
+            : { estimateId, status, note },
       });
       if (r.ok) {
         toast.success("결제 상태를 저장했습니다");
@@ -66,12 +69,6 @@ export function PaymentPanel({
 
   const onSaveClick = () => {
     if (status === "completed") {
-      if (shortOfTotal) {
-        toast.error("결제완료로 저장할 수 없습니다", {
-          description: `확인된 금액 ${won(deposit + balanceNum)} · 총액 ${won(total)}`,
-        });
-        return;
-      }
       setAskComplete(true);
       return;
     }
@@ -145,13 +142,6 @@ export function PaymentPanel({
             </div>
           )}
 
-          {status === "completed" && shortOfTotal && (
-            <div className="rounded-xl bg-[#FEECEC] p-2 text-[12px] font-bold text-[#B91C1C]">
-              확인된 금액 {won(deposit + balanceNum)}이 총액 {won(total)}보다 적습니다. 잔금을 먼저
-              확인해 주세요.
-            </div>
-          )}
-
           <button
             onClick={onSaveClick}
             disabled={busy}
@@ -164,7 +154,8 @@ export function PaymentPanel({
             <div className="rounded-xl border border-[#3E9B78] bg-white p-2.5">
               <div className="text-[13px] font-bold text-[#25282D]">결제완료로 저장할까요?</div>
               <div className="mt-1 text-[12px] text-[#6B7280]">
-                총 {won(total)} · 예약금 {won(deposit)} · 잔금 {won(balanceNum)} 으로 확인합니다.
+                총 {won(total)} · 예약금 {won(deposit)} · 잔금 {won(balanceNum + remain)} 으로
+                확인합니다.
                 저장하면 일반 견적내역에서 빠지고 완료 보관함에 안전하게 보존됩니다.
               </div>
               <div className="mt-2 grid grid-cols-2 gap-1.5">
