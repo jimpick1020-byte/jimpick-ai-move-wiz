@@ -502,9 +502,11 @@ export function SharePage() {
                   <div>
                     출발: {estimate.fromAddress} {estimate.fromDetail}
                   </div>
-                  <div>
-                    도착: {estimate.toAddress} {estimate.toDetail}
-                  </div>
+                  {estimate.toAddress?.trim() && (
+                    <div>
+                      도착: {estimate.toAddress} {estimate.toDetail}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="text-[#6B7280]">
@@ -693,9 +695,11 @@ export function SharePage() {
                 <div>
                   출발: {estimate.fromAddress} {estimate.fromDetail}
                 </div>
-                <div>
-                  도착: {estimate.toAddress} {estimate.toDetail}
-                </div>
+                {estimate.toAddress?.trim() && (
+                  <div>
+                    도착: {estimate.toAddress} {estimate.toDetail}
+                  </div>
+                )}
               </div>
             </div>
             <div className="text-[#6B7280]">

@@ -5483,14 +5483,20 @@ export function Result() {
               <div className="text-[#6B7280]">
                 출발: {draft.fromAddress} {draft.fromDetail}
               </div>
-              <div className="text-[#6B7280]">
-                도착: {draft.toAddress} {draft.toDetail}
-              </div>
-              <div>
-                실거리 {draft.distanceKm}km
-                {draft.durationMin ? ` · 약 ${draft.durationMin}분` : ""} ·{" "}
-                {workConditionSummary(draft)}
-              </div>
+              {draft.toAddress?.trim() ? (
+                <>
+                  <div className="text-[#6B7280]">
+                    도착: {draft.toAddress} {draft.toDetail}
+                  </div>
+                  <div>
+                    실거리 {draft.distanceKm}km
+                    {draft.durationMin ? ` · 약 ${draft.durationMin}분` : ""} ·{" "}
+                    {workConditionSummary(draft)}
+                  </div>
+                </>
+              ) : (
+                <div>출발 {sideConditionText(draft, "from") || "-"}</div>
+              )}
               <div>
                 1톤 {draft.truck1t} · 5톤 {draft.truck5t} · 사다리 {draft.ladder}
                 {(draft.ladderFrom || draft.ladderTo) &&
@@ -5758,6 +5764,7 @@ export function Result() {
                 companyName={sheetCompanyName}
                 companyPhone={draft.staffPhone ?? ""}
                 acceptedAt={termsStatus?.acceptedAt ?? null}
+                paymentStatus={termsStatus?.paymentStatus ?? null}
                 acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
                 acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
               />
@@ -6074,6 +6081,7 @@ export function Result() {
                   companyName={sheetCompanyName}
                   companyPhone={draft.staffPhone ?? ""}
                   acceptedAt={termsStatus?.acceptedAt ?? null}
+                paymentStatus={termsStatus?.paymentStatus ?? null}
                   acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
                   acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
                   forCustomer
