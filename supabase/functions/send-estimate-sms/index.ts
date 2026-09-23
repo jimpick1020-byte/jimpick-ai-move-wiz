@@ -1058,7 +1058,7 @@ const handle = async (req: Request): Promise<Response> => {
       tokenD.length >= 8
         ? `${appUrl}/share/${encodeURIComponent(estIn)}?t=${encodeURIComponent(tokenD)}`
         : "";
-    const companyPhoneD = String(drow.company_phone ?? "").trim();
+    const companyPhoneD = companyD.companyPhone || String(drow.company_phone ?? "").trim();
     const textD = [
       `[${companyD.companyName}]`,
       `${String(drow.customer_name ?? "고객").trim() || "고객"} 고객님, 예약금 입금이 확인되었습니다.`,
@@ -1068,7 +1068,7 @@ const handle = async (req: Request): Promise<Response> => {
       ...(linkD ? ["", "견적서 확인:", linkD] : []),
       ...(companyPhoneD ? ["", `문의: ${companyPhoneD}`] : []),
     ].join("\n");
-    if (!linkD || !appUrl) return json({ ok: false, error: "고객 보안 링크가 없어 발송하지 않았습니다." }, 400);
+    if (!linkD || !appUrl || !companyPhoneD || !String(drow.move_date ?? "").trim()) return json({ ok: false, error: "고객 보안 링크 또는 업체 문의번호·이사 날짜가 없어 발송하지 않았습니다." }, 400);
     const typeD = "MMS";
     const holdD = await reserveSms({
       userId: ownerD,
@@ -1271,7 +1271,8 @@ const handle = async (req: Request): Promise<Response> => {
   }
 
   // ── 4. 문자 내용을 실제 자료로 만듭니다 ──
-  const companyPhone = String(row.company_phone ?? "").trim();
+  const companyPhone = company.companyPhone || String(row.company_phone ?? "").trim();
+  if (!companyPhone || !String(row.move_date ?? "").trim() || Number(row.total ?? 0) <= 0) return json({ ok: false, error: "업체 문의번호·이사 날짜·견적금액이 없어 발송하지 않았습니다." }, 400);
   const text = [
     `[${company.companyName}]`,
     `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
