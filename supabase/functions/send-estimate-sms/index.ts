@@ -309,7 +309,8 @@ async function sendViaAligo(v: {
           return { ok: false, error: "그림문자 중계 서버가 아직 새 버전이 아니어서 발송하지 않았습니다." };
         }
       }
-      const r = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/send`, {
+       const serviceNotice = v.userId === "server" && !v.companyId && v.text.startsWith("[JIMPICK 짐픽]\n수정 완료 통보\n");
+       const r = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}${serviceNotice ? "/send-service-fix-notice" : "/send"}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

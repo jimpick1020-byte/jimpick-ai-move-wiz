@@ -89,6 +89,36 @@ app.post("/result", async (req, res) => {
   return res.status(result.ok ? 200 : 502).json(result);
 });
 
+// 운영자 수정완료 통보는 업체 발신번호와 무관한 별도 서비스 문자입니다.
+// 수신 번호는 요청 본문을 신뢰하지 않고 운영 설정에서 조회합니다.
+app.post("/send-service-fix-notice", async (req, res) => {
+  if (!checkSecret(req, res)) return;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const sender = normalizePhone(process.env.ALIGO_SENDER);
+  if (!url || !key || !/^0[0-9]{8,10}$/.test(sender)) return res.status(503).json({ ok: false, error: "운영 발신정보를 확인할 수 없습니다." });
+  const text = String(req.body?.text ?? "");
+  if (!text.startsWith("[JIMPICK 짐픽]\n수정 완료 통보\n") || text.length > 700) {
+    return res.status(400).json({ ok: false, error: "운영 통보 내용이 올바르지 않습니다." });
+  }
+  try {
+    const r = await fetch(`${url.replace(/\/$/, "")}/rest/v1/service_ops_settings?select=notice_phone,notify_enabled&id=eq.true&limit=1`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(6000),
+    });
+    if (!r.ok) return res.status(503).json({ ok: false, error: "운영 연락처를 확인하지 못했습니다." });
+    const [ops] = await r.json();
+    const to = normalizePhone(ops?.notice_phone);
+    if (ops?.notify_enabled !== true || !isPhone(to) || to !== normalizePhone(req.body?.to)) {
+      return res.status(403).json({ ok: false, error: "운영 통보가 꺼져 있거나 수신번호가 일치하지 않습니다." });
+    }
+    const result = await sendAligo({ to, text, title: "짐픽 수정 완료", sender });
+    if (!result.ok) return res.status(502).json({ ok: false, result_code: result.code ?? -1, error: result.error });
+    return res.json({ ok: true, result_code: 1, msg_id: result.msgId, msg_type: result.msgType, success_cnt: result.successCount });
+  } catch {
+    return res.status(503).json({ ok: false, error: "운영 통보 연결 오류" });
+  }
+});
+
 /**
  * 문자 발송.
  *
