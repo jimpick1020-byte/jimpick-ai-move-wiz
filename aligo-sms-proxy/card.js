@@ -11,9 +11,9 @@ const variants = {
 };
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]);
-const fit = (s, max) => {
+const fit = (s, max, optional = false) => {
   const v = String(s ?? "").trim();
-  if (!v || v.length > max || /[\r\n\t]/.test(v)) throw new Error("문자 이미지에 넣을 자료가 올바르지 않습니다.");
+  if ((!v && !optional) || v.length > max || /[\r\n\t]/.test(v)) throw new Error("문자 이미지에 넣을 자료가 올바르지 않습니다.");
   return esc(v);
 };
 
@@ -23,10 +23,10 @@ export async function renderCard(type, data) {
   if (!variant) throw new Error("지원하지 않는 문자 이미지 종류입니다.");
   const company = fit(data.companyName, 36);
   const customer = fit(data.customerName, 24);
-  const date = fit(data.moveDate, 30);
-  const phone = fit(data.companyPhone, 30);
+  const date = fit(data.moveDate, 30, true);
+  const phone = fit(data.companyPhone, 30, true);
   if (!company || !customer) throw new Error("업체 정보 또는 고객 자료가 부족해 그림문자를 보내지 않았습니다.");
-  const amount = type === "reminder" ? "" : fit(data.amount, 24);
+  const amount = type === "reminder" ? "" : fit(data.amount, 24, type === "quote");
   if (type === "deposit" && !amount) throw new Error("예약금이 없어 그림문자를 보내지 않았습니다.");
   const base = await readFile(art(variant.image));
   const background = `data:image/jpeg;base64,${base.toString("base64")}`;
