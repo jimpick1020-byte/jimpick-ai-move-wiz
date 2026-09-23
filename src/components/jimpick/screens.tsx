@@ -122,7 +122,6 @@ import {
 
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { SmsNoticeCard } from "./SmsNoticeCard";
-import { DepositPanel } from "./DepositPanel";
 import { DepositClaimBox } from "./DepositClaimBox";
 import { PaymentPanel } from "./PaymentPanel";
 import {
@@ -6514,13 +6513,6 @@ export function History() {
                             );
                           })()}
                         {ts.row && <DepositClaimBox row={ts.row} onSaved={loadTerms} />}
-                        {ts.row && (
-                          <DepositPanel
-                            estimateId={e.id}
-                            customerName={e.customerName}
-                            total={e.total}
-                          />
-                        )}
                         {ts.row && (
                           <PaymentPanel
                             estimateId={e.id}
