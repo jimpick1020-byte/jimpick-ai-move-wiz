@@ -150,12 +150,11 @@ export const approveCompanySmsSender = createServerFn({ method: "POST" })
     approvalConfirmed: z.literal(true),
   }).parse(d))
   .handler(async ({ data, context }): Promise<{ senderNumber: string; approvedAt: string }> => {
-    const { data: isAdmin, error: roleError } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId, _role: "super_admin",
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: isAdmin, error: roleError } = await supabaseAdmin.rpc("is_super_admin", {
+      _user_id: context.userId,
     });
     if (roleError || isAdmin !== true) throw new Error("최고관리자만 승인 발신번호를 등록할 수 있습니다.");
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles").select("id, company_name").eq("id", data.companyId).maybeSingle();
     if (profileError || !profile?.company_name?.trim()) throw new Error("사업자 상호가 등록된 업체만 발신번호를 연결할 수 있습니다.");

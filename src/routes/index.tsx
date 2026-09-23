@@ -34,6 +34,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "AI로 더 쉽고 정확한 이사 견적. 방별 품목, 차량, 옵션, 보관료까지 한 번에 계산합니다." },
       { property: "og:title", content: "JIMPICK 7.0 — AI 이사 견적 앱" },
       { property: "og:description", content: "AI로 더 쉽고 정확한 이사 견적. 방별 품목, 차량, 옵션, 보관료까지 한 번에 계산합니다." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Index,
