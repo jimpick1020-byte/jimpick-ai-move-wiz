@@ -301,6 +301,14 @@ async function sendViaAligo(v: {
 }): Promise<SendOutcome> {
   try {
     if (v.viaProxy) {
+      // 구형 중계 서버가 그림 필드를 무시하고 텍스트만 보내지 않도록 버전을 먼저 확인합니다.
+      if (v.cardType) {
+        const health = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
+        const capability = (await health.json().catch(() => null)) as { service?: string; capabilities?: string[] } | null;
+        if (!health.ok || capability?.service !== "aligo-sms-proxy" || !capability.capabilities?.includes("sms-cards-v1")) {
+          return { ok: false, error: "그림문자 중계 서버가 아직 새 버전이 아니어서 발송하지 않았습니다." };
+        }
+      }
       const r = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/send`, {
         method: "POST",
         headers: {
@@ -530,8 +538,16 @@ const handle = async (req: Request): Promise<Response> => {
   // 설정이 되어 있는지만 알려 줍니다 — 아이디·키·발신번호 값은 절대 보내지 않습니다.
   if (body.checkOnly) {
     const senderReady = userId ? (await companySmsInfo(userId, supabaseUrl, serviceKey)).ok : false;
+    let cardReady = false;
+    if (viaProxy) {
+      try {
+        const r = await fetch(`${proxyUrl!.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
+        const h = (await r.json().catch(() => null)) as { service?: string; capabilities?: string[] } | null;
+        cardReady = r.ok && h?.service === "aligo-sms-proxy" && h.capabilities?.includes("sms-cards-v1") === true;
+      } catch { /* 새 버전 여부를 확인하지 못하면 준비되지 않은 상태입니다. */ }
+    }
     return json({
-      ok: missing.length === 0 && !!viaProxy && senderReady,
+      ok: missing.length === 0 && cardReady && senderReady && !badAppUrl,
       config: {
         ALIGO_USER_ID: !!aligoUserId,
         ALIGO_API_KEY: !!apiKey,
@@ -541,9 +557,10 @@ const handle = async (req: Request): Promise<Response> => {
         SUPABASE_SERVICE_ROLE_KEY: !!serviceKey,
         SMS_PROXY_URL: !!proxyUrl,
         JIMPICK_PROXY_SECRET: !!proxySecret,
+        그림문자서버: cardReady,
         발송경로: viaProxy ? "고정 IP 중계 서버 경유" : "그림문자 중계 서버 필요",
       },
-      missing: [...missing, ...(!viaProxy ? ["그림문자 중계 서버"] : []), ...(!senderReady ? ["업체별 승인 발신번호"] : [])],
+      missing: [...missing, ...(!cardReady ? ["그림문자 중계 서버 새 버전"] : []), ...(!senderReady ? ["업체별 승인 발신번호"] : [])],
       appUrlProblem: badAppUrl
         ? "PUBLIC_APP_URL 이 배포 주소가 아닙니다. 배포된 주소로 넣어 주세요."
         : null,
