@@ -10,8 +10,6 @@
  */
 
 const ALIGO_ENDPOINT = "https://apis.aligo.in/send/";
-/** 발신번호는 서버에 고정되어 있습니다 (기존 문자발송 기능과 동일) */
-const SENDER = "01075662542";
 
 interface Reminder {
   id: string;
@@ -77,6 +75,7 @@ function shortAddress(v: string | null): string {
 
 /** 안내 문자 내용 — 값이 없는 줄은 넣지 않습니다 */
 export function reminderText(r: {
+  company_name?: string;
   customer_name: string;
   start_time: string | null;
   from_address: string | null;
@@ -85,7 +84,7 @@ export function reminderText(r: {
   link?: string | null;
 }): string {
   const lines: string[] = [
-    "[JIMPICK 짐픽]",
+    `[${r.company_name || "업체 정보가 필요합니다"}]`,
     "",
     `${(r.customer_name || "고객").trim()} 고객님, 내일은 예약하신 이사일입니다.`,
     "",
@@ -118,38 +117,30 @@ async function sendViaAligo(v: {
   apiKey: string;
   proxyUrl?: string;
   proxySecret?: string;
+  sender: string;
+  companyId: string;
+  cardData: { companyName: string; customerName: string; moveDate: string; amount: string; companyPhone: string };
 }): Promise<SendOutcome> {
   const viaProxy = !!(v.proxyUrl && v.proxySecret);
   try {
     if (viaProxy) {
-      // 알리고 /send/ 는 form-urlencoded 만 받습니다
-      const params = new URLSearchParams();
-      params.set("key", v.apiKey);
-      params.set("user_id", v.aligoUserId);
-      params.set("sender", SENDER);
-      params.set("receiver", v.to);
-      params.set("msg", v.text);
-      if (v.msgType === "LMS") {
-        params.set("msg_type", "LMS");
-        params.set("title", v.title);
-      }
-      const r = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/send`, {
+      const r = await fetch(`${v.proxyUrl?.replace(/\/$/, "")}/send`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          "x-proxy-secret": String(v.proxySecret ?? "").trim(),
+          "Content-Type": "application/json",
+          "x-jimpick-secret": String(v.proxySecret ?? "").trim(),
         },
-        body: params.toString(),
+        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, companyId: v.companyId, userId: v.companyId, cardType: "reminder", cardData: v.cardData }),
       });
       if (r.status === 401 || r.status === 403) {
         return { ok: false, code: r.status, error: "문자 중계 서버가 요청을 거절했습니다(인증 실패)." };
       }
-      const data = (await r.json().catch(() => null)) as AligoResponse | null;
+      const data = (await r.json().catch(() => null)) as (AligoResponse & { ok?: boolean; error?: string }) | null;
       if (!data) {
         return { ok: false, code: r.status, error: `중계 서버 응답을 읽지 못했습니다. (${r.status})` };
       }
       const code = Number(data.result_code ?? -1);
-      if (code >= 1) {
+      if (r.ok && data.ok === true && code === 1) {
         return {
           ok: true,
           msgId: data.msg_id != null ? String(data.msg_id) : undefined,
@@ -157,10 +148,11 @@ async function sendViaAligo(v: {
           code,
         };
       }
-      return { ok: false, code, error: aligoError(code, data.message ?? "") };
+      return { ok: false, code, error: data.error ?? aligoError(code, data.message ?? "") };
     }
 
-    const form = new FormData();
+    return { ok: false, error: "그림문자 중계 서버가 준비되지 않아 발송하지 않았습니다." };
+    /* const form = new FormData();
     form.append("user_id", v.aligoUserId);
     form.append("key", v.apiKey);
     form.append("sender", SENDER);
@@ -180,7 +172,7 @@ async function sendViaAligo(v: {
         code,
       };
     }
-    return { ok: false, code, error: aligoError(code, data.message ?? "") };
+    return { ok: false, code, error: aligoError(code, data.message ?? "") }; */
   } catch (e) {
     console.error("[move-reminders] 발송 오류", e instanceof Error ? e.message : e);
     return { ok: false, error: "문자 발송 중 연결 오류가 났습니다." };
