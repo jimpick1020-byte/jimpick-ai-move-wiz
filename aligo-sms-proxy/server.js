@@ -10,6 +10,7 @@
  * 아무나 문자를 보내지 못하도록 JIMPICK_PROXY_SECRET 로 확인합니다.
  */
 import express from "express";
+import { timingSafeEqual } from "node:crypto";
 import { sendAligo, isPhone, normalizePhone } from "./aligo.js";
 import { saveDelivery, findDelivery } from "./supabase.js";
 import { renderCard } from "./card.js";
@@ -48,7 +49,9 @@ function checkSecret(req, res) {
     return false;
   }
   const got = String(req.get("x-jimpick-secret") ?? "").trim();
-  if (got.length !== want.length || got !== want) {
+  const supplied = Buffer.from(got);
+  const expected = Buffer.from(want);
+  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
     res.status(401).json({ ok: false, error: "인증되지 않은 요청입니다." });
     return false;
   }
@@ -135,6 +138,9 @@ app.post("/send", async (req, res) => {
   if (cardType && (!cardData || !String(cardData.companyName ?? "").trim())) {
     return res.status(400).json({ ok: false, error: "업체 정보가 필요합니다." });
   }
+  if (cardType && (!/^https:\/\/\S+/m.test(text) || (String(text).match(/https:\/\/\S+/g) ?? []).length !== 1)) {
+    return res.status(400).json({ ok: false, error: "고객 보안 링크가 정확히 하나 필요합니다." });
+  }
 
   // ① 같은 요청이 이미 성공했으면 다시 보내지 않습니다
   if (idempotencyKey) {
@@ -193,7 +199,8 @@ app.post("/send", async (req, res) => {
     idempotency_key: idempotencyKey ?? null,
     sent_at: new Date().toISOString(),
   };
-  const saved = await saveDelivery(row);
+  // 앱 발송 경로는 호출자가 상세 이력을 저장합니다. 중계 서버의 중복 기록은 만들지 않습니다.
+  const saved = idempotencyKey ? await saveDelivery(row) : { saved: false };
 
   if (!result.ok) return res.status(502).json({ ok: false, result_code: result.code ?? -1, message: result.error, error: result.error, logged: saved.saved });
   return res.json({

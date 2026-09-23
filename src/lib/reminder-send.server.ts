@@ -237,18 +237,20 @@ async function sendOne(
   ]);
   const companyName = String(profile?.company_name ?? "").trim();
   const sender = String(senderRow?.sender_number ?? "").trim();
+  const companyPhone = String(profile?.phone ?? row.company_phone ?? "").trim();
   const setupError = profileErr || senderErr
     ? "업체 발신정보를 확인하지 못했습니다."
     : !companyName ? "업체 정보가 필요합니다." : !/^0[0-9]{8,10}$/.test(sender)
-      ? "알리고 승인 발신번호가 등록되지 않았습니다." : !link ? "고객 보안 링크를 확인하지 못했습니다." : null;
+      ? "알리고 승인 발신번호가 등록되지 않았습니다." : !companyPhone || !row.move_date || !row.customer_name
+        ? "업체 문의번호 또는 고객 이사 정보가 없습니다." : !link ? "고객 보안 링크를 확인하지 못했습니다." : null;
   if (setupError) {
     await supabaseAdmin.from("move_reminders").update({ status: "failed", failed_at: now, error_code: "sender_setup", error_reason: setupError } as never).eq("id", row.id);
     return { sent: false };
   }
-  const text = reminderText({ ...row, company_name: companyName, link });
+  const text = reminderText({ ...row, company_name: companyName, company_phone: companyPhone, link });
   const msgType = "MMS";
   const sendArgs = { to, text, title: "이사 하루 전 안내", msgType, ...creds, sender, companyId: row.company_id,
-    cardData: { companyName, customerName: row.customer_name, moveDate: row.move_date, amount: "", companyPhone: String(profile?.phone ?? row.company_phone ?? "").trim() } };
+    cardData: { companyName, customerName: row.customer_name, moveDate: row.move_date, amount: "", companyPhone } };
 
   // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).
   const attemptTag = attempt ?? String(Number(row.retry_count ?? 0));

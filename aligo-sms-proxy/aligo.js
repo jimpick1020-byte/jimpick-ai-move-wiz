@@ -112,7 +112,7 @@ export async function sendAligo({ to, text, title, image, testMode, sender }) {
   form.set("testmode_yn", testYn);
   if (msgType !== "SMS") form.set("title", String(title || "이사 견적서").slice(0, 44));
   if (image) {
-    form.set("image", new Blob([image.data], { type: image.contentType }), image.filename);
+    form.set("image1", new Blob([image.data], { type: image.contentType }), image.filename);
   }
 
   let res;
