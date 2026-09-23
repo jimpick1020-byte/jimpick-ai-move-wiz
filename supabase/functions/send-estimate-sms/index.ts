@@ -315,8 +315,9 @@ async function sendViaAligo(v: {
         return {
           ok: false,
           code: r.status,
-          error:
-            "문자 중계 서버가 요청을 거절했습니다(인증 실패). 중계 서버의 JIMPICK_PROXY_SECRET 값과 앱에 저장된 값이 서로 달라 보입니다. 두 값을 똑같이 맞춘 뒤 다시 시도해 주세요.",
+          error: r.status === 403
+            ? "업체의 승인된 발신번호가 없거나 업체 정보가 일치하지 않아 발송하지 않았습니다."
+            : "문자 중계 서버가 요청을 거절했습니다(인증 실패). 중계 서버의 비밀값을 확인해 주세요.",
         };
       }
       if (!data) {

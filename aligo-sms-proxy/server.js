@@ -132,13 +132,13 @@ app.post("/send", async (req, res) => {
     return res.status(400).json({ ok: false, error: "보낼 내용이 비어 있습니다." });
   }
 
+  if (userId && userId !== companyId) return res.status(403).json({ ok: false, error: "업체 정보가 일치하지 않습니다." });
   const sender = await approvedSender(companyId);
   if (!sender) return res.status(403).json({ ok: false, error: "업체의 알리고 승인 발신번호가 등록되지 않아 발송하지 않았습니다." });
-  if (userId && userId !== companyId) return res.status(403).json({ ok: false, error: "업체 정보가 일치하지 않습니다." });
   if (cardType && (!cardData || !String(cardData.companyName ?? "").trim())) {
     return res.status(400).json({ ok: false, error: "업체 정보가 필요합니다." });
   }
-  if (cardType && (!/^https:\/\/\S+/m.test(text) || (String(text).match(/https:\/\/\S+/g) ?? []).length !== 1)) {
+  if (cardType && (!/^https:\/\/\S+/m.test(text) || (String(text).match(/https?:\/\/\S+/g) ?? []).length !== 1)) {
     return res.status(400).json({ ok: false, error: "고객 보안 링크가 정확히 하나 필요합니다." });
   }
 

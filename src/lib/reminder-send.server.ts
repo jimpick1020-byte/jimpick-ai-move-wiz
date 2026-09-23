@@ -132,7 +132,7 @@ async function sendViaAligo(v: {
         body: JSON.stringify({ to: v.to, text: v.text, title: v.title, companyId: v.companyId, userId: v.companyId, cardType: "reminder", cardData: v.cardData }),
       });
       if (r.status === 401 || r.status === 403) {
-        return { ok: false, code: r.status, error: "문자 중계 서버가 요청을 거절했습니다(인증 실패)." };
+        return { ok: false, code: r.status, error: r.status === 403 ? "업체의 승인된 발신번호가 없거나 업체 정보가 일치하지 않습니다." : "문자 중계 서버가 요청을 거절했습니다(인증 실패)." };
       }
       const data = (await r.json().catch(() => null)) as (AligoResponse & { ok?: boolean; error?: string }) | null;
       if (!data) {
