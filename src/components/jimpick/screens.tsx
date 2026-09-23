@@ -205,7 +205,6 @@ import { splitItemNames, matchesQuery } from "@/lib/item-search";
 import { mergeItemCatalog } from "@/lib/item-catalog-merge";
 import { ITEM_KINDS, kindOf, guessKind } from "@/lib/item-kinds";
 import { shrinkPhoto } from "@/lib/photo-shrink";
-import { ExperimentalFeatureSettings } from "./admin";
 
 /** 공간별 품목 접기·펼치기 상태를 기억하는 자리 */
 const ROOM_OPEN_KEY = "jimpick_step6_open_rooms";
@@ -1772,7 +1771,7 @@ export function Step3() {
   };
   const swipe = useSwipeNav(
     () => setScreen("step2"),
-     () => setScreen("step6"),
+     () => setScreen("scan"),
   );
   return (
     <MobileShell className="jp-estimate-flow jp-tone-3">
@@ -1862,7 +1861,7 @@ export function Step3() {
         })}
       </div>
       <BottomButtonBar>
-         <PrimaryButton onClick={() => setScreen("step6")}>다음: 공간별 품목</PrimaryButton>
+         <PrimaryButton onClick={() => setScreen("scan")}>다음: AI 연속촬영</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
@@ -3055,7 +3054,7 @@ export function Step6() {
           <button
             onClick={() => {
               tap("soft");
-              setScreen("step3");
+              setScreen("scan");
             }}
             aria-label="뒤로"
             className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] flex items-center justify-center text-[#25282D] shadow-[0_4px_0_#E5E7EB,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#E5E7EB]"
@@ -3063,7 +3062,7 @@ export function Step6() {
             <ChevronLeft className="w-6 h-6" />
           </button>
           <h1 className="flex-1 text-center text-[20px] font-black text-[#25282D] leading-tight">
-            4단계. 공간별 품목
+            4단계. 직접 선택
           </h1>
           <div className="shrink-0 w-10" />
         </div>
@@ -7057,7 +7056,6 @@ export function SettingsScreen() {
             </div>
           </button>
         )}
-        <ExperimentalFeatureSettings />
         <button
           onClick={() => {
             tap();

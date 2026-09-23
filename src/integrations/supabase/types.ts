@@ -990,6 +990,57 @@ export type Database = {
         }
         Relationships: []
       }
+      room_scans: {
+        Row: {
+          analyzed_at: string | null
+          applied_at: string | null
+          attempts: number
+          created_at: string
+          error_message: string | null
+          estimate_id: string
+          id: string
+          photo_hash: string | null
+          photo_path: string
+          result: Json
+          room: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analyzed_at?: string | null
+          applied_at?: string | null
+          attempts?: number
+          created_at?: string
+          error_message?: string | null
+          estimate_id: string
+          id?: string
+          photo_hash?: string | null
+          photo_path: string
+          result?: Json
+          room: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          analyzed_at?: string | null
+          applied_at?: string | null
+          attempts?: number
+          created_at?: string
+          error_message?: string | null
+          estimate_id?: string
+          id?: string
+          photo_hash?: string | null
+          photo_path?: string
+          result?: Json
+          room?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       service_fix_notices: {
         Row: {
           created_at: string
