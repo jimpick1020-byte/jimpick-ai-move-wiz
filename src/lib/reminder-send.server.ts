@@ -118,23 +118,17 @@ async function sendViaAligo(v: {
   proxySecret?: string;
   sender: string;
   companyId: string;
-  cardData: { companyName: string; customerName: string; moveDate: string; amount: string; companyPhone: string };
 }): Promise<SendOutcome> {
   const viaProxy = !!(v.proxyUrl && v.proxySecret);
   try {
     if (viaProxy) {
-      const health = await fetch(`${v.proxyUrl?.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
-      const capability = (await health.json().catch(() => null)) as { service?: string; capabilities?: string[] } | null;
-      if (!health.ok || capability?.service !== "aligo-sms-proxy" || !capability.capabilities?.includes("sms-cards-v1")) {
-        return { ok: false, error: "그림문자 중계 서버가 아직 새 버전이 아니어서 발송하지 않았습니다." };
-      }
       const r = await fetch(`${v.proxyUrl?.replace(/\/$/, "")}/send`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-jimpick-secret": String(v.proxySecret ?? "").trim(),
         },
-        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, companyId: v.companyId, userId: v.companyId, cardType: "reminder", cardData: v.cardData }),
+        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, sender: v.sender, companyId: v.companyId, userId: v.companyId }),
       });
       if (r.status === 401 || r.status === 403) {
         return { ok: false, code: r.status, error: r.status === 403 ? "업체의 승인된 발신번호가 없거나 업체 정보가 일치하지 않습니다." : "문자 중계 서버가 요청을 거절했습니다(인증 실패)." };
@@ -155,7 +149,7 @@ async function sendViaAligo(v: {
       return { ok: false, code, error: data.error ?? aligoError(code, data.message ?? "") };
     }
 
-    return { ok: false, error: "그림문자 중계 서버가 준비되지 않아 발송하지 않았습니다." };
+    return { ok: false, error: "문자 중계 서버가 준비되지 않아 발송하지 않았습니다." };
   } catch (e) {
     console.error("[move-reminders] 발송 오류", e instanceof Error ? e.message : e);
     return { ok: false, error: "문자 발송 중 연결 오류가 났습니다." };
@@ -192,7 +186,7 @@ async function customerLink(row: Reminder): Promise<string | null> {
     token = (data as { access_token?: string } | null)?.access_token ?? null;
   }
   if (!token) return null;
-  return `${base}/share/${encodeURIComponent(row.estimate_id)}?t=${encodeURIComponent(token)}&rm=${encodeURIComponent(row.view_token)}`;
+  return `${base}/share/${encodeURIComponent(row.estimate_id)}?t=${encodeURIComponent(token)}&rm=${encodeURIComponent(row.view_token)}&card=reminder`;
 }
 
 interface Creds {
@@ -257,9 +251,9 @@ async function sendOne(
     return { sent: false };
   }
   const text = reminderText({ ...row, company_name: companyName, company_phone: companyPhone, link });
-  const msgType = "MMS";
+  const msgType = new TextEncoder().encode(text).length <= 90 ? "SMS" : "LMS";
   const sendArgs = { to, text, title: "이사 하루 전 안내", msgType, ...creds, sender, companyId: row.company_id,
-    cardData: { companyName, customerName: row.customer_name, moveDate: row.move_date, amount: "", companyPhone } };
+  };
 
   // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).
   const attemptTag = attempt ?? String(Number(row.retry_count ?? 0));
