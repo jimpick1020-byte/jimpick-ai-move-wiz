@@ -25,7 +25,9 @@ export async function renderCard(type, data) {
   const customer = fit(data.customerName, 24);
   const date = fit(data.moveDate, 30);
   const phone = fit(data.companyPhone, 30);
+  if (!company || !customer || !date || !phone) throw new Error("업체 정보 또는 고객 자료가 부족해 그림문자를 보내지 않았습니다.");
   const amount = type === "reminder" ? "" : fit(data.amount, 24);
+  if (type !== "reminder" && !amount) throw new Error("견적금액 또는 예약금이 없어 그림문자를 보내지 않았습니다.");
   const base = await readFile(art(variant.image));
   const background = `data:image/jpeg;base64,${base.toString("base64")}`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640">
