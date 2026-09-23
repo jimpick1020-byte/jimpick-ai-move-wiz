@@ -1004,7 +1004,7 @@ const handle = async (req: Request): Promise<Response> => {
     if (!estIn) return json({ ok: false, error: "견적서를 찾지 못했습니다." }, 400);
     const dq = new URLSearchParams({
       select:
-        "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,contact_phone,company_phone,total,deposit_paid,access_token",
+        "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,move_date,contact_phone,company_phone,total,deposit_paid,access_token",
       estimate_id: `eq.${estIn}`,
       order: "sheet_version.desc",
       limit: "1",
