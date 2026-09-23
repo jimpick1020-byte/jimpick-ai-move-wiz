@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useSearch } from "@tanstack/react-router";
+import { useLoaderData, useParams, useSearch } from "@tanstack/react-router";
 import {
   Phone,
   Calendar,
@@ -97,6 +97,7 @@ function Row({ children }: { children: React.ReactNode }) {
 
 export function SharePage() {
   const { id } = useParams({ from: "/share/$id" });
+  const preview = useLoaderData({ from: "/share/$id" });
   const search = useSearch({ from: "/share/$id" }) as { staff?: string; t?: string; rm?: string; card?: string };
   const staffMode = String(search?.staff ?? "") === "1";
   const token = String(search?.t ?? "").slice(0, 80);
@@ -106,11 +107,11 @@ export function SharePage() {
 
   // 이사 전날 안내 문자의 링크로 들어온 경우, 고객이 확인했다는 기록을 남깁니다
   useEffect(() => {
-    if (!link?.ok || link.estimateId !== id || reminderToken.length < 16) return;
+    if (!preview.valid || !link?.ok || link.estimateId !== id || reminderToken.length < 16) return;
     void import("@/lib/reminder.functions")
       .then(({ markReminderViewed }) => markReminderViewed({ data: { token: reminderToken } }))
       .catch(() => undefined);
-  }, [id, link, reminderToken]);
+  }, [id, link, preview.valid, reminderToken]);
 
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [link, setLink] = useState<TermsLinkInfo | null>(null);
@@ -239,7 +240,7 @@ export function SharePage() {
       .then((info) => {
         setLink(info);
         // 고객이 실제로 링크를 연 것만 기록합니다 (직원용 화면은 세지 않습니다)
-        if (info.ok && info.estimateId === id && !staffMode) {
+        if (preview.valid && info.ok && info.estimateId === id && !staffMode) {
           void logCustomerView({ data: { token, event: "sheet" } }).catch(() => {});
         }
         if (info.ok && info.acceptedAt) {
@@ -259,7 +260,7 @@ export function SharePage() {
       })
       .catch(() => setLink(null))
       .finally(() => setLoading(false));
-  }, [id, token, staffMode]);
+  }, [id, token, staffMode, preview.valid]);
 
   const localCalc = useMemo(() => (estimate ? calcEstimate(estimate) : null), [estimate]);
 
@@ -292,7 +293,7 @@ export function SharePage() {
   }, [link]);
 
   // 실제 데이터: 서버(토큰 조회) 우선, 없으면 이 기기에 저장된 견적
-  const validLink = link?.ok === true && link.estimateId === id;
+  const validLink = preview.valid && link?.ok === true && link.estimateId === id;
   const customerName = validLink ? link.customerName ?? "" : "";
   const moveDate = ymd(validLink ? link.moveDate : null);
   // 위쪽 요약 금액과 아래 견적서 금액이 서로 다르면 안 됩니다.

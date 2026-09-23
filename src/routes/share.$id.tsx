@@ -7,7 +7,7 @@ import reminderImage from "@/assets/message-previews/reminder.jpg.asset.json";
 
 type CardType = "quote" | "deposit" | "reminder";
 const previews: Record<CardType, { title: string; description: string; image: string }> = {
-  quote: { title: "JIMPICK 고객용 견적서", description: "고객님의 이사 견적서를 확인하세요.", image: quoteImage.url },
+  quote: { title: "JIMPICK 고객용 견적서", description: "JIMPICK에서 전달드린 이사 견적서입니다.", image: quoteImage.url },
   deposit: { title: "JIMPICK 예약금 안내", description: "예약금과 예약 내용을 확인하세요.", image: depositImage.url },
   reminder: { title: "JIMPICK 이사 전날 안내", description: "내일 이사 일정과 준비사항을 확인하세요.", image: reminderImage.url },
 };
