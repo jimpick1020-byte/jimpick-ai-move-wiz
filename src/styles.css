@@ -206,10 +206,10 @@
   --jp-tone: #ea580c; /* 3단계 작업 조건 · 주황 */
 }
 .jp-tone-4 {
-   --jp-tone: #7c3aed; /* 4단계 공간별 품목 · 보라 */
+  --jp-tone: #db2777; /* 4단계 공간별 품목 · 진한 분홍 */
 }
 .jp-tone-5 {
-   --jp-tone: #db2777; /* 5단계 차량·인원 · 진한 분홍 */
+  --jp-tone: #7c3aed; /* 5단계 차량·인원 · 보라 */
 }
 .jp-tone-ai {
   --jp-tone: #0891b2; /* AI 집 안 스캔 · 청록 */
@@ -255,14 +255,14 @@
   --jp-category-color: #475569;
 }
 
-/* 3·4단계: 항목명과 선택 이름을 조금 더 크게 */
+/* 3단계 작업 조건·5단계 차량: 기존 큰 글씨 유지 */
 .jp-tone-3 .jp-field-label,
-.jp-tone-4 .jp-field-label {
+.jp-tone-5 .jp-field-label {
   font-size: 1.25rem;
   line-height: 1.8rem;
 }
 .jp-tone-3 .text-\[17px\],
-.jp-tone-4 .text-\[17px\] {
+.jp-tone-5 .text-\[17px\] {
   font-size: 19px !important;
   line-height: 1.4 !important;
 }
