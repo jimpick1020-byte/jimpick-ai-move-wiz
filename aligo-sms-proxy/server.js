@@ -66,9 +66,15 @@ function maskPhone(p) {
   return n.length >= 4 ? `010-****-${n.slice(-4)}` : "***";
 }
 
-/** 살아 있는지 확인용 — 인증 없이도 됩니다 */
+/** 살아 있는지 확인용 — 인증 없이도 됩니다 (비밀값은 알려주지 않습니다) */
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, service: "aligo-sms-proxy", capabilities: ["sms-cards-v1", "service-fix-v1", "aligo-result-v1"], time: new Date().toISOString() });
+  res.json({
+    ok: true,
+    service: "aligo-sms-proxy",
+    capabilities: ["sms-cards-v1", "service-fix-v1", "aligo-result-v1", "sender-claim-v1"],
+    dbConfigured: !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
+    time: new Date().toISOString(),
+  });
 });
 
 /**
