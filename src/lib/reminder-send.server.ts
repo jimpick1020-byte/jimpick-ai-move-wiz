@@ -84,17 +84,23 @@ async function sendViaAligo(v: {
   proxySecret?: string;
   sender: string;
   companyId: string;
+  cardData: { companyName: string; customerName: string; moveDate: string; amount: string; companyPhone: string };
 }): Promise<SendOutcome> {
   const viaProxy = !!(v.proxyUrl && v.proxySecret);
   try {
     if (viaProxy) {
+      const health = await fetch(`${v.proxyUrl?.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
+      const capability = (await health.json().catch(() => null)) as { service?: string; capabilities?: string[] } | null;
+      if (!health.ok || capability?.service !== "aligo-sms-proxy" || !capability.capabilities?.includes("sms-cards-v1")) {
+        return { ok: false, error: "그림문자 중계 서버가 아직 새 버전이 아니어서 발송하지 않았습니다." };
+      }
       const r = await fetch(`${v.proxyUrl?.replace(/\/$/, "")}/send`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-jimpick-secret": String(v.proxySecret ?? "").trim(),
         },
-        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, sender: v.sender, companyId: v.companyId, userId: v.companyId }),
+        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, sender: v.sender, companyId: v.companyId, userId: v.companyId, cardType: "reminder", cardData: v.cardData }),
       });
       if (r.status === 401 || r.status === 403) {
         return { ok: false, code: r.status, error: r.status === 403 ? "업체의 승인된 발신번호가 없거나 업체 정보가 일치하지 않습니다." : "문자 중계 서버가 요청을 거절했습니다(인증 실패)." };
@@ -104,7 +110,7 @@ async function sendViaAligo(v: {
         return { ok: false, code: r.status, error: `중계 서버 응답을 읽지 못했습니다. (${r.status})` };
       }
       const code = Number(data.result_code ?? -1);
-      if (r.ok && data.ok === true && code === 1) {
+      if (r.ok && data.ok === true && code === 1 && data.msg_id != null) {
         return {
           ok: true,
           msgId: data.msg_id != null ? String(data.msg_id) : undefined,
@@ -208,6 +214,8 @@ async function sendOne(
   const companyPhone = String(row.company_phone ?? profile?.phone ?? "").trim();
   const setupError = profileErr || senderErr
     ? "업체 발신정보를 확인하지 못했습니다."
+    : !profile?.company_name?.trim()
+      ? "업체 상호명이 없습니다."
     : !/^0[0-9]{8,10}$/.test(sender)
       ? "알리고 승인 발신번호가 등록되지 않았습니다." : !row.customer_name?.trim()
         ? "고객 이름이 없습니다." : !link ? "고객 보안 링크를 확인하지 못했습니다." : null;
@@ -228,6 +236,7 @@ async function sendOne(
   ].filter(Boolean).join("\n");
   const msgType = new TextEncoder().encode(text).length <= 90 ? "SMS" : "LMS";
   const sendArgs = { to, text, title: "", msgType, ...creds, sender, companyId: row.company_id,
+    cardData: { companyName: profile!.company_name!.trim(), customerName: row.customer_name.trim(), moveDate: row.move_date ?? "", amount: "", companyPhone },
   };
 
   // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).

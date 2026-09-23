@@ -1164,6 +1164,14 @@ const handle = async (req: Request): Promise<Response> => {
       text: textD,
       title: "",
       msgType: typeD,
+      cardType: "deposit",
+      cardData: {
+        companyName: companyD.companyName,
+        customerName: String(drow.customer_name).trim(),
+        moveDate: String(drow.move_date ?? "").trim(),
+        amount: wonD(paidD),
+        companyPhone: companyPhoneD,
+      },
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
       sender: companyD.sender,
@@ -1286,7 +1294,8 @@ const handle = async (req: Request): Promise<Response> => {
 
   const version = Number(row.sheet_version ?? 1);
   const customer = String(row.customer_name ?? "").trim();
-  const link = `${appUrl}/share/${encodeURIComponent(estimateId)}?t=${encodeURIComponent(token)}`;
+  if (!appUrl) return json({ ok: false, error: "고객 보안 링크 주소가 설정되지 않아 발송하지 않았습니다." }, 500);
+  const link = `${appUrl}/share/${encodeURIComponent(estimateId)}?t=${encodeURIComponent(token)}&card=quote`;
 
   // ── 3. 같은 발송이 이미 나갔는지 봅니다 ──
   if (idem) {
@@ -1388,6 +1397,14 @@ const handle = async (req: Request): Promise<Response> => {
     text,
     title,
     msgType,
+    cardType: "quote",
+    cardData: {
+      companyName: company.companyName,
+      customerName: customer,
+      moveDate,
+      amount: total > 0 ? `${total.toLocaleString("ko-KR")}원` : "",
+      companyPhone,
+    },
     aligoUserId: aligoUserId!,
     apiKey: apiKey!,
     sender: company.sender,

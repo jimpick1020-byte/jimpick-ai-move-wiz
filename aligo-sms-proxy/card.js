@@ -25,20 +25,20 @@ export async function renderCard(type, data) {
   const customer = fit(data.customerName, 24);
   const date = fit(data.moveDate, 30);
   const phone = fit(data.companyPhone, 30);
-  if (!company || !customer || !date || !phone) throw new Error("업체 정보 또는 고객 자료가 부족해 그림문자를 보내지 않았습니다.");
+  if (!company || !customer) throw new Error("업체 정보 또는 고객 자료가 부족해 그림문자를 보내지 않았습니다.");
   const amount = type === "reminder" ? "" : fit(data.amount, 24);
-  if (type !== "reminder" && !amount) throw new Error("견적금액 또는 예약금이 없어 그림문자를 보내지 않았습니다.");
+  if (type === "deposit" && !amount) throw new Error("예약금이 없어 그림문자를 보내지 않았습니다.");
   const base = await readFile(art(variant.image));
   const background = `data:image/jpeg;base64,${base.toString("base64")}`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640">
     <image href="${background}" width="1200" height="640"/>
     <text x="72" y="78" fill="#1762d6" font-family="Noto Sans KR" font-size="28" font-weight="700" ${company.length > 17 ? 'textLength="460" lengthAdjust="spacingAndGlyphs"' : ""}>${company}</text>
     <text x="72" y="162" fill="#132c50" font-family="Noto Sans KR" font-size="43" font-weight="700">${variant.title}</text>
-    <text x="72" y="229" fill="#465976" font-family="Noto Sans CJK KR" font-size="30">${customer} 고객님 · ${date}</text>
+    <text x="72" y="229" fill="#465976" font-family="Noto Sans CJK KR" font-size="30">${customer} 고객님${date ? ` · ${date}` : ""}</text>
     ${amount ? `<text x="72" y="281" fill="#465976" font-family="Noto Sans CJK KR" font-size="30">${variant.amount} ${amount}</text>` : ""}
     <rect x="72" y="340" width="438" height="84" rx="20" fill="#1762d6"/>
     <text x="291" y="394" fill="#ffffff" text-anchor="middle" font-family="Noto Sans KR" font-size="29" font-weight="700">${variant.button}</text>
-    <text x="72" y="490" fill="#465976" font-family="Noto Sans CJK KR" font-size="25">문의 ${phone}</text>
+    ${phone ? `<text x="72" y="490" fill="#465976" font-family="Noto Sans CJK KR" font-size="25">문의 ${phone}</text>` : ""}
   </svg>`;
   const png = new Resvg(svg, { font: { loadSystemFonts: false, fontFiles: [art("korean.otf"), art("korean-bold.ttf")], defaultFontFamily: "Noto Sans CJK KR" } }).render().asPng();
   for (const quality of [82, 72, 60, 48]) {
