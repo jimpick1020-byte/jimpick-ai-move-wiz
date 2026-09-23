@@ -9,7 +9,6 @@
  * 통신사 전달 완료는 발송결과 조회(reminder-result.server.ts)로 확인한 뒤에만 표시합니다.
  */
 
-const ALIGO_ENDPOINT = "https://apis.aligo.in/send/";
 
 interface Reminder {
   id: string;
