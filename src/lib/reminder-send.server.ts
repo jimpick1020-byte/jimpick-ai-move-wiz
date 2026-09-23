@@ -440,9 +440,26 @@ export async function runDueMoveReminders(limit = 20): Promise<RunResult> {
   let sent = 0;
   let failed = 0;
   for (const row of rows) {
-    const r = await sendOne(row, creds);
-    if (r.sent) sent++;
-    else failed++;
+    try {
+      const r = await sendOne(row, creds);
+      if (r.sent) sent++;
+      else failed++;
+    } catch (e) {
+      // 한 건이 잘못되어도 나머지를 계속 보냅니다. 처리 중으로 멈추지 않도록 원인을 남깁니다.
+      failed++;
+      const message = e instanceof Error ? e.message : String(e);
+      console.error("[move-reminders] 한 건 처리 오류", message);
+      await supabaseAdmin
+        .from("move_reminders")
+        .update({
+          status: "failed",
+          failed_at: new Date().toISOString(),
+          error_code: "server_error",
+          error_reason: `발송 처리 중 오류가 났습니다. (${message})`.slice(0, 500),
+          retry_count: Number(row.retry_count ?? 0) + 1,
+        } as never)
+        .eq("id", row.id);
+    }
   }
 
   await logJobRun({ job: "send", picked: rows.length, sent, failed });
