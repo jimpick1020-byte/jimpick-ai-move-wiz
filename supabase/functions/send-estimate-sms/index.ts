@@ -126,6 +126,23 @@ async function isSuperAdmin(
   }
 }
 
+/** Customer messages are scoped to the estimate owner, not a global sender setting. */
+async function companySmsInfo(companyId: string, supabaseUrl: string, serviceKey: string) {
+  if (!companyId) return { ok: false, error: "업체 정보가 필요합니다." } as const;
+  const [profileRes, senderRes] = await Promise.all([
+    db(`profiles?select=company_name,phone&id=eq.${encodeURIComponent(companyId)}&limit=1`, { supabaseUrl, serviceKey }),
+    db(`company_sms_senders?select=sender_number&company_id=eq.${encodeURIComponent(companyId)}&provider=eq.aligo&limit=1`, { supabaseUrl, serviceKey }),
+  ]);
+  if (!profileRes.ok || !senderRes.ok) return { ok: false, error: "업체 발신정보를 확인하지 못해 발송하지 않았습니다." } as const;
+  const profile = ((await profileRes.json()) as Array<{ company_name?: string; phone?: string }>)[0];
+  const approved = ((await senderRes.json()) as Array<{ sender_number?: string }>)[0];
+  const companyName = String(profile?.company_name ?? "").trim();
+  if (!companyName) return { ok: false, error: "업체 정보가 필요합니다." } as const;
+  const sender = String(approved?.sender_number ?? "").trim();
+  if (!/^0[0-9]{8,10}$/.test(sender)) return { ok: false, error: "알리고 승인 발신번호가 등록되지 않아 발송하지 않았습니다." } as const;
+  return { ok: true, companyName, companyPhone: String(profile?.phone ?? "").trim(), sender } as const;
+}
+
 /**
  * 이용 권한 확인 — 한 달 무료체험 중이거나 유료 구독 중이거나 관리자여야 문자를 보낼 수 있습니다.
  */
@@ -277,33 +294,19 @@ async function sendViaAligo(v: {
   proxySecret?: string;
   viaProxy: boolean;
   userId: string;
+  companyId?: string;
+  cardType?: "quote" | "deposit";
+  cardData?: { companyName: string; customerName: string; moveDate: string; amount: string; companyPhone: string };
 }): Promise<SendOutcome> {
   try {
     if (v.viaProxy) {
-      // 알리고 /send/ API는 반드시 application/x-www-form-urlencoded 형식을 받습니다.
-      // user_id 와 sender 는 서버 코드에만 고정되어 있으며,
-      // 요청 body, 고객정보, 업체정보, 다른 환경변수는 사용하지 않습니다.
-      const userId = "jimpick1020";
-      const sender = "01075662542";
-      const params = new URLSearchParams();
-      params.set("key", v.apiKey);
-      params.set("user_id", userId);
-      params.set("sender", sender);
-      params.set("receiver", v.to);
-      params.set("msg", v.text);
-      if (v.msgType === "LMS") {
-        params.set("msg_type", "LMS");
-        params.set("title", v.title);
-      }
-
       const r = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/send`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          // 보관함에 값을 넣을 때 끝에 줄바꿈이 딸려 들어가는 일이 흔합니다
-          "x-proxy-secret": String(v.proxySecret ?? "").trim(),
+          "Content-Type": "application/json",
+          "x-jimpick-secret": String(v.proxySecret ?? "").trim(),
         },
-        body: params.toString(),
+        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, companyId: v.companyId ?? v.userId, userId: v.userId, cardType: v.cardType, cardData: v.cardData }),
       });
 
       const data = (await r.json().catch(() => null)) as AligoResponse | null;
@@ -321,7 +324,7 @@ async function sendViaAligo(v: {
 
       // Cloud Run 이 HTTP 200을 줘도, 알리고 result_code가 1 미만이면 실패입니다.
       const code = Number(data.result_code ?? -1);
-      if (code >= 1) {
+      if (r.ok && data.ok === true && code === 1) {
         return {
           ok: true,
           msgId: data.msg_id != null ? String(data.msg_id) : undefined,
@@ -340,6 +343,7 @@ async function sendViaAligo(v: {
     }
 
 
+    if (v.cardType) return { ok: false, error: "그림문자 중계 서버가 준비되지 않아 발송하지 않았습니다." };
     const form = new FormData();
     form.append("user_id", v.aligoUserId);
     form.append("key", v.apiKey);
@@ -389,7 +393,7 @@ const handle = async (req: Request): Promise<Response> => {
   // 원문은 로그나 응답에 남기지 않고, 정리한 값만 서버 내부에서 전송합니다.
   const apiKey = Deno.env.get("ALIGO_API_KEY")?.trim();
   // 발신번호는 서버 코드에만 고정되어 있고, 업체 정보·요청 body·다른 변수에서 가져오지 않습니다.
-  const sender = "01075662542";
+  const sender = normalizePhone(Deno.env.get("ALIGO_SENDER") ?? "");
   const appUrl = (Deno.env.get("PUBLIC_APP_URL") ?? Deno.env.get("APP_PUBLIC_URL") ?? "")
     .trim()
     .replace(/\/$/, "");
