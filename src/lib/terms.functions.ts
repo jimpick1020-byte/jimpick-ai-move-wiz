@@ -188,7 +188,8 @@ export const getTermsLink = createServerFn({ method: "POST" })
       customerName: row.customer_name,
       moveDate: row.move_date,
       total: row.total,
-       contactPhone: row.company_phone?.trim() || profile?.phone?.trim() || null,
+      // 문의하기는 고객 번호가 아니라 지금 업체 연락처로 연결합니다
+      contactPhone: profile?.phone?.trim() || row.company_phone?.trim() || null,
       companyName: profile?.company_name?.trim() || null,
       termsName: row.terms_name,
       termsVersion: row.terms_version,
