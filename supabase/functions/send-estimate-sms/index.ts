@@ -677,7 +677,8 @@ const handle = async (req: Request): Promise<Response> => {
     const sq = new URLSearchParams({
       select: "notice_phone,notify_enabled",
       id: "eq.true",
-      limit: "1",
+       limit: "1",
+       deleted_at: "is.null",
     });
     const sres = await db(`service_ops_settings?${sq}`, { supabaseUrl, serviceKey });
     const srow = sres.ok ? ((await sres.json()) as Array<Record<string, unknown>>)?.[0] : null;
@@ -774,7 +775,8 @@ const handle = async (req: Request): Promise<Response> => {
       select:
         "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,contact_phone,move_date,total,sheet_snapshot",
       order: "sheet_version.desc",
-      limit: "1",
+       limit: "1",
+       deleted_at: "is.null",
     });
     if (tokenIn) tq.set("access_token", `eq.${tokenIn}`);
     else tq.set("estimate_id", `eq.${estIn}`);
@@ -1168,6 +1170,7 @@ const handle = async (req: Request): Promise<Response> => {
     estimate_id: `eq.${estimateId}`,
     order: "sheet_version.desc",
     limit: "1",
+    deleted_at: "is.null",
   });
   const res = await db(`estimate_terms?${q}`, { supabaseUrl, serviceKey });
   if (!res.ok) {

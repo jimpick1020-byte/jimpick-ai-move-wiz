@@ -168,6 +168,7 @@ async function customerLink(row: Reminder): Promise<string | null> {
       .from("estimate_terms")
       .select("access_token")
       .eq("id", row.estimate_terms_id)
+      .is("deleted_at", null)
       .maybeSingle();
     token = (data as { access_token?: string } | null)?.access_token ?? null;
   }
@@ -177,6 +178,7 @@ async function customerLink(row: Reminder): Promise<string | null> {
       .select("access_token")
       .eq("estimate_id", row.estimate_id)
       .eq("user_id", row.company_id)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
