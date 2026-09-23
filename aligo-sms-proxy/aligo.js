@@ -35,7 +35,7 @@ export function isPhone(s) {
   return /^01[016789][0-9]{7,8}$/.test(normalizePhone(s));
 }
 
-/** 글자 수로 SMS / LMS 를 정합니다 (90바이트 초과면 장문) */
+/** 길이 판정이 확실하지 않으면 LMS로 보내 SMS 용량 초과를 방지합니다. */
 export function pickMsgType(text, hasImage) {
   if (hasImage) return "MMS";
   return Buffer.byteLength(text, "utf8") > 90 ? "LMS" : "SMS";
