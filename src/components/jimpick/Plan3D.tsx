@@ -105,13 +105,13 @@ export function Plan3D() {
               tap("soft");
               setScreen("step6");
             }}
-            aria-label="5단계로 돌아가기"
+             aria-label="4단계로 돌아가기"
             className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] flex items-center justify-center text-[#25282D] shadow-[0_4px_0_#E5E7EB,inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#E5E7EB]"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
           <h1 className="flex-1 text-center text-[20px] font-black text-[#25282D] leading-tight">
-            6단계. 3D 품목 확인
+             4단계. 3D 품목 확인
           </h1>
           <button
             onClick={() => {
@@ -119,12 +119,12 @@ export function Plan3D() {
               if (restoreStepSnapshot()) {
                 setSize(draft.sizeTab || "30~40평");
                 setOpen(null);
-                toast.success("5~6단계 변경 직전 상태로 복원했습니다");
+                 toast.success("4단계 변경 직전 상태로 복원했습니다");
               } else {
                 toast.error("복원할 스냅샷이 없습니다");
               }
             }}
-            aria-label="5~6단계 변경 직전으로 복원"
+             aria-label="4단계 변경 직전으로 복원"
             className="shrink-0 h-10 px-3 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] flex items-center gap-1 text-[12px] font-black text-[#25282D] shadow-[0_4px_0_#E5E7EB,inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#E5E7EB]"
           >
             <RotateCcw className="w-4 h-4" />
@@ -280,7 +280,7 @@ export function Plan3D() {
                   setScreen("step6");
                 }}
               >
-                5단계에서 품목 수정하기
+                 4단계에서 품목 수정하기
               </PrimaryButton>
             </div>
           </div>

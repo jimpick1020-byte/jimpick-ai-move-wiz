@@ -103,7 +103,7 @@ export interface Estimate {
   /** 특약사항 */
   specialTerms: string;
   rooms: Room[];
-  /** 5단계에서 고른 평수 구간 (예: "30~40평") */
+   /** 4단계에서 고른 평수 구간 (예: "30~40평") */
   sizeTab?: string;
   customItems: CustomItem[];
   hiddenItems: string[];
@@ -801,7 +801,7 @@ export const ITEM_CATALOG: {
  * 품목 1개가 차지하는 부피 (루베 = m³).
  *
  * 현장에서 쓰는 어림값입니다. 회사마다 기준이 다르면 이 숫자만 고치면
- * 6단계 트럭 게이지가 통째로 따라 움직입니다.
+  * 4단계 품목 적재량 게이지가 통째로 따라 움직입니다.
  */
 export const ITEM_VOLUME: Record<string, number> = {
   ...Object.fromEntries(FEATURED_HOUSEHOLD_100.map((item) => [item.id, item.vol])),
@@ -1190,7 +1190,7 @@ export function itemNameById(id: string): string | undefined {
 export interface TruckLoad {
   /** 담긴 짐 전체 부피 (루베) */
   volume: number;
-  /** 4단계에서 고른 차량이 실을 수 있는 부피 */
+  /** 5단계에서 고른 차량이 실을 수 있는 부피 */
   capacity: number;
   /** 적재율 0~ (100 이 꽉 참) */
   percent: number;
@@ -1225,7 +1225,7 @@ export function suggestTrucks(volume: number): { truck1t: number; truck5t: numbe
 
 /**
  * 담긴 짐이 고른 차량에 들어가는지 계산합니다.
- * 6단계 트럭 게이지가 이 값 하나로 움직입니다.
+  * 4단계 품목 적재량 게이지가 이 값 하나로 움직입니다.
  */
 export function calcTruckLoad(e: Estimate): TruckLoad {
   const custom = new Map((e.customItems ?? []).map((c) => [c.id, c.cat]));
@@ -1567,7 +1567,7 @@ interface AppState {
   draft: Estimate;
   estimates: Estimate[];
   currentRoomId: string;
-  /** 5~6단계 진입 직전에 자동 저장되는 스냅샷 */
+   /** 4단계 품목 입력 직전에 자동 저장되는 스냅샷 */
   stepSnapshot?: Estimate | null;
   /** 견적 결과(Result) 화면에서 뒤로가기로 돌아갈 화면 (목록에서 열었을 때 기록) */
   resultFrom?: string;
@@ -1611,7 +1611,7 @@ interface Ctx extends AppState {
   /** 품목을 목록에서 영구히(앱 전체) 숨깁니다 — 새 견적·새로고침에도 유지 */
   hideCatalogItem: (id: string) => void;
   setCurrentRoom: (id: string) => void;
-  /** 5~6단계 변경 직전 스냅샷으로 즉시 복원 */
+   /** 품목 단계 진입 직전 스냅샷으로 즉시 복원 */
   restoreStepSnapshot: () => boolean;
   /**
    * 견적 완료 후 첫 화면으로. 작성 중이던 임시 화면 상태만 정리하고
@@ -1914,13 +1914,13 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
         }
       }
       setState((s) => {
-        // 5단계(품목 입력) 진입 직전 상태를 스냅샷으로 보관합니다
-        const entering5 =
+         // 4단계(품목 입력) 진입 직전 상태를 스냅샷으로 보관합니다
+        const enteringItems =
           screen === "step6" && s.screen !== "step6" && s.screen !== "plan";
         return {
           ...s,
           screen,
-          stepSnapshot: entering5 ? JSON.parse(JSON.stringify(s.draft)) : s.stepSnapshot,
+          stepSnapshot: enteringItems ? JSON.parse(JSON.stringify(s.draft)) : s.stepSnapshot,
         };
       });
     },

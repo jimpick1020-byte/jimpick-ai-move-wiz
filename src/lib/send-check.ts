@@ -27,7 +27,7 @@ const SCREEN_LABEL: Record<MissingField["screen"], string> = {
   step1: "1단계. 고객 정보",
   step2: "2단계. 주소 입력",
   step3: "3단계. 작업 조건",
-  step6: "품목 담기",
+  step6: "4단계. 공간별 품목",
   result: "견적서 화면",
 };
 
@@ -54,7 +54,6 @@ export function checkSendable(draft: Estimate, total: number): SendCheckResult {
 
   if (!String(draft.moveDate ?? "").trim()) missing.push(need("이사 날짜", "step1"));
   if (!String(draft.fromAddress ?? "").trim()) missing.push(need("출발지 주소", "step2"));
-  if (!String(draft.toAddress ?? "").trim()) missing.push(need("도착지 주소", "step2"));
 
   const itemCount = (draft.rooms ?? []).reduce(
     (sum, room) =>
