@@ -579,27 +579,6 @@ export function SharePage() {
       </h1>
 
       {/* 정보를 못 불러온 경우에만 안내합니다 */}
-      {!hasData && (
-        <div className="mt-4 rounded-[14px] bg-white px-4 py-6 text-center text-[16px] font-bold text-[#6B7280] shadow-[0_2px_12px_rgba(17,24,39,0.10)]">
-          정보를 불러올 수 없습니다
-        </div>
-      )}
-
-      {/* 견적서 상세 */}
-      {/* 이 기기에 견적 원본이 없을 때 — 링크로 받아 온 값만으로 보여 줍니다 */}
-      {/* 사장님이 보낸 견적서 원본 — 사장님 화면과 똑같이 보입니다 */}
-      {openSheet && sentSheet && (
-        <div className="mt-4 overflow-hidden rounded-[14px]">
-          <EstimateSheet
-            ref={sheetRef}
-            draft={sentSheet.draft}
-            rooms={sentSheet.rooms}
-            parts={sentSheet.parts}
-            total={sentSheet.total}
-            paidDeposit={paidDeposit}
-            depositClaimSlot={depositClaimSlot}
-            companyName={companyName}
-            companyPhone={contactPhone}
             acceptedAt={accepted ? new Date(accepted.acceptedAt).toISOString() : null}
             acceptedSheetVersion={accepted?.sheetVersion ?? null}
             acceptedTermsVersion={accepted?.termsVersion ?? null}
