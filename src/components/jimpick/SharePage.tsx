@@ -321,7 +321,7 @@ export function SharePage() {
       return (
         <div className="rounded-[14px] border border-[#BFE7CE] bg-[#F1FBF4] px-4 py-3.5">
           <div className="text-center text-[16px] font-black text-[#3E9B78]">
-            예약금 입금이 확인되었습니다
+            예약금 {won(paidDeposit)} 입금 확인 완료
           </div>
         </div>
       );
@@ -332,7 +332,7 @@ export function SharePage() {
       return (
         <div className="rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
           <div className="text-center text-[15.5px] font-bold leading-snug text-[#B45309]">
-            예약금 입금 확인 대기
+            입금 확인 대기 · 업체에서 통장을 확인한 뒤 알려드립니다
           </div>
           {claimError && (
             <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">
@@ -354,7 +354,7 @@ export function SharePage() {
           {claiming ? "알리는 중…" : "입금했습니다"}
         </button>
         <div className="mt-1.5 text-center text-[14px] font-semibold text-[#8A6D1B]">
-          업체가 예약금 입금을 확인한 후 예약이 확정됩니다.
+          예약금을 보내셨으면 눌러 주세요. 업체가 통장을 확인한 뒤 확정됩니다.
         </div>
         {claimError && (
           <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">
