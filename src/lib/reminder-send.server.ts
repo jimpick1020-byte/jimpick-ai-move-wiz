@@ -65,40 +65,6 @@ function aligoError(code: number, message: string): string {
   return `${known[code] ?? "문자 발송에 실패했습니다."} / 알리고 안내: ${raw || "(내용 없음)"} / 코드 ${code}`;
 }
 
-/** 주소를 너무 길지 않게 줄입니다 (동·건물명 정도까지) */
-function shortAddress(v: string | null): string {
-  const s = String(v ?? "").trim();
-  if (!s) return "";
-  return s.length > 40 ? `${s.slice(0, 40)}…` : s;
-}
-
-/** 안내 문자 내용 — 값이 없는 줄은 넣지 않습니다 */
-export function reminderText(r: {
-  company_name?: string;
-  customer_name: string;
-  start_time: string | null;
-  from_address: string | null;
-  to_address: string | null;
-  company_phone: string | null;
-  link?: string | null;
-}): string {
-  const lines: string[] = [
-    `[${r.company_name || "업체 정보가 필요합니다"}]`,
-    "",
-    `${(r.customer_name || "고객").trim()} 고객님, 내일은 예약하신 이사일입니다.`,
-    "",
-  ];
-  if (r.start_time) lines.push(`이사 예정 시간: ${r.start_time}`);
-  const from = shortAddress(r.from_address);
-  if (from) lines.push(`출발지: ${from}`);
-  const to = shortAddress(r.to_address);
-  if (to) lines.push(`도착지: ${to}`);
-  lines.push("", "원활한 이사를 위해 귀중품과 개인 소지품을 미리 확인해 주세요.");
-  if (r.link) lines.push("", "이사 내용 확인:", r.link);
-  if (r.company_phone) lines.push("", `문의: ${r.company_phone}`);
-  return lines.join("\n");
-}
-
 interface SendOutcome {
   ok: boolean;
   msgId?: string;
@@ -250,9 +216,10 @@ async function sendOne(
     await supabaseAdmin.from("move_reminders").update({ status: "failed", failed_at: now, error_code: "sender_setup", error_reason: setupError } as never).eq("id", row.id);
     return { sent: false };
   }
-  const text = reminderText({ ...row, company_name: companyName, company_phone: companyPhone, link });
+  // 보안 링크 자체가 문자 본문의 전부입니다. 카드 그림은 공유 페이지 OG 이미지로만 제공합니다.
+  const text = link ?? "";
   const msgType = new TextEncoder().encode(text).length <= 90 ? "SMS" : "LMS";
-  const sendArgs = { to, text, title: "이사 하루 전 안내", msgType, ...creds, sender, companyId: row.company_id,
+  const sendArgs = { to, text, title: "", msgType, ...creds, sender, companyId: row.company_id,
   };
 
   // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).

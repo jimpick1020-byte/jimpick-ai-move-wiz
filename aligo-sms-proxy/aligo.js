@@ -111,7 +111,8 @@ export async function sendAligo({ to, text, title, image, testMode, sender }) {
   form.set("msg", text);
   form.set("msg_type", msgType);
   form.set("testmode_yn", testYn);
-  if (msgType !== "SMS") form.set("title", String(title || "이사 견적서").slice(0, 44));
+  // 링크만 보내는 고객 안내에는 LMS 제목도 붙이지 않습니다.
+  if (msgType !== "SMS" && title) form.set("title", String(title).slice(0, 44));
   if (image) {
     form.set("image1", new Blob([image.data], { type: image.contentType }), image.filename);
   }
