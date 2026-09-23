@@ -27,7 +27,7 @@ const SCREEN_LABEL: Record<MissingField["screen"], string> = {
   step1: "1단계. 고객 정보",
   step2: "2단계. 주소 입력",
   step3: "3단계. 작업 조건",
-   step6: "4단계. 공간별 품목",
+  step6: "4단계. 공간별 품목",
   result: "견적서 화면",
 };
 

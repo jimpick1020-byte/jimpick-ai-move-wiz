@@ -1536,7 +1536,7 @@ export function Step2() {
       </div>
 
       <BottomButtonBar>
-         <PrimaryButton onClick={() => setScreen("step3")} disabled={!hasFrom}>
+        <PrimaryButton onClick={() => setScreen("step3")} disabled={!hasFrom}>
           다음: 작업 조건
         </PrimaryButton>
       </BottomButtonBar>
@@ -1833,11 +1833,11 @@ export function Step3() {
   );
 }
 
- // ============ Step 5: Vehicles (저장된 내부 키 step4 유지) ============
+// ============ Step 5: Vehicles (저장된 내부 키 step4 유지) ============
 export function Step4() {
-   const { draft, updateDraft, setScreen } = useApp();
+  const { draft, updateDraft, setScreen } = useApp();
   const ladderUnit = getPricing().ladder;
-   const goNext = () => setScreen("options");
+  const goNext = () => setScreen("options");
   const vehicles = [
     {
       key: "truck1t" as const,
@@ -2031,7 +2031,7 @@ export function Step4() {
   );
 }
 
- // ============ Step 4: Items (저장된 내부 키 step6 유지) ============
+// ============ Step 4: Items (저장된 내부 키 step6 유지) ============
 /** 평수별 집 구조(구획) */
 export const SIZE_TABS: { key: string; rooms: string[] }[] = [
   { key: "5~10평", rooms: ["안방", "부엌", "베란다"] },
