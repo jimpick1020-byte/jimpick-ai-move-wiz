@@ -206,12 +206,12 @@ async function sendOne(
   ]);
   const companyName = String(profile?.company_name ?? "").trim();
   const sender = String(senderRow?.sender_number ?? "").trim();
-  const companyPhone = String(profile?.phone ?? row.company_phone ?? "").trim();
+  const companyPhone = String(row.company_phone ?? profile?.phone ?? "").trim();
   const setupError = profileErr || senderErr
     ? "업체 발신정보를 확인하지 못했습니다."
-    : !companyName ? "업체 정보가 필요합니다." : !/^0[0-9]{8,10}$/.test(sender)
-      ? "알리고 승인 발신번호가 등록되지 않았습니다." : !companyPhone || !row.move_date || !row.customer_name
-        ? "업체 문의번호 또는 고객 이사 정보가 없습니다." : !link ? "고객 보안 링크를 확인하지 못했습니다." : null;
+    : !/^0[0-9]{8,10}$/.test(sender)
+      ? "알리고 승인 발신번호가 등록되지 않았습니다." : !row.customer_name?.trim()
+        ? "고객 이름이 없습니다." : !link ? "고객 보안 링크를 확인하지 못했습니다." : null;
   if (setupError) {
     await supabaseAdmin.from("move_reminders").update({ status: "failed", failed_at: now, error_code: "sender_setup", error_reason: setupError } as never).eq("id", row.id);
     return { sent: false };
