@@ -29,7 +29,7 @@ export const Route = createFileRoute("/api/public/item-icon/$file")({
 
         return new Response(await file.data.arrayBuffer(), {
           headers: {
-            "Content-Type": "image/png",
+            "Content-Type": path.endsWith(".jpg") ? "image/jpeg" : "image/png",
             "Cache-Control": "public, max-age=31536000, immutable",
           },
         });

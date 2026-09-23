@@ -21,6 +21,7 @@ import {
 
 import { SignupScreen, SubscriptionScreen } from "@/components/jimpick/account";
 import { AdminAccountsScreen } from "@/components/jimpick/admin";
+import { RoomScanScreen } from "@/components/jimpick/RoomScan";
 import { ForgotPasswordScreen } from "@/components/jimpick/password";
 import { AuthLoadingScreen } from "@/components/jimpick/AuthUi";
 import { ErrorLogScreen } from "@/components/jimpick/errors";
@@ -53,6 +54,7 @@ function Screens() {
     case "step3": return <Step3 />;
     case "step4": return <Step4 />;
     case "step6": return <Step6 />;
+    case "scan": return <RoomScanScreen />;
     case "plan": return <OptionsScreen />;
     case "options": return <OptionsScreen />;
     case "result": return <Result />;
