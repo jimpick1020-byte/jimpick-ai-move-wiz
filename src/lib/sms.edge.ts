@@ -31,7 +31,7 @@ export interface EdgeSmsResult {
   ok: boolean;
   /** 알리고가 준 발송번호 */
   msgId?: string | null;
-  /** SMS · LMS */
+   /** SMS · LMS · MMS */
   msgType?: string;
   successCount?: number;
   /** 발송 요청 일시 · 실제 발송 일시 */
@@ -39,7 +39,7 @@ export interface EdgeSmsResult {
   sentAt?: string | number | null;
   /** 받는 번호 뒤 4자리 (전체 번호는 서버에서도 남기지 않습니다) */
   recipientLast4?: string;
-  /** sent · failed */
+   /** accepted(문자업체 접수) · delivered(통신사 전달 확인) · failed */
   status?: string;
   customerName?: string;
   /** 이미 보낸 건이면 참 — 다시 보내지 않았습니다 */

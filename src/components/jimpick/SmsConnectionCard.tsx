@@ -238,7 +238,7 @@ export function SmsConnectionCard({
                     {result.msgId ? ` · 알리고 발송번호: ${result.msgId}` : ""}
                   </div>
                   <div className="mt-0.5 text-[13px] text-[#6B7280]">
-                    휴대폰에 실제로 도착했는지 확인해 주세요.
+                     접수된 문자입니다. 휴대폰 도착은 따로 확인해 주세요.
                   </div>
                 </>
               ) : (

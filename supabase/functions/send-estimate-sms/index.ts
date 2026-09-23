@@ -589,7 +589,7 @@ const handle = async (req: Request): Promise<Response> => {
     if (!isKoreanMobile(to)) {
       return json({ ok: false, error: "받는 번호 형식이 올바르지 않습니다." }, 400);
     }
-    const testText = "[JIMPICK 짐픽]\n문자발송 연결 테스트입니다.";
+    const testText = `[${testCompany.companyName}]\n문자발송 연결 테스트입니다.`;
     // 시험 문자도 실제로 요금이 나가므로 무료 문자 사용량에 넣습니다.
     const holdT = await reserveSms({
       userId,
@@ -606,7 +606,7 @@ const handle = async (req: Request): Promise<Response> => {
     const sent = await sendViaAligo({
       to,
       text: testText,
-      title: "짐픽 연결 테스트",
+      title: "문자 연결 테스트",
       msgType: "SMS",
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
