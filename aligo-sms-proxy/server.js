@@ -11,7 +11,7 @@
  */
 import express from "express";
 import { timingSafeEqual } from "node:crypto";
-import { sendAligo, isPhone, normalizePhone } from "./aligo.js";
+import { sendAligo, lookupAligo, isPhone, normalizePhone } from "./aligo.js";
 import { saveDelivery, findDelivery } from "./supabase.js";
 import { renderCard } from "./card.js";
 
@@ -81,6 +81,12 @@ app.get("/my-ip", async (_req, res) => {
   } catch {
     res.status(502).json({ ok: false, error: "IP 를 확인하지 못했습니다." });
   }
+});
+
+app.post("/result", async (req, res) => {
+  if (!checkSecret(req, res)) return;
+  const result = await lookupAligo(req.body?.mid);
+  return res.status(result.ok ? 200 : 502).json(result);
 });
 
 /**

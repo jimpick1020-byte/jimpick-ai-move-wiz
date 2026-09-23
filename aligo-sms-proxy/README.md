@@ -155,5 +155,6 @@ GET https://<Cloud Run 주소>/my-ip
   - 받는 번호는 **뒤 4자리만** 저장합니다
 - `GET /my-ip` — 알리고에 등록할 IP 확인
 - `GET /health` — 살아 있는지 확인
+- `POST /result` — 비밀값으로 인증된 서버가 알리고 접수번호의 실제 전달 상태를 조회
 
 `x-jimpick-secret` 헤더가 맞지 않으면 **401** 로 거절합니다.
