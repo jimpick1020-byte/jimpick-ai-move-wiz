@@ -7,6 +7,7 @@
 
 /** 알리고 발송 주소 — SMS·LMS·MMS 모두 이 주소를 씁니다 */
 const SEND_URL = "https://apis.aligo.in/send/";
+const RESULT_URL = "https://apis.aligo.in/sms_list/";
 
 /** 숫자만 남깁니다 */
 export function digits(s) {
@@ -35,7 +36,7 @@ export function isPhone(s) {
   return /^01[016789][0-9]{7,8}$/.test(normalizePhone(s));
 }
 
-/** 글자 수로 SMS / LMS 를 정합니다 (90바이트 초과면 장문) */
+/** 길이 판정이 확실하지 않으면 LMS로 보내 SMS 용량 초과를 방지합니다. */
 export function pickMsgType(text, hasImage) {
   if (hasImage) return "MMS";
   return Buffer.byteLength(text, "utf8") > 90 ? "LMS" : "SMS";
@@ -112,7 +113,7 @@ export async function sendAligo({ to, text, title, image, testMode, sender }) {
   form.set("testmode_yn", testYn);
   if (msgType !== "SMS") form.set("title", String(title || "이사 견적서").slice(0, 44));
   if (image) {
-    form.set("image", new Blob([image.data], { type: image.contentType }), image.filename);
+    form.set("image1", new Blob([image.data], { type: image.contentType }), image.filename);
   }
 
   let res;
@@ -156,4 +157,31 @@ export async function sendAligo({ to, text, title, image, testMode, sender }) {
     successCount: Number(j.success_cnt ?? 0),
     testMode: !!testMode,
   };
+}
+
+/** 알리고 접수번호로 실제 전달 결과를 조회합니다. 조회 불가 시 전달 성공으로 추측하지 않습니다. */
+export async function lookupAligo(mid) {
+  const key = String(process.env.ALIGO_API_KEY ?? "").trim();
+  const userId = String(process.env.ALIGO_USER_ID ?? "").trim();
+  if (!key || !userId || !/^[a-zA-Z0-9_-]{1,100}$/.test(String(mid ?? ""))) {
+    return { ok: false, state: "unknown", error: "발송번호 또는 조회 설정이 올바르지 않습니다." };
+  }
+  try {
+    const form = new URLSearchParams({ key, user_id: userId, mid: String(mid) });
+    const response = await fetch(RESULT_URL, { method: "POST", body: form, signal: AbortSignal.timeout(10000) });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || Number(data?.result_code ?? -1) < 1 || !data?.list?.[0]) {
+      return { ok: false, state: "unknown", error: "알리고 전달 결과를 아직 확인하지 못했습니다." };
+    }
+    const row = data.list[0];
+    const stateText = String(row.sms_state ?? row.reserve_state ?? "").slice(0, 120);
+    const fail = Number(row.fail_count ?? 0) || 0;
+    const success = Number(row.success_count ?? 0) || 0;
+    const state = /실패|취소|반송/.test(stateText) || (fail > 0 && success === 0)
+      ? "failed" : /성공|전송완료|완료/.test(stateText) || success > 0
+        ? "delivered" : /접수|대기|전송중|예약/.test(stateText) ? "accepted" : "unknown";
+    return { ok: true, state, stateText };
+  } catch {
+    return { ok: false, state: "unknown", error: "알리고 전달 결과 조회 연결 오류" };
+  }
 }

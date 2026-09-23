@@ -15,7 +15,7 @@
  * 필요한 값 (Supabase > Edge Functions > Secrets)
  *   ALIGO_USER_ID              알리고 아이디
  *   ALIGO_API_KEY              알리고 API 키
- *   ALIGO_SENDER               사전등록·승인된 발신번호 (예: 01075662542)
+ *   ALIGO_SENDER               운영자 서비스 복구 통보에만 쓰는 사전등록 번호
  *   APP_PUBLIC_URL             고객이 여는 앱 주소 (예: https://example.com)
  *   SUPABASE_URL               (자동으로 들어 있습니다)
  *   SUPABASE_SERVICE_ROLE_KEY  (자동으로 들어 있습니다)
@@ -301,6 +301,14 @@ async function sendViaAligo(v: {
 }): Promise<SendOutcome> {
   try {
     if (v.viaProxy) {
+      // 구형 중계 서버가 그림 필드를 무시하고 텍스트만 보내지 않도록 버전을 먼저 확인합니다.
+      if (v.cardType) {
+        const health = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
+        const capability = (await health.json().catch(() => null)) as { service?: string; capabilities?: string[] } | null;
+        if (!health.ok || capability?.service !== "aligo-sms-proxy" || !capability.capabilities?.includes("sms-cards-v1")) {
+          return { ok: false, error: "그림문자 중계 서버가 아직 새 버전이 아니어서 발송하지 않았습니다." };
+        }
+      }
       const r = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/send`, {
         method: "POST",
         headers: {
@@ -315,8 +323,9 @@ async function sendViaAligo(v: {
         return {
           ok: false,
           code: r.status,
-          error:
-            "문자 중계 서버가 요청을 거절했습니다(인증 실패). 중계 서버의 JIMPICK_PROXY_SECRET 값과 앱에 저장된 값이 서로 달라 보입니다. 두 값을 똑같이 맞춘 뒤 다시 시도해 주세요.",
+          error: r.status === 403
+            ? "업체의 승인된 발신번호가 없거나 업체 정보가 일치하지 않아 발송하지 않았습니다."
+            : "문자 중계 서버가 요청을 거절했습니다(인증 실패). 중계 서버의 비밀값을 확인해 주세요.",
         };
       }
       if (!data) {
@@ -393,7 +402,7 @@ const handle = async (req: Request): Promise<Response> => {
   // 비밀값 등록 과정에서 붙을 수 있는 줄바꿈·공백은 알리고 인증 실패(-102)를 일으킵니다.
   // 원문은 로그나 응답에 남기지 않고, 정리한 값만 서버 내부에서 전송합니다.
   const apiKey = Deno.env.get("ALIGO_API_KEY")?.trim();
-  // 발신번호는 서버 코드에만 고정되어 있고, 업체 정보·요청 body·다른 변수에서 가져오지 않습니다.
+  // 기존 전역 발신번호는 업체별 발송에 사용하지 않습니다.
   const sender = normalizePhone(Deno.env.get("ALIGO_SENDER") ?? "");
   const appUrl = (Deno.env.get("PUBLIC_APP_URL") ?? Deno.env.get("APP_PUBLIC_URL") ?? "")
     .trim()
@@ -434,7 +443,6 @@ const handle = async (req: Request): Promise<Response> => {
   const missing = [
     !aligoUserId && "ALIGO_USER_ID",
     !apiKey && "ALIGO_API_KEY",
-    !sender && "ALIGO_SENDER",
     !appUrl && "PUBLIC_APP_URL",
     !supabaseUrl && "SUPABASE_URL",
     !serviceKey && "SUPABASE_SERVICE_ROLE_KEY",
@@ -529,20 +537,30 @@ const handle = async (req: Request): Promise<Response> => {
 
   // 설정이 되어 있는지만 알려 줍니다 — 아이디·키·발신번호 값은 절대 보내지 않습니다.
   if (body.checkOnly) {
+    const senderReady = userId ? (await companySmsInfo(userId, supabaseUrl, serviceKey)).ok : false;
+    let cardReady = false;
+    if (viaProxy) {
+      try {
+        const r = await fetch(`${proxyUrl!.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
+        const h = (await r.json().catch(() => null)) as { service?: string; capabilities?: string[] } | null;
+        cardReady = r.ok && h?.service === "aligo-sms-proxy" && h.capabilities?.includes("sms-cards-v1") === true;
+      } catch { /* 새 버전 여부를 확인하지 못하면 준비되지 않은 상태입니다. */ }
+    }
     return json({
-      ok: missing.length === 0,
+      ok: missing.length === 0 && cardReady && senderReady && !badAppUrl,
       config: {
         ALIGO_USER_ID: !!aligoUserId,
         ALIGO_API_KEY: !!apiKey,
-        ALIGO_SENDER: !!sender,
+        업체별승인발신번호: senderReady,
         PUBLIC_APP_URL: !!appUrl && !badAppUrl,
         SUPABASE_URL: !!supabaseUrl,
         SUPABASE_SERVICE_ROLE_KEY: !!serviceKey,
         SMS_PROXY_URL: !!proxyUrl,
         JIMPICK_PROXY_SECRET: !!proxySecret,
-        발송경로: viaProxy ? "고정 IP 중계 서버 경유" : "알리고 직접 호출",
+        그림문자서버: cardReady,
+        발송경로: viaProxy ? "고정 IP 중계 서버 경유" : "그림문자 중계 서버 필요",
       },
-      missing,
+      missing: [...missing, ...(!cardReady ? ["그림문자 중계 서버 새 버전"] : []), ...(!senderReady ? ["업체별 승인 발신번호"] : [])],
       appUrlProblem: badAppUrl
         ? "PUBLIC_APP_URL 이 배포 주소가 아닙니다. 배포된 주소로 넣어 주세요."
         : null,
@@ -577,22 +595,18 @@ const handle = async (req: Request): Promise<Response> => {
       500,
     );
   }
-  if (!isKoreanMobile(sender)) {
-    return json(
-      { ok: false, error: "발신번호 형식이 올바르지 않습니다. 알리고에 등록한 번호를 확인해 주세요." },
-      500,
-    );
-  }
-
   // ── 연결 시험 발송 ──
   // 견적서와 무관하게, 정해진 문구만 사장님이 넣은 번호로 한 통 보냅니다.
   // 고객 정보가 섞이지 않으므로 안전합니다. 로그인은 위에서 이미 확인했습니다.
   if (body.mode === "test") {
+    if (!userId) return json({ ok: false, error: "시험 발송할 업체 계정으로 로그인해 주세요." }, 403);
+    const testCompany = await companySmsInfo(userId, supabaseUrl, serviceKey);
+    if (!testCompany.ok) return json({ ok: false, error: testCompany.error }, 403);
     const to = normalizePhone(String(body.test_to ?? ""));
     if (!isKoreanMobile(to)) {
       return json({ ok: false, error: "받는 번호 형식이 올바르지 않습니다." }, 400);
     }
-    const testText = "[JIMPICK 짐픽]\n문자발송 연결 테스트입니다.";
+    const testText = `[${testCompany.companyName}]\n문자발송 연결 테스트입니다.`;
     // 시험 문자도 실제로 요금이 나가므로 무료 문자 사용량에 넣습니다.
     const holdT = await reserveSms({
       userId,
@@ -609,11 +623,12 @@ const handle = async (req: Request): Promise<Response> => {
     const sent = await sendViaAligo({
       to,
       text: testText,
-      title: "짐픽 연결 테스트",
+      title: "문자 연결 테스트",
       msgType: "SMS",
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
-      sender: sender!,
+      sender: testCompany.sender,
+      companyId: userId,
       proxyUrl,
       proxySecret,
       viaProxy,
@@ -635,7 +650,7 @@ const handle = async (req: Request): Promise<Response> => {
           provider_message_id: sent.msgId ?? null,
           msg_id: sent.msgId ?? null,
           msg_type: sent.msgType ?? "SMS",
-          status: sent.ok ? "sent" : "failed",
+          status: sent.ok ? "accepted" : "failed",
           requested_at: nowT,
           sent_at: sent.ok ? nowT : null,
           failed_at: sent.ok ? null : nowT,
@@ -657,7 +672,7 @@ const handle = async (req: Request): Promise<Response> => {
       ok: true,
       msgId: sent.msgId ?? null,
       msgType: sent.msgType ?? "SMS",
-      status: "sent",
+      status: "accepted",
       recipientLast4: last4(to),
       requestedAt: nowT,
       sentAt: nowT,
@@ -668,6 +683,8 @@ const handle = async (req: Request): Promise<Response> => {
   // 오류가 났을 때 관리자를 부르지 않고, 고친 뒤에 「이렇게 고쳤습니다」만 한 통 보냅니다.
   // 받는 번호는 관리자 화면에 저장된 연락처만 씁니다 (코드에 번호를 넣지 않습니다).
   if (body.mode === "fix_notice") {
+    // 서비스 복구 통보는 업체 문자와 다른 운영자 전용 발송입니다.
+    if (!isKoreanMobile(sender)) return json({ ok: false, error: "운영 통보 발신번호가 준비되지 않았습니다." }, 500);
     const title = String(body.notice_title ?? "").trim().slice(0, 60);
     const summary = String(body.notice_summary ?? "").trim().slice(0, 300);
     if (!title || !summary) {
@@ -730,7 +747,7 @@ const handle = async (req: Request): Promise<Response> => {
       msgType: text.length > 90 ? "LMS" : "SMS",
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
-      sender: sender!,
+      sender,
       proxyUrl,
       proxySecret,
       viaProxy,
@@ -738,7 +755,7 @@ const handle = async (req: Request): Promise<Response> => {
     });
     await recordNotice({
       to_masked: `****${last4(noticeTo)}`,
-      status: sent.ok ? "sent" : "failed",
+      status: sent.ok ? "accepted" : "failed",
       provider_message_id: sent.msgId ?? null,
       sent_at: sent.ok ? nowF : null,
       failed_at: sent.ok ? null : nowF,
@@ -754,7 +771,7 @@ const handle = async (req: Request): Promise<Response> => {
       ok: true,
       msgId: sent.msgId ?? null,
       msgType: sent.msgType ?? "SMS",
-      status: "sent",
+      status: "accepted",
       recipientLast4: last4(noticeTo),
       sentAt: nowF,
     });
@@ -775,6 +792,7 @@ const handle = async (req: Request): Promise<Response> => {
         "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,contact_phone,move_date,total,sheet_snapshot",
       order: "sheet_version.desc",
       limit: "1",
+      deleted_at: "is.null",
     });
     if (tokenIn) tq.set("access_token", `eq.${tokenIn}`);
     else tq.set("estimate_id", `eq.${estIn}`);
@@ -786,6 +804,8 @@ const handle = async (req: Request): Promise<Response> => {
     if (!isServerCall && ownerId !== userId) {
       return json({ ok: false, error: "이 견적서의 알림을 보낼 권한이 없습니다." }, 403);
     }
+    const managerCompany = await companySmsInfo(ownerId, supabaseUrl, serviceKey);
+    if (!managerCompany.ok) return json({ ok: false, error: managerCompany.error }, 403);
 
     // 고객이 실제로 예약을 확정했는지 확인합니다 (확인란만 눌렀을 때는 보내지 않습니다)
     const aq = new URLSearchParams({
@@ -811,7 +831,7 @@ const handle = async (req: Request): Promise<Response> => {
       select: "id,status,provider_message_id,sent_at,msg_type",
       idempotency_key: `eq.${idemKey}`,
       delivery_method: "eq.manager_notification",
-      status: "in.(queued,sent,success)",
+      status: "in.(queued,sent,success,accepted,delivered)",
       limit: "1",
     });
     const mres = await db(`estimate_deliveries?${mq}`, { supabaseUrl, serviceKey });
@@ -824,7 +844,7 @@ const handle = async (req: Request): Promise<Response> => {
           msgId: done.provider_message_id ?? null,
           msgType: done.msg_type ?? "SMS",
           sentAt: done.sent_at ?? null,
-          status: String(done.status ?? "sent"),
+          status: String(done.status ?? "accepted"),
           message: "사장님 알림은 이미 발송되었습니다.",
         });
       }
@@ -955,7 +975,8 @@ const handle = async (req: Request): Promise<Response> => {
       msgType: msgTypeM,
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
-      sender: sender!,
+      sender: managerCompany.sender,
+      companyId: ownerId,
       proxyUrl,
       proxySecret,
       viaProxy,
@@ -967,7 +988,7 @@ const handle = async (req: Request): Promise<Response> => {
       provider_message_id: sentM.msgId ?? null,
       msg_id: sentM.msgId ?? null,
       msg_type: sentM.msgType ?? msgTypeM,
-      status: sentM.ok ? "sent" : "failed",
+      status: sentM.ok ? "accepted" : "failed",
       sent_at: sentM.ok ? doneAt : null,
       failed_at: sentM.ok ? null : doneAt,
       error_code: sentM.ok ? null : String(sentM.code ?? ""),
@@ -989,7 +1010,7 @@ const handle = async (req: Request): Promise<Response> => {
     await confirmSms(ownerId, holdM.hold, supabaseUrl, serviceKey);
     return json({
       ok: true,
-      status: "sent",
+      status: "accepted",
       msgId: sentM.msgId ?? null,
       msgType: sentM.msgType ?? msgTypeM,
       recipientLast4: last4(managerPhone),
@@ -1008,6 +1029,7 @@ const handle = async (req: Request): Promise<Response> => {
       estimate_id: `eq.${estIn}`,
       order: "sheet_version.desc",
       limit: "1",
+      deleted_at: "is.null",
     });
     const dres = await db(`estimate_terms?${dq}`, { supabaseUrl, serviceKey });
     if (!dres.ok) return json({ ok: false, error: "견적서를 불러오지 못했습니다." }, 500);
@@ -1029,7 +1051,7 @@ const handle = async (req: Request): Promise<Response> => {
       select: "id,status,provider_message_id,sent_at,msg_type",
       idempotency_key: `eq.${idemD}`,
       delivery_method: "eq.deposit_notification",
-      status: "in.(queued,sent,success)",
+      status: "in.(queued,sent,success,accepted,delivered)",
       limit: "1",
     });
     const dres2 = await db(`estimate_deliveries?${dq2}`, { supabaseUrl, serviceKey });
@@ -1058,7 +1080,7 @@ const handle = async (req: Request): Promise<Response> => {
       tokenD.length >= 8
         ? `${appUrl}/share/${encodeURIComponent(estIn)}?t=${encodeURIComponent(tokenD)}`
         : "";
-    const companyPhoneD = companyD.companyPhone || String(drow.company_phone ?? "").trim();
+    const companyPhoneD = companyD.companyPhone;
     const textD = [
       `[${companyD.companyName}]`,
       `${String(drow.customer_name ?? "고객").trim() || "고객"} 고객님, 예약금 입금이 확인되었습니다.`,
@@ -1068,7 +1090,7 @@ const handle = async (req: Request): Promise<Response> => {
       ...(linkD ? ["", "견적서 확인:", linkD] : []),
       ...(companyPhoneD ? ["", `문의: ${companyPhoneD}`] : []),
     ].join("\n");
-    if (!linkD || !appUrl || !companyPhoneD || !String(drow.move_date ?? "").trim()) return json({ ok: false, error: "고객 보안 링크 또는 업체 문의번호·이사 날짜가 없어 발송하지 않았습니다." }, 400);
+    if (!linkD || !appUrl || !companyPhoneD || !String(drow.move_date ?? "").trim() || !String(drow.customer_name ?? "").trim()) return json({ ok: false, error: "고객 보안 링크 또는 업체 문의번호·고객·이사 날짜가 없어 발송하지 않았습니다." }, 400);
     const typeD = "MMS";
     const holdD = await reserveSms({
       userId: ownerD,
@@ -1092,7 +1114,7 @@ const handle = async (req: Request): Promise<Response> => {
       sender: companyD.sender,
       companyId: ownerD,
       cardType: "deposit",
-      cardData: { companyName: companyD.companyName, customerName: String(drow.customer_name ?? "").trim(), moveDate: String(drow.move_date ?? "").trim(), amount: wonD(paidD), companyPhone: companyD.companyPhone || companyPhoneD },
+      cardData: { companyName: companyD.companyName, customerName: String(drow.customer_name ?? "").trim(), moveDate: String(drow.move_date ?? "").trim(), amount: wonD(paidD), companyPhone: companyPhoneD },
       proxyUrl,
       proxySecret,
       viaProxy,
@@ -1117,7 +1139,7 @@ const handle = async (req: Request): Promise<Response> => {
           provider_message_id: sentD.msgId ?? null,
           msg_id: sentD.msgId ?? null,
           msg_type: sentD.msgType ?? typeD,
-          status: sentD.ok ? "sent" : "failed",
+          status: sentD.ok ? "accepted" : "failed",
           requested_at: atD,
           sent_at: sentD.ok ? atD : null,
           failed_at: sentD.ok ? null : atD,
@@ -1140,7 +1162,7 @@ const handle = async (req: Request): Promise<Response> => {
     await confirmSms(ownerD, holdD.hold, supabaseUrl, serviceKey);
     return json({
       ok: true,
-      status: "sent",
+      status: "accepted",
       msgId: sentD.msgId ?? null,
       msgType: sentD.msgType ?? typeD,
       recipientLast4: last4(custPhoneD),
@@ -1165,6 +1187,7 @@ const handle = async (req: Request): Promise<Response> => {
     estimate_id: `eq.${estimateId}`,
     order: "sheet_version.desc",
     limit: "1",
+    deleted_at: "is.null",
   });
   const res = await db(`estimate_terms?${q}`, { supabaseUrl, serviceKey });
   if (!res.ok) {
@@ -1218,7 +1241,7 @@ const handle = async (req: Request): Promise<Response> => {
       select: "id,status,provider_message_id,sent_at,msg_type",
       estimate_id: `eq.${estimateId}`,
       idempotency_key: `eq.${idem}`,
-      status: "in.(queued,sent,success)",
+      status: "in.(queued,sent,success,accepted,delivered)",
       limit: "1",
     });
     const dres = await db(`estimate_deliveries?${dq}`, { supabaseUrl, serviceKey });
@@ -1248,7 +1271,7 @@ const handle = async (req: Request): Promise<Response> => {
       select: "id,status,provider_message_id,sent_at,msg_type",
       estimate_id: `eq.${estimateId}`,
       to_masked: `eq.****${last4(phone)}`,
-      status: "in.(queued,sent,success)",
+      status: "in.(queued,sent,success,accepted,delivered)",
       sent_at: `gte.${since}`,
       limit: "1",
     });
@@ -1271,8 +1294,8 @@ const handle = async (req: Request): Promise<Response> => {
   }
 
   // ── 4. 문자 내용을 실제 자료로 만듭니다 ──
-  const companyPhone = company.companyPhone || String(row.company_phone ?? "").trim();
-  if (!companyPhone || !String(row.move_date ?? "").trim() || Number(row.total ?? 0) <= 0) return json({ ok: false, error: "업체 문의번호·이사 날짜·견적금액이 없어 발송하지 않았습니다." }, 400);
+  const companyPhone = company.companyPhone;
+  if (!companyPhone || !String(row.move_date ?? "").trim() || !String(row.customer_name ?? "").trim() || Number(row.total ?? 0) <= 0) return json({ ok: false, error: "업체 문의번호·고객·이사 날짜·견적금액이 없어 발송하지 않았습니다." }, 400);
   const text = [
     `[${company.companyName}]`,
     `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
@@ -1281,7 +1304,6 @@ const handle = async (req: Request): Promise<Response> => {
     link,
     ...(companyPhone ? ["", `문의: ${companyPhone}`] : []),
   ].join("\n");
-  const byteLen = new TextEncoder().encode(text).length;
   const msgType = "MMS";
   const title = `이사 견적서 ${String(row.sheet_no ?? "")}`.trim().slice(0, 44);
 
@@ -1316,7 +1338,7 @@ const handle = async (req: Request): Promise<Response> => {
     sender: company.sender,
     companyId: userId,
     cardType: "quote",
-    cardData: { companyName: company.companyName, customerName: customer, moveDate: String(row.move_date ?? "").trim(), amount: `${Number(row.total ?? 0).toLocaleString("ko-KR")}원`, companyPhone: company.companyPhone || companyPhone },
+    cardData: { companyName: company.companyName, customerName: customer, moveDate: String(row.move_date ?? "").trim(), amount: `${Number(row.total ?? 0).toLocaleString("ko-KR")}원`, companyPhone },
     proxyUrl,
     proxySecret,
     viaProxy,
@@ -1343,7 +1365,7 @@ const handle = async (req: Request): Promise<Response> => {
         provider_message_id: result.msgId ?? null,
         msg_id: result.msgId ?? null,
         msg_type: result.msgType ?? msgType,
-        status: result.ok ? "sent" : "failed",
+        status: result.ok ? "accepted" : "failed",
         requested_at: requestedAt,
         sent_at: result.ok ? now : null,
         failed_at: result.ok ? null : now,
@@ -1378,7 +1400,7 @@ const handle = async (req: Request): Promise<Response> => {
     msgId: result.msgId ?? null,
     msgType: result.msgType ?? msgType,
     successCount: result.successCount ?? 0,
-    status: "sent",
+    status: "accepted",
     customerName: customer,
     recipientLast4: last4(phone),
     requestedAt,

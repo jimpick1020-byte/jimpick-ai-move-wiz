@@ -21,12 +21,13 @@
 |---|---|
 | `ALIGO_API_KEY` | 알리고 > 문자 API > API Key |
 | `ALIGO_USER_ID` | 알리고 로그인 아이디 |
-| `ALIGO_SENDER` | 사전등록을 마친 발신번호 |
 | `JIMPICK_PROXY_SECRET` | 직접 만든 무작위 문자열 (40자 이상 권장) |
-| `SUPABASE_URL` | Supabase > 프로젝트 설정 > API |
-| `SUPABASE_SERVICE_ROLE_KEY` | 같은 화면의 `service_role` 키 |
+| `SUPABASE_URL` | 배포 환경에 이미 설정된 백엔드 주소 |
+| `SUPABASE_SERVICE_ROLE_KEY` | 배포 환경의 서버 전용 비밀값 (관리형 환경에서는 직접 조회할 수 없음) |
 
-> `service_role` 키는 **절대 앱이나 브라우저에 넣지 마세요.** 이 서버에서만 씁니다.
+> `SUPABASE_SERVICE_ROLE_KEY`는 **절대 앱이나 브라우저에 넣지 마세요.** 관리형 환경에서 값을 꺼내거나 임의로 만들 수 없습니다. 기존 중계 서버에 안전하게 주입되지 않은 경우 연결 작업이 먼저 필요합니다.
+
+업체별 발신번호는 알리고에서 사전등록 승인 여부를 확인한 운영자가 `company_sms_senders`에 업체별로 등록해야 합니다. 번호가 없으면 요청을 거부하며, 업체 상호만 바꿔 승인되지 않은 번호를 사용할 수 없습니다.
 
 비밀키 만드는 법 (아무 터미널에서):
 
@@ -52,7 +53,7 @@ gcloud run deploy aligo-sms-proxy \
   --source . \
   --region asia-northeast3 \
   --no-allow-unauthenticated \
-  --set-env-vars "ALIGO_API_KEY=...,ALIGO_USER_ID=...,ALIGO_SENDER=...,JIMPICK_PROXY_SECRET=...,SUPABASE_URL=...,SUPABASE_SERVICE_ROLE_KEY=..."
+  --set-env-vars "ALIGO_API_KEY=...,ALIGO_USER_ID=...,JIMPICK_PROXY_SECRET=...,SUPABASE_URL=...,SUPABASE_SERVICE_ROLE_KEY=..."
 ```
 
 > 키를 명령줄에 그대로 적기 싫으면 Cloud Run 콘솔의
@@ -122,58 +123,38 @@ GET https://<Cloud Run 주소>/my-ip
 
 ---
 
-## 5. Supabase 쪽 설정
+## 5. 앱 쪽 설정
 
-**Edge Functions > Secrets** 에 두 개를 넣습니다.
+배포 환경에 두 값을 안전하게 설정합니다.
 
 | 이름 | 값 |
 |---|---|
 | `SMS_PROXY_URL` | Cloud Run 주소 (예: `https://aligo-sms-proxy-xxxx.a.run.app`) |
 | `JIMPICK_PROXY_SECRET` | 이 서버에 넣은 것과 **똑같은** 값 |
 
-그리고 함수를 올립니다.
-
-```bash
-supabase functions deploy send-estimate-sms
-```
-
-발송 이력 표도 만들어 줍니다.
-
-```bash
-supabase db push
-```
+문자 발송 함수와 중계 서버의 비밀값은 일치해야 합니다. 승인 발신번호는 업체별 기록에서 조회하며, 알리고 접수는 통신사 전달 성공과 구분합니다.
 
 ---
 
 ## 6. 시험해 보기
 
-**요금이 나가지 않는 시험 발송** — `testMode: true` 를 넣으면 실제로 가지 않습니다.
+**미발송 설정 점검** — `GET /health` 응답에 `"capabilities":["sms-cards-v1"]`가 있어야 그림문자 발송 경로가 열립니다. 기존 배포 서버가 다른 형태로 응답하면 최신 중계 서버 배포 전까지 그림문자를 보내지 않습니다. `testMode: true`는 실제 전달 확인이 아닙니다. 승인 발신번호가 등록된 테스트 업체·견적·수신번호가 준비된 뒤 앱에서 세 종류를 실제 발송하고 알리고 접수·통신사 전달·한글 표시를 별도로 확인해야 합니다.
 
-```bash
-curl -X POST "https://<Cloud Run 주소>/send" \
-  -H "Content-Type: application/json" \
-  -H "x-jimpick-secret: <JIMPICK_PROXY_SECRET>" \
-  -d '{
-        "to": "01012345678",
-        "text": "[JIMPICK] 시험 문자입니다.",
-        "idempotencyKey": "test-1",
-        "testMode": true
-      }'
-```
-
-살아 있는지 확인: `GET /health`
+중계 서버를 외부에서 직접 호출하는 방식은 업체 소유권을 증명할 수 없으므로 사용하지 마세요. 서버 비밀값은 앱 서버·Edge Function에만 둡니다.
 
 ---
 
 ## 7. 이 서버가 하는 일
 
-- `POST /send` — 문자 보내기 (SMS · LMS · MMS 자동 선택)
-  - 90바이트를 넘으면 자동으로 **LMS(장문)**
-  - `imageBase64` 를 넣으면 **MMS** (그림 300KB 이하)
+- `POST /send` — 업체별 승인 발신번호를 조회한 뒤 SMS · LMS · MMS 전송
+  - UTF-8 길이가 90바이트를 넘으면 보수적으로 **LMS(장문)**
+  - `cardType`이 `quote`, `deposit`, `reminder`이면 실제 업체·고객 자료로 **MMS** 이미지를 만들어 첨부 (300KB 이하)
+  - `imageBase64`를 넣어도 MMS로 보냅니다 (300KB 이하)
   - `idempotencyKey` 가 같으면 **다시 보내지 않습니다** (중복 방지)
-  - 성공·실패를 모두 `estimate_deliveries` 에 기록
+  - 앱 경로는 호출자가 `estimate_deliveries`에 기록합니다. 중계 서버의 독립 발송은 `idempotencyKey`가 있는 경우 기록합니다. 중계 서버는 업체 계정 인증 없이 독립 발송용으로 공개해서는 안 됩니다.
   - 받는 번호는 **뒤 4자리만** 저장합니다
 - `GET /my-ip` — 알리고에 등록할 IP 확인
 - `GET /health` — 살아 있는지 확인
+- `POST /result` — 비밀값으로 인증된 서버가 알리고 접수번호의 실제 전달 상태를 조회
 
 `x-jimpick-secret` 헤더가 맞지 않으면 **401** 로 거절합니다.

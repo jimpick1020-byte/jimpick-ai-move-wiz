@@ -57,7 +57,7 @@ export const getSmsServiceStatus = createServerFn({ method: "GET" })
     return {
       state,
       noticePhoneLast4: last4(profileRes.data?.phone ?? null),
-      sentCount: rows.filter((d) => d.status === "sent" || d.status === "success").length,
+      sentCount: rows.filter((d) => ["sent", "success", "accepted", "delivered"].includes(d.status)).length,
       failedCount: rows.filter((d) => d.status === "failed").length,
     };
   });

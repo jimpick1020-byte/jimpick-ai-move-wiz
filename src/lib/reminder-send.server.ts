@@ -123,6 +123,11 @@ async function sendViaAligo(v: {
   const viaProxy = !!(v.proxyUrl && v.proxySecret);
   try {
     if (viaProxy) {
+      const health = await fetch(`${v.proxyUrl?.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
+      const capability = (await health.json().catch(() => null)) as { service?: string; capabilities?: string[] } | null;
+      if (!health.ok || capability?.service !== "aligo-sms-proxy" || !capability.capabilities?.includes("sms-cards-v1")) {
+        return { ok: false, error: "그림문자 중계 서버가 아직 새 버전이 아니어서 발송하지 않았습니다." };
+      }
       const r = await fetch(`${v.proxyUrl?.replace(/\/$/, "")}/send`, {
         method: "POST",
         headers: {
@@ -132,7 +137,7 @@ async function sendViaAligo(v: {
         body: JSON.stringify({ to: v.to, text: v.text, title: v.title, companyId: v.companyId, userId: v.companyId, cardType: "reminder", cardData: v.cardData }),
       });
       if (r.status === 401 || r.status === 403) {
-        return { ok: false, code: r.status, error: "문자 중계 서버가 요청을 거절했습니다(인증 실패)." };
+        return { ok: false, code: r.status, error: r.status === 403 ? "업체의 승인된 발신번호가 없거나 업체 정보가 일치하지 않습니다." : "문자 중계 서버가 요청을 거절했습니다(인증 실패)." };
       }
       const data = (await r.json().catch(() => null)) as (AligoResponse & { ok?: boolean; error?: string }) | null;
       if (!data) {
@@ -168,8 +173,11 @@ async function customerLink(row: Reminder): Promise<string | null> {
       .from("estimate_terms")
       .select("access_token")
       .eq("id", row.estimate_terms_id)
+      .is("deleted_at", null)
       .maybeSingle();
     token = (data as { access_token?: string } | null)?.access_token ?? null;
+    // 연결된 계약이 삭제되거나 링크가 폐기된 경우 다른 버전으로 우회하지 않습니다.
+    if (!token) return null;
   }
   if (!token) {
     const { data } = await supabaseAdmin
@@ -177,6 +185,7 @@ async function customerLink(row: Reminder): Promise<string | null> {
       .select("access_token")
       .eq("estimate_id", row.estimate_id)
       .eq("user_id", row.company_id)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -237,18 +246,20 @@ async function sendOne(
   ]);
   const companyName = String(profile?.company_name ?? "").trim();
   const sender = String(senderRow?.sender_number ?? "").trim();
+  const companyPhone = String(profile?.phone ?? "").trim();
   const setupError = profileErr || senderErr
     ? "업체 발신정보를 확인하지 못했습니다."
     : !companyName ? "업체 정보가 필요합니다." : !/^0[0-9]{8,10}$/.test(sender)
-      ? "알리고 승인 발신번호가 등록되지 않았습니다." : !link ? "고객 보안 링크를 확인하지 못했습니다." : null;
+      ? "알리고 승인 발신번호가 등록되지 않았습니다." : !companyPhone || !row.move_date || !row.customer_name
+        ? "업체 문의번호 또는 고객 이사 정보가 없습니다." : !link ? "고객 보안 링크를 확인하지 못했습니다." : null;
   if (setupError) {
     await supabaseAdmin.from("move_reminders").update({ status: "failed", failed_at: now, error_code: "sender_setup", error_reason: setupError } as never).eq("id", row.id);
     return { sent: false };
   }
-  const text = reminderText({ ...row, company_name: companyName, link });
+  const text = reminderText({ ...row, company_name: companyName, company_phone: companyPhone, link });
   const msgType = "MMS";
   const sendArgs = { to, text, title: "이사 하루 전 안내", msgType, ...creds, sender, companyId: row.company_id,
-    cardData: { companyName, customerName: row.customer_name, moveDate: row.move_date, amount: "", companyPhone: String(profile?.phone ?? row.company_phone ?? "").trim() } };
+    cardData: { companyName, customerName: row.customer_name, moveDate: row.move_date, amount: "", companyPhone } };
 
   // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).
   const attemptTag = attempt ?? String(Number(row.retry_count ?? 0));

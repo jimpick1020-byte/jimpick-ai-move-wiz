@@ -232,13 +232,13 @@ export function SmsConnectionCard({
             <div className={`rounded-[14px] p-3.5 ${result.ok ? "bg-[#ECFDF3]" : "bg-[#FBEAEA]"}`}>
               {result.ok ? (
                 <>
-                  <div className="text-[15px] font-black text-[#3E9B78]">문자를 보냈습니다</div>
+                   <div className="text-[15px] font-black text-[#3E9B78]">문자 발송이 접수되었습니다</div>
                   <div className="mt-1 text-[14px] text-[#25282D]">
                     종류: {result.msgType ?? "SMS"}
                     {result.msgId ? ` · 알리고 발송번호: ${result.msgId}` : ""}
                   </div>
                   <div className="mt-0.5 text-[13px] text-[#6B7280]">
-                    휴대폰에 실제로 도착했는지 확인해 주세요.
+                     접수된 문자입니다. 휴대폰 도착은 따로 확인해 주세요.
                   </div>
                 </>
               ) : (
