@@ -1272,7 +1272,7 @@ function AddressSearch({
   const [results, setResults] = useState<KakaoPlace[]>([]);
 
   const run = async (query?: string, silent = false) => {
-    const term = (query ?? q ?? "").trim();
+    const term = (query ?? q ?? value).trim();
     if (!term) return;
     setLoading(true);
     setOpen(true);
