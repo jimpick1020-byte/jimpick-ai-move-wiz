@@ -68,6 +68,7 @@ import {
   savePricing,
   DEFAULT_PRICING,
   sideConditionText,
+  newEstimate,
   workConditionSummary,
   type Estimate,
   type Pricing,
