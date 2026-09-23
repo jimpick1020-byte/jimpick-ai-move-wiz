@@ -86,6 +86,36 @@ export type Database = {
         }
         Relationships: []
       }
+      company_sms_senders: {
+        Row: {
+          approved_at: string
+          approved_by: string
+          company_id: string
+          created_at: string
+          provider: string
+          sender_number: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at: string
+          approved_by: string
+          company_id: string
+          created_at?: string
+          provider?: string
+          sender_number: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string
+          company_id?: string
+          created_at?: string
+          provider?: string
+          sender_number?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       deposit_records: {
         Row: {
           amount: number
