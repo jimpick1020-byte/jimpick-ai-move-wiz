@@ -98,7 +98,7 @@ app.post("/send-service-fix-notice", async (req, res) => {
   const sender = normalizePhone(process.env.ALIGO_SENDER);
   if (!url || !key || !/^0[0-9]{8,10}$/.test(sender)) return res.status(503).json({ ok: false, error: "운영 발신정보를 확인할 수 없습니다." });
   const text = String(req.body?.text ?? "");
-  if (!text.startsWith("[JIMPICK 짐픽]\n수정 완료 통보\n") || text.length > 700) {
+  if (!text.startsWith("[JIMPICK 짐픽]\n수정 완료 통보\n") || text.length > 400 || /https?:\/\//i.test(text)) {
     return res.status(400).json({ ok: false, error: "운영 통보 내용이 올바르지 않습니다." });
   }
   try {
