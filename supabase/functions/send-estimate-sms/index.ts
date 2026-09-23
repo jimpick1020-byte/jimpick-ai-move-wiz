@@ -373,7 +373,7 @@ async function sendViaAligo(v: {
     form.append("receiver", v.to);
     form.append("msg", v.text);
     form.append("msg_type", v.msgType);
-    form.append("title", v.title);
+    if (v.title) form.append("title", v.title);
     const r = await fetch(ALIGO_ENDPOINT, { method: "POST", body: form });
     const data = (await r.json().catch(() => null)) as AligoResponse | null;
     if (!data) return { ok: false, error: "알리고 응답을 읽지 못했습니다." };
@@ -1135,15 +1135,7 @@ const handle = async (req: Request): Promise<Response> => {
         ? `${appUrl}/share/${encodeURIComponent(estIn)}?t=${encodeURIComponent(tokenD)}&card=deposit`
         : "";
     const companyPhoneD = companyD.companyPhone;
-    const textD = [
-      `[${companyD.companyName}]`,
-      `${String(drow.customer_name ?? "고객").trim() || "고객"} 고객님, 예약금 입금이 확인되었습니다.`,
-      "",
-      `예약금(입금완료): ${wonD(paidD)}`,
-      ...(totalD > 0 ? [`총 견적금액: ${wonD(totalD)}`, `잔금: ${wonD(balanceD)}`] : []),
-      ...(linkD ? ["", "견적서 확인:", linkD] : []),
-      ...(companyPhoneD ? ["", `문의: ${companyPhoneD}`] : []),
-    ].join("\n");
+    const textD = linkD;
     if (!linkD || !appUrl || !companyPhoneD || !String(drow.move_date ?? "").trim() || !String(drow.customer_name ?? "").trim()) return json({ ok: false, error: "고객 보안 링크 또는 업체 문의번호·고객·이사 날짜가 없어 발송하지 않았습니다." }, 400);
     const typeD = new TextEncoder().encode(textD).length <= 90 ? "SMS" : "LMS";
     const holdD = await reserveSms({
@@ -1161,7 +1153,7 @@ const handle = async (req: Request): Promise<Response> => {
     const sentD = await sendViaAligo({
       to: custPhoneD,
       text: textD,
-      title: "예약금 입금 확인",
+      title: "",
       msgType: typeD,
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
@@ -1348,16 +1340,9 @@ const handle = async (req: Request): Promise<Response> => {
   // ── 4. 문자 내용을 실제 자료로 만듭니다 ──
   const companyPhone = company.companyPhone;
   if (!companyPhone || !String(row.move_date ?? "").trim() || !String(row.customer_name ?? "").trim() || Number(row.total ?? 0) <= 0) return json({ ok: false, error: "업체 문의번호·고객·이사 날짜·견적금액이 없어 발송하지 않았습니다." }, 400);
-  const text = [
-    `[${company.companyName}]`,
-    `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
-    "아래 링크에서 견적서와 표준약관을 확인해 주세요.",
-    "",
-    link,
-    ...(companyPhone ? ["", `문의: ${companyPhone}`] : []),
-  ].join("\n");
+  const text = link;
   const msgType = new TextEncoder().encode(text).length <= 90 ? "SMS" : "LMS";
-  const title = `이사 견적서 ${String(row.sheet_no ?? "")}`.trim().slice(0, 44);
+  const title = "";
 
   const requestedAt = new Date().toISOString();
 
