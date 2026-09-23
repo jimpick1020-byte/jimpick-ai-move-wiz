@@ -754,7 +754,7 @@ const handle = async (req: Request): Promise<Response> => {
       ok: true,
       msgId: sent.msgId ?? null,
       msgType: sent.msgType ?? "SMS",
-      status: "sent",
+      status: "accepted",
       recipientLast4: last4(noticeTo),
       sentAt: nowF,
     });
@@ -813,7 +813,7 @@ const handle = async (req: Request): Promise<Response> => {
       select: "id,status,provider_message_id,sent_at,msg_type",
       idempotency_key: `eq.${idemKey}`,
       delivery_method: "eq.manager_notification",
-      status: "in.(queued,sent,success)",
+      status: "in.(queued,sent,success,accepted,delivered)",
       limit: "1",
     });
     const mres = await db(`estimate_deliveries?${mq}`, { supabaseUrl, serviceKey });
@@ -826,7 +826,7 @@ const handle = async (req: Request): Promise<Response> => {
           msgId: done.provider_message_id ?? null,
           msgType: done.msg_type ?? "SMS",
           sentAt: done.sent_at ?? null,
-          status: String(done.status ?? "sent"),
+          status: String(done.status ?? "accepted"),
           message: "사장님 알림은 이미 발송되었습니다.",
         });
       }
@@ -992,7 +992,7 @@ const handle = async (req: Request): Promise<Response> => {
     await confirmSms(ownerId, holdM.hold, supabaseUrl, serviceKey);
     return json({
       ok: true,
-      status: "sent",
+      status: "accepted",
       msgId: sentM.msgId ?? null,
       msgType: sentM.msgType ?? msgTypeM,
       recipientLast4: last4(managerPhone),
@@ -1032,7 +1032,7 @@ const handle = async (req: Request): Promise<Response> => {
       select: "id,status,provider_message_id,sent_at,msg_type",
       idempotency_key: `eq.${idemD}`,
       delivery_method: "eq.deposit_notification",
-      status: "in.(queued,sent,success)",
+      status: "in.(queued,sent,success,accepted,delivered)",
       limit: "1",
     });
     const dres2 = await db(`estimate_deliveries?${dq2}`, { supabaseUrl, serviceKey });
@@ -1221,7 +1221,7 @@ const handle = async (req: Request): Promise<Response> => {
       select: "id,status,provider_message_id,sent_at,msg_type",
       estimate_id: `eq.${estimateId}`,
       idempotency_key: `eq.${idem}`,
-      status: "in.(queued,sent,success)",
+      status: "in.(queued,sent,success,accepted,delivered)",
       limit: "1",
     });
     const dres = await db(`estimate_deliveries?${dq}`, { supabaseUrl, serviceKey });
@@ -1251,7 +1251,7 @@ const handle = async (req: Request): Promise<Response> => {
       select: "id,status,provider_message_id,sent_at,msg_type",
       estimate_id: `eq.${estimateId}`,
       to_masked: `eq.****${last4(phone)}`,
-      status: "in.(queued,sent,success)",
+      status: "in.(queued,sent,success,accepted,delivered)",
       sent_at: `gte.${since}`,
       limit: "1",
     });
@@ -1381,7 +1381,7 @@ const handle = async (req: Request): Promise<Response> => {
     msgId: result.msgId ?? null,
     msgType: result.msgType ?? msgType,
     successCount: result.successCount ?? 0,
-    status: "sent",
+    status: "accepted",
     customerName: customer,
     recipientLast4: last4(phone),
     requestedAt,
