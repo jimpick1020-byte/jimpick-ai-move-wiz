@@ -31,7 +31,9 @@ async function approvedSender(companyId) {
     });
     if (!r.ok) return null;
     const rows = await r.json();
-    return rows[0]?.sender_number ?? null;
+    // 하이픈이 섞여 저장돼 있어도 알리고 전송 형식(숫자만)으로 맞춰 줍니다.
+    const digits = normalizePhone(rows[0]?.sender_number ?? "");
+    return /^0[0-9]{8,10}$/.test(digits) ? digits : null;
   } catch { return null; }
 }
 
