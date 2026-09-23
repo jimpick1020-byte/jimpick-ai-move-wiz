@@ -30,15 +30,15 @@ export async function renderCard(type, data) {
   const background = `data:image/jpeg;base64,${base.toString("base64")}`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640">
     <image href="${background}" width="1200" height="640"/>
-    <text x="72" y="78" fill="#1762d6" font-family="Noto Sans CJK KR" font-size="28" font-weight="700">${company}</text>
-    <text x="72" y="162" fill="#132c50" font-family="Noto Sans CJK KR" font-size="43" font-weight="700">${variant.title}</text>
+    <text x="72" y="78" fill="#1762d6" font-family="Noto Sans KR" font-size="28" font-weight="700">${company}</text>
+    <text x="72" y="162" fill="#132c50" font-family="Noto Sans KR" font-size="43" font-weight="700">${variant.title}</text>
     <text x="72" y="229" fill="#465976" font-family="Noto Sans CJK KR" font-size="30">${customer} 고객님 · ${date}</text>
     ${amount ? `<text x="72" y="281" fill="#465976" font-family="Noto Sans CJK KR" font-size="30">${variant.amount} ${amount}</text>` : ""}
     <rect x="72" y="340" width="438" height="84" rx="20" fill="#1762d6"/>
-    <text x="291" y="394" fill="#ffffff" text-anchor="middle" font-family="Noto Sans CJK KR" font-size="29" font-weight="700">${variant.button}</text>
+    <text x="291" y="394" fill="#ffffff" text-anchor="middle" font-family="Noto Sans KR" font-size="29" font-weight="700">${variant.button}</text>
     <text x="72" y="490" fill="#465976" font-family="Noto Sans CJK KR" font-size="25">문의 ${phone}</text>
   </svg>`;
-  const png = new Resvg(svg, { font: { loadSystemFonts: false, fontFiles: [art("korean.otf")], defaultFontFamily: "Noto Sans CJK KR" } }).render().asPng();
+  const png = new Resvg(svg, { font: { loadSystemFonts: false, fontFiles: [art("korean.otf"), art("korean-bold.ttf")], defaultFontFamily: "Noto Sans CJK KR" } }).render().asPng();
   const jpeg = await sharp(png).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
   if (jpeg.length > 300 * 1024) throw new Error("문자 이미지가 MMS 용량 제한을 넘었습니다.");
   return { data: jpeg, filename: `${type}.jpg`, contentType: "image/jpeg" };
