@@ -68,6 +68,7 @@ import {
   savePricing,
   DEFAULT_PRICING,
   sideConditionText,
+  newEstimate,
   workConditionSummary,
   type Estimate,
   type Pricing,
@@ -99,6 +100,7 @@ import {
 import { getSizePresets } from "@/lib/size-presets.functions";
 
 import { toast } from "sonner";
+import { lovable } from "@/integrations/lovable";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
@@ -545,6 +547,25 @@ export function Login() {
         <Button
           type="button"
           variant="outline"
+          disabled={busy}
+          onClick={async () => {
+            setErr("");
+            try {
+              const r = await lovable.auth.signInWithOAuth("google", {
+                redirect_uri: window.location.origin,
+              });
+              if (r?.error) setErr("구글 로그인에 실패했습니다. 다시 시도해 주세요.");
+            } catch {
+              setErr("구글 로그인에 실패했습니다. 다시 시도해 주세요.");
+            }
+          }}
+          className="h-12 w-full rounded-[14px] border-border bg-background text-base font-bold text-foreground hover:bg-auth-soft"
+        >
+          <span className="mr-2 text-lg font-black">G</span> 구글로 로그인
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
           onClick={() => setScreen("signup")}
           className="h-12 w-full rounded-[14px] border-auth-primary bg-background text-base font-bold text-auth-primary hover:bg-auth-soft"
         >
@@ -561,9 +582,6 @@ export function Login() {
         >
           아이디 · 비밀번호 찾기
         </Button>
-        <div className="mt-auto pt-4 text-center text-xs text-auth-muted">
-          © JIMPICK · Ver 7.0.0
-        </div>
       </form>
     </AuthShell>
   );
@@ -663,8 +681,23 @@ export function HomeScreen() {
   const done = statsReady ? String(stats.completed) : "…";
   const inProg = statsReady ? String(stats.inProgress) : "…";
   const pct = statsReady ? stats.pct : 0;
-  const customerCount = new Set(estimates.filter((e) => e.customerName || e.phone).map(phoneKey))
-    .size;
+  const localIdSet = new Set(estimates.map((e) => e.id));
+  const archivedOnly = archivedRows
+    .filter((a) => a.estimateId && !localIdSet.has(a.estimateId) && a.customerName?.trim())
+    .map((a) => ({
+      ...newEstimate(),
+      id: a.estimateId,
+      customerName: a.customerName.trim(),
+      phone: "",
+      total: a.total,
+      sizeTab: a.sizeTab,
+      status: "완료" as const,
+      createdAt: a.archivedAt ? new Date(a.archivedAt).getTime() : 0,
+    }));
+  const allEstimates = [...estimates, ...archivedOnly];
+  const customerCount = new Set(
+    allEstimates.filter((e) => e.customerName || e.phone).map(phoneKey),
+  ).size;
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
@@ -676,7 +709,7 @@ export function HomeScreen() {
   const doneSum = estimates
     .filter((e) => e.status === "완료")
     .reduce((s, e) => s + (e.total || 0), 0);
-  const recent = [...estimates].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3);
+  const recent = [...allEstimates].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3);
   const { blocked, remainingText, entitlement } = useEntitlement();
 
   return (
@@ -921,7 +954,9 @@ export function HomeScreen() {
               {recent.map((e) => (
                 <button
                   key={e.id}
-                  onClick={() => loadEstimate(e.id)}
+                  onClick={() =>
+                    localIdSet.has(e.id) ? loadEstimate(e.id) : setScreen("history")
+                  }
                   className="flex w-full items-center justify-between gap-3 rounded-[14px] bg-[#F7F8F5] px-3 py-3 text-left active:translate-y-[1px]"
                 >
                   <div className="min-w-0">
@@ -4819,8 +4854,23 @@ export function Result() {
    * 서버에 실제로 저장된 견적인지 확인한 뒤에만 첫 화면으로 갑니다.
    * 저장된 고객정보·견적서·품목·발송내역은 지우지 않습니다.
    */
+  /** 품목·차량이 하나도 없고 금액이 0원이면 견적 완료를 막습니다 */
+  const emptyEstimateBlocked = () => {
+    const itemQty = (draft.rooms ?? []).reduce(
+      (n, r) => n + Object.values(r.items ?? {}).reduce((m, q) => m + (Number(q) || 0), 0),
+      0,
+    );
+    const trucks = (Number(draft.truck1t) || 0) + (Number(draft.truck5t) || 0);
+    if (itemQty === 0 && trucks === 0 && (Number(total) || 0) <= 0) {
+      toast.error("품목과 차량이 없고 금액이 0원이라 견적을 완료할 수 없습니다. 4단계에서 품목을, 5단계에서 차량을 넣어 주세요.");
+      return true;
+    }
+    return false;
+  };
+
   const finishAndGoHome = async () => {
     if (finishing) return;
+    if (emptyEstimateBlocked()) return;
     setFinishing(true);
     setFinishError(null);
     try {
@@ -4902,6 +4952,7 @@ export function Result() {
    */
   const completeEstimate = async () => {
     if (completing) return;
+    if (emptyEstimateBlocked()) return;
     setCompleting(true);
     try {
       // 저장 순번(revision)은 자동 임시저장과 같은 방식으로 올려, 최신 값이 반영되게 합니다.
@@ -5483,14 +5534,20 @@ export function Result() {
               <div className="text-[#6B7280]">
                 출발: {draft.fromAddress} {draft.fromDetail}
               </div>
-              <div className="text-[#6B7280]">
-                도착: {draft.toAddress} {draft.toDetail}
-              </div>
-              <div>
-                실거리 {draft.distanceKm}km
-                {draft.durationMin ? ` · 약 ${draft.durationMin}분` : ""} ·{" "}
-                {workConditionSummary(draft)}
-              </div>
+              {draft.toAddress?.trim() ? (
+                <>
+                  <div className="text-[#6B7280]">
+                    도착: {draft.toAddress} {draft.toDetail}
+                  </div>
+                  <div>
+                    실거리 {draft.distanceKm}km
+                    {draft.durationMin ? ` · 약 ${draft.durationMin}분` : ""} ·{" "}
+                    {workConditionSummary(draft)}
+                  </div>
+                </>
+              ) : (
+                <div>출발 {sideConditionText(draft, "from") || "-"}</div>
+              )}
               <div>
                 1톤 {draft.truck1t} · 5톤 {draft.truck5t} · 사다리 {draft.ladder}
                 {(draft.ladderFrom || draft.ladderTo) &&
@@ -5758,6 +5815,7 @@ export function Result() {
                 companyName={sheetCompanyName}
                 companyPhone={draft.staffPhone ?? ""}
                 acceptedAt={termsStatus?.acceptedAt ?? null}
+                paymentStatus={termsStatus?.paymentStatus ?? null}
                 acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
                 acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
               />
@@ -6074,6 +6132,7 @@ export function Result() {
                   companyName={sheetCompanyName}
                   companyPhone={draft.staffPhone ?? ""}
                   acceptedAt={termsStatus?.acceptedAt ?? null}
+                paymentStatus={termsStatus?.paymentStatus ?? null}
                   acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
                   acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
                   forCustomer
@@ -6594,6 +6653,18 @@ export function Customers() {
       alive = false;
     };
   }, []);
+  const [archivedRows, setArchivedRows] = useState<ArchivedContractRow[]>([]);
+  useEffect(() => {
+    let alive = true;
+    listArchivedContracts()
+      .then((rows) => {
+        if (alive) setArchivedRows(rows);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const contractOf = (estimateId: string) => {
     const r = termsRows.find((t) => t.estimateId === estimateId);
     if (!r) return null;
@@ -6613,9 +6684,20 @@ export function Customers() {
       ids: string[];
     }
   >();
-  for (const e of estimates) {
-    if (!e.phone) continue;
-    const k = e.phone;
+  // 완료 보관함(서버)에만 남은 완료 견적도 고객 목록에 넣습니다.
+  const localIds = new Set(estimates.map((e) => e.id));
+  const archivedOnly = archivedRows
+    .filter((a) => a.estimateId && !localIds.has(a.estimateId) && a.customerName?.trim())
+    .map((a) => ({
+      id: a.estimateId,
+      customerName: a.customerName.trim(),
+      phone: "",
+      createdAt: a.archivedAt ? new Date(a.archivedAt).getTime() : 0,
+      total: a.total,
+    }));
+  for (const e of [...estimates, ...archivedOnly]) {
+    if (!e.phone && !e.customerName?.trim()) continue;
+    const k = e.phone ? e.phone.replace(/[^0-9]/g, "") || e.phone : `이름:${e.customerName.trim()}`;
     const cur = map.get(k);
     if (!cur || e.createdAt > cur.last) {
       map.set(k, {

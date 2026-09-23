@@ -8,6 +8,7 @@
  * 확정한 뒤에는 sheetSnapshot 을 우선 써서, 단가가 나중에 바뀌어도
  * 이미 보낸 견적서 금액이 흔들리지 않습니다.
  */
+import { normalizePaymentStatus } from "@/lib/payment.functions";
 import { forwardRef, useState, type ReactNode } from "react";
 import {
   CalendarDays,
@@ -156,6 +157,8 @@ export interface EstimateSheetProps {
   companyPhone?: string;
   /** 고객이 동의했으면 그 일시 */
   acceptedAt?: string | null;
+  /** 결제 상태 (결제완료면 「완료」로 표시) */
+  paymentStatus?: string | null;
   /** 고객이 실제로 동의한 견적서 차수·약관 버전 (동의 전에는 비워 둡니다) */
   acceptedSheetVersion?: number | null;
   acceptedTermsVersion?: string | null;
@@ -180,6 +183,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     companyName = "",
     companyPhone,
     acceptedAt = null,
+    paymentStatus = null,
     acceptedSheetVersion = null,
     acceptedTermsVersion = null,
     forCustomer = false,
@@ -218,7 +222,17 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
   const hasBank = !!(bank.name || bank.account || bank.holder);
   const [termsOpen, setTermsOpen] = useState(false);
   const [fullOpen, setFullOpen] = useState(false);
-  const confirmed = !!draft.sheetConfirmedAt;
+  const hasDest = !!draft.toAddress?.trim();
+  const payStatus = paymentStatus ? normalizePaymentStatus(paymentStatus) : null;
+  const statusLabel =
+    payStatus === "completed"
+      ? "완료"
+      : acceptedAt || payStatus === "deposit_paid" || (paidDeposit ?? 0) > 0
+        ? "예약 확정"
+        : draft.sheetConfirmedAt || draft.status === "완료"
+          ? "확정"
+          : "작성 중";
+  const confirmed = statusLabel !== "작성 중";
 
   const truckText =
     [
@@ -260,7 +274,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                 }`}
               >
                 {confirmed && <CheckCircle2 className="h-[16px] w-[16px]" strokeWidth={2.4} />}
-                {confirmed ? "확정" : "작성 중"}
+                {statusLabel}
               </div>
             </div>
           </div>
@@ -324,16 +338,20 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             label="시작 시간"
             value={draft.moveTime || "미정"}
           />
-          <Stat
-            icon={<Route className="h-[19px] w-[19px]" strokeWidth={2} />}
-            label="이동 거리"
-            value={draft.distanceKm ? `${draft.distanceKm}km` : "미정"}
-          />
-          <Stat
-            icon={<Timer className="h-[19px] w-[19px]" strokeWidth={2} />}
-            label="예상 이동시간"
-            value={draft.durationMin ? `${draft.durationMin}분` : "미정"}
-          />
+          {hasDest && (
+            <Stat
+              icon={<Route className="h-[19px] w-[19px]" strokeWidth={2} />}
+              label="이동 거리"
+              value={draft.distanceKm ? `${draft.distanceKm}km` : "미정"}
+            />
+          )}
+          {hasDest && (
+            <Stat
+              icon={<Timer className="h-[19px] w-[19px]" strokeWidth={2} />}
+              label="예상 이동시간"
+              value={draft.durationMin ? `${draft.durationMin}분` : "미정"}
+            />
+          )}
         </div>
 
         {/* 출발지 · 도착지 */}
@@ -343,11 +361,13 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             value={`${draft.fromAddress} ${draft.fromDetail || ""}`.trim()}
             sub={sideConditionText(draft, "from")}
           />
-          <AddressRow
-            label="도착지"
-            value={`${draft.toAddress} ${draft.toDetail || ""}`.trim()}
-            sub={sideConditionText(draft, "to")}
-          />
+          {hasDest && (
+            <AddressRow
+              label="도착지"
+              value={`${draft.toAddress} ${draft.toDetail || ""}`.trim()}
+              sub={sideConditionText(draft, "to")}
+            />
+          )}
         </div>
 
         {/* 고객 메모 — 입력한 내용이 있을 때만 */}

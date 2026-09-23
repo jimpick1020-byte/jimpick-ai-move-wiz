@@ -446,8 +446,8 @@ export function SignupScreen() {
         )}
 
         <div className="text-sm leading-relaxed text-auth-muted">
-          가입 즉시 <b>한 달 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능과 문자를 무제한으로
-          쓸 수 있습니다.
+          가입 즉시 <b>한 달 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능을 쓸 수 있습니다.
+          문자 발송 비용은 별도 충전금에서 차감됩니다.
         </div>
         {formError && (
           <div
