@@ -305,12 +305,14 @@ async function sendOne(
   const usageRpc = supabaseAdmin as unknown as {
     rpc: (n: string, a: Record<string, unknown>) => Promise<unknown>;
   };
-  await usageRpc
-    .rpc(out.ok ? "confirm_free_sms" : "release_free_sms", {
+  try {
+    await usageRpc.rpc(out.ok ? "confirm_free_sms" : "release_free_sms", {
       _user_id: row.user_id,
       _key: usageKey,
-    })
-    .catch(() => undefined);
+    });
+  } catch (e) {
+    console.error("[move-reminders] 사용량 정리 실패", e instanceof Error ? e.message : e);
+  }
 
   await supabaseAdmin
     .from("move_reminders")
@@ -438,9 +440,26 @@ export async function runDueMoveReminders(limit = 20): Promise<RunResult> {
   let sent = 0;
   let failed = 0;
   for (const row of rows) {
-    const r = await sendOne(row, creds);
-    if (r.sent) sent++;
-    else failed++;
+    try {
+      const r = await sendOne(row, creds);
+      if (r.sent) sent++;
+      else failed++;
+    } catch (e) {
+      // 한 건이 잘못되어도 나머지를 계속 보냅니다. 처리 중으로 멈추지 않도록 원인을 남깁니다.
+      failed++;
+      const message = e instanceof Error ? e.message : String(e);
+      console.error("[move-reminders] 한 건 처리 오류", message);
+      await supabaseAdmin
+        .from("move_reminders")
+        .update({
+          status: "failed",
+          failed_at: new Date().toISOString(),
+          error_code: "server_error",
+          error_reason: `발송 처리 중 오류가 났습니다. (${message})`.slice(0, 500),
+          retry_count: Number(row.retry_count ?? 0) + 1,
+        } as never)
+        .eq("id", row.id);
+    }
   }
 
   await logJobRun({ job: "send", picked: rows.length, sent, failed });
@@ -516,8 +535,10 @@ export async function sweepMissedReminders(): Promise<{
       .eq("estimate_terms_id", t.id)
       .maybeSingle();
     const status = String((rem as { status?: string } | null)?.status ?? "");
-    if (["accepted", "delivered", "success", "processing", "sending"].includes(status)) continue;
+    // 처리 중으로 멈춘 건은 아래 claim_move_reminders 가 한 번만 다시 집어 갑니다.
+    if (["accepted", "delivered", "success"].includes(status)) continue;
     if (status === "canceled") continue;
+    if (["processing", "sending"].includes(status)) continue;
 
     // 예약이 없거나 아직 발송 예정이면 다시 만들어 즉시 보낼 수 있게 합니다
     const { syncMoveReminder } = await import("./reminder.server");
