@@ -1132,7 +1132,7 @@ const handle = async (req: Request): Promise<Response> => {
     const tokenD = String(drow.access_token ?? "");
     const linkD =
       tokenD.length >= 8
-        ? `${appUrl}/share/${encodeURIComponent(estIn)}?t=${encodeURIComponent(tokenD)}`
+        ? `${appUrl}/share/${encodeURIComponent(estIn)}?t=${encodeURIComponent(tokenD)}&card=deposit`
         : "";
     const companyPhoneD = companyD.companyPhone;
     const textD = [
@@ -1145,7 +1145,7 @@ const handle = async (req: Request): Promise<Response> => {
       ...(companyPhoneD ? ["", `문의: ${companyPhoneD}`] : []),
     ].join("\n");
     if (!linkD || !appUrl || !companyPhoneD || !String(drow.move_date ?? "").trim() || !String(drow.customer_name ?? "").trim()) return json({ ok: false, error: "고객 보안 링크 또는 업체 문의번호·고객·이사 날짜가 없어 발송하지 않았습니다." }, 400);
-    const typeD = "MMS";
+    const typeD = new TextEncoder().encode(textD).length <= 90 ? "SMS" : "LMS";
     const holdD = await reserveSms({
       userId: ownerD,
       key: `usage:${idemD}`,
@@ -1167,8 +1167,6 @@ const handle = async (req: Request): Promise<Response> => {
       apiKey: apiKey!,
       sender: companyD.sender,
       companyId: ownerD,
-      cardType: "deposit",
-      cardData: { companyName: companyD.companyName, customerName: String(drow.customer_name ?? "").trim(), moveDate: String(drow.move_date ?? "").trim(), amount: wonD(paidD), companyPhone: companyPhoneD },
       proxyUrl,
       proxySecret,
       viaProxy,
@@ -1358,7 +1356,7 @@ const handle = async (req: Request): Promise<Response> => {
     link,
     ...(companyPhone ? ["", `문의: ${companyPhone}`] : []),
   ].join("\n");
-  const msgType = "MMS";
+  const msgType = new TextEncoder().encode(text).length <= 90 ? "SMS" : "LMS";
   const title = `이사 견적서 ${String(row.sheet_no ?? "")}`.trim().slice(0, 44);
 
   const requestedAt = new Date().toISOString();
@@ -1391,8 +1389,6 @@ const handle = async (req: Request): Promise<Response> => {
     apiKey: apiKey!,
     sender: company.sender,
     companyId: userId,
-    cardType: "quote",
-    cardData: { companyName: company.companyName, customerName: customer, moveDate: String(row.move_date ?? "").trim(), amount: `${Number(row.total ?? 0).toLocaleString("ko-KR")}원`, companyPhone },
     proxyUrl,
     proxySecret,
     viaProxy,

@@ -279,6 +279,10 @@ export const retryMoveReminder = createServerFn({ method: "POST" })
 export const markReminderViewed = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ token: z.string().min(16).max(80) }).parse(d))
   .handler(async ({ data }): Promise<{ ok: boolean }> => {
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (/bot|crawler|spider|preview|facebookexternalhit|kakaotalk|slack|twitterbot|telegram|discord|whatsapp|google-inspection/i.test(getRequest().headers.get("user-agent") ?? "")) {
+      return { ok: false };
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: out } = await (
       supabaseAdmin as unknown as {

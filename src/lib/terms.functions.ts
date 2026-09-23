@@ -446,6 +446,12 @@ export const logCustomerView = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }): Promise<{ ok: boolean }> => {
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const agent = getRequest().headers.get("user-agent") ?? "";
+    // Link-preview crawlers should never count as customers opening a quote.
+    if (/bot|crawler|spider|preview|facebookexternalhit|kakaotalk|slack|twitterbot|telegram|discord|whatsapp|google-inspection/i.test(agent)) {
+      return { ok: false };
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row } = await supabaseAdmin
       .from("estimate_terms")
