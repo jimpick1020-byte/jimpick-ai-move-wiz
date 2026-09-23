@@ -680,8 +680,23 @@ export function HomeScreen() {
   const done = statsReady ? String(stats.completed) : "…";
   const inProg = statsReady ? String(stats.inProgress) : "…";
   const pct = statsReady ? stats.pct : 0;
-  const customerCount = new Set(estimates.filter((e) => e.customerName || e.phone).map(phoneKey))
-    .size;
+  const localIdSet = new Set(estimates.map((e) => e.id));
+  const archivedOnly = archivedRows
+    .filter((a) => a.estimateId && !localIdSet.has(a.estimateId) && a.customerName?.trim())
+    .map((a) => ({
+      ...newEstimate(),
+      id: a.estimateId,
+      customerName: a.customerName.trim(),
+      phone: "",
+      total: a.total,
+      sizeTab: a.sizeTab,
+      status: "완료" as const,
+      createdAt: a.archivedAt ? new Date(a.archivedAt).getTime() : 0,
+    }));
+  const allEstimates = [...estimates, ...archivedOnly];
+  const customerCount = new Set(
+    allEstimates.filter((e) => e.customerName || e.phone).map(phoneKey),
+  ).size;
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
@@ -693,7 +708,7 @@ export function HomeScreen() {
   const doneSum = estimates
     .filter((e) => e.status === "완료")
     .reduce((s, e) => s + (e.total || 0), 0);
-  const recent = [...estimates].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3);
+  const recent = [...allEstimates].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3);
   const { blocked, remainingText, entitlement } = useEntitlement();
 
   return (
@@ -938,7 +953,9 @@ export function HomeScreen() {
               {recent.map((e) => (
                 <button
                   key={e.id}
-                  onClick={() => loadEstimate(e.id)}
+                  onClick={() =>
+                    localIdSet.has(e.id) ? loadEstimate(e.id) : setScreen("history")
+                  }
                   className="flex w-full items-center justify-between gap-3 rounded-[14px] bg-[#F7F8F5] px-3 py-3 text-left active:translate-y-[1px]"
                 >
                   <div className="min-w-0">
@@ -6635,6 +6652,18 @@ export function Customers() {
       alive = false;
     };
   }, []);
+  const [archivedRows, setArchivedRows] = useState<ArchivedContractRow[]>([]);
+  useEffect(() => {
+    let alive = true;
+    listArchivedContracts()
+      .then((rows) => {
+        if (alive) setArchivedRows(rows);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const contractOf = (estimateId: string) => {
     const r = termsRows.find((t) => t.estimateId === estimateId);
     if (!r) return null;
@@ -6654,9 +6683,20 @@ export function Customers() {
       ids: string[];
     }
   >();
-  for (const e of estimates) {
-    if (!e.phone) continue;
-    const k = e.phone;
+  // 완료 보관함(서버)에만 남은 완료 견적도 고객 목록에 넣습니다.
+  const localIds = new Set(estimates.map((e) => e.id));
+  const archivedOnly = archivedRows
+    .filter((a) => a.estimateId && !localIds.has(a.estimateId) && a.customerName?.trim())
+    .map((a) => ({
+      id: a.estimateId,
+      customerName: a.customerName.trim(),
+      phone: "",
+      createdAt: a.archivedAt ? new Date(a.archivedAt).getTime() : 0,
+      total: a.total,
+    }));
+  for (const e of [...estimates, ...archivedOnly]) {
+    if (!e.phone && !e.customerName?.trim()) continue;
+    const k = e.phone ? e.phone.replace(/[^0-9]/g, "") || e.phone : `이름:${e.customerName.trim()}`;
     const cur = map.get(k);
     if (!cur || e.createdAt > cur.last) {
       map.set(k, {
