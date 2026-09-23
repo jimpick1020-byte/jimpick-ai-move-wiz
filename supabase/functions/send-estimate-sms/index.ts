@@ -424,6 +424,7 @@ const handle = async (req: Request): Promise<Response> => {
 
   let body: {
     estimate_id?: string;
+    company_id?: string;
     delivery_method?: string;
     idempotency_key?: string;
     /** 사장님이 확인창에서 「다시 발송」을 직접 누른 경우에만 참 */
@@ -546,7 +547,9 @@ const handle = async (req: Request): Promise<Response> => {
 
   // 설정이 되어 있는지만 알려 줍니다 — 아이디·키·발신번호 값은 절대 보내지 않습니다.
   if (body.checkOnly) {
-    const senderReady = userId ? (await companySmsInfo(userId, supabaseUrl, serviceKey)).ok : false;
+    const checkCompanyId = isServerCall && /^[0-9a-f-]{36}$/i.test(String(body.company_id ?? ""))
+      ? String(body.company_id) : userId;
+    const senderReady = checkCompanyId ? (await companySmsInfo(checkCompanyId, supabaseUrl, serviceKey)).ok : false;
     let cardReady = false;
     if (viaProxy) {
       try {

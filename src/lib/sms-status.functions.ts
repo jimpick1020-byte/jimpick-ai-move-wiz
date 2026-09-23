@@ -45,7 +45,7 @@ export const getSmsServiceStatus = createServerFn({ method: "GET" })
             Authorization: `Bearer ${serviceKey}`,
             "x-jimpick-server": serverSecret,
           },
-          body: JSON.stringify({ checkOnly: true }),
+           body: JSON.stringify({ checkOnly: true, company_id: context.userId }),
         });
         const body = (await r.json().catch(() => null)) as { ok?: boolean } | null;
         state = body?.ok === true && !!senderRes.data?.sender_number && !senderRes.error ? "ready" : "maintenance";
