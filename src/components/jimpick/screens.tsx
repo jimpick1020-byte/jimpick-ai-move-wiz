@@ -4819,8 +4819,23 @@ export function Result() {
    * 서버에 실제로 저장된 견적인지 확인한 뒤에만 첫 화면으로 갑니다.
    * 저장된 고객정보·견적서·품목·발송내역은 지우지 않습니다.
    */
+  /** 품목·차량이 하나도 없고 금액이 0원이면 견적 완료를 막습니다 */
+  const emptyEstimateBlocked = () => {
+    const itemQty = (draft.rooms ?? []).reduce(
+      (n, r) => n + Object.values(r.items ?? {}).reduce((m, q) => m + (Number(q) || 0), 0),
+      0,
+    );
+    const trucks = (Number(draft.truck1t) || 0) + (Number(draft.truck5t) || 0);
+    if (itemQty === 0 && trucks === 0 && (Number(total) || 0) <= 0) {
+      toast.error("품목과 차량이 없고 금액이 0원이라 견적을 완료할 수 없습니다. 4단계에서 품목을, 5단계에서 차량을 넣어 주세요.");
+      return true;
+    }
+    return false;
+  };
+
   const finishAndGoHome = async () => {
     if (finishing) return;
+    if (emptyEstimateBlocked()) return;
     setFinishing(true);
     setFinishError(null);
     try {
@@ -4902,6 +4917,7 @@ export function Result() {
    */
   const completeEstimate = async () => {
     if (completing) return;
+    if (emptyEstimateBlocked()) return;
     setCompleting(true);
     try {
       // 저장 순번(revision)은 자동 임시저장과 같은 방식으로 올려, 최신 값이 반영되게 합니다.
