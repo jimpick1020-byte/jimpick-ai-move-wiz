@@ -10,6 +10,10 @@ export const getSharePreview = createServerFn({ method: "GET" })
     card: z.enum(["quote", "deposit", "reminder"]).default("quote"),
   }).parse(value))
   .handler(async ({ data }) => {
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const requestUrl = new URL(getRequest().url);
+    const origin = requestUrl.protocol === "https:" || requestUrl.hostname === "localhost"
+      ? requestUrl.origin : "";
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: terms, error } = await supabaseAdmin.from("estimate_terms")
       .select("id, user_id, estimate_id, deposit_paid")
@@ -35,5 +39,5 @@ export const getSharePreview = createServerFn({ method: "GET" })
     if (data.card === "deposit" && Number(terms.deposit_paid ?? 0) <= 0) {
       return { valid: false as const };
     }
-    return { valid: true as const, card: data.card };
+    return { valid: true as const, card: data.card, origin };
   });
