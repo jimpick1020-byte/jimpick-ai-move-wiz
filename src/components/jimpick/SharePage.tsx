@@ -104,6 +104,8 @@ export function SharePage() {
   const reminderToken = String(search?.rm ?? "").slice(0, 80);
   const isReminder = search.card === "reminder" || Boolean(reminderToken);
   const isDeposit = search.card === "deposit";
+  const [estimate, setEstimate] = useState<Estimate | null>(null);
+  const [link, setLink] = useState<TermsLinkInfo | null>(null);
 
   // 이사 전날 안내 문자의 링크로 들어온 경우, 고객이 확인했다는 기록을 남깁니다
   useEffect(() => {
@@ -113,8 +115,6 @@ export function SharePage() {
       .catch(() => undefined);
   }, [id, link, preview.valid, reminderToken]);
 
-  const [estimate, setEstimate] = useState<Estimate | null>(null);
-  const [link, setLink] = useState<TermsLinkInfo | null>(null);
   const [loading, setLoading] = useState(true);
   // 고객은 링크를 열면 바로 견적서를 봅니다 (한 번 더 누르지 않습니다)
   const [openSheet, setOpenSheet] = useState(true);
@@ -269,7 +269,7 @@ export function SharePage() {
    * 이게 있으면 사장님 화면과 똑같은 견적서를 그대로 보여 줍니다.
    */
   const sentSheet = useMemo(() => {
-    const raw = link?.ok ? link.sheetSnapshot : null;
+    const raw = preview.valid && link?.ok && link.estimateId === id ? link.sheetSnapshot : null;
     if (!raw) return null;
     try {
       const v = JSON.parse(raw) as {
@@ -290,7 +290,7 @@ export function SharePage() {
     } catch {
       return null;
     }
-  }, [link]);
+  }, [id, link, preview.valid]);
 
   // 실제 데이터: 서버(토큰 조회) 우선, 없으면 이 기기에 저장된 견적
   const validLink = preview.valid && link?.ok === true && link.estimateId === id;
@@ -299,7 +299,7 @@ export function SharePage() {
   // 위쪽 요약 금액과 아래 견적서 금액이 서로 다르면 안 됩니다.
   // 사장님이 보낸 견적서 원본이 있으면 그 금액을 먼저 씁니다.
   const total =
-    sentSheet && sentSheet.total > 0
+    validLink && sentSheet && sentSheet.total > 0
       ? sentSheet.total
       : validLink && typeof link.total === "number" && link.total > 0
         ? link.total
