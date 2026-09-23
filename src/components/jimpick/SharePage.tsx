@@ -139,7 +139,7 @@ export function SharePage() {
 
   /** 고객이 예약금을 보냈다고 알립니다 (금액 반영은 사장님 확인 후) */
   const sendDepositClaim = async () => {
-    if (claiming || claimSent) return;
+    if (claiming || (link?.ok ? link.depositClaimPending === true : claimSent)) return;
     setClaiming(true);
     setClaimError(null);
     try {
