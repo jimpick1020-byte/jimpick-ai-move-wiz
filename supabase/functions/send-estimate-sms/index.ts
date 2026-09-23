@@ -82,6 +82,7 @@ function aligoError(code: number, message: string): string {
 }
 
 interface AligoResponse {
+  ok?: boolean;
   result_code?: number | string;
   message?: string;
   msg_id?: string | number;
@@ -1016,6 +1017,8 @@ const handle = async (req: Request): Promise<Response> => {
     if (!isServerCall && ownerD !== userId) {
       return json({ ok: false, error: "이 견적서의 문자를 보낼 권한이 없습니다." }, 403);
     }
+    const companyD = await companySmsInfo(ownerD, supabaseUrl, serviceKey);
+    if (!companyD.ok) return json({ ok: false, error: companyD.error }, 403);
     const paidD = Number(drow.deposit_paid ?? 0) || 0;
     if (paidD <= 0) {
       return json({ ok: false, error: "확인된 입금 금액이 없어 문자를 보내지 않았습니다." }, 400);
@@ -1057,7 +1060,7 @@ const handle = async (req: Request): Promise<Response> => {
         : "";
     const companyPhoneD = String(drow.company_phone ?? "").trim();
     const textD = [
-      "[JIMPICK 짐픽]",
+      `[${companyD.companyName}]`,
       `${String(drow.customer_name ?? "고객").trim() || "고객"} 고객님, 예약금 입금이 확인되었습니다.`,
       "",
       `예약금(입금완료): ${wonD(paidD)}`,
@@ -1065,7 +1068,8 @@ const handle = async (req: Request): Promise<Response> => {
       ...(linkD ? ["", "견적서 확인:", linkD] : []),
       ...(companyPhoneD ? ["", `문의: ${companyPhoneD}`] : []),
     ].join("\n");
-    const typeD = new TextEncoder().encode(textD).length <= 90 ? "SMS" : "LMS";
+    if (!linkD || !appUrl) return json({ ok: false, error: "고객 보안 링크가 없어 발송하지 않았습니다." }, 400);
+    const typeD = "MMS";
     const holdD = await reserveSms({
       userId: ownerD,
       key: `usage:${idemD}`,
@@ -1085,7 +1089,10 @@ const handle = async (req: Request): Promise<Response> => {
       msgType: typeD,
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
-      sender: sender!,
+      sender: companyD.sender,
+      companyId: ownerD,
+      cardType: "deposit",
+      cardData: { companyName: companyD.companyName, customerName: String(drow.customer_name ?? "").trim(), moveDate: String(drow.move_date ?? "").trim(), amount: wonD(paidD), companyPhone: companyD.companyPhone || companyPhoneD },
       proxyUrl,
       proxySecret,
       viaProxy,
@@ -1103,6 +1110,7 @@ const handle = async (req: Request): Promise<Response> => {
           estimate_version: Number(drow.sheet_version ?? 1),
           sheet_no: drow.sheet_no ?? null,
           user_id: ownerD,
+          company_id: ownerD,
           to_masked: `****${last4(custPhoneD)}`,
           delivery_method: "deposit_notification",
           provider: "aligo",
@@ -1153,7 +1161,7 @@ const handle = async (req: Request): Promise<Response> => {
   // ── 2. 견적서를 데이터베이스에서 직접 읽습니다 ──
   const q = new URLSearchParams({
     select:
-      "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,contact_phone,company_phone,total,access_token,sheet_snapshot",
+      "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,move_date,contact_phone,company_phone,total,access_token,sheet_snapshot",
     estimate_id: `eq.${estimateId}`,
     order: "sheet_version.desc",
     limit: "1",
@@ -1178,6 +1186,8 @@ const handle = async (req: Request): Promise<Response> => {
   if (String(row.user_id) !== userId) {
     return json({ ok: false, error: "이 견적서를 보낼 권한이 없습니다." }, 403);
   }
+  const company = await companySmsInfo(userId, supabaseUrl, serviceKey);
+  if (!company.ok) return json({ ok: false, error: company.error }, 403);
   // 확정본(견적서 원본)이 담겨 있어야 고객이 볼 수 있습니다
   if (!row.sheet_snapshot) {
     return json(
@@ -1263,7 +1273,7 @@ const handle = async (req: Request): Promise<Response> => {
   // ── 4. 문자 내용을 실제 자료로 만듭니다 ──
   const companyPhone = String(row.company_phone ?? "").trim();
   const text = [
-    "[JIMPICK 짐픽]",
+    `[${company.companyName}]`,
     `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
     "아래 링크에서 견적서와 표준약관을 확인해 주세요.",
     "",
@@ -1271,7 +1281,7 @@ const handle = async (req: Request): Promise<Response> => {
     ...(companyPhone ? ["", `문의: ${companyPhone}`] : []),
   ].join("\n");
   const byteLen = new TextEncoder().encode(text).length;
-  const msgType = byteLen <= 90 ? "SMS" : "LMS";
+  const msgType = "MMS";
   const title = `이사 견적서 ${String(row.sheet_no ?? "")}`.trim().slice(0, 44);
 
   const requestedAt = new Date().toISOString();
@@ -1302,7 +1312,10 @@ const handle = async (req: Request): Promise<Response> => {
     msgType,
     aligoUserId: aligoUserId!,
     apiKey: apiKey!,
-    sender: sender!,
+    sender: company.sender,
+    companyId: userId,
+    cardType: "quote",
+    cardData: { companyName: company.companyName, customerName: customer, moveDate: String(row.move_date ?? "").trim(), amount: `${Number(row.total ?? 0).toLocaleString("ko-KR")}원`, companyPhone: company.companyPhone || companyPhone },
     proxyUrl,
     proxySecret,
     viaProxy,
@@ -1322,6 +1335,7 @@ const handle = async (req: Request): Promise<Response> => {
         estimate_version: version,
         sheet_no: row.sheet_no ?? null,
         user_id: userId,
+        company_id: userId,
         to_masked: `****${last4(phone)}`,
         delivery_method: method,
         provider: "aligo",
