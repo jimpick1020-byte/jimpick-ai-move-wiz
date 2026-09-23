@@ -516,8 +516,10 @@ export async function sweepMissedReminders(): Promise<{
       .eq("estimate_terms_id", t.id)
       .maybeSingle();
     const status = String((rem as { status?: string } | null)?.status ?? "");
-    if (["accepted", "delivered", "success", "processing", "sending"].includes(status)) continue;
+    // 처리 중으로 멈춘 건은 아래 claim_move_reminders 가 한 번만 다시 집어 갑니다.
+    if (["accepted", "delivered", "success"].includes(status)) continue;
     if (status === "canceled") continue;
+    if (["processing", "sending"].includes(status)) continue;
 
     // 예약이 없거나 아직 발송 예정이면 다시 만들어 즉시 보낼 수 있게 합니다
     const { syncMoveReminder } = await import("./reminder.server");
