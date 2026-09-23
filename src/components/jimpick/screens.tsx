@@ -1854,10 +1854,10 @@ export function Step4() {
       val: draft.truck5t,
     },
   ];
-   const swipe = useSwipeNav(() => setScreen("step6"), goNext);
+  const swipe = useSwipeNav(() => setScreen("step6"), goNext);
   return (
-     <MobileShell className="jp-estimate-flow jp-tone-5">
-       <TopBar title="5단계. 차량 선택" onBack={() => setScreen("step6")} />
+    <MobileShell className="jp-estimate-flow jp-tone-5">
+      <TopBar title="5단계. 차량 선택" onBack={() => setScreen("step6")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
         {vehicles.map((v) => (
           <Card key={v.key} selected={v.val > 0}>
@@ -2245,8 +2245,8 @@ export function Step6() {
 
   /** 화면을 좌우로 드래그하면 앞·뒤 단계로 넘어갑니다 */
   const swipe = useSwipeNav(
-     () => setScreen("step3"),
-     () => setScreen("step4"),
+    () => setScreen("step3"),
+    () => setScreen("step4"),
   );
   /** 품목 목록에서 좌우로 드래그하면 분류 탭이 넘어갑니다 */
   const tabSwipe = useSwipeNav(
@@ -3013,14 +3013,14 @@ export function Step6() {
   };
 
   return (
-     <MobileShell className="jp-estimate-flow jp-tone-4">
+    <MobileShell className="jp-estimate-flow jp-tone-4">
       {/* 헤더 */}
       <div className="px-4 pt-2 pb-3 bg-white border-b border-[#E5E7EB]">
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
               tap("soft");
-               setScreen("step3");
+              setScreen("step3");
             }}
             aria-label="뒤로"
             className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] flex items-center justify-center text-[#25282D] shadow-[0_4px_0_#E5E7EB,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#E5E7EB]"
@@ -3028,7 +3028,7 @@ export function Step6() {
             <ChevronLeft className="w-6 h-6" />
           </button>
           <h1 className="flex-1 text-center text-[20px] font-black text-[#25282D] leading-tight">
-             4단계. 공간별 품목
+            4단계. 공간별 품목
           </h1>
           <div className="shrink-0 w-10" />
         </div>
