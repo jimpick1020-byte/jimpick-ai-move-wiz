@@ -1,0 +1,1 @@
+CREATE POLICY "Only service can manage SMS card art" ON storage.objects FOR ALL TO service_role USING (bucket_id = 'sms-card-art') WITH CHECK (bucket_id = 'sms-card-art');

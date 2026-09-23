@@ -82,6 +82,7 @@ function aligoError(code: number, message: string): string {
 }
 
 interface AligoResponse {
+  ok?: boolean;
   result_code?: number | string;
   message?: string;
   msg_id?: string | number;
@@ -124,6 +125,23 @@ async function isSuperAdmin(
   } catch {
     return false;
   }
+}
+
+/** Customer messages are scoped to the estimate owner, not a global sender setting. */
+async function companySmsInfo(companyId: string, supabaseUrl: string, serviceKey: string) {
+  if (!companyId) return { ok: false, error: "업체 정보가 필요합니다." } as const;
+  const [profileRes, senderRes] = await Promise.all([
+    db(`profiles?select=company_name,phone&id=eq.${encodeURIComponent(companyId)}&limit=1`, { supabaseUrl, serviceKey }),
+    db(`company_sms_senders?select=sender_number&company_id=eq.${encodeURIComponent(companyId)}&provider=eq.aligo&limit=1`, { supabaseUrl, serviceKey }),
+  ]);
+  if (!profileRes.ok || !senderRes.ok) return { ok: false, error: "업체 발신정보를 확인하지 못해 발송하지 않았습니다." } as const;
+  const profile = ((await profileRes.json()) as Array<{ company_name?: string; phone?: string }>)[0];
+  const approved = ((await senderRes.json()) as Array<{ sender_number?: string }>)[0];
+  const companyName = String(profile?.company_name ?? "").trim();
+  if (!companyName) return { ok: false, error: "업체 정보가 필요합니다." } as const;
+  const sender = String(approved?.sender_number ?? "").trim();
+  if (!/^0[0-9]{8,10}$/.test(sender)) return { ok: false, error: "알리고 승인 발신번호가 등록되지 않아 발송하지 않았습니다." } as const;
+  return { ok: true, companyName, companyPhone: String(profile?.phone ?? "").trim(), sender } as const;
 }
 
 /**
@@ -277,33 +295,19 @@ async function sendViaAligo(v: {
   proxySecret?: string;
   viaProxy: boolean;
   userId: string;
+  companyId?: string;
+  cardType?: "quote" | "deposit";
+  cardData?: { companyName: string; customerName: string; moveDate: string; amount: string; companyPhone: string };
 }): Promise<SendOutcome> {
   try {
     if (v.viaProxy) {
-      // 알리고 /send/ API는 반드시 application/x-www-form-urlencoded 형식을 받습니다.
-      // user_id 와 sender 는 서버 코드에만 고정되어 있으며,
-      // 요청 body, 고객정보, 업체정보, 다른 환경변수는 사용하지 않습니다.
-      const userId = "jimpick1020";
-      const sender = "01075662542";
-      const params = new URLSearchParams();
-      params.set("key", v.apiKey);
-      params.set("user_id", userId);
-      params.set("sender", sender);
-      params.set("receiver", v.to);
-      params.set("msg", v.text);
-      if (v.msgType === "LMS") {
-        params.set("msg_type", "LMS");
-        params.set("title", v.title);
-      }
-
       const r = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/send`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          // 보관함에 값을 넣을 때 끝에 줄바꿈이 딸려 들어가는 일이 흔합니다
-          "x-proxy-secret": String(v.proxySecret ?? "").trim(),
+          "Content-Type": "application/json",
+          "x-jimpick-secret": String(v.proxySecret ?? "").trim(),
         },
-        body: params.toString(),
+        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, companyId: v.companyId ?? v.userId, userId: v.userId, cardType: v.cardType, cardData: v.cardData }),
       });
 
       const data = (await r.json().catch(() => null)) as AligoResponse | null;
@@ -321,7 +325,7 @@ async function sendViaAligo(v: {
 
       // Cloud Run 이 HTTP 200을 줘도, 알리고 result_code가 1 미만이면 실패입니다.
       const code = Number(data.result_code ?? -1);
-      if (code >= 1) {
+      if (r.ok && data.ok === true && code === 1) {
         return {
           ok: true,
           msgId: data.msg_id != null ? String(data.msg_id) : undefined,
@@ -340,6 +344,7 @@ async function sendViaAligo(v: {
     }
 
 
+    if (v.cardType) return { ok: false, error: "그림문자 중계 서버가 준비되지 않아 발송하지 않았습니다." };
     const form = new FormData();
     form.append("user_id", v.aligoUserId);
     form.append("key", v.apiKey);
@@ -389,7 +394,7 @@ const handle = async (req: Request): Promise<Response> => {
   // 원문은 로그나 응답에 남기지 않고, 정리한 값만 서버 내부에서 전송합니다.
   const apiKey = Deno.env.get("ALIGO_API_KEY")?.trim();
   // 발신번호는 서버 코드에만 고정되어 있고, 업체 정보·요청 body·다른 변수에서 가져오지 않습니다.
-  const sender = "01075662542";
+  const sender = normalizePhone(Deno.env.get("ALIGO_SENDER") ?? "");
   const appUrl = (Deno.env.get("PUBLIC_APP_URL") ?? Deno.env.get("APP_PUBLIC_URL") ?? "")
     .trim()
     .replace(/\/$/, "");
@@ -999,7 +1004,7 @@ const handle = async (req: Request): Promise<Response> => {
     if (!estIn) return json({ ok: false, error: "견적서를 찾지 못했습니다." }, 400);
     const dq = new URLSearchParams({
       select:
-        "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,contact_phone,company_phone,total,deposit_paid,access_token",
+        "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,move_date,contact_phone,company_phone,total,deposit_paid,access_token",
       estimate_id: `eq.${estIn}`,
       order: "sheet_version.desc",
       limit: "1",
@@ -1012,6 +1017,8 @@ const handle = async (req: Request): Promise<Response> => {
     if (!isServerCall && ownerD !== userId) {
       return json({ ok: false, error: "이 견적서의 문자를 보낼 권한이 없습니다." }, 403);
     }
+    const companyD = await companySmsInfo(ownerD, supabaseUrl, serviceKey);
+    if (!companyD.ok) return json({ ok: false, error: companyD.error }, 403);
     const paidD = Number(drow.deposit_paid ?? 0) || 0;
     if (paidD <= 0) {
       return json({ ok: false, error: "확인된 입금 금액이 없어 문자를 보내지 않았습니다." }, 400);
@@ -1051,9 +1058,9 @@ const handle = async (req: Request): Promise<Response> => {
       tokenD.length >= 8
         ? `${appUrl}/share/${encodeURIComponent(estIn)}?t=${encodeURIComponent(tokenD)}`
         : "";
-    const companyPhoneD = String(drow.company_phone ?? "").trim();
+    const companyPhoneD = companyD.companyPhone || String(drow.company_phone ?? "").trim();
     const textD = [
-      "[JIMPICK 짐픽]",
+      `[${companyD.companyName}]`,
       `${String(drow.customer_name ?? "고객").trim() || "고객"} 고객님, 예약금 입금이 확인되었습니다.`,
       "",
       `예약금(입금완료): ${wonD(paidD)}`,
@@ -1061,7 +1068,8 @@ const handle = async (req: Request): Promise<Response> => {
       ...(linkD ? ["", "견적서 확인:", linkD] : []),
       ...(companyPhoneD ? ["", `문의: ${companyPhoneD}`] : []),
     ].join("\n");
-    const typeD = new TextEncoder().encode(textD).length <= 90 ? "SMS" : "LMS";
+    if (!linkD || !appUrl || !companyPhoneD || !String(drow.move_date ?? "").trim()) return json({ ok: false, error: "고객 보안 링크 또는 업체 문의번호·이사 날짜가 없어 발송하지 않았습니다." }, 400);
+    const typeD = "MMS";
     const holdD = await reserveSms({
       userId: ownerD,
       key: `usage:${idemD}`,
@@ -1081,7 +1089,10 @@ const handle = async (req: Request): Promise<Response> => {
       msgType: typeD,
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
-      sender: sender!,
+      sender: companyD.sender,
+      companyId: ownerD,
+      cardType: "deposit",
+      cardData: { companyName: companyD.companyName, customerName: String(drow.customer_name ?? "").trim(), moveDate: String(drow.move_date ?? "").trim(), amount: wonD(paidD), companyPhone: companyD.companyPhone || companyPhoneD },
       proxyUrl,
       proxySecret,
       viaProxy,
@@ -1099,6 +1110,7 @@ const handle = async (req: Request): Promise<Response> => {
           estimate_version: Number(drow.sheet_version ?? 1),
           sheet_no: drow.sheet_no ?? null,
           user_id: ownerD,
+          company_id: ownerD,
           to_masked: `****${last4(custPhoneD)}`,
           delivery_method: "deposit_notification",
           provider: "aligo",
@@ -1149,7 +1161,7 @@ const handle = async (req: Request): Promise<Response> => {
   // ── 2. 견적서를 데이터베이스에서 직접 읽습니다 ──
   const q = new URLSearchParams({
     select:
-      "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,contact_phone,company_phone,total,access_token,sheet_snapshot",
+      "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,move_date,contact_phone,company_phone,total,access_token,sheet_snapshot",
     estimate_id: `eq.${estimateId}`,
     order: "sheet_version.desc",
     limit: "1",
@@ -1174,6 +1186,8 @@ const handle = async (req: Request): Promise<Response> => {
   if (String(row.user_id) !== userId) {
     return json({ ok: false, error: "이 견적서를 보낼 권한이 없습니다." }, 403);
   }
+  const company = await companySmsInfo(userId, supabaseUrl, serviceKey);
+  if (!company.ok) return json({ ok: false, error: company.error }, 403);
   // 확정본(견적서 원본)이 담겨 있어야 고객이 볼 수 있습니다
   if (!row.sheet_snapshot) {
     return json(
@@ -1257,9 +1271,10 @@ const handle = async (req: Request): Promise<Response> => {
   }
 
   // ── 4. 문자 내용을 실제 자료로 만듭니다 ──
-  const companyPhone = String(row.company_phone ?? "").trim();
+  const companyPhone = company.companyPhone || String(row.company_phone ?? "").trim();
+  if (!companyPhone || !String(row.move_date ?? "").trim() || Number(row.total ?? 0) <= 0) return json({ ok: false, error: "업체 문의번호·이사 날짜·견적금액이 없어 발송하지 않았습니다." }, 400);
   const text = [
-    "[JIMPICK 짐픽]",
+    `[${company.companyName}]`,
     `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
     "아래 링크에서 견적서와 표준약관을 확인해 주세요.",
     "",
@@ -1267,7 +1282,7 @@ const handle = async (req: Request): Promise<Response> => {
     ...(companyPhone ? ["", `문의: ${companyPhone}`] : []),
   ].join("\n");
   const byteLen = new TextEncoder().encode(text).length;
-  const msgType = byteLen <= 90 ? "SMS" : "LMS";
+  const msgType = "MMS";
   const title = `이사 견적서 ${String(row.sheet_no ?? "")}`.trim().slice(0, 44);
 
   const requestedAt = new Date().toISOString();
@@ -1298,7 +1313,10 @@ const handle = async (req: Request): Promise<Response> => {
     msgType,
     aligoUserId: aligoUserId!,
     apiKey: apiKey!,
-    sender: sender!,
+    sender: company.sender,
+    companyId: userId,
+    cardType: "quote",
+    cardData: { companyName: company.companyName, customerName: customer, moveDate: String(row.move_date ?? "").trim(), amount: `${Number(row.total ?? 0).toLocaleString("ko-KR")}원`, companyPhone: company.companyPhone || companyPhone },
     proxyUrl,
     proxySecret,
     viaProxy,
@@ -1318,6 +1336,7 @@ const handle = async (req: Request): Promise<Response> => {
         estimate_version: version,
         sheet_no: row.sheet_no ?? null,
         user_id: userId,
+        company_id: userId,
         to_masked: `****${last4(phone)}`,
         delivery_method: method,
         provider: "aligo",

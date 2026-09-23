@@ -9,9 +9,6 @@
  * 통신사 전달 완료는 발송결과 조회(reminder-result.server.ts)로 확인한 뒤에만 표시합니다.
  */
 
-const ALIGO_ENDPOINT = "https://apis.aligo.in/send/";
-/** 발신번호는 서버에 고정되어 있습니다 (기존 문자발송 기능과 동일) */
-const SENDER = "01075662542";
 
 interface Reminder {
   id: string;
@@ -77,6 +74,7 @@ function shortAddress(v: string | null): string {
 
 /** 안내 문자 내용 — 값이 없는 줄은 넣지 않습니다 */
 export function reminderText(r: {
+  company_name?: string;
   customer_name: string;
   start_time: string | null;
   from_address: string | null;
@@ -85,7 +83,7 @@ export function reminderText(r: {
   link?: string | null;
 }): string {
   const lines: string[] = [
-    "[JIMPICK 짐픽]",
+    `[${r.company_name || "업체 정보가 필요합니다"}]`,
     "",
     `${(r.customer_name || "고객").trim()} 고객님, 내일은 예약하신 이사일입니다.`,
     "",
@@ -118,38 +116,30 @@ async function sendViaAligo(v: {
   apiKey: string;
   proxyUrl?: string;
   proxySecret?: string;
+  sender: string;
+  companyId: string;
+  cardData: { companyName: string; customerName: string; moveDate: string; amount: string; companyPhone: string };
 }): Promise<SendOutcome> {
   const viaProxy = !!(v.proxyUrl && v.proxySecret);
   try {
     if (viaProxy) {
-      // 알리고 /send/ 는 form-urlencoded 만 받습니다
-      const params = new URLSearchParams();
-      params.set("key", v.apiKey);
-      params.set("user_id", v.aligoUserId);
-      params.set("sender", SENDER);
-      params.set("receiver", v.to);
-      params.set("msg", v.text);
-      if (v.msgType === "LMS") {
-        params.set("msg_type", "LMS");
-        params.set("title", v.title);
-      }
-      const r = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/send`, {
+      const r = await fetch(`${v.proxyUrl?.replace(/\/$/, "")}/send`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          "x-proxy-secret": String(v.proxySecret ?? "").trim(),
+          "Content-Type": "application/json",
+          "x-jimpick-secret": String(v.proxySecret ?? "").trim(),
         },
-        body: params.toString(),
+        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, companyId: v.companyId, userId: v.companyId, cardType: "reminder", cardData: v.cardData }),
       });
       if (r.status === 401 || r.status === 403) {
         return { ok: false, code: r.status, error: "문자 중계 서버가 요청을 거절했습니다(인증 실패)." };
       }
-      const data = (await r.json().catch(() => null)) as AligoResponse | null;
+      const data = (await r.json().catch(() => null)) as (AligoResponse & { ok?: boolean; error?: string }) | null;
       if (!data) {
         return { ok: false, code: r.status, error: `중계 서버 응답을 읽지 못했습니다. (${r.status})` };
       }
       const code = Number(data.result_code ?? -1);
-      if (code >= 1) {
+      if (r.ok && data.ok === true && code === 1) {
         return {
           ok: true,
           msgId: data.msg_id != null ? String(data.msg_id) : undefined,
@@ -157,30 +147,10 @@ async function sendViaAligo(v: {
           code,
         };
       }
-      return { ok: false, code, error: aligoError(code, data.message ?? "") };
+      return { ok: false, code, error: data.error ?? aligoError(code, data.message ?? "") };
     }
 
-    const form = new FormData();
-    form.append("user_id", v.aligoUserId);
-    form.append("key", v.apiKey);
-    form.append("sender", SENDER);
-    form.append("receiver", v.to);
-    form.append("msg", v.text);
-    form.append("msg_type", v.msgType);
-    form.append("title", v.title);
-    const r = await fetch(ALIGO_ENDPOINT, { method: "POST", body: form });
-    const data = (await r.json().catch(() => null)) as AligoResponse | null;
-    if (!data) return { ok: false, error: "알리고 응답을 읽지 못했습니다." };
-    const code = Number(data.result_code ?? -1);
-    if (code >= 1) {
-      return {
-        ok: true,
-        msgId: data.msg_id != null ? String(data.msg_id) : undefined,
-        msgType: data.msg_type || v.msgType,
-        code,
-      };
-    }
-    return { ok: false, code, error: aligoError(code, data.message ?? "") };
+    return { ok: false, error: "그림문자 중계 서버가 준비되지 않아 발송하지 않았습니다." };
   } catch (e) {
     console.error("[move-reminders] 발송 오류", e instanceof Error ? e.message : e);
     return { ok: false, error: "문자 발송 중 연결 오류가 났습니다." };
@@ -261,9 +231,24 @@ async function sendOne(
   }
 
   const link = await customerLink(row);
-  const text = reminderText({ ...row, link });
-  // 90바이트를 넘으면 자동으로 장문(LMS)으로 보냅니다
-  const msgType = new TextEncoder().encode(text).length > 90 ? "LMS" : "SMS";
+  const [{ data: profile, error: profileErr }, { data: senderRow, error: senderErr }] = await Promise.all([
+    supabaseAdmin.from("profiles").select("company_name,phone").eq("id", row.company_id).maybeSingle(),
+    supabaseAdmin.from("company_sms_senders").select("sender_number").eq("company_id", row.company_id).eq("provider", "aligo").maybeSingle(),
+  ]);
+  const companyName = String(profile?.company_name ?? "").trim();
+  const sender = String(senderRow?.sender_number ?? "").trim();
+  const setupError = profileErr || senderErr
+    ? "업체 발신정보를 확인하지 못했습니다."
+    : !companyName ? "업체 정보가 필요합니다." : !/^0[0-9]{8,10}$/.test(sender)
+      ? "알리고 승인 발신번호가 등록되지 않았습니다." : !link ? "고객 보안 링크를 확인하지 못했습니다." : null;
+  if (setupError) {
+    await supabaseAdmin.from("move_reminders").update({ status: "failed", failed_at: now, error_code: "sender_setup", error_reason: setupError } as never).eq("id", row.id);
+    return { sent: false };
+  }
+  const text = reminderText({ ...row, company_name: companyName, link });
+  const msgType = "MMS";
+  const sendArgs = { to, text, title: "이사 하루 전 안내", msgType, ...creds, sender, companyId: row.company_id,
+    cardData: { companyName, customerName: row.customer_name, moveDate: row.move_date, amount: "", companyPhone: String(profile?.phone ?? row.company_phone ?? "").trim() } };
 
   // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).
   const attemptTag = attempt ?? String(Number(row.retry_count ?? 0));
@@ -296,19 +281,13 @@ async function sendOne(
     .update({ requested_at: now, message_snapshot: text, message_type: msgType } as never)
     .eq("id", row.id);
 
-  let out = await sendViaAligo({
-    to,
-    text,
-    title: "이사 하루 전 안내",
-    msgType,
-    ...creds,
-  });
+  let out = await sendViaAligo(sendArgs);
 
   // 네트워크·서버 오류만 한 번 더 시도합니다 (설정 오류는 다시 보내지 않습니다)
   let autoRetried = row.auto_retried === true;
   if (!out.ok && !autoRetried && isRetryable(out.code, out.error)) {
     autoRetried = true;
-    out = await sendViaAligo({ to, text, title: "이사 하루 전 안내", msgType, ...creds });
+    out = await sendViaAligo(sendArgs);
   }
 
   // 실패는 무료 문자에서 차감하지 않습니다.

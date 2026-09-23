@@ -12,11 +12,27 @@
 import express from "express";
 import { sendAligo, isPhone, normalizePhone } from "./aligo.js";
 import { saveDelivery, findDelivery } from "./supabase.js";
+import { renderCard } from "./card.js";
 
 const app = express();
 app.use(express.json({ limit: "12mb" }));
 
 const PORT = process.env.PORT || 8080;
+
+async function approvedSender(companyId) {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key || !/^[0-9a-f-]{36}$/i.test(String(companyId ?? ""))) return null;
+  try {
+    const q = new URLSearchParams({ select: "sender_number", company_id: `eq.${companyId}`, provider: "eq.aligo", limit: "1" });
+    const r = await fetch(`${url.replace(/\/$/, "")}/rest/v1/company_sms_senders?${q}`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+    if (!r.ok) return null;
+    const rows = await r.json();
+    return rows[0]?.sender_number ?? null;
+  } catch { return null; }
+}
 
 /**
  * 요청이 우리 쪽에서 온 것인지 확인합니다.
@@ -96,6 +112,8 @@ app.post("/send", async (req, res) => {
     imageBase64,
     imageName,
     imageType,
+    cardType,
+    cardData,
     testMode,
   } = req.body ?? {};
 
@@ -109,6 +127,13 @@ app.post("/send", async (req, res) => {
   }
   if (!String(text || "").trim()) {
     return res.status(400).json({ ok: false, error: "보낼 내용이 비어 있습니다." });
+  }
+
+  const sender = await approvedSender(companyId);
+  if (!sender) return res.status(403).json({ ok: false, error: "업체의 알리고 승인 발신번호가 등록되지 않아 발송하지 않았습니다." });
+  if (userId && userId !== companyId) return res.status(403).json({ ok: false, error: "업체 정보가 일치하지 않습니다." });
+  if (cardType && (!cardData || !String(cardData.companyName ?? "").trim())) {
+    return res.status(400).json({ ok: false, error: "업체 정보가 필요합니다." });
   }
 
   // ① 같은 요청이 이미 성공했으면 다시 보내지 않습니다
@@ -128,7 +153,10 @@ app.post("/send", async (req, res) => {
 
   // ② 그림이 있으면 MMS
   let image;
-  if (imageBase64) {
+  if (cardType) {
+    try { image = await renderCard(cardType, cardData); }
+    catch (e) { return res.status(400).json({ ok: false, error: e.message }); }
+  } else if (imageBase64) {
     try {
       const raw = String(imageBase64).replace(/^data:[^;]+;base64,/, "");
       image = {
@@ -148,7 +176,7 @@ app.post("/send", async (req, res) => {
   }
 
   // ③ 발송
-  const result = await sendAligo({ to, text, title, image, testMode: !!testMode });
+  const result = await sendAligo({ to, text, title, image, sender, testMode: !!testMode });
 
   // ④ 결과 기록 (성공·실패 모두 남깁니다)
   const row = {
@@ -159,7 +187,7 @@ app.post("/send", async (req, res) => {
     to_masked: maskPhone(to),
     msg_type: result.msgType ?? null,
     msg_id: result.msgId ?? null,
-    status: result.ok ? "success" : "failed",
+    status: result.ok ? "accepted" : "failed",
     error_message: result.ok ? null : (result.error ?? null),
     test_mode: !!testMode,
     idempotency_key: idempotencyKey ?? null,
@@ -167,11 +195,14 @@ app.post("/send", async (req, res) => {
   };
   const saved = await saveDelivery(row);
 
-  if (!result.ok) {
-    return res.status(502).json({ ok: false, error: result.error, logged: saved.saved });
-  }
+  if (!result.ok) return res.status(502).json({ ok: false, result_code: result.code ?? -1, message: result.error, error: result.error, logged: saved.saved });
   return res.json({
     ok: true,
+    result_code: 1,
+    message: "알리고 접수 완료 (통신사 전달은 별도 확인 필요)",
+    msg_id: result.msgId,
+    msg_type: result.msgType,
+    success_cnt: result.successCount,
     msgId: result.msgId,
     msgType: result.msgType,
     successCount: result.successCount,
