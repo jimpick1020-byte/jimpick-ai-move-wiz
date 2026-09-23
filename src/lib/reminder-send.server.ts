@@ -123,6 +123,11 @@ async function sendViaAligo(v: {
   const viaProxy = !!(v.proxyUrl && v.proxySecret);
   try {
     if (viaProxy) {
+      const health = await fetch(`${v.proxyUrl?.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
+      const capability = (await health.json().catch(() => null)) as { service?: string; capabilities?: string[] } | null;
+      if (!health.ok || capability?.service !== "aligo-sms-proxy" || !capability.capabilities?.includes("sms-cards-v1")) {
+        return { ok: false, error: "그림문자 중계 서버가 아직 새 버전이 아니어서 발송하지 않았습니다." };
+      }
       const r = await fetch(`${v.proxyUrl?.replace(/\/$/, "")}/send`, {
         method: "POST",
         headers: {
