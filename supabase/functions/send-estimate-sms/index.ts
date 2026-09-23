@@ -682,10 +682,10 @@ const handle = async (req: Request): Promise<Response> => {
       console.error("[send-estimate-sms] 시험 발송 기록 실패", e instanceof Error ? e.message : e);
     }
     if (!sent.ok) {
-      await releaseSms(userId, holdT.hold, supabaseUrl, serviceKey);
+      await releaseSms(testUserId, holdT.hold, supabaseUrl, serviceKey);
       return json({ ok: false, error: sent.error ?? "문자 발송에 실패했습니다.", status: "failed" }, 502);
     }
-    await confirmSms(userId, holdT.hold, supabaseUrl, serviceKey);
+    await confirmSms(testUserId, holdT.hold, supabaseUrl, serviceKey);
     return json({
       ok: true,
       msgId: sent.msgId ?? null,
