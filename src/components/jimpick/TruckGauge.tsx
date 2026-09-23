@@ -1,7 +1,7 @@
 /**
- * 트럭 적재 게이지 — 6단계에서 짐을 담을수록 트럭이 차오릅니다.
+ * 트럭 적재 게이지 — 4단계에서 짐을 담을수록 트럭이 차오릅니다.
  *
- * 4단계에서 고른 차량(1톤·5톤)에 지금 담은 짐이 들어가는지
+ * 5단계에서 고른 차량(1톤·5톤)에 지금 담은 짐이 들어가는지
  * 견적을 계산하기 **전에** 알려 줍니다.
  */
 import { TRUCK_CAPACITY, type TruckLoad } from "@/lib/jimpick";
@@ -106,7 +106,7 @@ export function TruckGauge({
   onFixTrucks,
 }: {
   load: TruckLoad;
-  /** "차량 늘리기" 를 눌렀을 때 (4단계로 보내거나 바로 반영) */
+  /** "차량 늘리기" 를 눌렀을 때 (5단계로 보내거나 바로 반영) */
   onFixTrucks?: (need: { truck1t: number; truck5t: number }) => void;
 }) {
   const tone = toneOf(load.status);

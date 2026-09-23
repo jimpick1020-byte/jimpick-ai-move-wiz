@@ -21,7 +21,7 @@ export interface StaffSheetSnapshot {
   moveDate: string;
   moveTime: string;
   moveType: string;
-  /** 평수 (예: 30~40평) — 5단계에서 고른 값 */
+  /** 평수 (예: 30~40평) — 4단계에서 고른 값 */
   sizeTab?: string;
   fromAddress: string;
   fromDetail: string;

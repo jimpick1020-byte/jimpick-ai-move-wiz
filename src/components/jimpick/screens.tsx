@@ -1306,7 +1306,11 @@ function AddressSearch({
           onFocus={(e) => {
             if (q === null && value) e.currentTarget.select();
           }}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => {
+            setQ(e.target.value);
+            // 검색어를 고치는 동안 예전에 선택한 주소/좌표가 유효한 값으로 남지 않게 합니다.
+            onSelect(e.target.value, { x: 0, y: 0 });
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter") run();
           }}
@@ -1328,7 +1332,7 @@ function AddressSearch({
                 key={`${a.name}-${i}`}
                 onClick={() => {
                   onSelect(a.roadAddress || a.address, { x: a.x, y: a.y });
-                  setOpen(false);
+                   setOpen(false);
                    setQ(null);
                   tap();
                 }}
@@ -1373,21 +1377,28 @@ export function Step2() {
 
   const from = draft.fromX && draft.fromY ? { x: draft.fromX, y: draft.fromY } : null;
   const to = draft.toX && draft.toY ? { x: draft.toX, y: draft.toY } : null;
-  const hasBoth = Boolean(draft.fromAddress && draft.toAddress);
+  const hasFrom = Boolean(draft.fromAddress?.trim());
+  const hasDestination = Boolean(draft.toAddress?.trim());
 
   useEffect(() => {
-    // 출발지·도착지를 모두 선택하기 전에는 계산하지 않습니다.
-    if (!from || !to) {
+    // 도착지를 입력하지 않은 경우 지도와 거리를 표시하지 않습니다.
+    if (!hasDestination) {
+      setPath(null);
+      setRouting(false);
+      setRouteError(null);
+      return;
+    }
+    if (!hasFrom || !from || !to) {
       // 주소는 넣었는데 좌표가 없는 경우 — 「입력한 주소 그대로 사용」으로 넣으면 이렇게 됩니다.
       // 그동안 아무 안내 없이 거리·시간이 비어 있어서 이유를 알 수 없었습니다.
-      if (hasBoth) {
+      if (hasFrom && hasDestination) {
         const which = !from && !to ? "출발지와 도착지" : !from ? "출발지" : "도착지";
         setRouteError(
           `${which} 주소를 검색 결과 목록에서 선택해 주세요. 직접 입력한 주소는 위치를 알 수 없어 거리·시간을 계산하지 못합니다.`,
         );
-      } else {
-        setRouteError(null);
-      }
+      } else setRouteError(null);
+      setPath(null);
+      setRouting(false);
       return;
     }
     let cancelled = false;
@@ -1420,7 +1431,7 @@ export function Step2() {
     return () => {
       cancelled = true;
     };
-  }, [from?.x, from?.y, to?.x, to?.y, hasBoth, tick]);
+  }, [from?.x, from?.y, to?.x, to?.y, hasFrom, hasDestination, tick]);
 
   /**
    * 상세주소에서 찾은 층수를 해당 장소의 층수 칸에만 넣습니다.
@@ -1436,7 +1447,7 @@ export function Step2() {
 
   const swipe = useSwipeNav(
     () => setScreen("step1"),
-    hasBoth ? () => setScreen("step3") : undefined,
+    hasFrom ? () => setScreen("step3") : undefined,
   );
   return (
     <MobileShell className="jp-estimate-flow jp-tone-2">
@@ -1474,7 +1485,10 @@ export function Step2() {
           }}
           onDetail={(d) => updateDraft({ toDetail: d, ...autoFloor("to", d) })}
         />
-        {(from || to) && (
+        {!hasDestination && (
+          <p className="text-center text-sm font-semibold text-muted-foreground">도착지를 입력하면 경로가 표시됩니다</p>
+        )}
+        {hasDestination && (from || to) && (
           <Card className="pb-5">
             <div className="font-bold mb-2">경로 안내</div>
             <KakaoMap from={from} to={to} path={path} height={280} />
@@ -1522,7 +1536,7 @@ export function Step2() {
       </div>
 
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("step3")} disabled={!hasBoth}>
+         <PrimaryButton onClick={() => setScreen("step3")} disabled={!hasFrom}>
           다음: 작업 조건
         </PrimaryButton>
       </BottomButtonBar>
@@ -1695,7 +1709,7 @@ export function Step3() {
     );
   };
 
-  /** 출발지/도착지 사다리차 사용 — 각각 독립(4단계 차량 화면과 같은 필드를 씁니다). */
+  /** 출발지/도착지 사다리차 사용 — 각각 독립(5단계 차량 화면과 같은 필드를 씁니다). */
   const toggleSideLadder = (side: "from" | "to") => {
     tap("soft");
     if (side === "from") {
@@ -1723,7 +1737,7 @@ export function Step3() {
   };
   const swipe = useSwipeNav(
     () => setScreen("step2"),
-    () => setScreen("step4"),
+     () => setScreen("step6"),
   );
   return (
     <MobileShell className="jp-estimate-flow jp-tone-3">
@@ -1813,21 +1827,17 @@ export function Step3() {
         })}
       </div>
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("step4")}>다음: 차량 선택</PrimaryButton>
+         <PrimaryButton onClick={() => setScreen("step6")}>다음: 공간별 품목</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
 }
 
-// ============ Step 4: Vehicles ============
+ // ============ Step 5: Vehicles (저장된 내부 키 step4 유지) ============
 export function Step4() {
-  const { draft, updateDraft, setScreen, setCurrentRoom } = useApp();
+   const { draft, updateDraft, setScreen } = useApp();
   const ladderUnit = getPricing().ladder;
-  const goNext = () => {
-    const first = draft.rooms[0];
-    if (first) setCurrentRoom(first.id);
-    setScreen("step6");
-  };
+   const goNext = () => setScreen("options");
   const vehicles = [
     {
       key: "truck1t" as const,
@@ -1844,10 +1854,10 @@ export function Step4() {
       val: draft.truck5t,
     },
   ];
-  const swipe = useSwipeNav(() => setScreen("step3"), goNext);
+   const swipe = useSwipeNav(() => setScreen("step6"), goNext);
   return (
-    <MobileShell className="jp-estimate-flow jp-tone-4">
-      <TopBar title="4단계. 차량 선택" onBack={() => setScreen("step3")} />
+     <MobileShell className="jp-estimate-flow jp-tone-5">
+       <TopBar title="5단계. 차량 선택" onBack={() => setScreen("step6")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
         {vehicles.map((v) => (
           <Card key={v.key} selected={v.val > 0}>
@@ -2015,13 +2025,13 @@ export function Step4() {
         </Field>
       </div>
       <BottomButtonBar>
-        <PrimaryButton onClick={goNext}>다음: 공간별 품목</PrimaryButton>
+         <PrimaryButton onClick={goNext}>다음: 옵션·보관료</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
 }
 
-// ============ Step 6: Items ============
+ // ============ Step 4: Items (저장된 내부 키 step6 유지) ============
 /** 평수별 집 구조(구획) */
 export const SIZE_TABS: { key: string; rooms: string[] }[] = [
   { key: "5~10평", rooms: ["안방", "부엌", "베란다"] },
@@ -2235,8 +2245,8 @@ export function Step6() {
 
   /** 화면을 좌우로 드래그하면 앞·뒤 단계로 넘어갑니다 */
   const swipe = useSwipeNav(
-    () => setScreen("step4"),
-    () => setScreen("options"),
+     () => setScreen("step3"),
+     () => setScreen("step4"),
   );
   /** 품목 목록에서 좌우로 드래그하면 분류 탭이 넘어갑니다 */
   const tabSwipe = useSwipeNav(
@@ -2891,7 +2901,7 @@ export function Step6() {
   const picked = room ? pickedOf(room) : [];
   const totalKinds = draft.rooms.reduce((a, r) => a + roomSummary(r.items).kinds, 0);
 
-  /** 담긴 짐이 4단계에서 고른 차량에 들어가는지 */
+   /** 담긴 짐이 선택된 차량에 들어가는지 (차량 선택은 다음 5단계) */
   const load = useMemo(() => calcTruckLoad(draft), [draft]);
 
   /** 게이지에서 「5톤 1대로 바꾸기」를 눌렀을 때 */
@@ -3003,14 +3013,14 @@ export function Step6() {
   };
 
   return (
-    <MobileShell className="jp-estimate-flow jp-tone-5">
+     <MobileShell className="jp-estimate-flow jp-tone-4">
       {/* 헤더 */}
       <div className="px-4 pt-2 pb-3 bg-white border-b border-[#E5E7EB]">
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
               tap("soft");
-              setScreen("step4");
+               setScreen("step3");
             }}
             aria-label="뒤로"
             className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] flex items-center justify-center text-[#25282D] shadow-[0_4px_0_#E5E7EB,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#E5E7EB]"
@@ -3018,7 +3028,7 @@ export function Step6() {
             <ChevronLeft className="w-6 h-6" />
           </button>
           <h1 className="flex-1 text-center text-[20px] font-black text-[#25282D] leading-tight">
-            5단계. 공간별 품목
+             4단계. 공간별 품목
           </h1>
           <div className="shrink-0 w-10" />
         </div>
@@ -3176,8 +3186,8 @@ export function Step6() {
 
 
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("options")}>
-          <span className="inline-flex items-center gap-2">다음: 옵션·보관료</span>
+         <PrimaryButton onClick={() => setScreen("step4")}>
+           <span className="inline-flex items-center gap-2">다음: 차량 선택</span>
         </PrimaryButton>
       </BottomButtonBar>
 
@@ -4373,7 +4383,7 @@ export function OptionsScreen() {
 
   return (
     <MobileShell className="jp-estimate-flow jp-tone-6">
-      <TopBar title="6단계. 옵션·보관료" onBack={() => setScreen("step6")} />
+       <TopBar title="6단계. 옵션·보관료" onBack={() => setScreen("step4")} />
       <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
         {draft.options.length === 0 && (
           <div className="text-center text-[#6B7280] py-10 text-sm">
@@ -5246,7 +5256,7 @@ export function Result() {
         title={backTo === "options" ? "견적 결과" : "견적 상세"}
         onBack={() => {
           // 견적 상세에서 뒤로가기는 6단계(옵션)로 돌아갑니다.
-          // 이후 옵션→5단계(공간별 품목)→4단계(차량)→3단계→2단계→1단계→홈
+           // 이후 옵션→5단계(차량)→4단계(공간별 품목)→3단계→2단계→1단계→홈
           // 순으로 각 화면의 뒤로가기가 이어집니다.
           setScreen("options");
         }}
@@ -5734,7 +5744,7 @@ export function Result() {
                   />
                 </Field>
                 <p className="text-[12.5px] font-semibold leading-relaxed text-[#6B7280]">
-                  품목과 수량은 5단계 「공간별 품목」에서, 차량·옵션은 앞 단계에서 고치면 견적서에
+                   품목과 수량은 4단계 「공간별 품목」에서, 차량은 5단계에서 고치면 견적서에
                   바로 반영됩니다. 고객이 처음 넣은 신청 정보는 그대로 남습니다.
                 </p>
               </div>

@@ -1,6 +1,6 @@
 /**
  * 설정 > 평수별 기본품목 — 업체별로 저장합니다.
- * 여기서 고친 목록은 5단계에서 평수를 누를 때 자동으로 담깁니다.
+ * 여기서 고친 목록은 4단계에서 평수를 누를 때 자동으로 담깁니다.
  * 이미 저장·확정된 고객 견적서의 품목·금액은 바뀌지 않습니다.
  */
 import { useEffect, useState } from "react";
@@ -86,7 +86,7 @@ export function SizePresetCard({ onNeedLogin }: { onNeedLogin?: () => void }) {
       >
         <div className="font-bold">평수별 기본품목</div>
         <div className="mt-1 text-xs text-[#6B7280]">
-          5단계에서 평수를 누르면 여기 목록이 자동으로 담깁니다
+          4단계에서 평수를 누르면 여기 목록이 자동으로 담깁니다
         </div>
       </button>
 

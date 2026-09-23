@@ -103,7 +103,7 @@ export interface Estimate {
   /** 특약사항 */
   specialTerms: string;
   rooms: Room[];
-  /** 5단계에서 고른 평수 구간 (예: "30~40평") */
+   /** 4단계에서 고른 평수 구간 (예: "30~40평") */
   sizeTab?: string;
   customItems: CustomItem[];
   hiddenItems: string[];
@@ -1190,7 +1190,7 @@ export function itemNameById(id: string): string | undefined {
 export interface TruckLoad {
   /** 담긴 짐 전체 부피 (루베) */
   volume: number;
-  /** 4단계에서 고른 차량이 실을 수 있는 부피 */
+  /** 5단계에서 고른 차량이 실을 수 있는 부피 */
   capacity: number;
   /** 적재율 0~ (100 이 꽉 참) */
   percent: number;
@@ -1611,7 +1611,7 @@ interface Ctx extends AppState {
   /** 품목을 목록에서 영구히(앱 전체) 숨깁니다 — 새 견적·새로고침에도 유지 */
   hideCatalogItem: (id: string) => void;
   setCurrentRoom: (id: string) => void;
-  /** 5~6단계 변경 직전 스냅샷으로 즉시 복원 */
+   /** 품목 단계 진입 직전 스냅샷으로 즉시 복원 */
   restoreStepSnapshot: () => boolean;
   /**
    * 견적 완료 후 첫 화면으로. 작성 중이던 임시 화면 상태만 정리하고
@@ -1914,7 +1914,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
         }
       }
       setState((s) => {
-        // 5단계(품목 입력) 진입 직전 상태를 스냅샷으로 보관합니다
+         // 4단계(품목 입력) 진입 직전 상태를 스냅샷으로 보관합니다
         const entering5 =
           screen === "step6" && s.screen !== "step6" && s.screen !== "plan";
         return {

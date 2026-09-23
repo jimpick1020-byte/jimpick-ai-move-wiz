@@ -15,10 +15,10 @@ import { withRetry } from "@/lib/retry";
 
 const SCREEN_LABEL: Record<string, string> = {
   step1: "1단계 고객 정보",
-  step2: "2단계 품목",
+   step2: "2단계 주소 입력",
   step3: "3단계 작업 조건",
-  step4: "4단계 인원·차량",
-  step6: "견적 상세",
+   step4: "5단계 인원·차량",
+   step6: "4단계 공간별 품목",
   result: "견적 결과",
   history: "견적 내역",
   customers: "고객 관리",
