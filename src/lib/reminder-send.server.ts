@@ -206,7 +206,7 @@ async function sendOne(
   ]);
   const companyName = String(profile?.company_name ?? "").trim();
   const sender = String(senderRow?.sender_number ?? "").trim();
-  const companyPhone = String(profile?.phone ?? "").trim();
+  const companyPhone = String(profile?.phone ?? row.company_phone ?? "").trim();
   const setupError = profileErr || senderErr
     ? "업체 발신정보를 확인하지 못했습니다."
     : !companyName ? "업체 정보가 필요합니다." : !/^0[0-9]{8,10}$/.test(sender)
@@ -216,8 +216,17 @@ async function sendOne(
     await supabaseAdmin.from("move_reminders").update({ status: "failed", failed_at: now, error_code: "sender_setup", error_reason: setupError } as never).eq("id", row.id);
     return { sent: false };
   }
-  // 보안 링크 자체가 문자 본문의 전부입니다. 카드 그림은 공유 페이지 OG 이미지로만 제공합니다.
-  const text = link ?? "";
+  // 본문에 보안 URL은 딱 한 번만 싣습니다. 링크를 누르면 기존 전날 안내 카드 미리보기가 열립니다.
+  const text = [
+    "[Web발신] [짐도리]",
+    `${row.customer_name.trim()} 고객님, 내일은 예약하신 이사일입니다.`,
+    row.start_time?.trim() && `이사 예정 시간: ${row.start_time.trim()}`,
+    row.from_address?.trim() && `출발지: ${row.from_address.trim()}`,
+    row.to_address?.trim() && `도착지: ${row.to_address.trim()}`,
+    "원활한 이사를 위해 귀중품과 개인 소지품을 미리 확인해 주세요.",
+    `이사 내용 확인: ${link}`,
+    `문의: ${companyPhone}`,
+  ].filter(Boolean).join("\n");
   const msgType = new TextEncoder().encode(text).length <= 90 ? "SMS" : "LMS";
   const sendArgs = { to, text, title: "", msgType, ...creds, sender, companyId: row.company_id,
   };
