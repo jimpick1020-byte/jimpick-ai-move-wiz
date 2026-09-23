@@ -627,8 +627,8 @@ const handle = async (req: Request): Promise<Response> => {
     const testText = `[${testCompany.companyName}]\n문자발송 연결 테스트입니다.`;
     // 시험 문자도 실제로 요금이 나가므로 무료 문자 사용량에 넣습니다.
     const holdT = await reserveSms({
-      userId,
-      key: String(body.idempotency_key ?? "").trim() || `test:${userId}:${Date.now()}`,
+      userId: testUserId,
+      key: String(body.idempotency_key ?? "").trim() || `test:${testUserId}:${Date.now()}`,
       supabaseUrl,
       serviceKey,
     });
