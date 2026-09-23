@@ -139,7 +139,8 @@ async function companySmsInfo(companyId: string, supabaseUrl: string, serviceKey
   const approved = ((await senderRes.json()) as Array<{ sender_number?: string }>)[0];
   const companyName = String(profile?.company_name ?? "").trim();
   if (!companyName) return { ok: false, error: "업체 정보가 필요합니다." } as const;
-  const sender = String(approved?.sender_number ?? "").trim();
+  // 저장된 번호에 하이픈이 섞여 있어도 알리고 전송 형식(숫자만)으로 맞춰 줍니다.
+  const sender = normalizePhone(String(approved?.sender_number ?? ""));
   if (!/^0[0-9]{8,10}$/.test(sender)) return { ok: false, error: "알리고 승인 발신번호가 등록되지 않아 발송하지 않았습니다." } as const;
   return { ok: true, companyName, companyPhone: String(profile?.phone ?? "").trim(), sender } as const;
 }
