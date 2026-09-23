@@ -661,7 +661,7 @@ const handle = async (req: Request): Promise<Response> => {
         headers: { Prefer: "resolution=ignore-duplicates" },
         body: JSON.stringify({
           estimate_id: null,
-          user_id: userId,
+          user_id: testUserId,
           to_masked: `****${last4(to)}`,
           delivery_method: "test",
           provider: "aligo",
