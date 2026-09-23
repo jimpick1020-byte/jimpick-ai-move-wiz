@@ -552,12 +552,17 @@ const handle = async (req: Request): Promise<Response> => {
       ? String(body.company_id) : userId;
     const senderReady = checkCompanyId ? (await companySmsInfo(checkCompanyId, supabaseUrl, serviceKey)).ok : false;
     let cardReady = false;
+    // 중계 서버가 어떤 버전인지(비밀값은 제외) 그대로 보여 줍니다 — 점검용입니다.
+    let proxyHealth: { status?: number; service?: string | null; capabilities?: string[] | null; error?: string } | null = null;
     if (viaProxy) {
       try {
         const r = await fetch(`${proxyUrl!.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
         const h = (await r.json().catch(() => null)) as { service?: string; capabilities?: string[] } | null;
         cardReady = r.ok && h?.service === "aligo-sms-proxy" && h.capabilities?.includes("sms-cards-v1") === true;
-      } catch { /* 새 버전 여부를 확인하지 못하면 준비되지 않은 상태입니다. */ }
+        proxyHealth = { status: r.status, service: h?.service ?? null, capabilities: h?.capabilities ?? null };
+      } catch (e) {
+        proxyHealth = { error: e instanceof Error ? e.message : "확인 실패" };
+      }
     }
     return json({
       ok: missing.length === 0 && cardReady && senderReady && !badAppUrl,
