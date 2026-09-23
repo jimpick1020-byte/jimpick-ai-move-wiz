@@ -1347,7 +1347,6 @@ const handle = async (req: Request): Promise<Response> => {
   }
 
   // ── 4. 문자 내용을 실제 자료로 만듭니다 ──
-  const companyPhone = company.companyPhone;
   if (!customer) return json({ ok: false, error: "고객 이름이 없어 발송하지 않았습니다." }, 400);
   const moveDate = String(row.move_date ?? "").trim();
   const companyPhone = company.companyPhone;
