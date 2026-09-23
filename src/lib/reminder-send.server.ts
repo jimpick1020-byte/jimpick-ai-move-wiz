@@ -237,7 +237,7 @@ async function sendOne(
   ]);
   const companyName = String(profile?.company_name ?? "").trim();
   const sender = String(senderRow?.sender_number ?? "").trim();
-  const companyPhone = String(profile?.phone ?? row.company_phone ?? "").trim();
+  const companyPhone = String(profile?.phone ?? "").trim();
   const setupError = profileErr || senderErr
     ? "업체 발신정보를 확인하지 못했습니다."
     : !companyName ? "업체 정보가 필요합니다." : !/^0[0-9]{8,10}$/.test(sender)

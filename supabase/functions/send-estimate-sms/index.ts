@@ -1061,7 +1061,7 @@ const handle = async (req: Request): Promise<Response> => {
       tokenD.length >= 8
         ? `${appUrl}/share/${encodeURIComponent(estIn)}?t=${encodeURIComponent(tokenD)}`
         : "";
-    const companyPhoneD = companyD.companyPhone || String(drow.company_phone ?? "").trim();
+    const companyPhoneD = companyD.companyPhone;
     const textD = [
       `[${companyD.companyName}]`,
       `${String(drow.customer_name ?? "고객").trim() || "고객"} 고객님, 예약금 입금이 확인되었습니다.`,
@@ -1095,7 +1095,7 @@ const handle = async (req: Request): Promise<Response> => {
       sender: companyD.sender,
       companyId: ownerD,
       cardType: "deposit",
-      cardData: { companyName: companyD.companyName, customerName: String(drow.customer_name ?? "").trim(), moveDate: String(drow.move_date ?? "").trim(), amount: wonD(paidD), companyPhone: companyD.companyPhone || companyPhoneD },
+       cardData: { companyName: companyD.companyName, customerName: String(drow.customer_name ?? "").trim(), moveDate: String(drow.move_date ?? "").trim(), amount: wonD(paidD), companyPhone: companyPhoneD },
       proxyUrl,
       proxySecret,
       viaProxy,
@@ -1274,7 +1274,7 @@ const handle = async (req: Request): Promise<Response> => {
   }
 
   // ── 4. 문자 내용을 실제 자료로 만듭니다 ──
-  const companyPhone = company.companyPhone || String(row.company_phone ?? "").trim();
+  const companyPhone = company.companyPhone;
   if (!companyPhone || !String(row.move_date ?? "").trim() || !String(row.customer_name ?? "").trim() || Number(row.total ?? 0) <= 0) return json({ ok: false, error: "업체 문의번호·고객·이사 날짜·견적금액이 없어 발송하지 않았습니다." }, 400);
   const text = [
     `[${company.companyName}]`,
@@ -1318,7 +1318,7 @@ const handle = async (req: Request): Promise<Response> => {
     sender: company.sender,
     companyId: userId,
     cardType: "quote",
-    cardData: { companyName: company.companyName, customerName: customer, moveDate: String(row.move_date ?? "").trim(), amount: `${Number(row.total ?? 0).toLocaleString("ko-KR")}원`, companyPhone: company.companyPhone || companyPhone },
+    cardData: { companyName: company.companyName, customerName: customer, moveDate: String(row.move_date ?? "").trim(), amount: `${Number(row.total ?? 0).toLocaleString("ko-KR")}원`, companyPhone },
     proxyUrl,
     proxySecret,
     viaProxy,
