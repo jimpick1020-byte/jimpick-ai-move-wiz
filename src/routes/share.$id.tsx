@@ -36,7 +36,7 @@ export const Route = createFileRoute("/share/$id")({
       return { valid: false as const, card, origin: "" };
     }
   },
-  head: ({ loaderData, match }) => {
+  head: ({ loaderData, match, params }) => {
     const valid = loaderData?.valid === true;
     const preview = valid && loaderData.card in previews ? previews[loaderData.card as CardType] : null;
     // Do not put an invalid bearer token into OG metadata or a canonical URL.
@@ -46,7 +46,7 @@ export const Route = createFileRoute("/share/$id")({
     if (match.search.rm) search.set("rm", match.search.rm);
     if (match.search.card) search.set("card", match.search.card);
     const href = valid && origin && origin.startsWith("https://")
-      ? `${origin}${match.pathname}?${search.toString()}` : undefined;
+      ? `${origin}/share/${encodeURIComponent(params.id)}?${search.toString()}` : undefined;
     const image = preview && origin && origin.startsWith("https://") ? new URL(preview.image, origin).href : undefined;
     const title = preview?.title ?? "JIMPICK 고객용 견적서";
     const description = preview?.description ?? "JIMPICK에서 전달드린 이사 견적서입니다.";
