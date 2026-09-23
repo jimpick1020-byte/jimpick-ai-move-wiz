@@ -305,12 +305,14 @@ async function sendOne(
   const usageRpc = supabaseAdmin as unknown as {
     rpc: (n: string, a: Record<string, unknown>) => Promise<unknown>;
   };
-  await usageRpc
-    .rpc(out.ok ? "confirm_free_sms" : "release_free_sms", {
+  try {
+    await usageRpc.rpc(out.ok ? "confirm_free_sms" : "release_free_sms", {
       _user_id: row.user_id,
       _key: usageKey,
-    })
-    .catch(() => undefined);
+    });
+  } catch (e) {
+    console.error("[move-reminders] 사용량 정리 실패", e instanceof Error ? e.message : e);
+  }
 
   await supabaseAdmin
     .from("move_reminders")
