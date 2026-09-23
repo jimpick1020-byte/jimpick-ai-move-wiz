@@ -204,7 +204,6 @@ async function sendOne(
     supabaseAdmin.from("profiles").select("company_name,phone").eq("id", row.company_id).maybeSingle(),
     supabaseAdmin.from("company_sms_senders").select("sender_number").eq("company_id", row.company_id).eq("provider", "aligo").maybeSingle(),
   ]);
-  const companyName = String(profile?.company_name ?? "").trim();
   const sender = String(senderRow?.sender_number ?? "").trim();
   const companyPhone = String(row.company_phone ?? profile?.phone ?? "").trim();
   const setupError = profileErr || senderErr
