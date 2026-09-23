@@ -646,11 +646,11 @@ const handle = async (req: Request): Promise<Response> => {
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
       sender: testCompany.sender,
-      companyId: userId,
+      companyId: testUserId,
       proxyUrl,
       proxySecret,
       viaProxy,
-      userId,
+      userId: testUserId,
     });
     const nowT = new Date().toISOString();
     try {
