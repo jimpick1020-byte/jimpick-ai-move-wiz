@@ -176,6 +176,8 @@ async function customerLink(row: Reminder): Promise<string | null> {
       .is("deleted_at", null)
       .maybeSingle();
     token = (data as { access_token?: string } | null)?.access_token ?? null;
+    // 연결된 계약이 삭제되거나 링크가 폐기된 경우 다른 버전으로 우회하지 않습니다.
+    if (!token) return null;
   }
   if (!token) {
     const { data } = await supabaseAdmin

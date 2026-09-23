@@ -1114,7 +1114,7 @@ const handle = async (req: Request): Promise<Response> => {
       sender: companyD.sender,
       companyId: ownerD,
       cardType: "deposit",
-       cardData: { companyName: companyD.companyName, customerName: String(drow.customer_name ?? "").trim(), moveDate: String(drow.move_date ?? "").trim(), amount: wonD(paidD), companyPhone: companyPhoneD },
+      cardData: { companyName: companyD.companyName, customerName: String(drow.customer_name ?? "").trim(), moveDate: String(drow.move_date ?? "").trim(), amount: wonD(paidD), companyPhone: companyPhoneD },
       proxyUrl,
       proxySecret,
       viaProxy,

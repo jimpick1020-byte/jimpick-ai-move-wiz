@@ -138,25 +138,9 @@ GET https://<Cloud Run 주소>/my-ip
 
 ## 6. 시험해 보기
 
-**미발송 설정 점검** — `testMode: true`는 실제 전달 확인이 아닙니다. 승인 발신번호가 등록된 테스트 업체와 수신번호로 세 종류를 실제 발송해야 전달 상태까지 확인할 수 있습니다.
+**미발송 설정 점검** — `GET /health` 응답에 `"capabilities":["sms-cards-v1"]`가 있어야 그림문자 발송 경로가 열립니다. 기존 배포 서버가 다른 형태로 응답하면 최신 중계 서버 배포 전까지 그림문자를 보내지 않습니다. `testMode: true`는 실제 전달 확인이 아닙니다. 승인 발신번호가 등록된 테스트 업체·견적·수신번호가 준비된 뒤 앱에서 세 종류를 실제 발송하고 알리고 접수·통신사 전달·한글 표시를 별도로 확인해야 합니다.
 
-```bash
-curl -X POST "https://<Cloud Run 주소>/send" \
-  -H "Content-Type: application/json" \
-  -H "x-jimpick-secret: <JIMPICK_PROXY_SECRET>" \
-  -d '{
-        "to": "01012345678",
-        "companyId": "<승인된 테스트 업체 UUID>",
-        "userId": "<같은 업체 UUID>",
-        "text": "[업체명] 이사 견적서 확인: https://<고객 보안 링크>",
-        "cardType": "quote",
-        "cardData": {"companyName":"<업체 상호>","customerName":"<고객명>","moveDate":"<이사 날짜>","amount":"<견적 금액>","companyPhone":"<업체 문의번호>"},
-        "idempotencyKey": "test-1",
-        "testMode": true
-      }'
-```
-
-살아 있는지 확인: `GET /health`
+중계 서버를 외부에서 직접 호출하는 방식은 업체 소유권을 증명할 수 없으므로 사용하지 마세요. 서버 비밀값은 앱 서버·Edge Function에만 둡니다.
 
 ---
 
@@ -167,7 +151,7 @@ curl -X POST "https://<Cloud Run 주소>/send" \
   - `cardType`이 `quote`, `deposit`, `reminder`이면 실제 업체·고객 자료로 **MMS** 이미지를 만들어 첨부 (300KB 이하)
   - `imageBase64`를 넣어도 MMS로 보냅니다 (300KB 이하)
   - `idempotencyKey` 가 같으면 **다시 보내지 않습니다** (중복 방지)
-  - 앱 경로는 호출자가 `estimate_deliveries`에 기록합니다. 중계 서버의 독립 발송은 `idempotencyKey`가 있는 경우 기록합니다.
+  - 앱 경로는 호출자가 `estimate_deliveries`에 기록합니다. 중계 서버의 독립 발송은 `idempotencyKey`가 있는 경우 기록합니다. 중계 서버는 업체 계정 인증 없이 독립 발송용으로 공개해서는 안 됩니다.
   - 받는 번호는 **뒤 4자리만** 저장합니다
 - `GET /my-ip` — 알리고에 등록할 IP 확인
 - `GET /health` — 살아 있는지 확인
