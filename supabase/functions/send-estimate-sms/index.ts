@@ -605,6 +605,7 @@ const handle = async (req: Request): Promise<Response> => {
         발송경로: viaProxy ? "고정 IP 중계 서버 경유" : "그림문자 중계 서버 필요",
       },
       proxyHealth,
+      proxyAuth,
       missing: [...missing, ...(!cardReady ? ["그림문자 중계 서버 새 버전"] : []), ...(!senderReady ? ["업체별 승인 발신번호"] : [])],
       appUrlProblem: badAppUrl
         ? "PUBLIC_APP_URL 이 배포 주소가 아닙니다. 배포된 주소로 넣어 주세요."
