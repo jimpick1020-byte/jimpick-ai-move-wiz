@@ -612,8 +612,13 @@ const handle = async (req: Request): Promise<Response> => {
   // 견적서와 무관하게, 정해진 문구만 사장님이 넣은 번호로 한 통 보냅니다.
   // 고객 정보가 섞이지 않으므로 안전합니다. 로그인은 위에서 이미 확인했습니다.
   if (body.mode === "test") {
-    if (!userId) return json({ ok: false, error: "시험 발송할 업체 계정으로 로그인해 주세요." }, 403);
-    const testCompany = await companySmsInfo(userId, supabaseUrl, serviceKey);
+    // 우리 서버에서 점검할 때는 어느 업체로 보낼지 직접 알려 줍니다.
+    const testUserId =
+      isServerCall && /^[0-9a-f-]{36}$/i.test(String(body.company_id ?? ""))
+        ? String(body.company_id)
+        : userId;
+    if (!testUserId) return json({ ok: false, error: "시험 발송할 업체 계정으로 로그인해 주세요." }, 403);
+    const testCompany = await companySmsInfo(testUserId, supabaseUrl, serviceKey);
     if (!testCompany.ok) return json({ ok: false, error: testCompany.error }, 403);
     const to = normalizePhone(String(body.test_to ?? ""));
     if (!isKoreanMobile(to)) {
@@ -622,8 +627,8 @@ const handle = async (req: Request): Promise<Response> => {
     const testText = `[${testCompany.companyName}]\n문자발송 연결 테스트입니다.`;
     // 시험 문자도 실제로 요금이 나가므로 무료 문자 사용량에 넣습니다.
     const holdT = await reserveSms({
-      userId,
-      key: String(body.idempotency_key ?? "").trim() || `test:${userId}:${Date.now()}`,
+      userId: testUserId,
+      key: String(body.idempotency_key ?? "").trim() || `test:${testUserId}:${Date.now()}`,
       supabaseUrl,
       serviceKey,
     });
@@ -641,11 +646,11 @@ const handle = async (req: Request): Promise<Response> => {
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
       sender: testCompany.sender,
-      companyId: userId,
+      companyId: testUserId,
       proxyUrl,
       proxySecret,
       viaProxy,
-      userId,
+      userId: testUserId,
     });
     const nowT = new Date().toISOString();
     try {
@@ -656,7 +661,7 @@ const handle = async (req: Request): Promise<Response> => {
         headers: { Prefer: "resolution=ignore-duplicates" },
         body: JSON.stringify({
           estimate_id: null,
-          user_id: userId,
+          user_id: testUserId,
           to_masked: `****${last4(to)}`,
           delivery_method: "test",
           provider: "aligo",
@@ -677,10 +682,10 @@ const handle = async (req: Request): Promise<Response> => {
       console.error("[send-estimate-sms] 시험 발송 기록 실패", e instanceof Error ? e.message : e);
     }
     if (!sent.ok) {
-      await releaseSms(userId, holdT.hold, supabaseUrl, serviceKey);
+      await releaseSms(testUserId, holdT.hold, supabaseUrl, serviceKey);
       return json({ ok: false, error: sent.error ?? "문자 발송에 실패했습니다.", status: "failed" }, 502);
     }
-    await confirmSms(userId, holdT.hold, supabaseUrl, serviceKey);
+    await confirmSms(testUserId, holdT.hold, supabaseUrl, serviceKey);
     return json({
       ok: true,
       msgId: sent.msgId ?? null,
