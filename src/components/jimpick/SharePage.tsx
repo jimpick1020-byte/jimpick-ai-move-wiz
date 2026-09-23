@@ -106,14 +106,15 @@ export function SharePage() {
   const isDeposit = search.card === "deposit";
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [link, setLink] = useState<TermsLinkInfo | null>(null);
+  const validLink = preview.valid && link?.ok === true && link.estimateId === id;
 
   // 이사 전날 안내 문자의 링크로 들어온 경우, 고객이 확인했다는 기록을 남깁니다
   useEffect(() => {
-    if (!preview.valid || !link?.ok || link.estimateId !== id || reminderToken.length < 16) return;
+    if (!validLink || reminderToken.length < 16) return;
     void import("@/lib/reminder.functions")
       .then(({ markReminderViewed }) => markReminderViewed({ data: { token: reminderToken } }))
       .catch(() => undefined);
-  }, [id, link, preview.valid, reminderToken]);
+  }, [validLink, reminderToken]);
 
   const [loading, setLoading] = useState(true);
   // 고객은 링크를 열면 바로 견적서를 봅니다 (한 번 더 누르지 않습니다)
@@ -262,7 +263,7 @@ export function SharePage() {
       .finally(() => setLoading(false));
   }, [id, token, staffMode, preview.valid]);
 
-  const localCalc = useMemo(() => (estimate ? calcEstimate(estimate) : null), [estimate]);
+  const localCalc = useMemo(() => (validLink && estimate ? calcEstimate(estimate) : null), [estimate, validLink]);
 
   /**
    * 사장님이 문자를 보낼 때 함께 담아 둔 견적서 원본.
@@ -293,7 +294,6 @@ export function SharePage() {
   }, [id, link, preview.valid]);
 
   // 실제 데이터: 서버(토큰 조회) 우선, 없으면 이 기기에 저장된 견적
-  const validLink = preview.valid && link?.ok === true && link.estimateId === id;
   const customerName = validLink ? link.customerName ?? "" : "";
   const moveDate = ymd(validLink ? link.moveDate : null);
   // 위쪽 요약 금액과 아래 견적서 금액이 서로 다르면 안 됩니다.
