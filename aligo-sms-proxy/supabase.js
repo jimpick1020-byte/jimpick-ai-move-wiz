@@ -50,7 +50,7 @@ export async function findDelivery(idempotencyKey) {
   try {
     const q = new URLSearchParams({
       idempotency_key: `eq.${idempotencyKey}`,
-      status: "in.(success,accepted)",
+      status: "in.(success,sent,accepted,delivered)",
       select: "id,msg_id,msg_type,sent_at",
       limit: "1",
     });

@@ -11,6 +11,7 @@ import { ReminderBoard } from "@/components/jimpick/ReminderBoard";
 import {
   listCompanyAccounts,
   deleteCompanyAccount,
+  approveCompanySmsSender,
   type CompanyAccount,
 } from "@/lib/admin.functions";
 import {
@@ -111,6 +112,28 @@ export function AdminAccountsScreen() {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState("");
+  const [senderEditId, setSenderEditId] = useState<string | null>(null);
+  const [senderNumber, setSenderNumber] = useState("");
+  const [approvalConfirmed, setApprovalConfirmed] = useState(false);
+  const [savingSender, setSavingSender] = useState(false);
+
+  const saveSender = async (r: CompanyAccount) => {
+    if (savingSender || !approvalConfirmed) return;
+    setSavingSender(true);
+    try {
+      const result = await approveCompanySmsSender({ data: {
+        companyId: r.userId, senderNumber: senderNumber.replace(/[^0-9]/g, ""), approvalConfirmed: true,
+      } });
+      setRows((prev) => prev?.map((x) => x.userId === r.userId ? {
+        ...x, approvedSmsSender: result.senderNumber, smsSenderApprovedAt: result.approvedAt,
+      } : x) ?? null);
+      setSenderEditId(null);
+      setApprovalConfirmed(false);
+      toast.success("승인 발신번호를 저장했습니다.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "승인 발신번호를 저장하지 못했습니다.");
+    } finally { setSavingSender(false); }
+  };
 
   /** 구독으로 이용 중인 업체는 삭제 버튼을 보여주지 않습니다 */
   const canDelete = (r: CompanyAccount) =>
@@ -230,7 +253,34 @@ export function AdminAccountsScreen() {
               <div className="text-right">
                 {r.role === "super_admin" ? "서비스 관리자" : "구독 업체"}
               </div>
+              <div className="text-[#6B7280]">알리고 승인 발신번호</div>
+              <div className="text-right">{r.approvedSmsSender || "미등록 · 고객 문자 차단"}</div>
             </div>
+            {r.smsSenderApprovedAt && <div className="text-xs text-muted-foreground">확인 기록 {day(r.smsSenderApprovedAt)}</div>}
+            {senderEditId === r.userId ? (
+              <div className="space-y-2 border-t border-border pt-3">
+                <label className="block text-xs font-bold" htmlFor={`sender-${r.userId}`}>알리고 승인 발신번호</label>
+                <input id={`sender-${r.userId}`} type="tel" inputMode="numeric" value={senderNumber}
+                  onChange={(e) => setSenderNumber(e.target.value)} maxLength={13} placeholder="승인된 발신번호만 입력"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+                <label className="flex items-start gap-2 text-xs leading-5">
+                  <input type="checkbox" checked={approvalConfirmed} onChange={(e) => setApprovalConfirmed(e.target.checked)} />
+                  알리고에서 이 업체 명의로 승인된 번호인지 직접 확인했습니다.
+                </label>
+                <div className="flex gap-2">
+                  <button type="button" className="flex-1 rounded-lg border border-border py-2 text-xs" onClick={() => setSenderEditId(null)} disabled={savingSender}>취소</button>
+                  <button type="button" className="flex-1 rounded-lg bg-primary py-2 text-xs font-bold text-primary-foreground disabled:opacity-50"
+                    onClick={() => void saveSender(r)} disabled={savingSender || !approvalConfirmed || !/^0[0-9]{8,10}$/.test(senderNumber.replace(/[^0-9]/g, ""))}>
+                    {savingSender ? "저장 중…" : "승인번호 저장"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="w-full rounded-lg border border-border py-2 text-xs font-bold"
+                onClick={() => { setSenderEditId(r.userId); setSenderNumber(r.approvedSmsSender ?? ""); setApprovalConfirmed(false); }}>
+                승인 발신번호 {r.approvedSmsSender ? "변경" : "등록"}
+              </button>
+            )}
             {r.cancelAtPeriodEnd && (
               <div className="rounded-xl bg-[#FBEAEA] px-2.5 py-2 text-[11px] text-[#D95C5C]">
                 해지 예약됨 · {day(r.periodEnd)} 이후 결제되지 않습니다

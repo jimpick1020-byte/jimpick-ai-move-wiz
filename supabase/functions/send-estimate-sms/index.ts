@@ -296,11 +296,19 @@ async function sendViaAligo(v: {
   viaProxy: boolean;
   userId: string;
   companyId?: string;
+  serviceNotice?: boolean;
   cardType?: "quote" | "deposit";
   cardData?: { companyName: string; customerName: string; moveDate: string; amount: string; companyPhone: string };
 }): Promise<SendOutcome> {
   try {
     if (v.viaProxy) {
+      if (v.serviceNotice) {
+        const health = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
+        const capability = (await health.json().catch(() => null)) as { service?: string; capabilities?: string[] } | null;
+        if (!health.ok || capability?.service !== "aligo-sms-proxy" || !capability.capabilities?.includes("service-fix-v1")) {
+          return { ok: false, error: "운영 통보 중계 서버가 아직 새 버전이 아니어서 발송하지 않았습니다." };
+        }
+      }
       // 구형 중계 서버가 그림 필드를 무시하고 텍스트만 보내지 않도록 버전을 먼저 확인합니다.
       if (v.cardType) {
         const health = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
@@ -309,7 +317,8 @@ async function sendViaAligo(v: {
           return { ok: false, error: "그림문자 중계 서버가 아직 새 버전이 아니어서 발송하지 않았습니다." };
         }
       }
-      const r = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/send`, {
+       const serviceNotice = v.serviceNotice === true;
+       const r = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}${serviceNotice ? "/send-service-fix-notice" : "/send"}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -415,6 +424,7 @@ const handle = async (req: Request): Promise<Response> => {
 
   let body: {
     estimate_id?: string;
+    company_id?: string;
     delivery_method?: string;
     idempotency_key?: string;
     /** 사장님이 확인창에서 「다시 발송」을 직접 누른 경우에만 참 */
@@ -537,7 +547,9 @@ const handle = async (req: Request): Promise<Response> => {
 
   // 설정이 되어 있는지만 알려 줍니다 — 아이디·키·발신번호 값은 절대 보내지 않습니다.
   if (body.checkOnly) {
-    const senderReady = userId ? (await companySmsInfo(userId, supabaseUrl, serviceKey)).ok : false;
+    const checkCompanyId = isServerCall && /^[0-9a-f-]{36}$/i.test(String(body.company_id ?? ""))
+      ? String(body.company_id) : userId;
+    const senderReady = checkCompanyId ? (await companySmsInfo(checkCompanyId, supabaseUrl, serviceKey)).ok : false;
     let cardReady = false;
     if (viaProxy) {
       try {
@@ -752,6 +764,7 @@ const handle = async (req: Request): Promise<Response> => {
       proxySecret,
       viaProxy,
       userId: userId || "server",
+       serviceNotice: true,
     });
     await recordNotice({
       to_masked: `****${last4(noticeTo)}`,

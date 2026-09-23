@@ -6,6 +6,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
 
 export interface CompanyAccount {
   userId: string;
@@ -31,6 +32,8 @@ export interface CompanyAccount {
   /** 계정 사용 가능 여부 */
   active: boolean;
   role: string;
+  approvedSmsSender: string | null;
+  smsSenderApprovedAt: string | null;
 }
 
 /** 최고관리자인지 서버에서 확인합니다 (확인 함수는 서버에서만 실행됩니다) */
@@ -55,7 +58,7 @@ export const listCompanyAccounts = createServerFn({ method: "GET" })
     if (isAdmin !== true) throw new Error("Forbidden: 관리자만 사용할 수 있습니다");
 
 
-    const [usersRes, profilesRes, subsRes, paymentsRes, deliveriesRes, rolesRes] =
+    const [usersRes, profilesRes, subsRes, paymentsRes, deliveriesRes, rolesRes, sendersRes] =
       await Promise.all([
         supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 }),
         supabaseAdmin.from("profiles").select("id, company_name, owner_name, phone, created_at"),
@@ -70,9 +73,13 @@ export const listCompanyAccounts = createServerFn({ method: "GET" })
           .order("paid_at", { ascending: false }),
         supabaseAdmin.from("estimate_deliveries").select("user_id, status"),
         supabaseAdmin.from("user_roles").select("user_id, role"),
+        supabaseAdmin.from("company_sms_senders").select("company_id, sender_number, approved_at"),
       ]);
 
+    if (sendersRes.error) throw new Error("승인 발신번호를 읽지 못했습니다.");
+
     const profiles = new Map((profilesRes.data ?? []).map((p) => [p.id, p]));
+    const senders = new Map((sendersRes.data ?? []).map((s) => [s.company_id, s]));
     const subs = new Map((subsRes.data ?? []).map((s) => [s.user_id, s]));
     const roles = new Map((rolesRes.data ?? []).map((r) => [r.user_id, r.role as string]));
     const firstPayment = new Map<string, { status: string; paid_at: string }>();
@@ -86,7 +93,7 @@ export const listCompanyAccounts = createServerFn({ method: "GET" })
       if (!d.user_id) continue;
       const cur = sms.get(d.user_id) ?? { sent: 0, total: 0 };
       cur.total += 1;
-      if (d.status === "success" || d.status === "sent") cur.sent += 1;
+      if (["success", "sent", "accepted", "delivered"].includes(d.status)) cur.sent += 1;
       sms.set(d.user_id, cur);
     }
 
@@ -128,8 +135,40 @@ export const listCompanyAccounts = createServerFn({ method: "GET" })
         smsTotal: usage.total,
         active: !banned || new Date(banned).getTime() <= now,
         role: roles.get(u.id) ?? "subscriber",
+        approvedSmsSender: senders.get(u.id)?.sender_number ?? null,
+        smsSenderApprovedAt: senders.get(u.id)?.approved_at ?? null,
       };
     });
+  });
+
+/** 승인 내역은 최고관리자가 알리고에서 직접 확인한 뒤에만 저장합니다. 업체 계정은 쓰기 권한이 없습니다. */
+export const approveCompanySmsSender = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    companyId: z.string().uuid(),
+    senderNumber: z.string().regex(/^0[0-9]{8,10}$/),
+    approvalConfirmed: z.literal(true),
+  }).parse(d))
+  .handler(async ({ data, context }): Promise<{ senderNumber: string; approvedAt: string }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: isAdmin, error: roleError } = await supabaseAdmin.rpc("is_super_admin", {
+      _user_id: context.userId,
+    });
+    if (roleError || isAdmin !== true) throw new Error("최고관리자만 승인 발신번호를 등록할 수 있습니다.");
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from("profiles").select("id, company_name").eq("id", data.companyId).maybeSingle();
+    if (profileError || !profile?.company_name?.trim()) throw new Error("사업자 상호가 등록된 업체만 발신번호를 연결할 수 있습니다.");
+
+    const approvedAt = new Date().toISOString();
+    const { error } = await supabaseAdmin.from("company_sms_senders").upsert({
+      company_id: data.companyId,
+      sender_number: data.senderNumber,
+      approved_at: approvedAt,
+      approved_by: context.userId,
+      provider: "aligo",
+    }, { onConflict: "company_id" });
+    if (error) throw new Error("승인 발신번호 저장에 실패했습니다.");
+    return { senderNumber: data.senderNumber, approvedAt };
   });
 
 /**
