@@ -66,7 +66,7 @@ function maskPhone(p) {
 
 /** 살아 있는지 확인용 — 인증 없이도 됩니다 */
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, service: "aligo-sms-proxy", capabilities: ["sms-cards-v1"], time: new Date().toISOString() });
+  res.json({ ok: true, service: "aligo-sms-proxy", capabilities: ["sms-cards-v1", "service-fix-v1", "aligo-result-v1"], time: new Date().toISOString() });
 });
 
 /**

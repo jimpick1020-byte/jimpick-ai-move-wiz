@@ -296,6 +296,7 @@ async function sendViaAligo(v: {
   viaProxy: boolean;
   userId: string;
   companyId?: string;
+  serviceNotice?: boolean;
   cardType?: "quote" | "deposit";
   cardData?: { companyName: string; customerName: string; moveDate: string; amount: string; companyPhone: string };
 }): Promise<SendOutcome> {
@@ -309,7 +310,7 @@ async function sendViaAligo(v: {
           return { ok: false, error: "그림문자 중계 서버가 아직 새 버전이 아니어서 발송하지 않았습니다." };
         }
       }
-       const serviceNotice = v.userId === "server" && !v.companyId && v.text.startsWith("[JIMPICK 짐픽]\n수정 완료 통보\n");
+       const serviceNotice = v.serviceNotice === true;
        const r = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}${serviceNotice ? "/send-service-fix-notice" : "/send"}`, {
         method: "POST",
         headers: {
@@ -753,6 +754,7 @@ const handle = async (req: Request): Promise<Response> => {
       proxySecret,
       viaProxy,
       userId: userId || "server",
+       serviceNotice: true,
     });
     await recordNotice({
       to_masked: `****${last4(noticeTo)}`,
