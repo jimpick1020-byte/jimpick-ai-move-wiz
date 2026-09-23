@@ -1265,13 +1265,14 @@ function AddressSearch({
   onSelect: (a: string, coord: { x: number; y: number }) => void;
   onDetail: (d: string) => void;
 }) {
-  const [q, setQ] = useState("");
+  // null = 선택한 주소 표시, 문자열 = 새 주소 검색 중
+  const [q, setQ] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<KakaoPlace[]>([]);
 
   const run = async (query?: string, silent = false) => {
-    const term = (query ?? q).trim();
+    const term = (query ?? q ?? "").trim();
     if (!term) return;
     setLoading(true);
     setOpen(true);
@@ -1289,7 +1290,7 @@ function AddressSearch({
 
   // 입력하면 자동으로 검색 결과를 띄우고, 클릭하면 바로 등록됩니다.
   useEffect(() => {
-    const term = q.trim();
+    const term = (q ?? "").trim();
     if (term.length < 2) return;
     const t = setTimeout(() => run(term, true), 400);
     return () => clearTimeout(t);
@@ -1300,8 +1301,12 @@ function AddressSearch({
       <div className="text-[18px] font-black text-[#3E9B78]">{label}</div>
       <div className="flex gap-2">
         <TextInput
+          aria-label={`${label} 주소 검색`}
           placeholder="도로명·지번·건물명 검색"
-          value={q}
+          value={q ?? value}
+          onFocus={(e) => {
+            if (q === null && value) e.currentTarget.select();
+          }}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") run();
@@ -1325,7 +1330,7 @@ function AddressSearch({
                 onClick={() => {
                   onSelect(a.roadAddress || a.address, { x: a.x, y: a.y });
                   setOpen(false);
-                  setQ("");
+                   setQ(null);
                   tap();
                 }}
                 className="w-full text-left px-4 py-3 hover:bg-[#F7F8F5] text-sm border-b last:border-b-0 border-[#E5E7EB]"
@@ -1338,23 +1343,18 @@ function AddressSearch({
             ))}
         </div>
       )}
-      {q.trim().length > 0 && (
+      {(q ?? "").trim().length > 0 && (
         <button
           onClick={() => {
-            onSelect(q.trim(), { x: 0, y: 0 });
+            onSelect((q ?? "").trim(), { x: 0, y: 0 });
             setOpen(false);
-            setQ("");
+            setQ(null);
             tap();
           }}
           className="w-full text-sm font-semibold rounded-xl py-2.5 border border-[#3578C8] text-[#25282D] bg-white"
         >
           검색이 안 되면: 입력한 주소 그대로 사용
         </button>
-      )}
-      {value && (
-        <div className="rounded-xl bg-[#F7F8F5] p-3 text-[17px] font-bold text-[#25282D]">
-          {value}
-        </div>
       )}
       <TextInput
         placeholder="상세주소 (예: 101동 1203호)"

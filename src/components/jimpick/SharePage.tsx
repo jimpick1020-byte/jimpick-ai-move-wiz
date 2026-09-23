@@ -147,11 +147,13 @@ export function SharePage() {
       const r = await claimCustomerDeposit({ data: { token } });
       if (r.ok) {
         setClaimSent(true);
+        setLink((current) => current?.ok ? { ...current, depositClaimPending: true } : current);
         try {
           localStorage.setItem(`jimpick.deposit.claim.${token}`, "1");
         } catch {
           /* 저장할 수 없는 브라우저는 그냥 넘어갑니다 */
         }
+        void getTermsLink({ data: { token } }).then(setLink).catch(() => {});
       } else {
         setClaimError(r.error ?? "알리지 못했습니다. 다시 시도해 주세요.");
       }
@@ -306,7 +308,6 @@ export function SharePage() {
   const hasData = Boolean(customerName && moveDate && total > 0);
   /** 실제로 입금 확인된 예약금 — 사장님이 확인한 금액만 들어옵니다 */
   const paidDeposit = Math.max(0, (link?.ok ? (link.depositPaid ?? 0) : 0) || 0);
-  const balanceDue = Math.max(0, total - paidDeposit);
 
   /**
    * 「입금 계좌」 카드 바로 아래에 붙는 예약금 입금 알림 영역.
@@ -320,19 +321,18 @@ export function SharePage() {
       return (
         <div className="rounded-[14px] border border-[#BFE7CE] bg-[#F1FBF4] px-4 py-3.5">
           <div className="text-center text-[16px] font-black text-[#3E9B78]">
-            예약금 {won(paidDeposit)} 입금 확인 완료
+            예약금 입금이 확인되었습니다
           </div>
         </div>
       );
     }
     // 고객이 「입금했습니다」를 누른 뒤, 업체가 통장을 확인하기 전
-    const pending =
-      claimSent || (link?.ok ? link.depositClaimPending === true : false);
+    const pending = link?.ok ? link.depositClaimPending === true : claimSent;
     if (pending) {
       return (
         <div className="rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
           <div className="text-center text-[15.5px] font-bold leading-snug text-[#B45309]">
-            입금 확인 대기 · 업체에서 통장을 확인한 뒤 알려드립니다
+            예약금 입금 확인 대기
           </div>
           {claimError && (
             <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">
@@ -354,7 +354,7 @@ export function SharePage() {
           {claiming ? "알리는 중…" : "입금했습니다"}
         </button>
         <div className="mt-1.5 text-center text-[14px] font-semibold text-[#8A6D1B]">
-          예약금을 보내셨으면 눌러 주세요. 업체가 통장을 확인한 뒤 확정됩니다.
+          업체가 예약금 입금을 확인한 후 예약이 확정됩니다.
         </div>
         {claimError && (
           <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">
@@ -578,28 +578,6 @@ export function SharePage() {
         이사 견적서 · 표준약관
       </h1>
 
-      {/* 예약금 입금이 확인되면 여기에 바로 보입니다 */}
-      {hasData && paidDeposit > 0 && (
-        <div className="mt-4 rounded-[14px] border border-[#BFE7CE] bg-[#F1FBF4] px-4 py-3.5 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
-          <div className="flex items-center gap-1.5 text-[15px] font-black text-[#3E9B78]">
-            <ShieldCheck className="h-[18px] w-[18px]" /> 예약금 입금이 확인되었습니다
-          </div>
-          <div className="mt-2 flex items-center justify-between text-[16px]">
-            <span className="text-[#6B7280]">총 견적금액</span>
-            <span className="font-bold tabular-nums">{won(total)}</span>
-          </div>
-          <div className="flex items-center justify-between text-[16px]">
-            <span className="text-[#6B7280]">예약금 (입금완료)</span>
-            <span className="font-bold tabular-nums text-[#3E9B78]">{won(paidDeposit)}</span>
-          </div>
-          <div className="mt-1 flex items-center justify-between border-t border-[#D8EFE0] pt-2">
-            <span className="text-[17px] font-black">잔금</span>
-            <span className="text-[20px] font-black tabular-nums text-[#25282D]">
-              {won(balanceDue)}
-            </span>
-          </div>
-        </div>
-      )}
       {/* 정보를 못 불러온 경우에만 안내합니다 */}
       {!hasData && (
         <div className="mt-4 rounded-[14px] bg-white px-4 py-6 text-center text-[16px] font-bold text-[#6B7280] shadow-[0_2px_12px_rgba(17,24,39,0.10)]">
