@@ -393,7 +393,7 @@ const handle = async (req: Request): Promise<Response> => {
   // 비밀값 등록 과정에서 붙을 수 있는 줄바꿈·공백은 알리고 인증 실패(-102)를 일으킵니다.
   // 원문은 로그나 응답에 남기지 않고, 정리한 값만 서버 내부에서 전송합니다.
   const apiKey = Deno.env.get("ALIGO_API_KEY")?.trim();
-  // 발신번호는 서버 코드에만 고정되어 있고, 업체 정보·요청 body·다른 변수에서 가져오지 않습니다.
+  // 기존 전역 발신번호는 업체별 발송에 사용하지 않습니다.
   const sender = normalizePhone(Deno.env.get("ALIGO_SENDER") ?? "");
   const appUrl = (Deno.env.get("PUBLIC_APP_URL") ?? Deno.env.get("APP_PUBLIC_URL") ?? "")
     .trim()
@@ -434,7 +434,6 @@ const handle = async (req: Request): Promise<Response> => {
   const missing = [
     !aligoUserId && "ALIGO_USER_ID",
     !apiKey && "ALIGO_API_KEY",
-    !sender && "ALIGO_SENDER",
     !appUrl && "PUBLIC_APP_URL",
     !supabaseUrl && "SUPABASE_URL",
     !serviceKey && "SUPABASE_SERVICE_ROLE_KEY",
@@ -577,17 +576,13 @@ const handle = async (req: Request): Promise<Response> => {
       500,
     );
   }
-  if (!isKoreanMobile(sender)) {
-    return json(
-      { ok: false, error: "발신번호 형식이 올바르지 않습니다. 알리고에 등록한 번호를 확인해 주세요." },
-      500,
-    );
-  }
-
   // ── 연결 시험 발송 ──
   // 견적서와 무관하게, 정해진 문구만 사장님이 넣은 번호로 한 통 보냅니다.
   // 고객 정보가 섞이지 않으므로 안전합니다. 로그인은 위에서 이미 확인했습니다.
   if (body.mode === "test") {
+    if (!userId) return json({ ok: false, error: "시험 발송할 업체 계정으로 로그인해 주세요." }, 403);
+    const testCompany = await companySmsInfo(userId, supabaseUrl, serviceKey);
+    if (!testCompany.ok) return json({ ok: false, error: testCompany.error }, 403);
     const to = normalizePhone(String(body.test_to ?? ""));
     if (!isKoreanMobile(to)) {
       return json({ ok: false, error: "받는 번호 형식이 올바르지 않습니다." }, 400);
@@ -613,7 +608,8 @@ const handle = async (req: Request): Promise<Response> => {
       msgType: "SMS",
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
-      sender: sender!,
+      sender: testCompany.sender,
+      companyId: userId,
       proxyUrl,
       proxySecret,
       viaProxy,
@@ -635,7 +631,7 @@ const handle = async (req: Request): Promise<Response> => {
           provider_message_id: sent.msgId ?? null,
           msg_id: sent.msgId ?? null,
           msg_type: sent.msgType ?? "SMS",
-          status: sent.ok ? "sent" : "failed",
+          status: sent.ok ? "accepted" : "failed",
           requested_at: nowT,
           sent_at: sent.ok ? nowT : null,
           failed_at: sent.ok ? null : nowT,
@@ -657,7 +653,7 @@ const handle = async (req: Request): Promise<Response> => {
       ok: true,
       msgId: sent.msgId ?? null,
       msgType: sent.msgType ?? "SMS",
-      status: "sent",
+      status: "accepted",
       recipientLast4: last4(to),
       requestedAt: nowT,
       sentAt: nowT,
@@ -668,6 +664,9 @@ const handle = async (req: Request): Promise<Response> => {
   // 오류가 났을 때 관리자를 부르지 않고, 고친 뒤에 「이렇게 고쳤습니다」만 한 통 보냅니다.
   // 받는 번호는 관리자 화면에 저장된 연락처만 씁니다 (코드에 번호를 넣지 않습니다).
   if (body.mode === "fix_notice") {
+    if (!userId) return json({ ok: false, error: "업체 계정으로 로그인해 주세요." }, 403);
+    const noticeCompany = await companySmsInfo(userId, supabaseUrl, serviceKey);
+    if (!noticeCompany.ok) return json({ ok: false, error: noticeCompany.error }, 403);
     const title = String(body.notice_title ?? "").trim().slice(0, 60);
     const summary = String(body.notice_summary ?? "").trim().slice(0, 300);
     if (!title || !summary) {
@@ -730,7 +729,8 @@ const handle = async (req: Request): Promise<Response> => {
       msgType: text.length > 90 ? "LMS" : "SMS",
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
-      sender: sender!,
+      sender: noticeCompany.sender,
+      companyId: userId,
       proxyUrl,
       proxySecret,
       viaProxy,
@@ -738,7 +738,7 @@ const handle = async (req: Request): Promise<Response> => {
     });
     await recordNotice({
       to_masked: `****${last4(noticeTo)}`,
-      status: sent.ok ? "sent" : "failed",
+      status: sent.ok ? "accepted" : "failed",
       provider_message_id: sent.msgId ?? null,
       sent_at: sent.ok ? nowF : null,
       failed_at: sent.ok ? null : nowF,
@@ -786,6 +786,8 @@ const handle = async (req: Request): Promise<Response> => {
     if (!isServerCall && ownerId !== userId) {
       return json({ ok: false, error: "이 견적서의 알림을 보낼 권한이 없습니다." }, 403);
     }
+    const managerCompany = await companySmsInfo(ownerId, supabaseUrl, serviceKey);
+    if (!managerCompany.ok) return json({ ok: false, error: managerCompany.error }, 403);
 
     // 고객이 실제로 예약을 확정했는지 확인합니다 (확인란만 눌렀을 때는 보내지 않습니다)
     const aq = new URLSearchParams({
@@ -955,7 +957,8 @@ const handle = async (req: Request): Promise<Response> => {
       msgType: msgTypeM,
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
-      sender: sender!,
+      sender: managerCompany.sender,
+      companyId: ownerId,
       proxyUrl,
       proxySecret,
       viaProxy,
@@ -967,7 +970,7 @@ const handle = async (req: Request): Promise<Response> => {
       provider_message_id: sentM.msgId ?? null,
       msg_id: sentM.msgId ?? null,
       msg_type: sentM.msgType ?? msgTypeM,
-      status: sentM.ok ? "sent" : "failed",
+      status: sentM.ok ? "accepted" : "failed",
       sent_at: sentM.ok ? doneAt : null,
       failed_at: sentM.ok ? null : doneAt,
       error_code: sentM.ok ? null : String(sentM.code ?? ""),
@@ -1068,7 +1071,7 @@ const handle = async (req: Request): Promise<Response> => {
       ...(linkD ? ["", "견적서 확인:", linkD] : []),
       ...(companyPhoneD ? ["", `문의: ${companyPhoneD}`] : []),
     ].join("\n");
-    if (!linkD || !appUrl || !companyPhoneD || !String(drow.move_date ?? "").trim()) return json({ ok: false, error: "고객 보안 링크 또는 업체 문의번호·이사 날짜가 없어 발송하지 않았습니다." }, 400);
+    if (!linkD || !appUrl || !companyPhoneD || !String(drow.move_date ?? "").trim() || !String(drow.customer_name ?? "").trim()) return json({ ok: false, error: "고객 보안 링크 또는 업체 문의번호·고객·이사 날짜가 없어 발송하지 않았습니다." }, 400);
     const typeD = "MMS";
     const holdD = await reserveSms({
       userId: ownerD,
@@ -1117,7 +1120,7 @@ const handle = async (req: Request): Promise<Response> => {
           provider_message_id: sentD.msgId ?? null,
           msg_id: sentD.msgId ?? null,
           msg_type: sentD.msgType ?? typeD,
-          status: sentD.ok ? "sent" : "failed",
+          status: sentD.ok ? "accepted" : "failed",
           requested_at: atD,
           sent_at: sentD.ok ? atD : null,
           failed_at: sentD.ok ? null : atD,
@@ -1140,7 +1143,7 @@ const handle = async (req: Request): Promise<Response> => {
     await confirmSms(ownerD, holdD.hold, supabaseUrl, serviceKey);
     return json({
       ok: true,
-      status: "sent",
+      status: "accepted",
       msgId: sentD.msgId ?? null,
       msgType: sentD.msgType ?? typeD,
       recipientLast4: last4(custPhoneD),
@@ -1272,7 +1275,7 @@ const handle = async (req: Request): Promise<Response> => {
 
   // ── 4. 문자 내용을 실제 자료로 만듭니다 ──
   const companyPhone = company.companyPhone || String(row.company_phone ?? "").trim();
-  if (!companyPhone || !String(row.move_date ?? "").trim() || Number(row.total ?? 0) <= 0) return json({ ok: false, error: "업체 문의번호·이사 날짜·견적금액이 없어 발송하지 않았습니다." }, 400);
+  if (!companyPhone || !String(row.move_date ?? "").trim() || !String(row.customer_name ?? "").trim() || Number(row.total ?? 0) <= 0) return json({ ok: false, error: "업체 문의번호·고객·이사 날짜·견적금액이 없어 발송하지 않았습니다." }, 400);
   const text = [
     `[${company.companyName}]`,
     `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
@@ -1343,7 +1346,7 @@ const handle = async (req: Request): Promise<Response> => {
         provider_message_id: result.msgId ?? null,
         msg_id: result.msgId ?? null,
         msg_type: result.msgType ?? msgType,
-        status: result.ok ? "sent" : "failed",
+        status: result.ok ? "accepted" : "failed",
         requested_at: requestedAt,
         sent_at: result.ok ? now : null,
         failed_at: result.ok ? null : now,
