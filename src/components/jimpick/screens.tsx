@@ -99,6 +99,7 @@ import {
 import { getSizePresets } from "@/lib/size-presets.functions";
 
 import { toast } from "sonner";
+import { lovable } from "@/integrations/lovable";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
@@ -545,6 +546,25 @@ export function Login() {
         <Button
           type="button"
           variant="outline"
+          disabled={busy}
+          onClick={async () => {
+            setErr("");
+            try {
+              const r = await lovable.auth.signInWithOAuth("google", {
+                redirect_uri: window.location.origin,
+              });
+              if (r?.error) setErr("구글 로그인에 실패했습니다. 다시 시도해 주세요.");
+            } catch {
+              setErr("구글 로그인에 실패했습니다. 다시 시도해 주세요.");
+            }
+          }}
+          className="h-12 w-full rounded-[14px] border-border bg-background text-base font-bold text-foreground hover:bg-auth-soft"
+        >
+          <span className="mr-2 text-lg font-black">G</span> 구글로 로그인
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
           onClick={() => setScreen("signup")}
           className="h-12 w-full rounded-[14px] border-auth-primary bg-background text-base font-bold text-auth-primary hover:bg-auth-soft"
         >
@@ -561,9 +581,6 @@ export function Login() {
         >
           아이디 · 비밀번호 찾기
         </Button>
-        <div className="mt-auto pt-4 text-center text-xs text-auth-muted">
-          © JIMPICK · Ver 7.0.0
-        </div>
       </form>
     </AuthShell>
   );
