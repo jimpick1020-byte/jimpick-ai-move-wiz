@@ -26,9 +26,10 @@ function last4(phone: string | null): string | null {
 export const getSmsServiceStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<SmsServiceStatus> => {
-    const [profileRes, deliveriesRes] = await Promise.all([
+    const [profileRes, deliveriesRes, senderRes] = await Promise.all([
       context.supabase.from("profiles").select("phone").eq("id", context.userId).maybeSingle(),
       context.supabase.from("estimate_deliveries").select("status").eq("user_id", context.userId),
+      context.supabase.from("company_sms_senders").select("sender_number").eq("company_id", context.userId).maybeSingle(),
     ]);
 
     let state: SmsServiceStatus["state"] = "unknown";
@@ -47,7 +48,7 @@ export const getSmsServiceStatus = createServerFn({ method: "GET" })
           body: JSON.stringify({ checkOnly: true }),
         });
         const body = (await r.json().catch(() => null)) as { ok?: boolean } | null;
-        state = body?.ok === true ? "ready" : "maintenance";
+        state = body?.ok === true && !!senderRes.data?.sender_number && !senderRes.error ? "ready" : "maintenance";
       }
     } catch {
       state = "unknown";

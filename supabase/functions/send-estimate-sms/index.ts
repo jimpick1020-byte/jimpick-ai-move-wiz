@@ -302,6 +302,13 @@ async function sendViaAligo(v: {
 }): Promise<SendOutcome> {
   try {
     if (v.viaProxy) {
+      if (v.serviceNotice) {
+        const health = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
+        const capability = (await health.json().catch(() => null)) as { service?: string; capabilities?: string[] } | null;
+        if (!health.ok || capability?.service !== "aligo-sms-proxy" || !capability.capabilities?.includes("service-fix-v1")) {
+          return { ok: false, error: "운영 통보 중계 서버가 아직 새 버전이 아니어서 발송하지 않았습니다." };
+        }
+      }
       // 구형 중계 서버가 그림 필드를 무시하고 텍스트만 보내지 않도록 버전을 먼저 확인합니다.
       if (v.cardType) {
         const health = await fetch(`${v.proxyUrl!.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
