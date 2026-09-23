@@ -612,8 +612,13 @@ const handle = async (req: Request): Promise<Response> => {
   // 견적서와 무관하게, 정해진 문구만 사장님이 넣은 번호로 한 통 보냅니다.
   // 고객 정보가 섞이지 않으므로 안전합니다. 로그인은 위에서 이미 확인했습니다.
   if (body.mode === "test") {
-    if (!userId) return json({ ok: false, error: "시험 발송할 업체 계정으로 로그인해 주세요." }, 403);
-    const testCompany = await companySmsInfo(userId, supabaseUrl, serviceKey);
+    // 우리 서버에서 점검할 때는 어느 업체로 보낼지 직접 알려 줍니다.
+    const testUserId =
+      isServerCall && /^[0-9a-f-]{36}$/i.test(String(body.company_id ?? ""))
+        ? String(body.company_id)
+        : userId;
+    if (!testUserId) return json({ ok: false, error: "시험 발송할 업체 계정으로 로그인해 주세요." }, 403);
+    const testCompany = await companySmsInfo(testUserId, supabaseUrl, serviceKey);
     if (!testCompany.ok) return json({ ok: false, error: testCompany.error }, 403);
     const to = normalizePhone(String(body.test_to ?? ""));
     if (!isKoreanMobile(to)) {
