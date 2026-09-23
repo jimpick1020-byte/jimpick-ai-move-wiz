@@ -66,9 +66,15 @@ function maskPhone(p) {
   return n.length >= 4 ? `010-****-${n.slice(-4)}` : "***";
 }
 
-/** 살아 있는지 확인용 — 인증 없이도 됩니다 */
+/** 살아 있는지 확인용 — 인증 없이도 됩니다 (비밀값은 알려주지 않습니다) */
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, service: "aligo-sms-proxy", capabilities: ["sms-cards-v1", "service-fix-v1", "aligo-result-v1"], time: new Date().toISOString() });
+  res.json({
+    ok: true,
+    service: "aligo-sms-proxy",
+    capabilities: ["sms-cards-v1", "service-fix-v1", "aligo-result-v1", "sender-claim-v1"],
+    dbConfigured: !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
+    time: new Date().toISOString(),
+  });
 });
 
 /**
@@ -171,8 +177,14 @@ app.post("/send", async (req, res) => {
   }
 
   if (userId && userId !== companyId) return res.status(403).json({ ok: false, error: "업체 정보가 일치하지 않습니다." });
-  const sender = await approvedSender(companyId);
+  // 발신번호는 데이터베이스에서 다시 확인합니다.
+  // 데이터베이스 연결이 이 서버에 설정돼 있지 않을 때는, 비밀키로 인증된 짐픽 서버가
+  // 이미 승인 발신번호를 확인해 보내 준 번호를 씁니다 (형식도 다시 검사합니다).
+  const dbSender = await approvedSender(companyId);
+  const claimed = normalizePhone(req.body?.sender);
+  const sender = dbSender ?? (/^0[0-9]{8,10}$/.test(claimed) ? claimed : null);
   if (!sender) return res.status(403).json({ ok: false, error: "업체의 알리고 승인 발신번호가 등록되지 않아 발송하지 않았습니다." });
+
   if (cardType && (!cardData || !String(cardData.companyName ?? "").trim())) {
     return res.status(400).json({ ok: false, error: "업체 정보가 필요합니다." });
   }
