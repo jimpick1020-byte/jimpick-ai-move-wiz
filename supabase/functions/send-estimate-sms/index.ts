@@ -1128,15 +1128,24 @@ const handle = async (req: Request): Promise<Response> => {
     }
     const totalD = Number(drow.total ?? 0) || 0;
     const balanceD = Math.max(0, totalD - paidD);
-    const wonD = (n: number) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
+    const wonD = (n: number) => `${n.toLocaleString("ko-KR")}원`;
     const tokenD = String(drow.access_token ?? "");
     const linkD =
       tokenD.length >= 8
         ? `${appUrl}/share/${encodeURIComponent(estIn)}?t=${encodeURIComponent(tokenD)}&card=deposit`
         : "";
     const companyPhoneD = companyD.companyPhone;
-    const textD = linkD;
-    if (!linkD || !appUrl || !companyPhoneD || !String(drow.move_date ?? "").trim() || !String(drow.customer_name ?? "").trim()) return json({ ok: false, error: "고객 보안 링크 또는 업체 문의번호·고객·이사 날짜가 없어 발송하지 않았습니다." }, 400);
+    if (!linkD || !appUrl || !String(drow.customer_name ?? "").trim()) return json({ ok: false, error: "고객 보안 링크 또는 고객 정보가 없어 발송하지 않았습니다." }, 400);
+    const textD = [
+      "[Web발신] [짐도리]",
+      `${String(drow.customer_name).trim()} 고객님, 예약금 입금 및 예약 내용을 확인해 주세요.`,
+      `예약금: ${wonD(paidD)}`,
+      totalD > 0 && `총 견적금액: ${wonD(totalD)}`,
+      totalD > 0 && `잔금: ${wonD(balanceD)}`,
+      String(drow.move_date ?? "").trim() && `이사일: ${String(drow.move_date).trim()}`,
+      `입금 및 예약 확인: ${linkD}`,
+      companyPhoneD && `문의: ${companyPhoneD}`,
+    ].filter(Boolean).join("\n");
     const typeD = new TextEncoder().encode(textD).length <= 90 ? "SMS" : "LMS";
     const holdD = await reserveSms({
       userId: ownerD,
@@ -1155,6 +1164,14 @@ const handle = async (req: Request): Promise<Response> => {
       text: textD,
       title: "",
       msgType: typeD,
+      cardType: "deposit",
+      cardData: {
+        companyName: companyD.companyName,
+        customerName: String(drow.customer_name).trim(),
+        moveDate: String(drow.move_date ?? "").trim(),
+        amount: wonD(paidD),
+        companyPhone: companyPhoneD,
+      },
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
       sender: companyD.sender,
@@ -1276,8 +1293,9 @@ const handle = async (req: Request): Promise<Response> => {
   }
 
   const version = Number(row.sheet_version ?? 1);
-  const customer = String(row.customer_name ?? "").trim() || "고객";
-  const link = `${appUrl}/share/${encodeURIComponent(estimateId)}?t=${encodeURIComponent(token)}`;
+  const customer = String(row.customer_name ?? "").trim();
+  if (!appUrl) return json({ ok: false, error: "고객 보안 링크 주소가 설정되지 않아 발송하지 않았습니다." }, 500);
+  const link = `${appUrl}/share/${encodeURIComponent(estimateId)}?t=${encodeURIComponent(token)}&card=quote`;
 
   // ── 3. 같은 발송이 이미 나갔는지 봅니다 ──
   if (idem) {
@@ -1338,9 +1356,18 @@ const handle = async (req: Request): Promise<Response> => {
   }
 
   // ── 4. 문자 내용을 실제 자료로 만듭니다 ──
+  if (!customer) return json({ ok: false, error: "고객 이름이 없어 발송하지 않았습니다." }, 400);
+  const moveDate = String(row.move_date ?? "").trim();
   const companyPhone = company.companyPhone;
-  if (!companyPhone || !String(row.move_date ?? "").trim() || !String(row.customer_name ?? "").trim() || Number(row.total ?? 0) <= 0) return json({ ok: false, error: "업체 문의번호·고객·이사 날짜·견적금액이 없어 발송하지 않았습니다." }, 400);
-  const text = link;
+  const total = Number(row.total ?? 0);
+  const text = [
+    "[Web발신] [짐도리]",
+    `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
+    total > 0 && `견적금액: ${total.toLocaleString("ko-KR")}원`,
+    moveDate && `이사일: ${moveDate}`,
+    `견적서 확인: ${link}`,
+    companyPhone && `문의: ${companyPhone}`,
+  ].filter(Boolean).join("\n");
   const msgType = new TextEncoder().encode(text).length <= 90 ? "SMS" : "LMS";
   const title = "";
 
@@ -1370,6 +1397,14 @@ const handle = async (req: Request): Promise<Response> => {
     text,
     title,
     msgType,
+    cardType: "quote",
+    cardData: {
+      companyName: company.companyName,
+      customerName: customer,
+      moveDate,
+      amount: total > 0 ? `${total.toLocaleString("ko-KR")}원` : "",
+      companyPhone,
+    },
     aligoUserId: aligoUserId!,
     apiKey: apiKey!,
     sender: company.sender,

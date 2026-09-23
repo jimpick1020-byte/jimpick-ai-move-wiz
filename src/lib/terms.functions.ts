@@ -16,6 +16,7 @@ import { z } from "zod";
 export interface TermsLinkInfo {
   ok: boolean;
   error?: string;
+  estimateId?: string;
   customerName?: string;
   moveDate?: string | null;
   total?: number;
@@ -121,7 +122,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("estimate_terms")
       .select(
-        "id, user_id, estimate_id, customer_name, move_date, total, contact_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at, deleted_at",
+         "id, user_id, estimate_id, customer_name, move_date, total, contact_phone, company_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at, deleted_at",
       )
       .eq("access_token", data.token)
       .maybeSingle();
@@ -144,7 +145,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     // 보안 토큰으로 확인된 견적 소유자의 프로필 한 건만 읽습니다.
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("company_name")
+       .select("company_name, phone")
       .eq("id", (row as { user_id?: string }).user_id ?? "")
       .maybeSingle();
 
@@ -183,10 +184,11 @@ export const getTermsLink = createServerFn({ method: "POST" })
 
     return {
       ok: true,
+      estimateId: row.estimate_id,
       customerName: row.customer_name,
       moveDate: row.move_date,
       total: row.total,
-      contactPhone: row.contact_phone,
+       contactPhone: row.company_phone?.trim() || profile?.phone?.trim() || null,
       companyName: profile?.company_name?.trim() || null,
       termsName: row.terms_name,
       termsVersion: row.terms_version,
