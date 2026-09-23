@@ -528,20 +528,21 @@ const handle = async (req: Request): Promise<Response> => {
 
   // 설정이 되어 있는지만 알려 줍니다 — 아이디·키·발신번호 값은 절대 보내지 않습니다.
   if (body.checkOnly) {
+    const senderReady = userId ? (await companySmsInfo(userId, supabaseUrl, serviceKey)).ok : false;
     return json({
-      ok: missing.length === 0,
+      ok: missing.length === 0 && !!viaProxy && senderReady,
       config: {
         ALIGO_USER_ID: !!aligoUserId,
         ALIGO_API_KEY: !!apiKey,
-        ALIGO_SENDER: !!sender,
+        업체별승인발신번호: senderReady,
         PUBLIC_APP_URL: !!appUrl && !badAppUrl,
         SUPABASE_URL: !!supabaseUrl,
         SUPABASE_SERVICE_ROLE_KEY: !!serviceKey,
         SMS_PROXY_URL: !!proxyUrl,
         JIMPICK_PROXY_SECRET: !!proxySecret,
-        발송경로: viaProxy ? "고정 IP 중계 서버 경유" : "알리고 직접 호출",
+        발송경로: viaProxy ? "고정 IP 중계 서버 경유" : "그림문자 중계 서버 필요",
       },
-      missing,
+      missing: [...missing, ...(!viaProxy ? ["그림문자 중계 서버"] : []), ...(!senderReady ? ["업체별 승인 발신번호"] : [])],
       appUrlProblem: badAppUrl
         ? "PUBLIC_APP_URL 이 배포 주소가 아닙니다. 배포된 주소로 넣어 주세요."
         : null,
@@ -664,9 +665,8 @@ const handle = async (req: Request): Promise<Response> => {
   // 오류가 났을 때 관리자를 부르지 않고, 고친 뒤에 「이렇게 고쳤습니다」만 한 통 보냅니다.
   // 받는 번호는 관리자 화면에 저장된 연락처만 씁니다 (코드에 번호를 넣지 않습니다).
   if (body.mode === "fix_notice") {
-    if (!userId) return json({ ok: false, error: "업체 계정으로 로그인해 주세요." }, 403);
-    const noticeCompany = await companySmsInfo(userId, supabaseUrl, serviceKey);
-    if (!noticeCompany.ok) return json({ ok: false, error: noticeCompany.error }, 403);
+    // 서비스 복구 통보는 업체 문자와 다른 운영자 전용 발송입니다.
+    if (!isKoreanMobile(sender)) return json({ ok: false, error: "운영 통보 발신번호가 준비되지 않았습니다." }, 500);
     const title = String(body.notice_title ?? "").trim().slice(0, 60);
     const summary = String(body.notice_summary ?? "").trim().slice(0, 300);
     if (!title || !summary) {
@@ -729,8 +729,7 @@ const handle = async (req: Request): Promise<Response> => {
       msgType: text.length > 90 ? "LMS" : "SMS",
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
-      sender: noticeCompany.sender,
-      companyId: userId,
+      sender,
       proxyUrl,
       proxySecret,
       viaProxy,

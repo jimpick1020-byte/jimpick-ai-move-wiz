@@ -232,7 +232,7 @@ export function SmsConnectionCard({
             <div className={`rounded-[14px] p-3.5 ${result.ok ? "bg-[#ECFDF3]" : "bg-[#FBEAEA]"}`}>
               {result.ok ? (
                 <>
-                  <div className="text-[15px] font-black text-[#3E9B78]">문자를 보냈습니다</div>
+                   <div className="text-[15px] font-black text-[#3E9B78]">문자 발송이 접수되었습니다</div>
                   <div className="mt-1 text-[14px] text-[#25282D]">
                     종류: {result.msgType ?? "SMS"}
                     {result.msgId ? ` · 알리고 발송번호: ${result.msgId}` : ""}
