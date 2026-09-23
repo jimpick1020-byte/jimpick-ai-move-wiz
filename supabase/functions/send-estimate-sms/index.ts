@@ -564,6 +564,32 @@ const handle = async (req: Request): Promise<Response> => {
         proxyHealth = { error: e instanceof Error ? e.message : "확인 실패" };
       }
     }
+    // 비밀값이 서로 같은지만 확인합니다 — 문자는 보내지 않는 조회 경로로 시험합니다.
+    let proxyAuth: { status?: number; matched?: boolean; fingerprint?: string; error?: string } | null = null;
+    if (viaProxy) {
+      try {
+        const digest = await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(String(proxySecret ?? "").trim()),
+        );
+        const fingerprint = Array.from(new Uint8Array(digest))
+          .slice(0, 4)
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+        const r = await fetch(`${proxyUrl!.replace(/\/$/, "")}/result`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-jimpick-secret": String(proxySecret ?? "").trim(),
+          },
+          body: JSON.stringify({ msgId: "0" }),
+          signal: AbortSignal.timeout(8000),
+        });
+        proxyAuth = { status: r.status, matched: r.status !== 401, fingerprint };
+      } catch (e) {
+        proxyAuth = { error: e instanceof Error ? e.message : "확인 실패" };
+      }
+    }
     return json({
       ok: missing.length === 0 && cardReady && senderReady && !badAppUrl,
       config: {
