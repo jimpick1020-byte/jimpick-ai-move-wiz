@@ -25,7 +25,8 @@ export const Route = createFileRoute("/share/$id")({
     if (deps.staff || !deps.t || deps.t.length < 8 || deps.t.length > 80 || params.id.length > 120) {
       return { valid: false as const, card: "quote" as CardType, origin: "" };
     }
-    const card = deps.card ?? (deps.rm ? "reminder" : "quote");
+    const card: CardType = deps.card === "deposit" || deps.card === "reminder"
+      ? deps.card : deps.rm ? "reminder" : "quote";
     try {
       const result = await getSharePreview({ data: {
         estimateId: params.id, token: deps.t, reminderToken: deps.rm, card,
@@ -37,12 +38,15 @@ export const Route = createFileRoute("/share/$id")({
   },
   head: ({ loaderData, match }) => {
     const valid = loaderData?.valid === true;
-    const preview = valid ? previews[loaderData.card] : null;
+    const preview = valid && loaderData.card in previews ? previews[loaderData.card as CardType] : null;
     // Do not put an invalid bearer token into OG metadata or a canonical URL.
     const origin = loaderData?.origin || (typeof window !== "undefined" ? window.location.origin : "");
-    const href = valid && origin
-      ? new URL(typeof window === "undefined" ? `${match.pathname}${match.searchStr}` : window.location.href, origin).href
-      : undefined;
+    const search = new URLSearchParams();
+    if (match.search.t) search.set("t", match.search.t);
+    if (match.search.rm) search.set("rm", match.search.rm);
+    if (match.search.card) search.set("card", match.search.card);
+    const href = valid && origin && origin.startsWith("https://")
+      ? `${origin}${match.pathname}?${search.toString()}` : undefined;
     const image = preview && origin && origin.startsWith("https://") ? new URL(preview.image, origin).href : undefined;
     const title = preview?.title ?? "JIMPICK 고객용 견적서";
     const description = preview?.description ?? "JIMPICK에서 전달드린 이사 견적서입니다.";
