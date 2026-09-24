@@ -6481,7 +6481,7 @@ export function History() {
                         {ts.row &&
                           (() => {
                             const n = noticeOf(e.id);
-                            const sent = n?.status === "sent" || n?.status === "success";
+                            const sent = ["sent", "success", "accepted", "delivered"].includes(String(n?.status ?? ""));
                             const open = !!openLog[e.id];
                             const summary = [
                               ts.row.viewCount

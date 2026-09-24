@@ -326,6 +326,7 @@ async function sendViaAligo(v: {
           "x-jimpick-secret": String(v.proxySecret ?? "").trim(),
         },
         body: JSON.stringify({ to: v.to, text: v.text, title: v.title, sender: v.sender, companyId: v.companyId ?? v.userId, userId: v.userId, cardType: v.cardType, cardData: v.cardData }),
+        signal: AbortSignal.timeout(25000),
       });
 
       const data = (await r.json().catch(() => null)) as AligoResponse | null;
