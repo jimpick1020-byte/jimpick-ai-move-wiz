@@ -186,10 +186,10 @@ export function ErrorLogScreen() {
                   <div className="text-xs font-bold text-[#25282D] break-keep">{n.title}</div>
                   <span
                     className={`shrink-0 text-[11px] font-bold ${
-                      n.status === "sent" ? "text-[#3E9B78]" : "text-[#D95C5C]"
+                      ["sent", "accepted", "delivered"].includes(n.status) ? "text-[#3E9B78]" : "text-[#D95C5C]"
                     }`}
                   >
-                    {n.status === "sent" ? "발송됨" : n.status === "skipped" ? "통보 꺼짐" : "실패"}
+                    {["sent", "accepted", "delivered"].includes(n.status) ? "발송됨" : n.status === "skipped" ? "통보 꺼짐" : "실패"}
                   </span>
                 </div>
                 <div className="text-[11px] leading-5 text-[#6B7280] break-keep">{n.summary}</div>
