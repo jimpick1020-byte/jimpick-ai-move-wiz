@@ -136,7 +136,7 @@ import {
   PAYMENT_STATUS_LABEL,
   type ArchivedContractRow,
 } from "@/lib/payment.functions";
-import { buildEstimateStats } from "@/lib/estimate-stats";
+import { buildEstimateStats, customerKeyOf } from "@/lib/estimate-stats";
 import { floorLabel, parseFloorFromDetail } from "@/lib/floor-parse";
 import { ReminderPanel } from "./ReminderPanel";
 
@@ -641,8 +641,6 @@ export function HomeScreen() {
     companyName === null ? "…" : companyName ? `${companyName} 사장님 👋` : "사장님 👋";
 
   // 아래 숫자는 모두 저장된 견적에서 바로 계산합니다 (예시 숫자를 쓰지 않습니다)
-  const phoneKey = (e: (typeof estimates)[number]) =>
-    (e.phone || "").replace(/[^0-9]/g, "") || `이름:${e.customerName || ""}`;
 
   // 견적 현황 — 견적 내역·완료 보관함과 같은 공통 집계 함수(buildEstimateStats)를 씁니다.
   // 예약금만 받은 견적은 「진행 중」, 잔금까지 전액 받은 견적만 「완료」입니다.
@@ -681,32 +679,23 @@ export function HomeScreen() {
   const inProg = statsReady ? String(stats.inProgress) : "…";
   const pct = statsReady ? stats.pct : 0;
   const localIdSet = new Set(estimates.map((e) => e.id));
-  const archivedOnly = archivedRows
-    .filter((a) => a.estimateId && !localIdSet.has(a.estimateId) && a.customerName?.trim())
-    .map((a) => ({
-      ...newEstimate(),
-      id: a.estimateId,
-      customerName: a.customerName.trim(),
-      phone: "",
-      total: a.total,
-      sizeTab: a.sizeTab,
-      status: "완료" as const,
-      createdAt: a.archivedAt ? new Date(a.archivedAt).getTime() : 0,
-    }));
-  const allEstimates = [...estimates, ...archivedOnly];
+  // 고객 현황·최근 작업도 같은 기준: 현재 견적(보관·삭제·취소 제외)만 씁니다
+  const currentEstimates = estimates.filter((e) => stats.currentIds.has(e.id));
+  const allEstimates = currentEstimates;
   const customerCount = new Set(
-    allEstimates.filter((e) => e.customerName || e.phone).map(phoneKey),
+    currentEstimates.map((e) => customerKeyOf(e)).filter(Boolean),
   ).size;
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
   const newThisMonth = new Set(
-    estimates
-      .filter((e) => e.createdAt >= monthStart.getTime() && (e.customerName || e.phone))
-      .map(phoneKey),
+    currentEstimates
+      .filter((e) => e.createdAt >= monthStart.getTime())
+      .map((e) => customerKeyOf(e))
+      .filter(Boolean),
   ).size;
-  const doneSum = estimates
-    .filter((e) => e.status === "완료")
+  const doneSum = currentEstimates
+    .filter((e) => stats.completedIds.has(e.id))
     .reduce((s, e) => s + (e.total || 0), 0);
   const recent = [...allEstimates].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3);
   const { blocked, remainingText, entitlement } = useEntitlement();
@@ -6285,10 +6274,9 @@ export function History() {
   // 홈 견적 현황과 같은 공통 집계 함수를 씁니다 (총 견적 = 진행 중 + 완료).
   // 잔금까지 전액 받은 계약만 완료 보관함으로 옮깁니다 (예약금만 받은 건은 목록에 남습니다)
   const stats = buildEstimateStats({ estimates, termsRows, archived });
-  const completedIds = stats.completedIds;
   const list = estimates.filter(
     (e) =>
-      !completedIds.has(e.id) &&
+      stats.currentIds.has(e.id) &&
       (!q || e.customerName.includes(q) || e.phone.includes(q) || e.moveDate.includes(q)),
   );
   /** 약관 진행 상태 — 발송 성공과 고객 열람·동의는 서로 다른 상태로 표시합니다 */
@@ -6336,7 +6324,7 @@ export function History() {
             }}
             className="flex w-full items-center justify-between text-[14px] font-bold text-[#25282D]"
           >
-            <span>완료 보관함 {stats.completed}건</span>
+            <span>완료 보관함 {archived.length}건</span>
             <span className="text-[13px] font-semibold text-[#6B7280]">
               {archiveOpen ? "닫기 ▲" : "열기 ▾"}
             </span>
@@ -6683,20 +6671,12 @@ export function Customers() {
       ids: string[];
     }
   >();
-  // 완료 보관함(서버)에만 남은 완료 견적도 고객 목록에 넣습니다.
-  const localIds = new Set(estimates.map((e) => e.id));
-  const archivedOnly = archivedRows
-    .filter((a) => a.estimateId && !localIds.has(a.estimateId) && a.customerName?.trim())
-    .map((a) => ({
-      id: a.estimateId,
-      customerName: a.customerName.trim(),
-      phone: "",
-      createdAt: a.archivedAt ? new Date(a.archivedAt).getTime() : 0,
-      total: a.total,
-    }));
-  for (const e of [...estimates, ...archivedOnly]) {
-    if (!e.phone && !e.customerName?.trim()) continue;
-    const k = e.phone ? e.phone.replace(/[^0-9]/g, "") || e.phone : `이름:${e.customerName.trim()}`;
+  // 홈 고객 현황과 같은 공통 기준: 현재 견적(보관·삭제·취소 제외)의 고객만 셉니다
+  const stats = buildEstimateStats({ estimates, termsRows, archived: archivedRows });
+  const currentEstimates = estimates.filter((e) => stats.currentIds.has(e.id));
+  for (const e of currentEstimates) {
+    const k = customerKeyOf(e);
+    if (!k) continue;
     const cur = map.get(k);
     if (!cur || e.createdAt > cur.last) {
       map.set(k, {
