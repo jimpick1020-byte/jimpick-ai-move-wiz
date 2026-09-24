@@ -84,23 +84,18 @@ async function sendViaAligo(v: {
   proxySecret?: string;
   sender: string;
   companyId: string;
-  cardData: { companyName: string; customerName: string; moveDate: string; amount: string; companyPhone: string };
 }): Promise<SendOutcome> {
   const viaProxy = !!(v.proxyUrl && v.proxySecret);
   try {
     if (viaProxy) {
-      const health = await fetch(`${v.proxyUrl?.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(6000) });
-      const capability = (await health.json().catch(() => null)) as { service?: string; capabilities?: string[] } | null;
-      if (!health.ok || capability?.service !== "aligo-sms-proxy" || !capability.capabilities?.includes("sms-cards-v1")) {
-        return { ok: false, error: "그림문자 중계 서버가 아직 새 버전이 아니어서 발송하지 않았습니다." };
-      }
       const r = await fetch(`${v.proxyUrl?.replace(/\/$/, "")}/send`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-jimpick-secret": String(v.proxySecret ?? "").trim(),
         },
-        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, sender: v.sender, companyId: v.companyId, userId: v.companyId, cardType: "reminder", cardData: v.cardData }),
+        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, sender: v.sender, companyId: v.companyId, userId: v.companyId }),
+        signal: AbortSignal.timeout(25000),
       });
       if (r.status === 401 || r.status === 403) {
         return { ok: false, code: r.status, error: r.status === 403 ? "업체의 승인된 발신번호가 없거나 업체 정보가 일치하지 않습니다." : "문자 중계 서버가 요청을 거절했습니다(인증 실패)." };
@@ -205,6 +200,13 @@ async function sendOne(
     return { sent: false };
   }
 
+  // 예전에 만든 예약에는 고객 확인 토큰이 없어 링크를 못 만들었습니다. 없으면 지금 만들어 저장합니다.
+  if (!row.view_token) {
+    const { newViewToken } = await import("@/lib/reminder.server");
+    const tok = newViewToken();
+    const { error: tokErr } = await supabaseAdmin.from("move_reminders").update({ view_token: tok } as never).eq("id", row.id).is("view_token", null);
+    if (!tokErr) row.view_token = tok;
+  }
   const link = await customerLink(row);
   const [{ data: profile, error: profileErr }, { data: senderRow, error: senderErr }] = await Promise.all([
     supabaseAdmin.from("profiles").select("company_name,phone").eq("id", row.company_id).maybeSingle(),
@@ -225,7 +227,7 @@ async function sendOne(
   }
   // 본문에 보안 URL은 딱 한 번만 싣습니다. 링크를 누르면 기존 전날 안내 카드 미리보기가 열립니다.
   const text = [
-    "[Web발신] [짐도리]",
+    "[짐도리]",
     `${row.customer_name.trim()} 고객님, 내일은 예약하신 이사일입니다.`,
     row.start_time?.trim() && `이사 예정 시간: ${row.start_time.trim()}`,
     row.from_address?.trim() && `출발지: ${row.from_address.trim()}`,
@@ -235,10 +237,9 @@ async function sendOne(
     link,
     companyPhone && `문의: ${companyPhone}`,
   ].filter(Boolean).join("\n");
-  const msgType = new TextEncoder().encode(text).length <= 90 ? "SMS" : "LMS";
-  const sendArgs = { to, text, title: "", msgType, ...creds, sender, companyId: row.company_id,
-    cardData: { companyName: profile!.company_name!.trim(), customerName: row.customer_name.trim(), moveDate: row.move_date ?? "", amount: "", companyPhone },
-  };
+  // 그림 첨부 없이 LMS 로만 보냅니다. 링크 미리보기 카드(OG)만 한 장 보입니다.
+  const msgType = "LMS";
+  const sendArgs = { to, text, title: "", msgType, ...creds, sender, companyId: row.company_id };
 
   // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).
   const attemptTag = attempt ?? String(Number(row.retry_count ?? 0));
