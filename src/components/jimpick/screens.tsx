@@ -643,7 +643,7 @@ export function HomeScreen() {
   // 아래 숫자는 모두 저장된 견적에서 바로 계산합니다 (예시 숫자를 쓰지 않습니다)
 
   // 견적 현황 — 견적 내역·완료 보관함과 같은 공통 집계 함수(buildEstimateStats)를 씁니다.
-  // 예약금만 받은 견적은 「진행 중」, 잔금까지 전액 받은 견적만 「완료」입니다.
+  // 예약금 완료·일부결제만 「진행 중」, 결제완료만 「완료」입니다. 미결제는 진행 중에 세지 않습니다.
   const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
   const [archivedRows, setArchivedRows] = useState<ArchivedContractRow[]>([]);
   /** 서버(실제 결제 기록)를 다 읽기 전에는 숫자를 보여 주지 않습니다 */
@@ -6271,7 +6271,7 @@ export function History() {
       loadNotices();
     }
   };
-  // 홈 견적 현황과 같은 공통 집계 함수를 씁니다 (총 견적 = 진행 중 + 완료).
+  // 홈 견적 현황과 같은 공통 집계 함수를 씁니다 (총 견적 = 현재 견적 전체).
   // 잔금까지 전액 받은 계약만 완료 보관함으로 옮깁니다 (예약금만 받은 건은 목록에 남습니다)
   const stats = buildEstimateStats({ estimates, termsRows, archived });
   const list = estimates.filter(

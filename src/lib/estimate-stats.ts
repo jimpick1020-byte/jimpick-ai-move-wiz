@@ -4,10 +4,10 @@
  *
  * 기준 (모든 화면 공통):
  * - 견적 한 건은 estimate_id 하나입니다 (고객 수가 아니라 견적 수, 중복 id는 한 번만 셉니다)
- * - 진행 중 = 삭제·취소·환불이 아니고 결제완료가 아닌 견적
- * - 완료 = 결제상태가 「결제완료」인 견적 → 완료 보관함
- * - 예약금 완료·미결제·결제대기·일부결제는 모두 「진행 중」입니다
- * - 총 견적 = 진행 중 + 완료
+ * - 완료 = 결제상태가 「결제완료」인 견적만 → 완료 보관함
+ * - 진행 중 = 예약금 완료·일부결제만 (돈이 들어와 진행 중인 견적)
+ * - 미결제·결제대기는 진행 중에 세지 않습니다 (예약금이 들어오면 그때 진행 중이 됩니다)
+ * - 총 견적 = 현재 견적 전체 (진행 중 + 완료 + 아직 예약금 없는 견적)
  */
 import { normalizePaymentStatus } from "./payment.functions";
 import type { TermsStatusRow } from "./terms.functions";
@@ -82,9 +82,9 @@ export function buildEstimateStats(input: {
     if (excludedIds.has(e.id) || archivedIds.has(e.id)) continue;
     currentIds.add(e.id);
     const st = normalizePaymentStatus(termsById.get(e.id)?.paymentStatus);
-    // 결제완료만 완료, 미결제·예약금 완료·일부결제는 모두 진행 중
+    // 결제완료만 완료, 예약금 완료·일부결제만 진행 중. 미결제·결제대기는 진행 중에 세지 않습니다.
     if (st === "completed") completedIds.add(e.id);
-    else inProgressIds.add(e.id);
+    else if (st === "deposit_paid" || st === "partial") inProgressIds.add(e.id);
   }
 
   const total = currentIds.size;
