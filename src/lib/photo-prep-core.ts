@@ -20,7 +20,7 @@ export async function prepPhotoCore(
   makeCanvas: (w: number, h: number) => AnyCanvas,
   maxSize = 1280,
 ): Promise<PreparedPhoto> {
-  const bmp = await createImageBitmap(file);
+  const bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); // 사진 방향 바로잡기
   if (bmp.width < 320 || bmp.height < 240) {
     bmp.close?.();
     throw new Error("사진 해상도가 너무 낮습니다. 다시 찍어 주세요.");

@@ -54,4 +54,4 @@ export function matchCatalog(name: string, catalog: CatalogEntry[]): CatalogEntr
 }
 
 export const AUTO_CONF = 0.9;
-export const CHECK_CONF = 0.65;
+export const CHECK_CONF = 0.75;
