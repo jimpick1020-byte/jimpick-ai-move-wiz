@@ -231,7 +231,8 @@ async function sendOne(
     row.from_address?.trim() && `출발지: ${row.from_address.trim()}`,
     row.to_address?.trim() && `도착지: ${row.to_address.trim()}`,
     "원활한 이사를 위해 귀중품과 개인 소지품을 미리 확인해 주세요.",
-    `이사 내용 확인: ${link}`,
+    "이사 내용 확인:",
+    link,
     companyPhone && `문의: ${companyPhone}`,
   ].filter(Boolean).join("\n");
   const msgType = new TextEncoder().encode(text).length <= 90 ? "SMS" : "LMS";
