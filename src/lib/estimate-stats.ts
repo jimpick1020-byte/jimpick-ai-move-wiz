@@ -82,9 +82,20 @@ export function buildEstimateStats(input: {
   // 진행 중 = 보관함으로 옮기지 않은 현재 견적 (삭제·취소·환불 제외)
   const currentIds = new Set<string>();
   const inProgressIds = new Set<string>();
+  // 완료 보관함 견적의 고객 이름 — 같은 견적이 다른 id(서버 기록 없는 사본)로
+  // 견적 내역에 한 번 더 남아 있으면 새 견적으로 세지 않습니다.
+  const archivedNames = new Set<string>();
+  for (const a of input.archived ?? []) {
+    if (a.estimateId && archivedIds.has(a.estimateId)) {
+      const n = (a.customerName || "").replace(/\s+/g, "");
+      if (n) archivedNames.add(n);
+    }
+  }
   for (const e of input.estimates) {
     if (!e.id || currentIds.has(e.id)) continue;
     if (excludedIds.has(e.id) || archivedIds.has(e.id)) continue;
+    const nm = (e.customerName || "").replace(/\s+/g, "");
+    if (!termsById.has(e.id) && nm && archivedNames.has(nm)) continue;
     currentIds.add(e.id);
     inProgressIds.add(e.id);
   }
