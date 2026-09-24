@@ -6710,7 +6710,7 @@ export function Customers() {
           return (
           // 카드를 누르면 이 고객의 최근 견적서를 바로 엽니다
           <Card
-            key={c.phone}
+            key={c.id}
             onClick={() => {
               tap("soft");
               loadEstimate(c.id);
