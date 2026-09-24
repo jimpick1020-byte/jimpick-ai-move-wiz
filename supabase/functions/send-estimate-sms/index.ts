@@ -1368,7 +1368,7 @@ const handle = async (req: Request): Promise<Response> => {
   const companyPhone = company.companyPhone;
   const total = Number(row.total ?? 0);
   const text = [
-    "[Web발신] [짐도리]",
+    "[짐도리]",
     `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
     total > 0 && `견적금액: ${total.toLocaleString("ko-KR")}원`,
     moveDate && `이사일: ${moveDate}`,
@@ -1376,7 +1376,8 @@ const handle = async (req: Request): Promise<Response> => {
     link,
     companyPhone && `문의: ${companyPhone}`,
   ].filter(Boolean).join("\n");
-  const msgType = new TextEncoder().encode(text).length <= 90 ? "SMS" : "LMS";
+  // 견적서 문자는 링크 미리보기 카드만 씁니다. 그림 첨부 없이 항상 LMS.
+  const msgType = "LMS";
   const title = "";
 
   const requestedAt = new Date().toISOString();
@@ -1405,14 +1406,6 @@ const handle = async (req: Request): Promise<Response> => {
     text,
     title,
     msgType,
-    cardType: "quote",
-    cardData: {
-      companyName: company.companyName,
-      customerName: customer,
-      moveDate,
-      amount: total > 0 ? `${total.toLocaleString("ko-KR")}원` : "",
-      companyPhone,
-    },
     aligoUserId: aligoUserId!,
     apiKey: apiKey!,
     sender: company.sender,
