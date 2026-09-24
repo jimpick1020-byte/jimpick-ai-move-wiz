@@ -14,33 +14,45 @@ import type { TermsStatusRow } from "./terms.functions";
 import type { ArchivedContractRow } from "./payment.functions";
 
 export interface EstimateStats {
-  /** 총 견적 = 진행 중 + 완료 */
+  /** 총 견적 = 진행 중 + 완료 (완료 보관함으로 옮긴 견적은 빠집니다) */
   total: number;
   inProgress: number;
   completed: number;
-  /** 완료율 (%) */
+  /** 완료율 (%) = 완료 ÷ 총 견적 × 100 */
   pct: number;
-  /** 완료(전액 결제)로 판정된 견적 id */
+  /** 현재 견적 내역에 보이는 견적 id (estimate_id 기준 중복 없음) */
+  currentIds: Set<string>;
+  /** 현재 견적 중 「완료」(예약금 완료·일부결제·결제완료) */
   completedIds: Set<string>;
-  /** 취소·환불로 집계에서 제외한 견적 id */
+  inProgressIds: Set<string>;
+  /** 완료 보관함으로 옮긴 견적 id — 현재 집계에서 제외 */
+  archivedIds: Set<string>;
+  /** 삭제·취소·환불로 제외한 견적 id */
   excludedIds: Set<string>;
 }
 
 export interface EstimateLike {
   id: string;
   createdAt?: number;
+  phone?: string;
+  customerName?: string;
+}
+
+/** 고객 고유 키 — 같은 고객은 한 사람으로 셉니다 (연락처 숫자, 없으면 이름) */
+export function customerKeyOf(e: { phone?: string; customerName?: string }): string | null {
+  const digits = (e.phone || "").replace(/[^0-9]/g, "");
+  if (digits) return `p:${digits}`;
+  const name = (e.customerName || "").trim();
+  return name ? `n:${name}` : null;
 }
 
 /**
- * 하나의 공통 집계 함수. 홈·견적 내역·완료 보관함이 모두 이 함수를 씁니다.
- * 입력은 모두 같은 업체(로그인 계정)의 실제 데이터입니다.
+ * 하나의 공통 집계 함수. 홈(견적 현황·고객 현황)·견적 내역·고객 관리가 모두 이 함수를 씁니다.
+ * 입력은 모두 로그인한 업체 본인의 데이터입니다 (서버에서 user_id로 제한).
  */
 export function buildEstimateStats(input: {
-  /** 이 업체의 견적 목록 (삭제된 건은 이미 빠져 있습니다) */
   estimates: readonly EstimateLike[];
-  /** Supabase estimate_terms 상태 (deleted_at is null) */
   termsRows: readonly TermsStatusRow[];
-  /** Supabase 완료 보관함 목록 (전액 결제 계약) */
   archived?: readonly ArchivedContractRow[];
 }): EstimateStats {
   const termsById = new Map<string, TermsStatusRow>();
@@ -54,42 +66,41 @@ export function buildEstimateStats(input: {
   }
 
   const excludedIds = new Set<string>();
-  const completedIds = new Set<string>();
+  const archivedIds = new Set<string>();
   for (const [id, row] of termsById) {
     const status = normalizePaymentStatus(row.paymentStatus);
-    if (status === "canceled" || status === "refunded") {
-      excludedIds.add(id);
-      continue;
-    }
-    // 「결제완료」로 저장된 견적만 완료입니다.
-    // 예약금 완료·미결제·결제대기·일부결제는 금액과 상관없이 진행 중입니다.
-    if (status === "completed") completedIds.add(id);
+    if (status === "canceled" || status === "refunded") excludedIds.add(id);
+    // 결제완료 = 완료 보관함으로 이동한 견적 → 현재 견적 집계에서 뺍니다
+    else if (status === "completed") archivedIds.add(id);
   }
   for (const a of input.archived ?? []) {
-    if (!a.estimateId) continue;
-    if (excludedIds.has(a.estimateId)) continue;
-    if (normalizePaymentStatus(a.paymentStatus) === "completed") {
-      completedIds.add(a.estimateId);
-    }
+    if (a.estimateId && !excludedIds.has(a.estimateId)) archivedIds.add(a.estimateId);
   }
 
+  const currentIds = new Set<string>();
+  const completedIds = new Set<string>();
   const inProgressIds = new Set<string>();
   for (const e of input.estimates) {
-    if (!e.id) continue;
-    if (excludedIds.has(e.id)) continue;
-    if (completedIds.has(e.id)) continue;
-    inProgressIds.add(e.id);
+    if (!e.id || currentIds.has(e.id)) continue;
+    if (excludedIds.has(e.id) || archivedIds.has(e.id)) continue;
+    currentIds.add(e.id);
+    const st = normalizePaymentStatus(termsById.get(e.id)?.paymentStatus);
+    // 예약금 완료·일부결제 = 완료, 미결제·결제대기 = 진행 중
+    if (st === "deposit_paid" || st === "partial") completedIds.add(e.id);
+    else inProgressIds.add(e.id);
   }
 
-  const inProgress = inProgressIds.size;
+  const total = currentIds.size;
   const completed = completedIds.size;
-  const total = inProgress + completed;
   return {
     total,
-    inProgress,
+    inProgress: inProgressIds.size,
     completed,
     pct: total ? Math.round((completed / total) * 100) : 0,
+    currentIds,
     completedIds,
+    inProgressIds,
+    archivedIds,
     excludedIds,
   };
 }
