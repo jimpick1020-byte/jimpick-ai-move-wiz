@@ -112,6 +112,7 @@ export function buildEstimateStats(input: {
   }
   // 견적 내역에 보이는 현재 견적 = 진행 중 (완료·보관 제외)
   const currentIds = new Set<string>(inProgressIds);
+  for (const id of completedIds) if (!archivedIds.has(id) && input.estimates.some((e) => e.id === id)) currentIds.add(id);
 
   const total = inProgressIds.size + completedIds.size;
   const completed = completedIds.size;
