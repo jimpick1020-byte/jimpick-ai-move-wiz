@@ -6413,6 +6413,9 @@ export function History() {
                               }`}
                             >
                               {waiting ? "입금 확인 대기" : PAYMENT_STATUS_LABEL[pay]}
+                              {pay === "deposit_paid" && !waiting && (
+                                <span className="block text-center text-[11px] font-bold">진행중</span>
+                              )}
                             </span>
                           );
                         })()}
