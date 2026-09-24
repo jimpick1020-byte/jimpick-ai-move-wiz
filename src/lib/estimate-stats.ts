@@ -97,8 +97,10 @@ export function buildEstimateStats(input: {
     if (!e.id || unique.has(e.id)) continue;
     const row = termsById.get(e.id);
     const nm = norm(e.customerName);
-    if (!row && nm && completedNames.has(nm)) continue;
     const status = completedStatusIds.has(e.id) ? "completed" : normalizePaymentStatus(row?.paymentStatus);
+    // 같은 고객의 완료 견적이 다른 id로 견적 내역에 또 있으면(예약금 단계가 아닌 한) 같은 견적으로 보고 한 번만 셉니다
+    if (nm && completedNames.has(nm) && status !== "deposit_paid" && status !== "partial") continue;
+    if (excludedIds.has(e.id)) continue;
     unique.set(e.id, { id: e.id, name: nm, archived: archivedIds.has(e.id), status });
   }
 
