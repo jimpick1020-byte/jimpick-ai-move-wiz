@@ -1143,7 +1143,7 @@ const handle = async (req: Request): Promise<Response> => {
     const companyPhoneD = companyD.companyPhone;
     if (!linkD || !appUrl || !String(drow.customer_name ?? "").trim()) return json({ ok: false, error: "고객 보안 링크 또는 고객 정보가 없어 발송하지 않았습니다." }, 400);
     const textD = [
-      "[Web발신] [짐도리]",
+      "[짐도리]",
       `${String(drow.customer_name).trim()} 고객님, 예약금 입금 및 예약 내용을 확인해 주세요.`,
       `예약금: ${wonD(paidD)}`,
       totalD > 0 && `총 견적금액: ${wonD(totalD)}`,
@@ -1153,7 +1153,8 @@ const handle = async (req: Request): Promise<Response> => {
       linkD,
       companyPhoneD && `문의: ${companyPhoneD}`,
     ].filter(Boolean).join("\n");
-    const typeD = new TextEncoder().encode(textD).length <= 90 ? "SMS" : "LMS";
+    // 그림 첨부 없이 LMS 로만 보냅니다. 링크 미리보기 카드(OG)만 한 장 보입니다.
+    const typeD = "LMS";
     const holdD = await reserveSms({
       userId: ownerD,
       key: `usage:${idemD}`,
@@ -1171,14 +1172,6 @@ const handle = async (req: Request): Promise<Response> => {
       text: textD,
       title: "",
       msgType: typeD,
-      cardType: "deposit",
-      cardData: {
-        companyName: companyD.companyName,
-        customerName: String(drow.customer_name).trim(),
-        moveDate: String(drow.move_date ?? "").trim(),
-        amount: wonD(paidD),
-        companyPhone: companyPhoneD,
-      },
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
       sender: companyD.sender,
