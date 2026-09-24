@@ -356,11 +356,16 @@ async function sendViaAligo(v: {
           raw: { result_code: code, message: data.message ?? "", msg_type: data.msg_type ?? v.msgType },
         };
       }
+      // 중계 서버가 알리고 호출 전에 거절하면 result_code 없이 error 문구만 옵니다. 그 문구를 그대로 보여 줍니다.
+      const proxyError = String((data as { error?: string }).error ?? "").slice(0, 300);
+      if (data.result_code == null && proxyError) {
+        return { ok: false, code: r.status, error: `문자 중계 서버: ${proxyError} (HTTP ${r.status})`, raw: { result_code: -1, message: proxyError } };
+      }
       return {
         ok: false,
-        error: aligoError(code, data.message ?? ""),
+        error: aligoError(code, String(data.message ?? proxyError ?? "")),
         code,
-        raw: { result_code: code, message: data.message ?? "" },
+        raw: { result_code: code, message: String(data.message ?? proxyError ?? "") },
       };
     }
 
