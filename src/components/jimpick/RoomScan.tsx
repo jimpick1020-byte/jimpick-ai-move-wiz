@@ -56,7 +56,7 @@ async function dataUrlToBlob(u: string): Promise<Blob> {
   return (await fetch(u)).blob();
 }
 
-function classify(det: ScanDetection, catalog: CatalogEntry[]) {
+function classify(det: ScanDetection, catalog: CatalogEntry[]): { kind: "low" | "auto" | "check" | "candidate"; match: CatalogEntry | null } {
   const match = matchCatalog(det.name, catalog);
   if (det.confidence < CHECK_CONF) return { kind: "low" as const, match };
   // 자동 등록하지 않고 사장님이 이름·수량을 확인한 뒤 추가합니다
@@ -274,13 +274,12 @@ export function RoomScanScreen() {
         if (me) setUid(me);
       }
       if (!me) throw new Error("로그인 정보를 확인하지 못했습니다. 다시 로그인해 주세요.");
-      const uid = me;
-      const path = `${uid}/${estimateId}/${crypto.randomUUID()}.jpg`;
+      const path = `${me}/${estimateId}/${crypto.randomUUID()}.jpg`;
       const up = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
       if (up.error) throw new Error(up.error.message);
       const ins = await supabase
         .from("room_scans")
-        .insert({ user_id: uid, estimate_id: estimateId, room: job.room, photo_path: path, photo_hash: hash, status: "queued" })
+        .insert({ user_id: me, estimate_id: estimateId, room: job.room, photo_path: path, photo_hash: hash, status: "queued" })
         .select("id")
         .single();
       if (ins.error) throw new Error(ins.error.message);
