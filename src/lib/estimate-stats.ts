@@ -22,7 +22,7 @@ export interface EstimateStats {
   pct: number;
   /** 현재 견적 내역에 보이는 견적 id (estimate_id 기준 중복 없음) */
   currentIds: Set<string>;
-  /** 현재 견적 중 「완료」(예약금 완료·일부결제·결제완료) */
+  /** 현재 견적 중 「완료」(결제완료만) */
   completedIds: Set<string>;
   inProgressIds: Set<string>;
   /** 완료 보관함으로 옮긴 견적 id — 현재 집계에서 제외 */
@@ -70,11 +70,8 @@ export function buildEstimateStats(input: {
   for (const [id, row] of termsById) {
     const status = normalizePaymentStatus(row.paymentStatus);
     if (status === "canceled" || status === "refunded") excludedIds.add(id);
-    // 결제완료 = 완료 보관함으로 이동한 견적 → 현재 견적 집계에서 뺍니다
-    else if (status === "completed") archivedIds.add(id);
-  }
-  for (const a of input.archived ?? []) {
-    if (a.estimateId && !excludedIds.has(a.estimateId)) archivedIds.add(a.estimateId);
+    // 달력에서 완료 보관함으로 옮긴 결제완료 견적 → 현재 견적 집계에서 뺍니다
+    else if (status === "completed" && row.calendarArchived) archivedIds.add(id);
   }
 
   const currentIds = new Set<string>();
@@ -85,8 +82,8 @@ export function buildEstimateStats(input: {
     if (excludedIds.has(e.id) || archivedIds.has(e.id)) continue;
     currentIds.add(e.id);
     const st = normalizePaymentStatus(termsById.get(e.id)?.paymentStatus);
-    // 예약금 완료·일부결제 = 완료, 미결제·결제대기 = 진행 중
-    if (st === "deposit_paid" || st === "partial") completedIds.add(e.id);
+    // 결제완료만 완료, 미결제·예약금 완료·일부결제는 모두 진행 중
+    if (st === "completed") completedIds.add(e.id);
     else inProgressIds.add(e.id);
   }
 
