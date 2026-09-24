@@ -74,20 +74,24 @@ export function buildEstimateStats(input: {
     else if (status === "completed" && row.calendarArchived) archivedIds.add(id);
   }
 
+  // 완료 보관함 목록(서버)에 있는 결제완료 건도 보관 건으로 셉니다
+  for (const a of input.archived ?? []) {
+    if (a.estimateId && a.archivedAt && !excludedIds.has(a.estimateId)) archivedIds.add(a.estimateId);
+  }
+
+  // 진행 중 = 보관함으로 옮기지 않은 현재 견적 (삭제·취소·환불 제외)
   const currentIds = new Set<string>();
-  const completedIds = new Set<string>();
   const inProgressIds = new Set<string>();
   for (const e of input.estimates) {
     if (!e.id || currentIds.has(e.id)) continue;
     if (excludedIds.has(e.id) || archivedIds.has(e.id)) continue;
     currentIds.add(e.id);
-    const st = normalizePaymentStatus(termsById.get(e.id)?.paymentStatus);
-    // 결제완료만 완료, 예약금 완료·일부결제만 진행 중. 미결제·결제대기는 진행 중에 세지 않습니다.
-    if (st === "completed") completedIds.add(e.id);
-    else if (st === "deposit_paid" || st === "partial") inProgressIds.add(e.id);
+    inProgressIds.add(e.id);
   }
+  // 완료 = 완료 보관함에 저장된 결제완료 건
+  const completedIds = new Set<string>(archivedIds);
 
-  const total = currentIds.size;
+  const total = inProgressIds.size + completedIds.size;
   const completed = completedIds.size;
   return {
     total,

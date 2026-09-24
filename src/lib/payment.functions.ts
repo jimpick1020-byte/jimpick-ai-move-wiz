@@ -89,6 +89,50 @@ export function isFullyPaid(row: {
   return paid >= total;
 }
 
+/** 한국시간 기준 이사일이 오늘 또는 그 이전이면 「이사 완료」로 봅니다 */
+export function isMoveDone(moveDate: string | null | undefined): boolean {
+  const m = String(moveDate ?? "").match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  if (!m) return false;
+  const d = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  const today = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10);
+  return d <= today;
+}
+
+/** 이사 완료 + 전액 결제완료인 견적을 완료 보관함으로 자동 이동합니다 (본인 업체만) */
+export const autoArchiveCompleted = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ ok: boolean; archived: number }> => {
+    const { data, error } = await context.supabase
+      .from("estimate_terms")
+      .select("id, total, deposit_paid, balance_paid, move_date, payment_status")
+      .eq("user_id", context.userId)
+      .eq("payment_status", "completed")
+      .eq("calendar_archived", false)
+      .is("deleted_at", null)
+      .limit(300);
+    if (error) return { ok: false, archived: 0 };
+    const ids = ((data ?? []) as Record<string, unknown>[])
+      .filter(
+        (r) =>
+          isMoveDone(r["move_date"] as string | null) &&
+          isFullyPaid({
+            total: r["total"] as number,
+            depositPaid: r["deposit_paid"] as number,
+            balancePaid: r["balance_paid"] as number,
+            paymentStatus: "completed",
+          }),
+      )
+      .map((r) => String(r["id"]));
+    if (ids.length === 0) return { ok: true, archived: 0 };
+    const now = new Date().toISOString();
+    const { error: upErr } = await context.supabase
+      .from("estimate_terms")
+      .update({ calendar_archived: true, calendar_archived_at: now, calendar_archived_by: context.userId } as never)
+      .in("id", ids)
+      .eq("user_id", context.userId);
+    return { ok: !upErr, archived: upErr ? 0 : ids.length };
+  });
+
 /** 사장님이 확인한 결제 상태를 저장합니다 */
 export const setPaymentState = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -111,7 +155,7 @@ export const setPaymentState = createServerFn({ method: "POST" })
     }): Promise<{ ok: boolean; error?: string; balancePaid?: number; confirmedAt?: string }> => {
       const { data: terms, error: findErr } = await context.supabase
         .from("estimate_terms")
-        .select("id, total, deposit_paid, balance_paid")
+        .select("id, total, deposit_paid, balance_paid, move_date")
         .eq("user_id", context.userId)
         .eq("estimate_id", data.estimateId)
         .order("sheet_version", { ascending: false })
@@ -126,7 +170,9 @@ export const setPaymentState = createServerFn({ method: "POST" })
         total: number | null;
         deposit_paid: number | null;
         balance_paid: number | null;
+        move_date: string | null;
       };
+      const archiveNow = data.status === "completed" && isMoveDone(row.move_date);
       const now = new Date().toISOString();
       const balance = data.balancePaid;
       const total = Number(row.total ?? 0);
@@ -147,9 +193,10 @@ export const setPaymentState = createServerFn({ method: "POST" })
         payment_confirmed_by: context.userId,
         payment_confirmed_at: now,
         paid_at: data.status === "completed" ? now : null,
-        calendar_archived: data.status === "completed",
-        calendar_archived_at: data.status === "completed" ? now : null,
-        calendar_archived_by: data.status === "completed" ? context.userId : null,
+        // 전액 결제완료 + 이사 완료(이사일 지남)일 때만 완료 보관함으로 옮깁니다
+        calendar_archived: archiveNow,
+        calendar_archived_at: archiveNow ? now : null,
+        calendar_archived_by: archiveNow ? context.userId : null,
         calendar_selected: false,
       };
       if (typeof data.method === "string") {
