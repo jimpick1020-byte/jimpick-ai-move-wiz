@@ -14,6 +14,9 @@ export interface ScanDetection {
   box: { x: number; y: number; w: number; h: number } | null;
 }
 
+const LARGE_RE = /냉장고|김치|세탁기|건조기|tv|티비|텔레비|모니터|에어컨|스타일러|침대|매트리스|장롱|옷장|붙박이|소파|쇼파|식탁|책상|책장|진열장|장식장|서랍장|화장대|거실장|수납장|안마의자|세라젬|피아노|캣타워|워시타워|냉동고|와인셀러/i;
+const SMALL_RE = /컵|그릇|냄비|식기|책$|^책|옷$|신발|가방|화분|액자|장난감|장식|박스|상자|벽|바닥|창문|^문$|사람|강아지|고양이|반려/;
+
 const outputSchema = z.object({
   photo_ok: z.boolean(),
   photo_problem: z.string().nullable(),
@@ -75,7 +78,10 @@ export const analyzeRoomScan = createServerFn({ method: "POST" })
     const bytes = new Uint8Array(await file.data.arrayBuffer());
 
     const prompt = `당신은 한국 이사 견적용 사진 분석가입니다. 이 사진은 "${row.room}" 공간입니다.
-사진에 실제로 보이는 이삿짐(가구·가전·생활용품·박스)만 찾아 JSON으로 답하세요.
+사진에 실제로 보이는 "대형 가전"과 "대형 가구"만 찾아 JSON으로 답하세요.
+대상: 냉장고, 김치냉장고, 세탁기, 건조기, TV, 대형 모니터, 에어컨, 스타일러, 침대, 돌침대, 흙침대, 매트리스, 장롱, 옷장, 붙박이장, 소파, 식탁, 대형 책상, 책장, 진열장, 서랍장, 화장대, TV장, 거실장, 안마의자, 세라젬, 피아노, 캣타워, 대형 수납장.
+제외(절대 넣지 말 것): 컵·그릇·냄비·식기, 책·옷·신발·가방, 화분·액자·장난감, 소형 생활용품·장식품, 박스와 박스 안 물건, 벽·바닥·창문·문, 사람·반려동물.
+확실하지 않으면 넣지 말고, 대형 품목이 없으면 items를 빈 배열로 답하세요. 보이지 않는 물건을 지어내지 마세요.
 규칙:
 - name은 한국어 품목명. 아래 기존 품목명 중 맞는 것이 있으면 반드시 그 이름을 그대로 씁니다.
 - 기존 목록에 없는 물건이면 짧은 한국어 이름(2~10자)을 새로 붙입니다.
@@ -136,7 +142,22 @@ export const analyzeRoomScan = createServerFn({ method: "POST" })
                 }
               : null,
         }))
-        .filter((it) => it.name.length >= 1);
+        .filter((it) => it.name.length >= 1)
+        // 신뢰도 0.75 미만, 사진 면적 3% 미만, 소형 물품은 버립니다
+        .filter((it) => it.confidence >= 0.75 && !!it.box && it.box.w * it.box.h >= 30_000)
+        .filter((it) => !SMALL_RE.test(it.name) || LARGE_RE.test(it.name))
+        .filter((it) => LARGE_RE.test(it.name))
+        // 같은 이름으로 여러 번 잡힌 물체는 한 번만 남기고 개수는 가장 큰 값만 씁니다
+        .reduce<ScanDetection[]>((acc, it) => {
+          const key = it.name.replace(/\s/g, "");
+          const same = acc.find((a) => a.name.replace(/\s/g, "") === key);
+          if (!same) acc.push(it);
+          else {
+            same.qty = Math.max(same.qty, it.qty);
+            same.confidence = Math.max(same.confidence, it.confidence);
+          }
+          return acc;
+        }, []);
       const needRetake = out?.photo_ok === false;
       const { error: saveErr } = await sb
         .from("room_scans")

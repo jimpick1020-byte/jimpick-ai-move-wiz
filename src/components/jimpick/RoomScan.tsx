@@ -245,7 +245,7 @@ export function RoomScanScreen() {
       const adds: Record<string, number> = {};
       (r.result?.items ?? []).forEach((det) => {
         const c = classify(det, catalog);
-        if (c.kind === "auto" && c.match) adds[c.match.id] = (adds[c.match.id] ?? 0) + det.qty;
+        if (false as boolean && c.match) adds[c.match.id] = (adds[c.match.id] ?? 0) + det.qty;
       });
       patchDraft((d) => {
         let rooms = d.rooms;
@@ -407,7 +407,7 @@ export function RoomScanScreen() {
     for (const r of rows)
       (r.result?.items ?? []).forEach((det, idx) => {
         const k = classify(det, catalog).kind;
-        if (k === "auto") recognized += det.qty;
+        recognized += det.qty;
         if ((k === "check" || k === "candidate") && !r.result?.decisions?.[idx]) check += 1;
       });
     return { shots: rows.length + local.length, recognized, check };
@@ -585,7 +585,7 @@ export function RoomScanScreen() {
         <div className="mx-4 mt-4 grid grid-cols-3 gap-2">
           {[
             ["촬영", summary.shots, "text-[#2A6FD6]"],
-            ["자동 선택", summary.recognized, "text-[#2E9E57]"],
+            ["인식 대형", summary.recognized, "text-[#2E9E57]"],
             ["확인 필요", summary.check, "text-[#B26A00]"],
           ].map(([l, v, c]) => (
             <div key={String(l)} className="rounded-xl border border-[#E5E7EB] bg-white p-3 text-center">
