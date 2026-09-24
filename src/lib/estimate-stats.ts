@@ -67,40 +67,52 @@ export function buildEstimateStats(input: {
 
   const excludedIds = new Set<string>();
   const archivedIds = new Set<string>();
+  const completedStatusIds = new Set<string>();
   for (const [id, row] of termsById) {
     const status = normalizePaymentStatus(row.paymentStatus);
     if (status === "canceled" || status === "refunded") excludedIds.add(id);
-    // 달력에서 완료 보관함으로 옮긴 결제완료 견적 → 현재 견적 집계에서 뺍니다
-    else if (status === "completed" && row.calendarArchived) archivedIds.add(id);
-  }
-
-  // 완료 보관함 목록(서버)에 있는 결제완료 건도 보관 건으로 셉니다
-  for (const a of input.archived ?? []) {
-    if (a.estimateId && a.archivedAt && !excludedIds.has(a.estimateId)) archivedIds.add(a.estimateId);
-  }
-
-  // 진행 중 = 보관함으로 옮기지 않은 현재 견적 (삭제·취소·환불 제외)
-  const currentIds = new Set<string>();
-  const inProgressIds = new Set<string>();
-  // 완료 보관함 견적의 고객 이름 — 같은 견적이 다른 id(서버 기록 없는 사본)로
-  // 견적 내역에 한 번 더 남아 있으면 새 견적으로 세지 않습니다.
-  const archivedNames = new Set<string>();
-  for (const a of input.archived ?? []) {
-    if (a.estimateId && archivedIds.has(a.estimateId)) {
-      const n = (a.customerName || "").replace(/\s+/g, "");
-      if (n) archivedNames.add(n);
+    else if (status === "completed") {
+      completedStatusIds.add(id);
+      if (row.calendarArchived) archivedIds.add(id);
     }
   }
-  for (const e of input.estimates) {
-    if (!e.id || currentIds.has(e.id)) continue;
-    if (excludedIds.has(e.id) || archivedIds.has(e.id)) continue;
-    const nm = (e.customerName || "").replace(/\s+/g, "");
-    if (!termsById.has(e.id) && nm && archivedNames.has(nm)) continue;
-    currentIds.add(e.id);
-    inProgressIds.add(e.id);
+  for (const a of input.archived ?? []) {
+    if (!a.estimateId || excludedIds.has(a.estimateId)) continue;
+    completedStatusIds.add(a.estimateId);
+    if (a.archivedAt) archivedIds.add(a.estimateId);
   }
-  // 완료 = 완료 보관함에 저장된 결제완료 건
-  const completedIds = new Set<string>(archivedIds);
+
+  // 1) 모든 견적을 estimate_id 기준 하나의 배열로 (견적 내역 + 완료 보관함, 중복 없음)
+  type Unique = { id: string; name: string; archived: boolean; status: string };
+  const unique = new Map<string, Unique>();
+  const norm = (s?: string) => (s || "").replace(/\s+/g, "");
+  for (const a of input.archived ?? []) {
+    if (!a.estimateId || unique.has(a.estimateId)) continue;
+    unique.set(a.estimateId, { id: a.estimateId, name: norm(a.customerName), archived: archivedIds.has(a.estimateId), status: "completed" });
+  }
+  // 완료 견적 고객 이름 — 같은 견적이 서버 기록 없는 다른 id로 견적 내역에 남아 있으면 새 견적으로 세지 않습니다
+  const completedNames = new Set<string>();
+  for (const u of unique.values()) if (u.name) completedNames.add(u.name);
+  for (const e of input.estimates) {
+    if (!e.id || unique.has(e.id)) continue;
+    const row = termsById.get(e.id);
+    const nm = norm(e.customerName);
+    if (!row && nm && completedNames.has(nm)) continue;
+    const status = completedStatusIds.has(e.id) ? "completed" : normalizePaymentStatus(row?.paymentStatus);
+    unique.set(e.id, { id: e.id, name: nm, archived: archivedIds.has(e.id), status });
+  }
+
+  // 2) 상태별 분리
+  const completedIds = new Set<string>();
+  const inProgressIds = new Set<string>();
+  for (const u of unique.values()) {
+    if (excludedIds.has(u.id)) continue;
+    if (u.archived || u.status === "completed") completedIds.add(u.id);
+    else inProgressIds.add(u.id);
+  }
+  // 견적 내역에 보이는 현재 견적 = 진행 중 (완료·보관 제외)
+  const currentIds = new Set<string>(inProgressIds);
+  for (const id of completedIds) if (!archivedIds.has(id) && input.estimates.some((e) => e.id === id)) currentIds.add(id);
 
   const total = inProgressIds.size + completedIds.size;
   const completed = completedIds.size;
