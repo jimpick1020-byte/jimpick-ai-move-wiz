@@ -40,8 +40,8 @@ interface LocalJob {
 type View = { label: string; tone: "blue" | "amber" | "red" | "green" | "gray"; pct: number };
 
 function concurrencyLimit() {
-  const c = typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 2 : 2;
-  return c >= 8 ? 3 : c >= 4 ? 2 : 1;
+  // 한 장씩 차례대로 분석합니다 (속도·오류 안정)
+  return 1;
 }
 
 function blobToDataUrl(b: Blob): Promise<string> {
@@ -59,7 +59,7 @@ async function dataUrlToBlob(u: string): Promise<Blob> {
 function classify(det: ScanDetection, catalog: CatalogEntry[]) {
   const match = matchCatalog(det.name, catalog);
   if (det.confidence < CHECK_CONF) return { kind: "low" as const, match };
-  if (match && det.confidence >= AUTO_CONF) return { kind: "auto" as const, match };
+  // 자동 등록하지 않고 사장님이 이름·수량을 확인한 뒤 추가합니다
   if (match) return { kind: "check" as const, match };
   return { kind: "candidate" as const, match: null };
 }
@@ -109,6 +109,7 @@ export function RoomScanScreen() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
   const fileRef = useRef<HTMLInputElement>(null);
+  const pickRef = useRef<HTMLInputElement>(null);
   const captureRoom = useRef(room);
   captureRoom.current = room;
 
@@ -168,6 +169,7 @@ export function RoomScanScreen() {
   // ── 분석 대기열 (동시 실행 수 제한) ────────────────────
   const queue = useRef<string[]>([]);
   const running = useRef(new Set<string>());
+  const retried = useRef(new Set<string>());
   const loadRef = useRef(load);
   loadRef.current = load;
   const namesRef = useRef(knownNames);
@@ -180,8 +182,21 @@ export function RoomScanScreen() {
       if (running.current.has(id)) continue;
       running.current.add(id);
       setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status: "analyzing", updated_at: new Date().toISOString() } : r)));
-      void analyze({ data: { scanId: id, knownNames: namesRef.current } })
+      const run = () => analyze({ data: { scanId: id, knownNames: namesRef.current } });
+      void run()
+        .then((res) => {
+          // 실패한 사진만 한 번 더 시도합니다
+          if (!res.ok && !retried.current.has(id)) {
+            retried.current.add(id);
+            return run();
+          }
+          return res;
+        })
         .catch(async () => {
+          if (!retried.current.has(id)) {
+            retried.current.add(id);
+            try { await run(); return; } catch { /* 아래에서 실패 기록 */ }
+          }
           await supabase.from("room_scans").update({ status: "failed", error_message: "인터넷 연결이 끊겨 분석하지 못했습니다." }).eq("id", id);
         })
         .finally(() => {
@@ -252,7 +267,14 @@ export function RoomScanScreen() {
   // ── 촬영 ─────────────────────────────────────────────
   const uploadJob = useCallback(
     async (job: LocalJob, blob: Blob, hash: string) => {
-      if (!uid) throw new Error("로그인 정보를 확인하지 못했습니다.");
+      let me = uid;
+      if (!me) {
+        const { data } = await supabase.auth.getSession();
+        me = data.session?.user.id ?? "";
+        if (me) setUid(me);
+      }
+      if (!me) throw new Error("로그인 정보를 확인하지 못했습니다. 다시 로그인해 주세요.");
+      const uid = me;
       const path = `${uid}/${estimateId}/${crypto.randomUUID()}.jpg`;
       const up = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
       if (up.error) throw new Error(up.error.message);
@@ -329,6 +351,10 @@ export function RoomScanScreen() {
     tap("click");
     fileRef.current?.click();
   };
+  const openPicker = () => {
+    captureRoom.current = room;
+    pickRef.current?.click();
+  };
   const nextRoom = () => {
     const i = roomNames.indexOf(room);
     setRoom(roomNames[(i + 1) % roomNames.length]);
@@ -399,7 +425,17 @@ export function RoomScanScreen() {
         type="file"
         accept="image/*"
         capture="environment"
-        multiple
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files;
+          void handleFiles(f, captureRoom.current);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={pickRef}
+        type="file"
+        accept="image/*"
         className="hidden"
         onChange={(e) => {
           const f = e.target.files;
@@ -466,7 +502,13 @@ export function RoomScanScreen() {
               다음 방 촬영 <ChevronRight className="h-5 w-5" />
             </button>
           </div>
-          <p className="px-3 pb-3 text-[12px] text-[#6B7280]">분석을 기다리지 않고 다음 방을 계속 찍을 수 있습니다.</p>
+          <button onClick={openPicker} className="mx-3 mb-2 w-[calc(100%-1.5rem)] rounded-xl border border-[#D1D5DB] bg-white py-2.5 text-[14px] font-bold text-[#25282D]">
+            사진 선택 (앨범에서 고르기)
+          </button>
+          <p className="px-3 pb-3 text-[12px] text-[#6B7280]">분석을 기다리지 않고 다음 방을 계속 찍을 수 있습니다. 카메라가 열리지 않으면 휴대폰 설정 → 애플리케이션 → 브라우저 → 권한에서 카메라를 허용하거나 "사진 선택"을 눌러 주세요.</p>
+          {latest && latest.status === "done" && (latest.result?.items ?? []).length === 0 && (
+            <p className="mx-3 mb-3 rounded-lg bg-[#F1F2F4] px-3 py-2 text-[13px] font-bold text-[#5B6270]">인식된 대형 품목 없음</p>
+          )}
         </div>
 
         {/* 방별 진행 */}
