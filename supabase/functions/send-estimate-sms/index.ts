@@ -1148,7 +1148,8 @@ const handle = async (req: Request): Promise<Response> => {
       totalD > 0 && `총 견적금액: ${wonD(totalD)}`,
       totalD > 0 && `잔금: ${wonD(balanceD)}`,
       String(drow.move_date ?? "").trim() && `이사일: ${String(drow.move_date).trim()}`,
-      `입금 및 예약 확인: ${linkD}`,
+      "입금 및 예약 확인:",
+      linkD,
       companyPhoneD && `문의: ${companyPhoneD}`,
     ].filter(Boolean).join("\n");
     const typeD = new TextEncoder().encode(textD).length <= 90 ? "SMS" : "LMS";
@@ -1370,7 +1371,8 @@ const handle = async (req: Request): Promise<Response> => {
     `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
     total > 0 && `견적금액: ${total.toLocaleString("ko-KR")}원`,
     moveDate && `이사일: ${moveDate}`,
-    `견적서 확인: ${link}`,
+    "견적서 확인:",
+    link,
     companyPhone && `문의: ${companyPhone}`,
   ].filter(Boolean).join("\n");
   const msgType = new TextEncoder().encode(text).length <= 90 ? "SMS" : "LMS";
