@@ -130,6 +130,7 @@ import {
   setCalendarSelected,
   archiveCalendarSelected,
   listArchivedContracts,
+  autoArchiveCompleted,
   normalizePaymentStatus,
   isFullyPaid,
   PAYMENT_STATUS_CLASS,
@@ -652,6 +653,9 @@ export function HomeScreen() {
     let alive = true;
     const load = () => {
       void Promise.all([
+        // 이사 완료 + 전액 결제완료 건은 먼저 완료 보관함으로 자동 이동합니다
+        autoArchiveCompleted().catch(() => null),
+      ]).then(() => Promise.all([
         getTermsStatuses({ data: {} })
           .then((r) => {
             if (alive && r.ok) setTermsRows(r.rows);
@@ -662,7 +666,7 @@ export function HomeScreen() {
             if (alive) setArchivedRows(rows);
           })
           .catch(() => {}),
-      ]).then(() => {
+      ])).then(() => {
         if (alive) setStatsReady(true);
       });
     };
@@ -6407,14 +6411,16 @@ export function History() {
                           // 고객이 입금했다고 알렸지만 사장님이 통장을 확인하기 전 상태
                           const waiting = !!ts.row?.depositClaimId && (ts.row?.depositPaid ?? 0) <= 0;
                           return (
-                            <span
-                              className={`text-xs px-2 py-1 rounded-full font-semibold ${
-                                waiting ? "bg-[#FEF3C7] text-[#B45309]" : PAYMENT_STATUS_CLASS[pay]
-                              }`}
-                            >
-                              {waiting ? "입금 확인 대기" : PAYMENT_STATUS_LABEL[pay]}
-                              {pay === "deposit_paid" && !waiting && (
-                                <span className="block text-center text-[11px] font-bold">진행중</span>
+                            <span className="flex flex-col items-end gap-0.5">
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                                  waiting ? "bg-[#FEF3C7] text-[#B45309]" : PAYMENT_STATUS_CLASS[pay]
+                                }`}
+                              >
+                                {waiting ? "입금 확인 대기" : PAYMENT_STATUS_LABEL[pay]}
+                              </span>
+                              {(pay === "deposit_paid" || pay === "partial") && !waiting && (
+                                <span className="text-[11px] font-bold text-[#EA580C] pr-1">(진행 중)</span>
                               )}
                             </span>
                           );
