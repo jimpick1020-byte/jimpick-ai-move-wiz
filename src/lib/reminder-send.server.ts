@@ -413,7 +413,25 @@ export async function runDueMoveReminders(limit = 20): Promise<RunResult> {
   }
   const rows = claimed ?? [];
   if (!rows.length) {
-    await logJobRun({ job: "send", note: "보낼 차례가 된 안내 문자가 없습니다." });
+    // 0건이어도 왜 없었는지 남깁니다 (한국시간 기준)
+    const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const hm = kstNow.getUTCHours() * 60 + kstNow.getUTCMinutes();
+    let note = "보낼 차례가 된 안내 문자가 없습니다.";
+    if (hm < 18 * 60 || hm >= 18 * 60 + 10) {
+      note = "발송 시간(한국시간 18:00~18:09)이 아니어서 제외했습니다.";
+    } else {
+      const tomorrow = new Date(kstNow.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const { data: tmr } = await supabaseAdmin
+        .from("move_reminders")
+        .select("status")
+        .eq("move_date", tomorrow)
+        .eq("delivery_type", "move_day_reminder");
+      const counts: Record<string, number> = {};
+      for (const t of (tmr ?? []) as { status: string }[]) counts[t.status] = (counts[t.status] ?? 0) + 1;
+      const parts = Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(" · ");
+      note = `내일(${tomorrow}) 발송 대상 0건${parts ? ` — 제외: ${parts}` : " — 확정 계약 예약 없음"}`;
+    }
+    await logJobRun({ job: "send", note });
     return { ok: true, picked: 0, sent: 0, failed: 0 };
   }
 
