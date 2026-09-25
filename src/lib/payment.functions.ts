@@ -114,7 +114,6 @@ export const autoArchiveCompleted = createServerFn({ method: "POST" })
     const ids = ((data ?? []) as Record<string, unknown>[])
       .filter(
         (r) =>
-          isMoveDone(r["move_date"] as string | null) &&
           isFullyPaid({
             total: r["total"] as number,
             depositPaid: r["deposit_paid"] as number,
@@ -172,7 +171,8 @@ export const setPaymentState = createServerFn({ method: "POST" })
         balance_paid: number | null;
         move_date: string | null;
       };
-      const archiveNow = data.status === "completed" && isMoveDone(row.move_date);
+      // 전액 결제완료로 저장되면 바로 완료 보관함으로 옮깁니다 (예약금 완료는 진행 중 유지)
+      const archiveNow = data.status === "completed";
       const now = new Date().toISOString();
       const balance = data.balancePaid;
       const total = Number(row.total ?? 0);

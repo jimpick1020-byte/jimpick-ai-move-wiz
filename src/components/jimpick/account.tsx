@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { toast } from "sonner";
 import { useEntitlement, TRIAL_EXPIRED_MESSAGE } from "@/lib/use-entitlement";
 import { supabase } from "@/integrations/supabase/client";
 import { authErrorMessage, authHeader } from "@/lib/auth";
-import { signInWithGoogle, GOOGLE_RETRY_MESSAGE } from "@/lib/google-auth";
+import { handleGoogleLogin, GOOGLE_RETRY_MESSAGE } from "@/lib/google-auth";
 import { useApp, won } from "@/lib/jimpick";
 import {
   MobileShell,
@@ -220,7 +220,9 @@ export function SignupScreen() {
     }
   };
 
-  const google = async () => {
+  const google = async (event?: MouseEvent<HTMLButtonElement>) => {
+    event?.preventDefault();
+    event?.stopPropagation();
     if (busy) return; // 연속 클릭 잠금
     if (mode === "signup" && (!termsAccepted || !privacyAccepted)) {
       setFormError("Google로 가입하려면 필수 약관에 먼저 동의해 주세요.");
@@ -240,7 +242,7 @@ export function SignupScreen() {
           }),
         );
       }
-      const result = await signInWithGoogle();
+      const result = await handleGoogleLogin();
       if (result === "failed") {
         localStorage.removeItem("jimpick_pending_oauth_consent");
         setGoogleFailed(true);
