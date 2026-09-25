@@ -6634,27 +6634,27 @@ export function Customers() {
   const [q, setQ] = useState("");
   /** 계약(예약 확정)된 견적 상태 — 고객 카드에 계약완료 표시를 붙입니다 */
   const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
-  useEffect(() => {
-    let alive = true;
-    getTermsStatuses({ data: {} })
-      .then((r) => {
-        if (alive && r.ok) setTermsRows(r.rows);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
   const [archivedRows, setArchivedRows] = useState<ArchivedContractRow[]>([]);
   useEffect(() => {
     let alive = true;
-    listArchivedContracts()
-      .then((rows) => {
-        if (alive) setArchivedRows(rows);
-      })
-      .catch(() => {});
+    const load = () => {
+      getTermsStatuses({ data: {} })
+        .then((r) => {
+          if (alive && r.ok) setTermsRows(r.rows);
+        })
+        .catch(() => {});
+      listArchivedContracts()
+        .then((rows) => {
+          if (alive) setArchivedRows(rows);
+        })
+        .catch(() => {});
+    };
+    load();
+    // 결제완료 저장 후 바로 다시 불러옵니다
+    window.addEventListener("jimpick:payment-updated", load);
     return () => {
       alive = false;
+      window.removeEventListener("jimpick:payment-updated", load);
     };
   }, []);
   const contractOf = (estimateId: string) => {
@@ -6678,7 +6678,7 @@ export function Customers() {
   >();
   // 홈 고객 현황과 같은 공통 기준: 현재 견적(보관·삭제·취소 제외)의 고객만 셉니다
   const stats = buildEstimateStats({ estimates, termsRows, archived: archivedRows });
-  const currentEstimates = estimates.filter((e) => stats.currentIds.has(e.id));
+  const currentEstimates = estimates.filter((e) => stats.currentIds.has(e.id) && !stats.archivedIds.has(e.id));
   for (const e of currentEstimates) {
     const k = customerKeyOf(e);
     if (!k) continue;
@@ -6698,18 +6698,8 @@ export function Customers() {
       cur.ids.push(e.id);
     }
   }
-  // 완료 보관함으로 옮긴 고객도 고객 관리에서 사라지지 않게 함께 보여 줍니다
-  for (const a of archivedRows) {
-    if (!a.estimateId || stats.excludedIds.has(a.estimateId)) continue;
-    const k = customerKeyOf({ customerName: a.customerName });
-    if (!k) continue;
-    const already = Array.from(map.values()).some(
-      (c) => c.ids.includes(a.estimateId) || (c.name || "").replace(/\s+/g, "") === (a.customerName || "").replace(/\s+/g, ""),
-    );
-    if (already) continue;
-    const t = a.archivedAt ? Date.parse(a.archivedAt) : 0;
-    map.set(k, { id: a.estimateId, name: a.customerName, phone: "", last: t, count: 1, lastAmount: a.total, ids: [a.estimateId] });
-  }
+  // 완료 보관함으로 옮긴 고객은 고객 관리(활성 고객)에서 빠지고 완료 보관함에서만 보입니다
+  void archivedRows;
   const list = Array.from(map.values()).filter(
     (c) => !q || c.name.includes(q) || c.phone.includes(q),
   );
