@@ -109,30 +109,42 @@ export function buildEstimateStats(input: {
     unique.set(e.id, { id: e.id, name: nm, archived: archivedIds.has(e.id), status });
   }
 
-  // 2) 상태별 분리
+  // 2) 상태별 분리 — 진행 중 = 예약금 입금 확인(deposit paid) AND 결제완료 아님 AND 보관 아님
   const completedIds = new Set<string>();
   const inProgressIds = new Set<string>();
+  const depositPaidOf = (id: string) => {
+    const row = termsById.get(id);
+    if (!row) return false;
+    const st = normalizePaymentStatus(row.paymentStatus);
+    return Number(row.depositPaid ?? 0) > 0 || Number(row.balancePaid ?? 0) > 0 || st === "partial";
+  };
   for (const u of unique.values()) {
     if (excludedIds.has(u.id)) continue;
     if (u.archived || u.status === "completed") completedIds.add(u.id);
-    else inProgressIds.add(u.id);
+    else if (depositPaidOf(u.id)) inProgressIds.add(u.id);
   }
-  // 견적 내역에 보이는 현재 견적 = 진행 중 (완료·보관 제외)
-  const currentIds = new Set<string>(inProgressIds);
+  // 현재 견적 = 보관되지 않은 활성 견적 (미결제 + 진행 중 + 아직 보관 전 결제완료)
+  const currentIds = new Set<string>();
+  for (const u of unique.values()) {
+    if (excludedIds.has(u.id) || archivedIds.has(u.id)) continue;
+    currentIds.add(u.id);
+  }
   for (const id of visibleOnly) currentIds.add(id);
-  for (const id of completedIds) if (!archivedIds.has(id) && input.estimates.some((e) => e.id === id)) currentIds.add(id);
 
-  // 총 견적 = 견적 내역에 보이는 활성 견적 수 (완료 보관함은 더하지 않습니다)
-  // 진행 중 = 활성 견적 중 완료(결제완료)가 아닌 견적, 완료 = 완료 보관함 견적 수
-  const total = currentIds.size;
-  let activeInProgress = 0;
-  for (const id of currentIds) if (!completedStatusIds.has(id)) activeInProgress++;
+  // 총 견적 = 미결제 + 진행 중 (완료 보관함·결제완료 제외), estimate_id 기준
+  let unpaid = 0;
+  for (const u of unique.values()) {
+    if (excludedIds.has(u.id) || completedIds.has(u.id) || inProgressIds.has(u.id)) continue;
+    unpaid++;
+  }
+  const inProgress = inProgressIds.size;
+  const total = unpaid + inProgress;
   let completed = 0;
   for (const id of archivedIds) if (!excludedIds.has(id)) completed++;
   const all = total + completed;
   return {
     total,
-    inProgress: activeInProgress,
+    inProgress,
     completed,
     pct: all ? Math.round((completed / all) * 100) : 0,
     currentIds,
