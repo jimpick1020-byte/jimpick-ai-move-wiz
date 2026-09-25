@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { useEntitlement, TRIAL_EXPIRED_MESSAGE } from "@/lib/use-entitlement";
 import { supabase } from "@/integrations/supabase/client";
 import { authErrorMessage, authHeader } from "@/lib/auth";
-import { lovable } from "@/integrations/lovable/index";
+import { signInWithGoogle, GOOGLE_RETRY_MESSAGE } from "@/lib/google-auth";
 import { useApp, won } from "@/lib/jimpick";
 import {
   MobileShell,
@@ -76,6 +76,7 @@ export function SignupScreen() {
   const [owner, setOwner] = useState("");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
+  const [googleFailed, setGoogleFailed] = useState(false);
   /** 인증 메일을 보낸 주소 — 있으면 '인증메일 다시 보내기' 안내를 띄웁니다 */
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [resendBusy, setResendBusy] = useState(false);
@@ -239,21 +240,14 @@ export function SignupScreen() {
           }),
         );
       }
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
-      });
-      if (result.error) {
+      const result = await signInWithGoogle();
+      if (result === "failed") {
         localStorage.removeItem("jimpick_pending_oauth_consent");
-        toast.error("구글 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        setGoogleFailed(true);
         return;
       }
-      // 구글 로그인 페이지로 이동하는 경우(가장 일반적) — 돌아오면 세션이 설정됩니다.
-      if (result.redirected) return;
-      login(email || "google", true);
-      setScreen("subscription");
-    } catch {
-      localStorage.removeItem("jimpick_pending_oauth_consent");
-      toast.error("구글 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      // 세션이 생기면 앱의 인증 구독이 업체 정보·권한을 다시 불러오고 첫 화면으로 보냅니다.
+      if (result === "signed-in") setScreen("home");
     } finally {
       setBusy(false);
     }
@@ -427,6 +421,23 @@ export function SignupScreen() {
           <GoogleIcon />
           구글 계정으로 계속하기
         </Button>
+        {googleFailed && (
+          <div role="alert" className="space-y-2 rounded-[14px] border border-auth-border bg-auth-soft p-3 text-sm">
+            <p className="font-semibold text-auth-error">{GOOGLE_RETRY_MESSAGE}</p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setGoogleFailed(false);
+                document.getElementById("signup-email")?.focus();
+              }}
+              className="h-11 w-full border-auth-primary text-auth-primary"
+            >
+              이메일로 로그인
+            </Button>
+          </div>
+        )}
+
 
         {pendingEmail && (
           <Card className="space-y-2 border border-[#3578C8]/20 bg-[#F5F8FF]">
