@@ -122,13 +122,19 @@ export function buildEstimateStats(input: {
   for (const id of visibleOnly) currentIds.add(id);
   for (const id of completedIds) if (!archivedIds.has(id) && input.estimates.some((e) => e.id === id)) currentIds.add(id);
 
-  const total = inProgressIds.size + completedIds.size;
-  const completed = completedIds.size;
+  // 총 견적 = 견적 내역에 보이는 활성 견적 수 (완료 보관함은 더하지 않습니다)
+  // 진행 중 = 활성 견적 중 완료(결제완료)가 아닌 견적, 완료 = 완료 보관함 견적 수
+  const total = currentIds.size;
+  let activeInProgress = 0;
+  for (const id of currentIds) if (!completedStatusIds.has(id)) activeInProgress++;
+  let completed = 0;
+  for (const id of archivedIds) if (!excludedIds.has(id)) completed++;
+  const all = total + completed;
   return {
     total,
-    inProgress: inProgressIds.size,
+    inProgress: activeInProgress,
     completed,
-    pct: total ? Math.round((completed / total) * 100) : 0,
+    pct: all ? Math.round((completed / all) * 100) : 0,
     currentIds,
     completedIds,
     inProgressIds,
