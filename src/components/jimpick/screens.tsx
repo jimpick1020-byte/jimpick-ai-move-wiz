@@ -550,14 +550,8 @@ export function Login() {
           disabled={busy}
           onClick={async () => {
             setErr("");
-            try {
-              const r = await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: window.location.origin,
-              });
-              if (r?.error) setErr("구글 로그인에 실패했습니다. 다시 시도해 주세요.");
-            } catch {
-              setErr("구글 로그인에 실패했습니다. 다시 시도해 주세요.");
-            }
+            const r = await signInWithGoogle();
+            if (r === "failed") setErr(GOOGLE_RETRY_MESSAGE);
           }}
           className="h-12 w-full rounded-[14px] border-border bg-background text-base font-bold text-foreground hover:bg-auth-soft"
         >
