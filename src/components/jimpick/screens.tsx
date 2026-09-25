@@ -6702,6 +6702,18 @@ export function Customers() {
       cur.ids.push(e.id);
     }
   }
+  // 완료 보관함으로 옮긴 고객도 고객 관리에서 사라지지 않게 함께 보여 줍니다
+  for (const a of archivedRows) {
+    if (!a.estimateId || stats.excludedIds.has(a.estimateId)) continue;
+    const k = customerKeyOf({ customerName: a.customerName });
+    if (!k) continue;
+    const already = Array.from(map.values()).some(
+      (c) => c.ids.includes(a.estimateId) || (c.name || "").replace(/\s+/g, "") === (a.customerName || "").replace(/\s+/g, ""),
+    );
+    if (already) continue;
+    const t = a.archivedAt ? Date.parse(a.archivedAt) : 0;
+    map.set(k, { id: a.estimateId, name: a.customerName, phone: "", last: t, count: 1, lastAmount: a.total, ids: [a.estimateId] });
+  }
   const list = Array.from(map.values()).filter(
     (c) => !q || c.name.includes(q) || c.phone.includes(q),
   );
