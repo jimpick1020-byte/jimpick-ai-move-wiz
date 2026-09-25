@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { useEntitlement, TRIAL_EXPIRED_MESSAGE } from "@/lib/use-entitlement";
 import { supabase } from "@/integrations/supabase/client";
 import { authErrorMessage, authHeader } from "@/lib/auth";
-import { lovable } from "@/integrations/lovable/index";
+import { signInWithGoogle, GOOGLE_RETRY_MESSAGE } from "@/lib/google-auth";
 import { useApp, won } from "@/lib/jimpick";
 import {
   MobileShell,
@@ -76,6 +76,7 @@ export function SignupScreen() {
   const [owner, setOwner] = useState("");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
+  const [googleFailed, setGoogleFailed] = useState(false);
   /** 인증 메일을 보낸 주소 — 있으면 '인증메일 다시 보내기' 안내를 띄웁니다 */
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [resendBusy, setResendBusy] = useState(false);
