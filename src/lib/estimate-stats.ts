@@ -93,13 +93,18 @@ export function buildEstimateStats(input: {
   // 완료 견적 고객 이름 — 같은 견적이 서버 기록 없는 다른 id로 견적 내역에 남아 있으면 새 견적으로 세지 않습니다
   const completedNames = new Set<string>();
   for (const u of unique.values()) if (u.name) completedNames.add(u.name);
+  const visibleOnly = new Set<string>();
   for (const e of input.estimates) {
     if (!e.id || unique.has(e.id)) continue;
     const row = termsById.get(e.id);
     const nm = norm(e.customerName);
     const status = completedStatusIds.has(e.id) ? "completed" : normalizePaymentStatus(row?.paymentStatus);
-    // 같은 고객의 완료 견적이 다른 id로 견적 내역에 또 있으면(예약금 단계가 아닌 한) 같은 견적으로 보고 한 번만 셉니다
-    if (nm && completedNames.has(nm) && status !== "deposit_paid" && status !== "partial") continue;
+    // 서버 기록이 없는 같은 이름의 사본만 완료 견적과 같은 견적으로 봅니다.
+    // 목록에서는 숨기지 않고, 숫자에서만 한 번 셉니다 (재방문 고객의 새 견적은 그대로 셉니다).
+    if (nm && completedNames.has(nm) && !row && status !== "deposit_paid" && status !== "partial") {
+      if (!excludedIds.has(e.id)) visibleOnly.add(e.id);
+      continue;
+    }
     if (excludedIds.has(e.id)) continue;
     unique.set(e.id, { id: e.id, name: nm, archived: archivedIds.has(e.id), status });
   }
@@ -114,6 +119,7 @@ export function buildEstimateStats(input: {
   }
   // 견적 내역에 보이는 현재 견적 = 진행 중 (완료·보관 제외)
   const currentIds = new Set<string>(inProgressIds);
+  for (const id of visibleOnly) currentIds.add(id);
   for (const id of completedIds) if (!archivedIds.has(id) && input.estimates.some((e) => e.id === id)) currentIds.add(id);
 
   const total = inProgressIds.size + completedIds.size;
