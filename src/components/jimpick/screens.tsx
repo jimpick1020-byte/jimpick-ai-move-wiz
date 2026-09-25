@@ -547,12 +547,14 @@ export function Login() {
         <Button
           type="button"
           variant="outline"
-          disabled={busy}
-          onClick={async () => {
+          onClick={async (event) => {
+            // 폼 제출·이메일 검사 없이 바로 구글 계정 선택 화면을 엽니다
+            const p = handleGoogleLogin(event);
             setErr("");
-            const r = await signInWithGoogle();
+            const r = await p;
             if (r === "failed") setErr(GOOGLE_RETRY_MESSAGE);
           }}
+          onKeyDown={(event) => event.stopPropagation()}
           className="h-12 w-full rounded-[14px] border-border bg-background text-base font-bold text-foreground hover:bg-auth-soft"
         >
           <span className="mr-2 text-lg font-black">G</span> 구글로 로그인
