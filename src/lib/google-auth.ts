@@ -31,5 +31,3 @@ export async function handleGoogleLogin(
   }
 }
 
-/** 예전 이름 호환 */
-export const signInWithGoogle = () => handleGoogleLogin();

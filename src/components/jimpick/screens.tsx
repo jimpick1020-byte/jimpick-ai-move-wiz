@@ -100,7 +100,7 @@ import {
 import { getSizePresets } from "@/lib/size-presets.functions";
 
 import { toast } from "sonner";
-import { signInWithGoogle, GOOGLE_RETRY_MESSAGE } from "@/lib/google-auth";
+import { handleGoogleLogin, GOOGLE_RETRY_MESSAGE } from "@/lib/google-auth";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
