@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { toast } from "sonner";
 import { useEntitlement, TRIAL_EXPIRED_MESSAGE } from "@/lib/use-entitlement";
 import { supabase } from "@/integrations/supabase/client";
@@ -220,7 +220,7 @@ export function SignupScreen() {
     }
   };
 
-  const google = async (event?: React.MouseEvent<HTMLButtonElement>) => {
+  const google = async (event?: MouseEvent<HTMLButtonElement>) => {
     event?.preventDefault();
     event?.stopPropagation();
     if (busy) return; // 연속 클릭 잠금
