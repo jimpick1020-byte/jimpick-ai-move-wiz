@@ -39,7 +39,6 @@ import {
   Calendar,
   CheckCircle2,
   Headphones,
-  History as HistoryIcon,
   BookOpen,
 } from "lucide-react";
 
@@ -716,7 +715,6 @@ export function HomeScreen() {
   const pct = statsReady ? stats.pct : 0;
   // 고객 현황·최근 작업도 같은 기준: 현재 견적(보관·삭제·취소 제외)만 씁니다
   const currentEstimates = estimates.filter((e) => stats.currentIds.has(e.id));
-  const allEstimates = currentEstimates;
   const customerCount = new Set(
     currentEstimates.map((e) => customerKeyOf(e)).filter(Boolean),
   ).size;
