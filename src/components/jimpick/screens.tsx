@@ -39,7 +39,6 @@ import {
   Calendar,
   CheckCircle2,
   Headphones,
-  History as HistoryIcon,
   BookOpen,
 } from "lucide-react";
 
@@ -91,6 +90,7 @@ import {
   TextInput,
 } from "./ui";
 import { MoveDateCalendar, type CalendarBooking } from "./MoveDateCalendar";
+import { HomeContractCalendar } from "./HomeContractCalendar";
 import {
   DEFAULT_SIZE_PRESETS,
   resolvePreset,
@@ -154,6 +154,7 @@ import {
   publishEstimateTerms,
   getTermsStatuses,
   getReservationCounts,
+  getHomeContractSchedule,
   getReservationSheet,
   renameReservationCustomer,
   getReservationCustomerName,
@@ -585,11 +586,12 @@ export function Login() {
 
 // ============ Home ============
 export function HomeScreen() {
-  const { setScreen, resetDraft, estimates, loadEstimate, draft } = useApp();
+  const { setScreen, resetDraft, estimates, loadEstimate, openEstimate, draft } = useApp();
   /** null = 아직 불러오는 중, "" = 상호명 없음/실패, 그 외 = 상호명 */
   const [companyName, setCompanyName] = useState<string | null>(null);
   /** 「새 견적 작성」을 눌렀을 때 작성 중 견적을 지울지 물어보는 창 */
   const [askNewEstimate, setAskNewEstimate] = useState(false);
+  const [contractBookings, setContractBookings] = useState<Record<string, import("@/lib/terms.functions").ReservationRow[]>>({});
 
   /**
    * 작성 중이던 견적 요약 (없으면 null).
@@ -633,6 +635,39 @@ export function HomeScreen() {
       cancelled = true;
     };
   }, []);
+
+  const loadContractSchedule = useCallback(() => {
+    getHomeContractSchedule()
+      .then((result) => {
+        if (result.ok) setContractBookings(result.reservations);
+      })
+      .catch(() => setContractBookings({}));
+  }, []);
+  useEffect(() => {
+    loadContractSchedule();
+    window.addEventListener("jimpick:payment-updated", loadContractSchedule);
+    return () => window.removeEventListener("jimpick:payment-updated", loadContractSchedule);
+  }, [loadContractSchedule]);
+
+  const openContractBooking = useCallback((booking: import("@/lib/terms.functions").ReservationRow) => {
+    if (estimates.some((estimate) => estimate.id === booking.estimateId)) {
+      loadEstimate(booking.estimateId);
+      return;
+    }
+    getReservationSheet({ data: { termsId: booking.termsId } })
+      .then((result) => {
+        if (!result.ok || !result.estimateJson) {
+          toast.error(result.error || "견적서를 불러오지 못했습니다.");
+          return;
+        }
+        try {
+          openEstimate(JSON.parse(result.estimateJson) as Estimate);
+        } catch {
+          toast.error("견적서를 불러오지 못했습니다.");
+        }
+      })
+      .catch(() => toast.error("견적서를 불러오지 못했습니다."));
+  }, [estimates, loadEstimate, openEstimate]);
 
   const greetingName =
     companyName === null ? "…" : companyName ? `${companyName} 사장님 👋` : "사장님 👋";
@@ -678,10 +713,8 @@ export function HomeScreen() {
   const done = statsReady ? String(stats.completed) : "…";
   const inProg = statsReady ? String(stats.inProgress) : "…";
   const pct = statsReady ? stats.pct : 0;
-  const localIdSet = new Set(estimates.map((e) => e.id));
   // 고객 현황·최근 작업도 같은 기준: 현재 견적(보관·삭제·취소 제외)만 씁니다
   const currentEstimates = estimates.filter((e) => stats.currentIds.has(e.id));
-  const allEstimates = currentEstimates;
   const customerCount = new Set(
     currentEstimates.map((e) => customerKeyOf(e)).filter(Boolean),
   ).size;
@@ -697,7 +730,6 @@ export function HomeScreen() {
   const doneSum = currentEstimates
     .filter((e) => stats.completedIds.has(e.id))
     .reduce((s, e) => s + (e.total || 0), 0);
-  const recent = [...allEstimates].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3);
   const { blocked, remainingText, entitlement } = useEntitlement();
 
   return (
@@ -919,56 +951,7 @@ export function HomeScreen() {
           </div>
         </Card>
 
-        {/* 최근 작업 — 최근 저장된 견적 3건 */}
-        <Card className="rounded-[14px]">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <HistoryIcon className="h-[20px] w-[20px] text-[#25282D]" strokeWidth={1.8} />
-              <div className="text-[17px] font-bold">최근 작업</div>
-            </div>
-            <button
-              onClick={() => setScreen("history")}
-              className="shrink-0 whitespace-nowrap text-[16px] font-bold text-[#25282D]"
-            >
-              전체 보기
-            </button>
-          </div>
-          {recent.length === 0 ? (
-            <div className="rounded-[14px] bg-[#F7F8F5] px-3 py-5 text-center text-[16px] text-[#6B7280]">
-              아직 저장된 견적이 없습니다.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {recent.map((e) => (
-                <button
-                  key={e.id}
-                  onClick={() =>
-                    localIdSet.has(e.id) ? loadEstimate(e.id) : setScreen("history")
-                  }
-                  className="flex w-full items-center justify-between gap-3 rounded-[14px] bg-[#F7F8F5] px-3 py-3 text-left active:translate-y-[1px]"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-[16px] font-bold">
-                      {e.customerName || "이름 없음"}
-                      {e.sizeTab?.trim() && (
-                        <span className="ml-1.5 font-normal text-[#6B7280]">
-                          {e.sizeTab.trim()}
-                        </span>
-                      )}
-                    </div>
-                    <div className="truncate text-[15px] text-[#6B7280]">
-                      {new Date(e.createdAt).toLocaleDateString("ko-KR")}
-                      {e.toAddress ? ` · ${e.toAddress}` : ""}
-                    </div>
-                  </div>
-                  <div className="shrink-0 whitespace-nowrap text-[16px] font-black text-[#25282D]">
-                    {(e.total || 0).toLocaleString()}원
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </Card>
+        <HomeContractCalendar bookings={contractBookings} onOpenBooking={openContractBooking} />
       </div>
       <BottomNav />
     </MobileShell>

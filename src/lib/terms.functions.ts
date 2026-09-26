@@ -772,6 +772,98 @@ export const getReservationCounts = createServerFn({ method: "POST" })
     },
   );
 
+/** 첫 화면 계약 일정 — 예약금 완료·일부결제·결제완료 계약만 업체별로 반환합니다. */
+export const getHomeContractSchedule = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ ok: boolean; reservations: Record<string, ReservationRow[]> }> => {
+    const { data: terms, error } = await context.supabase
+      .from("estimate_terms")
+      .select("id, estimate_id, move_date, customer_name, total, sheet_no, sheet_version, payment_status, deposit_paid, balance_paid, calendar_selected, sheet_snapshot")
+      .eq("user_id", context.userId)
+      .is("deleted_at", null)
+      .in("payment_status", ["deposit_paid", "partial", "completed"])
+      .not("move_date", "is", null)
+      .limit(2000);
+    if (error || !terms) {
+      if (error) console.error("[getHomeContractSchedule]", error.message);
+      return { ok: false, reservations: {} };
+    }
+
+    const termIds = (terms as { id: string }[]).map((row) => String(row.id));
+    const { data: acceptances } = termIds.length
+      ? await context.supabase
+          .from("terms_acceptances")
+          .select("estimate_terms_id, accepted_at, reservation_status, confirmed_by")
+          .in("estimate_terms_id", termIds)
+      : { data: [] as never[] };
+    const acceptanceByTerms = new Map<string, { at: string | null; by: string; canceled: boolean }>();
+    for (const acceptance of (acceptances ?? []) as {
+      estimate_terms_id?: string;
+      accepted_at?: string | null;
+      reservation_status?: string | null;
+      confirmed_by?: string | null;
+    }[]) {
+      acceptanceByTerms.set(String(acceptance.estimate_terms_id ?? ""), {
+        at: acceptance.accepted_at ?? null,
+        by: String(acceptance.confirmed_by ?? "customer"),
+        canceled: String(acceptance.reservation_status ?? "confirmed") === "canceled",
+      });
+    }
+
+    const byEstimate = new Map<string, ReservationRow & { version: number }>();
+    for (const raw of terms as Record<string, unknown>[]) {
+      const estimateId = String(raw["estimate_id"] ?? "");
+      const moveDate = String(raw["move_date"] ?? "").slice(0, 10);
+      if (!estimateId || !/^\d{4}-\d{2}-\d{2}$/.test(moveDate)) continue;
+      const acceptance = acceptanceByTerms.get(String(raw["id"]));
+      if (acceptance?.canceled) continue;
+      const version = Number(raw["sheet_version"] ?? 0);
+      const previous = byEstimate.get(estimateId);
+      if (previous && previous.version >= version) continue;
+      let moveTime: string | null = null;
+      let fromArea: string | null = null;
+      try {
+        const snapshot = raw["sheet_snapshot"] ? JSON.parse(String(raw["sheet_snapshot"])) : null;
+        const draft = snapshot?.draft as Record<string, unknown> | undefined;
+        if (draft) {
+          moveTime = typeof draft["moveTime"] === "string" ? draft["moveTime"] : null;
+          fromArea = areaOf(draft["fromAddr"] ?? draft["fromAddress"]);
+        }
+      } catch {
+        /* 스냅샷 표시값만 비웁니다. */
+      }
+      byEstimate.set(estimateId, {
+        version,
+        estimateId,
+        termsId: String(raw["id"]),
+        customerName: String(raw["customer_name"] ?? ""),
+        moveDate,
+        total: Number(raw["total"] ?? 0),
+        sheetNo: (raw["sheet_no"] as string | null) ?? null,
+        acceptedAt: acceptance?.at ?? null,
+        confirmedBy: acceptance?.by ?? "deposit",
+        moveTime,
+        fromArea,
+        toArea: null,
+        moveType: null,
+        truck: null,
+        staffName: null,
+        sizeTab: null,
+        paymentStatus: String(raw["payment_status"] ?? "unpaid"),
+        depositPaid: Number(raw["deposit_paid"] ?? 0),
+        balancePaid: Number(raw["balance_paid"] ?? 0),
+        calendarSelected: Boolean(raw["calendar_selected"]),
+      });
+    }
+
+    const reservations: Record<string, ReservationRow[]> = {};
+    for (const booking of byEstimate.values()) {
+      const { version: _version, ...row } = booking;
+      (reservations[row.moveDate] ??= []).push(row);
+    }
+    return { ok: true, reservations };
+  });
+
 /**
  * 업체(사장님) 직접 계약완료 — 고객 웹 동의가 없어도 계약을 확정합니다.
  *
