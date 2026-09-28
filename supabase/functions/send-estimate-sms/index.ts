@@ -139,7 +139,9 @@ async function companySmsInfo(companyId: string, supabaseUrl: string, serviceKey
   const companyName = String(profile?.company_name ?? "").trim();
   if (!companyName) return { ok: false, error: "업체 정보가 필요합니다." } as const;
   const sender = ADMIN_SENDER;
-  const companyPhone = String(profile?.phone ?? "").trim() || ADMIN_SENDER;
+  // 문의번호는 업체 설정 연락처만. 없으면 관리자 번호로 대체하지 않고 발송을 멈춥니다.
+  const companyPhone = String(profile?.phone ?? "").trim();
+  if (!companyPhone) return { ok: false, error: "업체 연락처를 먼저 등록해 주세요." } as const;
   console.log(`[sender] company=${companyId} sender=***${sender.slice(-4)} contact=***${normalizePhone(companyPhone).slice(-4)}`);
   return { ok: true, companyName, companyPhone, sender } as const;
 }
