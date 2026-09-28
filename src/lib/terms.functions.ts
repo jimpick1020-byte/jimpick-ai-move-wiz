@@ -190,7 +190,8 @@ export const getTermsLink = createServerFn({ method: "POST" })
       total: row.total,
       // 문의하기는 고객 번호가 아니라 지금 업체 연락처로 연결합니다
       // 업체 연락처가 없을 때만 관리자 공통번호를 씁니다
-      contactPhone: profile?.phone?.trim() || row.company_phone?.trim() || "010-7566-2542",
+      // 견적서 소유 업체의 설정 연락처만 씁니다. 관리자 번호로 대체하지 않습니다.
+      contactPhone: profile?.phone?.trim() || "",
       companyName: profile?.company_name?.trim() || null,
       termsName: row.terms_name,
       termsVersion: row.terms_version,

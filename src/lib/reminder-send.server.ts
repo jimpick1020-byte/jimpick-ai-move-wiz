@@ -213,11 +213,14 @@ async function sendOne(
   // 실제 발신번호는 관리자 공통번호 고정. 업체 연락처는 본문 "문의:" 에만 씁니다.
   const ADMIN_SENDER = "01075662542";
   const sender = ADMIN_SENDER;
-  const companyPhone = String(profile?.phone ?? "").trim() || String(row.company_phone ?? "").trim() || ADMIN_SENDER;
+  // 문의번호는 해당 업체(company_id) 설정 연락처만. 관리자 번호로 대체하지 않습니다.
+  const companyPhone = String(profile?.phone ?? "").trim();
   const setupError = profileErr
     ? "업체 정보를 확인하지 못했습니다."
     : !profile?.company_name?.trim()
       ? "업체 상호명이 없습니다."
+      : !companyPhone
+        ? "업체 연락처를 먼저 등록해 주세요."
       : !row.customer_name?.trim()
         ? "고객 이름이 없습니다." : !link ? "고객 보안 링크를 확인하지 못했습니다." : null;
   if (setupError) {

@@ -139,7 +139,9 @@ async function companySmsInfo(companyId: string, supabaseUrl: string, serviceKey
   const companyName = String(profile?.company_name ?? "").trim();
   if (!companyName) return { ok: false, error: "업체 정보가 필요합니다." } as const;
   const sender = ADMIN_SENDER;
-  const companyPhone = String(profile?.phone ?? "").trim() || ADMIN_SENDER;
+  // 문의번호는 업체 설정 연락처만. 없으면 관리자 번호로 대체하지 않고 발송을 멈춥니다.
+  const companyPhone = String(profile?.phone ?? "").trim();
+  if (!companyPhone) return { ok: false, error: "업체 연락처를 먼저 등록해 주세요." } as const;
   console.log(`[sender] company=${companyId} sender=***${sender.slice(-4)} contact=***${normalizePhone(companyPhone).slice(-4)}`);
   return { ok: true, companyName, companyPhone, sender } as const;
 }
@@ -1261,12 +1263,13 @@ const handle = async (req: Request): Promise<Response> => {
   }
 
   // ── 2. 견적서를 데이터베이스에서 직접 읽습니다 ──
+  // 현재 누른 estimate_id 한 건만 읽습니다 (목록·최근 고객·예전 문자·기기 저장값은 쓰지 않습니다).
   const q = new URLSearchParams({
     select:
       "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,move_date,contact_phone,company_phone,total,access_token,sheet_snapshot",
     estimate_id: `eq.${estimateId}`,
     order: "sheet_version.desc",
-    limit: "1",
+    limit: "20",
     deleted_at: "is.null",
   });
   const res = await db(`estimate_terms?${q}`, { supabaseUrl, serviceKey });
@@ -1274,9 +1277,12 @@ const handle = async (req: Request): Promise<Response> => {
     console.error("[send-estimate-sms] 견적서 조회 실패", res.status);
     return json({ ok: false, error: "견적서를 불러오지 못했습니다." }, 500);
   }
-  const rows = (await res.json()) as Array<Record<string, unknown>>;
-  const row = rows?.[0];
-  if (!row) {
+  const allRows = ((await res.json()) as Array<Record<string, unknown>>) ?? [];
+  // 같은 estimate_id 에 다른 업체 기록이 하나라도 섞여 있으면 발송을 막습니다
+  if (allRows.some((r) => String(r.user_id) !== userId)) {
+    return json({ ok: false, error: "이 견적서를 보낼 권한이 없습니다." }, 403);
+  }
+  if (allRows.length === 0) {
     return json(
       {
         ok: false,
@@ -1285,9 +1291,14 @@ const handle = async (req: Request): Promise<Response> => {
       400,
     );
   }
-  // 다른 업체의 견적서는 보낼 수 없습니다
-  if (String(row.user_id) !== userId) {
-    return json({ ok: false, error: "이 견적서를 보낼 권한이 없습니다." }, 403);
+  const topVersion = Number(allRows[0].sheet_version ?? 1);
+  const latest = allRows.filter((r) => Number(r.sheet_version ?? 1) === topVersion);
+  if (latest.length !== 1) {
+    return json({ ok: false, error: "같은 견적서가 여러 건으로 조회되어 발송하지 않았습니다. 견적서를 다시 확정해 주세요." }, 409);
+  }
+  const row = latest[0];
+  if (String(row.estimate_id) !== estimateId || String(row.user_id) !== userId) {
+    return json({ ok: false, error: "견적서 정보가 일치하지 않아 발송하지 않았습니다." }, 409);
   }
   const company = await companySmsInfo(userId, supabaseUrl, serviceKey);
   if (!company.ok) return json({ ok: false, error: company.error }, 403);
@@ -1376,18 +1387,27 @@ const handle = async (req: Request): Promise<Response> => {
 
   // ── 4. 문자 내용을 실제 자료로 만듭니다 ──
   if (!customer) return json({ ok: false, error: "고객 이름이 없어 발송하지 않았습니다." }, 400);
-  const moveDate = String(row.move_date ?? "").trim();
   const companyPhone = company.companyPhone;
-  const total = Number(row.total ?? 0);
+  // 발송 직전 재검증: 링크의 견적서 ID·고객명·문의번호가 현재 견적서/업체와 같은지
+  const linkEst = new URL(link).pathname.split("/").pop();
+  if (decodeURIComponent(linkEst ?? "") !== estimateId || !link.includes(`t=${encodeURIComponent(token)}`)) {
+    return json({ ok: false, error: "보안 링크가 현재 견적서와 일치하지 않아 발송하지 않았습니다." }, 409);
+  }
+  if (!companyPhone) {
+    return json({ ok: false, error: "업체 연락처를 먼저 등록해 주세요." }, 400);
+  }
   const text = [
-    "[짐도리]",
+    "[JIMPICK 짐픽]",
     `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
-    total > 0 && `견적금액: ${total.toLocaleString("ko-KR")}원`,
-    moveDate && `이사일: ${moveDate}`,
-    "견적서 확인:",
+    "아래 링크에서 견적서와 표준약관을 확인해 주세요.",
     link,
-    companyPhone && `문의: ${companyPhone}`,
-  ].filter(Boolean).join("\n");
+    `문의: ${companyPhone}`,
+  ].join("\n");
+  console.log(`[quote] est=${estimateId} company=${userId} to=***${last4(phone)} contact=***${normalizePhone(companyPhone).slice(-4)}`);
+  // 미리보기는 실제 발송과 같은 최종 문자(text)를 그대로 돌려줍니다
+  if (body.preview === true) {
+    return json({ ok: true, preview: true, text, customerName: customer, recipientLast4: last4(phone) });
+  }
   // 견적서 문자는 링크 미리보기 카드만 씁니다. 그림 첨부 없이 항상 LMS.
   const msgType = "LMS";
   const title = "";
@@ -1488,6 +1508,7 @@ const handle = async (req: Request): Promise<Response> => {
     recipientLast4: last4(phone),
     requestedAt,
     sentAt: now,
+    text,
   });
 };
 
