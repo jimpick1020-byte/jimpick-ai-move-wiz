@@ -71,23 +71,24 @@ export async function syncMoveReminder(estimateTermsId: string): Promise<SyncRes
   const ownerId = String(r["user_id"] ?? "");
   const estimateId = String(r["estimate_id"] ?? "");
 
-  // 고객이 실제로 예약을 확정했는지 확인합니다 (동의 기록이 있어야 합니다)
+  // 고객 동의와 실제 예약금 확인이 모두 있어야 확정 계약입니다.
   const { data: acc } = await supabaseAdmin
     .from("terms_acceptances")
     .select("accepted, reservation_status")
     .eq("estimate_terms_id", estimateTermsId)
     .maybeSingle();
-  const confirmed =
+  const requested =
     !!acc &&
     (acc as { accepted?: boolean }).accepted === true &&
     String((acc as { reservation_status?: string }).reservation_status ?? "confirmed") !== "canceled";
 
   const paymentStatus = String(r["payment_status"] ?? "unpaid");
+  const depositConfirmed = ["deposit_paid", "partial", "completed"].includes(paymentStatus);
   const canceledReservation = paymentStatus === "canceled" || paymentStatus === "refunded";
 
-  if (!confirmed || canceledReservation) {
+  if (!requested || !depositConfirmed || canceledReservation) {
     await cancelMoveReminders(estimateId, ownerId);
-    return { ok: true, action: "canceled", reason: "확정되지 않았거나 취소된 예약입니다." };
+    return { ok: true, action: "canceled", reason: "예약금이 확인되지 않았거나 취소된 예약입니다." };
   }
 
   // 견적 스냅샷에서 시작 시간·출발지를 읽습니다 (없으면 그 줄은 비웁니다)

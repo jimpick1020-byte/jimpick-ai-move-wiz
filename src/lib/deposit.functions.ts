@@ -148,6 +148,24 @@ async function recalcAndSave(
     .update(patch)
     .eq("user_id", context.userId)
     .eq("estimate_id", estimateId);
+  if (paid > 0) {
+    const { data: latest } = await context.supabase
+      .from("estimate_terms")
+      .select("id")
+      .eq("user_id", context.userId)
+      .eq("estimate_id", estimateId)
+      .order("sheet_version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latest?.id) {
+      try {
+        const { syncMoveReminder } = await import("./reminder.server");
+        await syncMoveReminder(String(latest.id));
+      } catch (error) {
+        console.error("[recalcAndSave] 전날 안내 예약 실패", error instanceof Error ? error.message : error);
+      }
+    }
+  }
   return paid;
 }
 

@@ -208,7 +208,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     };
   });
 
-/** 고객용 — 약관 동의와 예약 확정을 기록합니다 */
+/** 고객용 — 약관 동의와 예약 요청을 기록합니다 */
 export const acceptTerms = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
@@ -287,17 +287,9 @@ export const acceptTerms = createServerFn({ method: "POST" })
       // 이미 확정된 건을 다시 누른 경우에는 알림·예약을 다시 만들지 않습니다.
       if (out.duplicate) return { ok: true, acceptedAt };
 
-      // 예약 확정 저장이 성공한 뒤에만 사장님에게 알림 문자를 보냅니다.
-      // 문자가 실패해도 고객 동의·예약 확정 기록은 그대로 둡니다.
+      // 예약 요청 저장이 성공한 뒤에만 사장님에게 알림 문자를 보냅니다.
+      // 문자가 실패해도 고객 동의·예약 요청 기록은 그대로 둡니다.
       await notifyManager(data.token);
-
-      // 예약이 확정됐으니, 이사 전날 18시(한국시간)에 보낼 안내 문자를 예약합니다
-      try {
-        const { syncMoveReminder } = await import("./reminder.server");
-        await syncMoveReminder(rowId);
-      } catch (e) {
-        console.error("[acceptTerms] 안내 문자 예약 실패", e instanceof Error ? e.message : e);
-      }
 
       return { ok: true, acceptedAt };
     },

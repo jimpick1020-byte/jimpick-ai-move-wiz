@@ -867,8 +867,8 @@ const handle = async (req: Request): Promise<Response> => {
     });
   }
 
-  // ── 사장님 예약확정 알림 ──
-  // 고객이 「동의하고 예약 확정」 저장에 성공한 뒤에만 우리 서버가 이 경로를 부릅니다.
+  // ── 사장님 예약 요청 알림 ──
+  // 고객이 「동의하고 예약 요청」 저장에 성공한 뒤에만 우리 서버가 이 경로를 부릅니다.
   // 관리자 화면에서 실패한 알림을 다시 보낼 때도 같은 경로를 씁니다.
   if (body.mode === "manager_notify") {
     const tokenIn = String(body.token ?? "").trim();
@@ -907,7 +907,7 @@ const handle = async (req: Request): Promise<Response> => {
     const arow = ares.ok ? ((await ares.json()) as Array<Record<string, unknown>>)?.[0] : null;
     if (!arow || arow.accepted !== true) {
       return json(
-        { ok: false, error: "고객의 예약 확정 기록이 없어 알림을 보내지 않았습니다." },
+        { ok: false, error: "고객의 예약 요청 기록이 없어 알림을 보내지 않았습니다." },
         400,
       );
     }
@@ -1030,14 +1030,14 @@ const handle = async (req: Request): Promise<Response> => {
         ["총 견적금액", totalM > 0 ? wonM(totalM) : ""],
         ["예약금", deposit > 0 ? wonM(deposit) : ""],
         ["견적번호", String(trow.sheet_no ?? "").trim() || estimateIdM],
-        ["확정일시", confirmedText],
+        ["요청일시", confirmedText],
       ] as Array<[string, string]>
     )
       .filter(([, v]) => v !== "")
       .map(([k, v]) => `${k}: ${v}`);
     const textM = [
-      "[JIMPICK 예약 확정]",
-      "고객이 견적서를 확인하고 예약을 확정했습니다.",
+      "[예약 요청]",
+      "고객이 견적서와 약관을 확인하고 예약을 요청했습니다.",
       "",
       ...infoLines,
       "",
@@ -1061,7 +1061,7 @@ const handle = async (req: Request): Promise<Response> => {
     const sentM = await sendViaAligo({
       to: managerPhone,
       text: textM,
-      title: "짐픽 예약 확정 알림",
+      title: "예약 요청 알림",
       msgType: msgTypeM,
       aligoUserId: aligoUserId!,
       apiKey: apiKey!,
@@ -1407,7 +1407,6 @@ const handle = async (req: Request): Promise<Response> => {
     return json({ ok: false, error: "업체 연락처를 먼저 등록해 주세요." }, 400);
   }
   const text = [
-    "[JIMPICK 짐픽]",
     company.smsTemplate,
     `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
     "아래 링크에서 견적서와 표준약관을 확인해 주세요.",

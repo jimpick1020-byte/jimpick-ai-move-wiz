@@ -9,6 +9,7 @@
  * 이미 보낸 견적서 금액이 흔들리지 않습니다.
  */
 import { normalizePaymentStatus } from "@/lib/payment.functions";
+import { RESERVATION_STAGE_LABEL, reservationStageOf } from "@/lib/reservation-status";
 import { forwardRef, useState, type ReactNode } from "react";
 import {
   CalendarDays,
@@ -159,6 +160,7 @@ export interface EstimateSheetProps {
   acceptedAt?: string | null;
   /** 결제 상태 (결제완료면 「완료」로 표시) */
   paymentStatus?: string | null;
+  depositClaimPending?: boolean;
   /** 고객이 실제로 동의한 견적서 차수·약관 버전 (동의 전에는 비워 둡니다) */
   acceptedSheetVersion?: number | null;
   acceptedTermsVersion?: string | null;
@@ -184,6 +186,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     companyPhone,
     acceptedAt = null,
     paymentStatus = null,
+    depositClaimPending = false,
     acceptedSheetVersion = null,
     acceptedTermsVersion = null,
     forCustomer = false,
@@ -224,15 +227,14 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
   const [fullOpen, setFullOpen] = useState(false);
   const hasDest = !!draft.toAddress?.trim();
   const payStatus = paymentStatus ? normalizePaymentStatus(paymentStatus) : null;
-  const statusLabel =
-    payStatus === "completed"
-      ? "완료"
-      : acceptedAt || payStatus === "deposit_paid" || (paidDeposit ?? 0) > 0
-        ? "예약 확정"
-        : draft.sheetConfirmedAt || draft.status === "완료"
-          ? "확정"
-          : "작성 중";
-  const confirmed = statusLabel !== "작성 중";
+  const reservationStage = reservationStageOf({
+    paymentStatus: payStatus,
+    depositPaid: paidDeposit,
+    acceptedAt,
+    depositClaimPending,
+  });
+  const statusLabel = RESERVATION_STAGE_LABEL[reservationStage];
+  const confirmed = reservationStage === "reservation_confirmed" || reservationStage === "payment_completed";
 
   const truckText =
     [
@@ -244,12 +246,10 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
 
   return (
     <div ref={ref} className="bg-[#F7F8F5] pb-4">
-      {/* 파란 머리띠 */}
-      <div className="flex items-center gap-1.5 bg-[#3578C8] px-4 py-3.5">
-        <span className="text-[22px] font-black tracking-tight text-white">JIMPICK</span>
-        {companyName.trim() && (
-          <span className="text-[17px] font-bold text-white/90">{companyName.trim()}</span>
-        )}
+      <div className="flex min-h-14 items-center justify-center bg-[#3578C8] px-4 py-3.5 text-center">
+        <span className="break-keep text-[19px] font-black text-white">
+          {companyName.trim() || "이사 견적서"}
+        </span>
       </div>
 
       <div className="space-y-3 px-3 pt-3">

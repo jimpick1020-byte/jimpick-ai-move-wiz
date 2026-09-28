@@ -450,10 +450,9 @@ export function SharePage() {
     <div className="min-h-[100dvh] w-full overflow-x-hidden bg-white">
       {/* 상단 파란색 헤더 */}
       <header className="flex h-[88px] w-full items-center justify-center bg-[#3578C8]">
-        <span className="text-[30px] font-black tracking-tight text-white">JIMPICK</span>
-        {companyName && (
-          <span className="ml-2 text-[16px] font-bold text-white/95">{companyName}</span>
-        )}
+        <span className="break-keep px-4 text-center text-[24px] font-black text-white">
+          {companyName || "이사 견적서"}
+        </span>
       </header>
       <div className="mx-auto w-full max-w-[430px] px-4 pb-12">{children}</div>
     </div>
@@ -623,6 +622,7 @@ export function SharePage() {
             parts={sentSheet.parts}
             total={sentSheet.total}
             paidDeposit={paidDeposit}
+            depositClaimPending={link?.ok ? link.depositClaimPending === true : claimSent}
             depositClaimSlot={depositClaimSlot}
             companyName={companyName}
             companyPhone={contactPhone}
@@ -846,11 +846,11 @@ export function SharePage() {
         </div>
       )}
 
-      {/* 동의 · 예약 확정 */}
+      {/* 동의 · 예약 요청 */}
       {accepted ? (
-        <div className="mt-4 rounded-[14px] border-2 border-[#3E9B78] bg-white p-4">
-          <div className="inline-flex items-center gap-2 text-[19px] font-black text-[#3E9B78]">
-            <CheckCircle2 className="h-6 w-6" /> 예약이 확정되었습니다
+        <div className="mt-4 rounded-[14px] border-2 border-[#3578C8] bg-white p-4">
+          <div className="inline-flex items-center gap-2 text-[19px] font-black text-[#1D4ED8]">
+            <CheckCircle2 className="h-6 w-6" /> 예약 요청이 접수되었습니다
           </div>
           <div className="mt-1 text-[16px] text-[#25282D]">
             동의 일시: {new Date(accepted.acceptedAt).toLocaleString("ko-KR")}
@@ -881,7 +881,7 @@ export function SharePage() {
             className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-b from-[#3578C8] to-[#2C63A8] py-4 text-[22px] font-black text-white shadow-[0_4px_12px_rgba(8,100,220,0.35)] disabled:from-[#C7D6EE] disabled:to-[#C7D6EE] disabled:shadow-none"
           >
             <CheckCircle2 className="h-[26px] w-[26px]" strokeWidth={2.2} />
-            {saving ? "확정 중..." : "동의하고 예약 확정"}
+            {saving ? "요청 중..." : "동의하고 예약 요청"}
           </button>
         </>
       )}
