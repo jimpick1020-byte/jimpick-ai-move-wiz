@@ -351,11 +351,26 @@ export function RoomScanScreen() {
   const openCamera = () => {
     captureRoom.current = room;
     tap("click");
-    fileRef.current?.click();
+    launch(fileRef.current, "카메라");
   };
   const openPicker = () => {
     captureRoom.current = room;
-    pickRef.current?.click();
+    launch(pickRef.current, "앨범");
+  };
+  // 파일 창이 열리면 화면이 가려져(blur/hidden) 신호가 옵니다. 신호가 없으면 원인을 알려 줍니다.
+  const launch = (el: HTMLInputElement | null, what: string) => {
+    if (!el) { toast.error(`${what} 버튼을 준비하지 못했습니다. 화면을 새로고침해 주세요.`); return; }
+    let opened = false;
+    const mark = () => { opened = true; };
+    window.addEventListener("blur", mark, { once: true });
+    document.addEventListener("visibilitychange", mark, { once: true });
+    try { el.click(); } catch (e) { toast.error(`${what}을 열지 못했습니다: ${e instanceof Error ? e.message : "알 수 없는 오류"}`); return; }
+    window.setTimeout(() => {
+      window.removeEventListener("blur", mark);
+      document.removeEventListener("visibilitychange", mark);
+      if (!opened && document.visibilityState === "visible" && document.hasFocus())
+        toast.error(`${what}이 열리지 않았습니다. 카카오톡 등 앱 안 브라우저라면 Chrome·삼성 인터넷으로 열고, 설정 → 애플리케이션 → 브라우저 → 권한에서 카메라·사진을 허용해 주세요.`, { duration: 8000 });
+    }, 1500);
   };
   const nextRoom = () => {
     const i = roomNames.indexOf(room);
