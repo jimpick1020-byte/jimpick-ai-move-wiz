@@ -920,6 +920,7 @@ export type Database = {
           owner_name: string | null
           phone: string | null
           privacy_accepted_at: string | null
+          sms_template: string | null
           staff_name: string | null
           staff_phone: string | null
           terms_accepted_at: string | null
@@ -941,6 +942,7 @@ export type Database = {
           owner_name?: string | null
           phone?: string | null
           privacy_accepted_at?: string | null
+          sms_template?: string | null
           staff_name?: string | null
           staff_phone?: string | null
           terms_accepted_at?: string | null
@@ -962,6 +964,7 @@ export type Database = {
           owner_name?: string | null
           phone?: string | null
           privacy_accepted_at?: string | null
+          sms_template?: string | null
           staff_name?: string | null
           staff_phone?: string | null
           terms_accepted_at?: string | null
