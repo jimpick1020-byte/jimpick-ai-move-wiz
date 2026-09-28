@@ -5,24 +5,19 @@ import type React from "react";
 
 export const digitsOnly = (v: string) => (v || "").replace(/\D/g, "");
 
-/** 휴대전화·일반전화(지역번호 길이 반영) */
+/** 휴대전화·일반전화(지역번호 길이 반영): 010-1234-5678, 02-123-4567, 031-123-4567 */
 export function formatTel(v: string): string {
-  const d = digitsOnly(v).slice(0, 12);
+  const d = digitsOnly(v).slice(0, 11);
   if (!d) return "";
-  // 대표번호 1588-0000
   if (/^1[5-9]/.test(d)) return d.length <= 4 ? d : `${d.slice(0, 4)}-${d.slice(4, 8)}`;
-  const area = d.startsWith("02") ? 2 : 3;
-  if (d.length <= area) return d;
-  const rest = d.slice(area);
-  const rest11 = d.length === 11 || (area === 2 && d.length === 10);
-  if (rest.length <= 3) return `${d.slice(0, area)}-${rest}`;
-  if (rest.length <= 7 && !rest11) {
-    const mid = rest.length <= 7 && rest.length > 4 ? rest.length - 4 : rest.length;
-    return rest.length <= 4
-      ? `${d.slice(0, area)}-${rest}`
-      : `${d.slice(0, area)}-${rest.slice(0, mid)}-${rest.slice(mid)}`;
-  }
-  return `${d.slice(0, area)}-${rest.slice(0, 4)}-${rest.slice(4, 8)}`;
+  const a = d.startsWith("02") ? 2 : 3;
+  if (d.length <= a) return d;
+  const rest = d.slice(a);
+  if (rest.length <= 3) return `${d.slice(0, a)}-${rest}`;
+  // 가운데 자리: 전체 자리수가 최대(02:10, 그 외:11)면 4자리, 아니면 3자리
+  const mid = d.length >= (a === 2 ? 10 : 11) ? 4 : 3;
+  if (rest.length <= mid) return `${d.slice(0, a)}-${rest}`;
+  return `${d.slice(0, a)}-${rest.slice(0, mid)}-${rest.slice(mid, mid + 4)}`;
 }
 
 /** 사업자등록번호 123-45-67890 */
