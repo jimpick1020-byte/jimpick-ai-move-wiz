@@ -22,6 +22,8 @@ export interface CompanyDefaults {
   bankName: string;
   bankAccount: string;
   bankHolder: string;
+  /** 문자 기본 문구 (업체별) */
+  smsTemplate: string;
 }
 
 const EMPTY: CompanyDefaults = {
@@ -35,6 +37,7 @@ const EMPTY: CompanyDefaults = {
   bankName: "",
   bankAccount: "",
   bankHolder: "",
+  smsTemplate: "",
 };
 
 // 모든 항목은 선택값입니다. 넘어온 항목만 저장하고, 빠진 항목은 건드리지 않습니다
@@ -55,6 +58,7 @@ const schema = z.object({
   bankName: z.string().max(40).optional(),
   bankAccount: z.string().max(60).optional(),
   bankHolder: z.string().max(80).optional(),
+  smsTemplate: z.string().max(500).optional(),
 });
 
 /** 저장된 기본 업체 정보를 읽습니다 */
@@ -64,7 +68,7 @@ export const getCompanyDefaults = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("profiles")
       .select(
-        "company_name, owner_name, phone, business_number, cert_path, staff_name, staff_phone, bank_name, bank_account, bank_holder",
+        "company_name, owner_name, phone, business_number, cert_path, staff_name, staff_phone, bank_name, bank_account, bank_holder, sms_template",
       )
       .eq("id", context.userId)
       .maybeSingle();
@@ -82,6 +86,7 @@ export const getCompanyDefaults = createServerFn({ method: "GET" })
         bankName: data?.bank_name ?? "",
         bankAccount: data?.bank_account ?? "",
         bankHolder: data?.bank_holder ?? "",
+        smsTemplate: (data as { sms_template?: string | null } | null)?.sms_template ?? "",
       },
     };
   });
@@ -112,6 +117,7 @@ export const saveCompanyDefaults = createServerFn({ method: "POST" })
     put("bank_name", data.bankName);
     put("bank_account", data.bankAccount);
     put("bank_holder", data.bankHolder);
+    put("sms_template" as never, data.smsTemplate);
 
     const { error } = await context.supabase.from("profiles").upsert(row, { onConflict: "id" });
     if (error) return { ok: false, error: error.message };

@@ -130,12 +130,20 @@ async function isSuperAdmin(
 /** 실제 문자 발신번호는 관리자 공통번호로 고정합니다. 업체 연락처는 본문 "문의:" 에만 씁니다. */
 const ADMIN_SENDER = "01075662542";
 
+/** 업체 문자 기본 문구 정리: 링크·빈 줄 제거, 500자 제한 (보안 링크는 본문에 한 번만) */
+function cleanTemplate(v: unknown): string {
+  return String(v ?? "")
+    .replace(/https?:\/\/\S+/gi, "")
+    .split("\n").map((l) => l.trim()).filter(Boolean).join("\n")
+    .slice(0, 500);
+}
+
 /** 업체 상호·문의번호는 견적 소유 업체(company_id) 기준으로만 읽습니다. */
 async function companySmsInfo(companyId: string, supabaseUrl: string, serviceKey: string) {
   if (!companyId) return { ok: false, error: "업체 정보가 필요합니다." } as const;
-  const profileRes = await db(`profiles?select=company_name,phone&id=eq.${encodeURIComponent(companyId)}&limit=1`, { supabaseUrl, serviceKey });
+  const profileRes = await db(`profiles?select=company_name,phone,sms_template&id=eq.${encodeURIComponent(companyId)}&limit=1`, { supabaseUrl, serviceKey });
   if (!profileRes.ok) return { ok: false, error: "업체 정보를 확인하지 못해 발송하지 않았습니다." } as const;
-  const profile = ((await profileRes.json()) as Array<{ company_name?: string; phone?: string }>)[0];
+  const profile = ((await profileRes.json()) as Array<{ company_name?: string; phone?: string; sms_template?: string | null }>)[0];
   const companyName = String(profile?.company_name ?? "").trim();
   if (!companyName) return { ok: false, error: "업체 정보가 필요합니다." } as const;
   const sender = ADMIN_SENDER;
@@ -143,7 +151,8 @@ async function companySmsInfo(companyId: string, supabaseUrl: string, serviceKey
   const companyPhone = String(profile?.phone ?? "").trim();
   if (!companyPhone) return { ok: false, error: "업체 연락처를 먼저 등록해 주세요." } as const;
   console.log(`[sender] company=${companyId} sender=***${sender.slice(-4)} contact=***${normalizePhone(companyPhone).slice(-4)}`);
-  return { ok: true, companyName, companyPhone, sender } as const;
+  const smsTemplate = cleanTemplate(profile?.sms_template);
+  return { ok: true, companyName, companyPhone, sender, smsTemplate } as const;
 }
 
 /**
@@ -1165,6 +1174,7 @@ const handle = async (req: Request): Promise<Response> => {
     if (!linkD || !appUrl || !String(drow.customer_name ?? "").trim()) return json({ ok: false, error: "고객 보안 링크 또는 고객 정보가 없어 발송하지 않았습니다." }, 400);
     const textD = [
       "[짐도리]",
+      companyD.smsTemplate,
       `${String(drow.customer_name).trim()} 고객님, 예약금 입금 및 예약 내용을 확인해 주세요.`,
       `예약금: ${wonD(paidD)}`,
       totalD > 0 && `총 견적금액: ${wonD(totalD)}`,
@@ -1398,11 +1408,12 @@ const handle = async (req: Request): Promise<Response> => {
   }
   const text = [
     "[JIMPICK 짐픽]",
+    company.smsTemplate,
     `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
     "아래 링크에서 견적서와 표준약관을 확인해 주세요.",
     link,
     `문의: ${companyPhone}`,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
   console.log(`[quote] est=${estimateId} company=${userId} to=***${last4(phone)} contact=***${normalizePhone(companyPhone).slice(-4)}`);
   // 미리보기는 실제 발송과 같은 최종 문자(text)를 그대로 돌려줍니다
   if (body.preview === true) {

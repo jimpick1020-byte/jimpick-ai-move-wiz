@@ -1729,7 +1729,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     // onAuthStateChange 가 도착하는 즉시 loggedIn 에 반영됩니다.
     const cap = setTimeout(() => {
       if (alive) setAuthChecked(true);
-    }, 2000);
+    }, 10000); // 세션 확인이 끝날 때까지 로그인 화면을 먼저 보여 주지 않습니다
     supabase.auth
       .getSession()
       .then(({ data }) => {
