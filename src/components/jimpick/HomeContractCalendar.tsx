@@ -3,6 +3,7 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import KoreanLunarCalendar from "korean-lunar-calendar";
 import { Button } from "@/components/ui/button";
 import { normalizePaymentStatus } from "@/lib/payment.functions";
+import { RESERVATION_STAGE_LABEL, reservationStageOf } from "@/lib/reservation-status";
 import type { ReservationRow } from "@/lib/terms.functions";
 
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
@@ -34,7 +35,7 @@ export function isKoreanMovingDay(year: number, month: number, day: number) {
 }
 
 function statusOf(booking: ReservationRow) {
-  return normalizePaymentStatus(booking.paymentStatus) === "completed" ? "완료" : "예약금 완료 (진행중)";
+  return RESERVATION_STAGE_LABEL[reservationStageOf(booking)];
 }
 
 function moveTimeOrder(value: string | null) {

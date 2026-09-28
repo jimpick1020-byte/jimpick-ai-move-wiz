@@ -7,9 +7,9 @@ import reminderImage from "@/assets/message-previews/reminder.jpg.asset.json";
 
 type CardType = "quote" | "deposit" | "reminder";
 const previews: Record<CardType, { title: string; description: string; image: string }> = {
-  quote: { title: "JIMPICK 고객용 견적서", description: "JIMPICK에서 전달드린 이사 견적서입니다.", image: quoteImage.url },
-  deposit: { title: "JIMPICK 예약금 안내", description: "예약금과 예약 내용을 확인하세요.", image: depositImage.url },
-  reminder: { title: "JIMPICK 이사 전날 안내", description: "내일 이사 일정과 준비사항을 확인하세요.", image: reminderImage.url },
+  quote: { title: "고객용 이사 견적서", description: "전달받은 이사 견적서와 약관을 확인하세요.", image: quoteImage.url },
+  deposit: { title: "예약금 안내", description: "예약금과 예약 내용을 확인하세요.", image: depositImage.url },
+  reminder: { title: "이사 전날 안내", description: "내일 이사 일정과 준비사항을 확인하세요.", image: reminderImage.url },
 };
 
 export const Route = createFileRoute("/share/$id")({
@@ -48,8 +48,8 @@ export const Route = createFileRoute("/share/$id")({
     const href = valid && origin && origin.startsWith("https://")
       ? `${origin}/share/${encodeURIComponent(params.id)}?${search.toString()}` : undefined;
     const image = preview && origin && origin.startsWith("https://") ? new URL(preview.image, origin).href : undefined;
-    const title = preview?.title ?? "JIMPICK 고객용 견적서";
-    const description = preview?.description ?? "JIMPICK에서 전달드린 이사 견적서입니다.";
+    const title = preview?.title ?? "고객용 이사 견적서";
+    const description = preview?.description ?? "전달받은 이사 견적서와 약관을 확인하세요.";
     return { meta: [
       { title },
       { name: "description", content: description },
