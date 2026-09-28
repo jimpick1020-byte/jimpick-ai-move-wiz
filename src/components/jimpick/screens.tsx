@@ -55,7 +55,6 @@ import {
   OPTION_PRESETS,
   calcEstimate,
   guessCategory,
-  formatPhone,
   won,
   roomSummary,
   calcTruckLoad,
