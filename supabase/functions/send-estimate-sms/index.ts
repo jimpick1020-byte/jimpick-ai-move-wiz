@@ -1393,7 +1393,7 @@ const handle = async (req: Request): Promise<Response> => {
   if (decodeURIComponent(linkEst ?? "") !== estimateId || !link.includes(`t=${encodeURIComponent(token)}`)) {
     return json({ ok: false, error: "보안 링크가 현재 견적서와 일치하지 않아 발송하지 않았습니다." }, 409);
   }
-  if (!companyPhone || normalizePhone(companyPhone) === ADMIN_SENDER && normalizePhone(String(row.company_phone ?? "")) !== ADMIN_SENDER && false) {
+  if (!companyPhone) {
     return json({ ok: false, error: "업체 연락처를 먼저 등록해 주세요." }, 400);
   }
   const text = [
