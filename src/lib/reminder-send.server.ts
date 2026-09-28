@@ -209,7 +209,7 @@ async function sendOne(
   }
   const link = await customerLink(row);
   const { data: profile, error: profileErr } = await supabaseAdmin
-    .from("profiles").select("company_name,phone").eq("id", row.company_id).maybeSingle();
+    .from("profiles").select("company_name,phone,sms_template").eq("id", row.company_id).maybeSingle();
   // 실제 발신번호는 관리자 공통번호 고정. 업체 연락처는 본문 "문의:" 에만 씁니다.
   const ADMIN_SENDER = "01075662542";
   const sender = ADMIN_SENDER;
@@ -230,6 +230,8 @@ async function sendOne(
   // 본문에 보안 URL은 딱 한 번만 싣습니다. 링크를 누르면 기존 전날 안내 카드 미리보기가 열립니다.
   const text = [
     "[짐도리]",
+    String((profile as { sms_template?: string | null } | null)?.sms_template ?? "")
+      .replace(/https?:\/\/\S+/gi, "").split("\n").map((l) => l.trim()).filter(Boolean).join("\n").slice(0, 500),
     `${row.customer_name.trim()} 고객님, 내일은 예약하신 이사일입니다.`,
     row.start_time?.trim() && `이사 예정 시간: ${row.start_time.trim()}`,
     row.from_address?.trim() && `출발지: ${row.from_address.trim()}`,
