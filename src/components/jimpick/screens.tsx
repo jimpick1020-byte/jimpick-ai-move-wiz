@@ -8,6 +8,7 @@ import {
   type ChangeEvent as ReactChangeEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { getSmsServiceStatus } from "@/lib/sms-status.functions";
 import {
   Bell,
   ClipboardList,
@@ -4552,8 +4553,7 @@ export function Result() {
   const [senderStatus, setSenderStatus] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
-    void import("@/lib/sms-status.functions")
-      .then((m) => m.getSmsServiceStatus())
+    void getSmsServiceStatus()
       .then((s) => { if (alive) setSenderStatus(s.senderStatus); })
       .catch(() => { /* 서버가 발송 직전에 다시 확인합니다 */ });
     return () => { alive = false; };
