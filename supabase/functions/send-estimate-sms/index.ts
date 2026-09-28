@@ -1263,12 +1263,13 @@ const handle = async (req: Request): Promise<Response> => {
   }
 
   // ── 2. 견적서를 데이터베이스에서 직접 읽습니다 ──
+  // 현재 누른 estimate_id 한 건만 읽습니다 (목록·최근 고객·예전 문자·기기 저장값은 쓰지 않습니다).
   const q = new URLSearchParams({
     select:
       "id,user_id,estimate_id,sheet_no,sheet_version,customer_name,move_date,contact_phone,company_phone,total,access_token,sheet_snapshot",
     estimate_id: `eq.${estimateId}`,
     order: "sheet_version.desc",
-    limit: "1",
+    limit: "20",
     deleted_at: "is.null",
   });
   const res = await db(`estimate_terms?${q}`, { supabaseUrl, serviceKey });
@@ -1276,9 +1277,12 @@ const handle = async (req: Request): Promise<Response> => {
     console.error("[send-estimate-sms] 견적서 조회 실패", res.status);
     return json({ ok: false, error: "견적서를 불러오지 못했습니다." }, 500);
   }
-  const rows = (await res.json()) as Array<Record<string, unknown>>;
-  const row = rows?.[0];
-  if (!row) {
+  const allRows = ((await res.json()) as Array<Record<string, unknown>>) ?? [];
+  // 같은 estimate_id 에 다른 업체 기록이 하나라도 섞여 있으면 발송을 막습니다
+  if (allRows.some((r) => String(r.user_id) !== userId)) {
+    return json({ ok: false, error: "이 견적서를 보낼 권한이 없습니다." }, 403);
+  }
+  if (allRows.length === 0) {
     return json(
       {
         ok: false,
@@ -1287,9 +1291,14 @@ const handle = async (req: Request): Promise<Response> => {
       400,
     );
   }
-  // 다른 업체의 견적서는 보낼 수 없습니다
-  if (String(row.user_id) !== userId) {
-    return json({ ok: false, error: "이 견적서를 보낼 권한이 없습니다." }, 403);
+  const topVersion = Number(allRows[0].sheet_version ?? 1);
+  const latest = allRows.filter((r) => Number(r.sheet_version ?? 1) === topVersion);
+  if (latest.length !== 1) {
+    return json({ ok: false, error: "같은 견적서가 여러 건으로 조회되어 발송하지 않았습니다. 견적서를 다시 확정해 주세요." }, 409);
+  }
+  const row = latest[0];
+  if (String(row.estimate_id) !== estimateId || String(row.user_id) !== userId) {
+    return json({ ok: false, error: "견적서 정보가 일치하지 않아 발송하지 않았습니다." }, 409);
   }
   const company = await companySmsInfo(userId, supabaseUrl, serviceKey);
   if (!company.ok) return json({ ok: false, error: company.error }, 403);
