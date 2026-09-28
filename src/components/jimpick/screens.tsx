@@ -165,6 +165,7 @@ import {
   type ManagerNoticeRow,
 } from "@/lib/terms.functions";
 import { getCompanyDefaults, saveCompanyDefaults } from "@/lib/company-defaults.functions";
+import { formatTel, formatBizNo, formatAccount, onFormatted, digitsOnly } from "@/lib/format-input";
 import { saveEstimateDraft } from "@/lib/draft-sync.functions";
 import {
   getFavoriteItems,
@@ -551,6 +552,8 @@ export function Login() {
           variant="outline"
           onClick={async (event) => {
             // 폼 제출·이메일 검사 없이 바로 구글 계정 선택 화면을 엽니다
+            // 구글 복귀 후 세션을 어디에 둘지 먼저 정합니다(유지 체크 시 영구 저장)
+            setRememberMe(keepLoggedIn);
             const p = handleGoogleLogin(event);
             setErr("");
             const r = await p;
@@ -1080,7 +1083,7 @@ export function Step1() {
           <TextInput
             placeholder="010-0000-0000"
             value={draft.phone}
-            onChange={(e) => updateDraft({ phone: formatPhone(e.target.value) })}
+            onChange={(e) => onFormatted(e, formatTel, (v) => updateDraft({ phone: v }))}
             inputMode="numeric"
           />
         </Field>
@@ -5451,7 +5454,7 @@ export function Result() {
               <Field label="연락처">
                 <TextInput
                   value={draft.phone}
-                  onChange={(e) => updateDraft({ phone: formatPhone(e.target.value) })}
+                  onChange={(e) => onFormatted(e, formatTel, (v) => updateDraft({ phone: v }))}
                 />
               </Field>
               <Field label="이사일">
@@ -5752,7 +5755,8 @@ export function Result() {
                   <TextInput
                     value={draft.staffPhone ?? ""}
                     placeholder="예: 010-7566-2542"
-                    onChange={(e) => updateDraft({ staffPhone: e.target.value })}
+                    inputMode="tel"
+                    onChange={(e) => onFormatted(e, formatTel, (v) => updateDraft({ staffPhone: v }))}
                   />
                 </Field>
                 <Field label="입금 은행">
@@ -5766,7 +5770,10 @@ export function Result() {
                   <TextInput
                     value={draft.bankAccount ?? ""}
                     placeholder="예: 123456-01-234567"
-                    onChange={(e) => updateDraft({ bankAccount: e.target.value })}
+                    inputMode="tel"
+                    onChange={(e) =>
+                      onFormatted(e, (v) => formatAccount(v, draft.bankName ?? ""), (v) => updateDraft({ bankAccount: v }))
+                    }
                   />
                 </Field>
                 <Field label="예금주">
@@ -6939,8 +6946,9 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
       </Field>
       <Field label="연락처">
         <TextInput
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          value={formatTel(phone)}
+          inputMode="tel"
+          onChange={(e) => onFormatted(e, formatTel, setPhone)}
           disabled={!editing}
           placeholder="010-0000-0000"
         />
@@ -6948,10 +6956,10 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
       <Field label="사업자등록번호">
         {editing ? (
           <TextInput
-            value={bizNo}
+            value={formatBizNo(bizNo)}
             inputMode="numeric"
-            onChange={(e) => setBizNo(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
-            placeholder="숫자 10자리 (예: 1234567890)"
+            onChange={(e) => onFormatted(e, formatBizNo, (v) => setBizNo(digitsOnly(v).slice(0, 10)))}
+            placeholder="123-45-67890"
           />
         ) : (
           <TextInput
@@ -7003,6 +7011,81 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
           >
             {saving ? "저장 중…" : "저장"}
           </button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** 문자 기본 문구 — 업체(company_id)별로 저장하고 견적서·예약금·전날 문자에 실제로 넣습니다 */
+function SmsTemplateCard() {
+  const [text, setText] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getCompanyDefaults()
+      .then((r) => {
+        if (!alive) return;
+        if (!r.ok) setLoadError(r.error ?? "저장된 문구를 불러오지 못했습니다.");
+        else setText(r.data.smsTemplate);
+        setLoaded(true);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        setLoadError(e instanceof Error ? e.message : "저장된 문구를 불러오지 못했습니다.");
+        setLoaded(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    setMsg(null);
+    try {
+      const r = await saveCompanyDefaults({ data: { smsTemplate: text } });
+      if (!r.ok) setMsg({ ok: false, text: `저장하지 못했습니다: ${r.error ?? "알 수 없는 오류"}` });
+      else {
+        setMsg({ ok: true, text: "문자 기본 문구가 저장되었습니다" });
+        toast.success("문자 기본 문구가 저장되었습니다");
+      }
+    } catch (e) {
+      setMsg({ ok: false, text: `저장하지 못했습니다: ${e instanceof Error ? e.message : String(e)}` });
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <Card className="space-y-3">
+      <div className="font-bold">문자 기본 문구</div>
+      <textarea
+        value={text}
+        maxLength={500}
+        disabled={!loaded}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="예: 안녕하세요, 짐픽이사입니다. 요청하신 이사 견적을 안내드립니다."
+        className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-sm min-h-24"
+        aria-label="문자 기본 문구"
+      />
+      <div className="text-xs text-[#6B7280]">
+        견적서·예약금·이사 전날 문자 맨 위에 들어갑니다. 링크는 넣지 마세요(자동으로 빠집니다).
+      </div>
+      {loadError && <div className="text-xs font-bold text-[#D95C5C]">{loadError}</div>}
+      <button
+        type="button"
+        onClick={() => void save()}
+        disabled={saving || !loaded}
+        className="w-full py-2.5 rounded-xl bg-[#3578C8] text-white font-bold disabled:opacity-60"
+      >
+        {saving ? "저장 중…" : "문구 저장"}
+      </button>
+      {msg && (
+        <div role="status" className={`text-sm font-bold ${msg.ok ? "text-[#3E9B78]" : "text-[#D95C5C]"}`}>
+          {msg.text}
         </div>
       )}
     </Card>
@@ -7075,13 +7158,7 @@ export function SettingsScreen() {
           />
         )}
 
-        <Card className="space-y-3">
-          <div className="font-bold">문자 기본 문구</div>
-          <textarea
-            defaultValue="안녕하세요, JIMPICK입니다. 요청하신 이사 견적을 안내드립니다."
-            className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-sm min-h-24"
-          />
-        </Card>
+        <SmsTemplateCard />
         <Card className="space-y-3">
           <div className="font-bold">견적 단가 설정</div>
           <div className="text-xs text-[#6B7280]">
