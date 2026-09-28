@@ -50,7 +50,7 @@ export const getSmsServiceStatus = createServerFn({ method: "GET" })
            body: JSON.stringify({ checkOnly: true, company_id: context.userId }),
         });
         const body = (await r.json().catch(() => null)) as { ok?: boolean } | null;
-        state = body?.ok === true && !!senderRes.data?.sender_number && !senderRes.error ? "ready" : "maintenance";
+        state = body?.ok === true ? "ready" : "maintenance";
       }
     } catch {
       state = "unknown";
@@ -61,7 +61,6 @@ export const getSmsServiceStatus = createServerFn({ method: "GET" })
     const senderStatus: SmsServiceStatus["senderStatus"] = !sr?.sender_number
       ? "none"
       : sr.aligo_status === "verified" || sr.aligo_status === "rejected" ? sr.aligo_status : "pending";
-    if (state === "ready" && senderStatus !== "verified") state = "maintenance";
     return {
       senderStatus,
       state,

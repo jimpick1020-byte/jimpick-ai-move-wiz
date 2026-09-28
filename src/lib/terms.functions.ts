@@ -189,7 +189,8 @@ export const getTermsLink = createServerFn({ method: "POST" })
       moveDate: row.move_date,
       total: row.total,
       // 문의하기는 고객 번호가 아니라 지금 업체 연락처로 연결합니다
-      contactPhone: profile?.phone?.trim() || row.company_phone?.trim() || null,
+      // 업체 연락처가 없을 때만 관리자 공통번호를 씁니다
+      contactPhone: profile?.phone?.trim() || row.company_phone?.trim() || "010-7566-2542",
       companyName: profile?.company_name?.trim() || null,
       termsName: row.terms_name,
       termsVersion: row.terms_version,
