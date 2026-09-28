@@ -9,7 +9,7 @@
  * 이미 보낸 견적서 금액이 흔들리지 않습니다.
  */
 import { normalizePaymentStatus } from "@/lib/payment.functions";
-import { RESERVATION_STAGE_LABEL, reservationStageOf } from "@/lib/reservation-status";
+import { RESERVATION_STAGE_CLASS, RESERVATION_STAGE_LABEL, reservationStageOf } from "@/lib/reservation-status";
 import { forwardRef, useState, type ReactNode } from "react";
 import {
   CalendarDays,
@@ -268,9 +268,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             <div className="ml-auto shrink-0 text-right">
               <div
                 className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-[15px] font-bold ${
-                  confirmed
-                    ? "border-[#BFE3D3] bg-[#E7F3EE] text-[#3E9B78]"
-                    : "border-[#FDE68A] bg-[#FFFBEB] text-[#B45309]"
+                  RESERVATION_STAGE_CLASS[reservationStage]
                 }`}
               >
                 {confirmed && <CheckCircle2 className="h-[16px] w-[16px]" strokeWidth={2.4} />}

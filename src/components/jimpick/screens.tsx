@@ -6731,7 +6731,12 @@ export function Customers() {
           <div className="text-center text-[#6B7280] py-16">고객 정보가 없습니다.</div>
         )}
         {list.map((c) => {
-          const customerStage = c.ids.map((id) => contractOf(id)).find(Boolean) ?? "estimate_notice";
+          const stages = c.ids.map((id) => contractOf(id)).filter((stage): stage is NonNullable<typeof stage> => Boolean(stage));
+          const rank = ["estimate_notice", "reservation_request", "deposit_waiting", "reservation_confirmed", "payment_completed"] as const;
+          const customerStage = stages.reduce(
+            (best, stage) => rank.indexOf(stage) > rank.indexOf(best) ? stage : best,
+            "estimate_notice" as (typeof rank)[number],
+          );
           return (
           // 카드를 누르면 이 고객의 최근 견적서를 바로 엽니다
           <Card

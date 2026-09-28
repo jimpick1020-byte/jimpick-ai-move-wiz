@@ -392,7 +392,7 @@ export interface TermsStatusRow {
   acceptedSheetVersion: number | null;
   /** 고객이 실제로 동의한 약관 버전 (동의 전에는 null) */
   acceptedTermsVersion: string | null;
-  /** 예약 확정 상태 (동의 전에는 null) */
+  /** 예약 요청 상태 (동의 전에는 null, 고객 요청은 requested) */
   reservationStatus: string | null;
   /** 고객이 링크를 처음 연 일시 */
   firstViewedAt: string | null;
