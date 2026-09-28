@@ -88,6 +88,12 @@ export type Database = {
       }
       company_sms_senders: {
         Row: {
+          aligo_checked_at: string | null
+          aligo_last_code: number | null
+          aligo_last_message: string | null
+          aligo_status: string
+          aligo_verified_at: string | null
+          aligo_verified_by: string | null
           approved_at: string
           approved_by: string
           company_id: string
@@ -97,6 +103,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aligo_checked_at?: string | null
+          aligo_last_code?: number | null
+          aligo_last_message?: string | null
+          aligo_status?: string
+          aligo_verified_at?: string | null
+          aligo_verified_by?: string | null
           approved_at: string
           approved_by: string
           company_id: string
@@ -106,6 +118,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aligo_checked_at?: string | null
+          aligo_last_code?: number | null
+          aligo_last_message?: string | null
+          aligo_status?: string
+          aligo_verified_at?: string | null
+          aligo_verified_by?: string | null
           approved_at?: string
           approved_by?: string
           company_id?: string

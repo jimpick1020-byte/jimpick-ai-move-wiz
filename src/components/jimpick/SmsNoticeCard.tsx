@@ -58,6 +58,11 @@ export function SmsNoticeCard() {
         예약 확정 알림 받는 번호:{" "}
         {status?.noticePhoneLast4 ? `010-****-${status.noticePhoneLast4}` : "사업자 정보의 연락처"}
       </div>
+      {status && status.senderStatus !== "verified" && (
+        <div className="rounded-[10px] bg-[#FBEAEA] px-3 py-2 text-[13px] font-bold text-[#D95C5C]">
+          알리고에 등록된 발신번호가 아닙니다. 알리고 발신번호 등록을 먼저 완료해 주세요.
+        </div>
+      )}
       {status && (
         <div className="text-[13px] text-[#6B7280]">
           내 업체 문자 {status.sentCount}건 발송

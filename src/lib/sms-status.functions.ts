@@ -16,6 +16,8 @@ export interface SmsServiceStatus {
   sentCount: number;
   /** 내 업체 발송 실패 건수 */
   failedCount: number;
+  /** 알리고 실제 등록 확인 상태 (pending · verified · rejected · none) */
+  senderStatus: "pending" | "verified" | "rejected" | "none";
 }
 
 function last4(phone: string | null): string | null {
@@ -29,7 +31,7 @@ export const getSmsServiceStatus = createServerFn({ method: "GET" })
     const [profileRes, deliveriesRes, senderRes] = await Promise.all([
       context.supabase.from("profiles").select("phone").eq("id", context.userId).maybeSingle(),
       context.supabase.from("estimate_deliveries").select("status").eq("user_id", context.userId),
-      context.supabase.from("company_sms_senders").select("sender_number").eq("company_id", context.userId).maybeSingle(),
+      context.supabase.from("company_sms_senders").select("sender_number, aligo_status").eq("company_id", context.userId).maybeSingle(),
     ]);
 
     let state: SmsServiceStatus["state"] = "unknown";
@@ -55,7 +57,13 @@ export const getSmsServiceStatus = createServerFn({ method: "GET" })
     }
 
     const rows = deliveriesRes.data ?? [];
+    const sr = senderRes.data as { sender_number?: string; aligo_status?: string } | null;
+    const senderStatus: SmsServiceStatus["senderStatus"] = !sr?.sender_number
+      ? "none"
+      : sr.aligo_status === "verified" || sr.aligo_status === "rejected" ? sr.aligo_status : "pending";
+    if (state === "ready" && senderStatus !== "verified") state = "maintenance";
     return {
+      senderStatus,
       state,
       noticePhoneLast4: last4(profileRes.data?.phone ?? null),
       sentCount: rows.filter((d) => ["sent", "success", "accepted", "delivered"].includes(d.status)).length,

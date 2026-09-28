@@ -8,6 +8,7 @@ import {
   type ChangeEvent as ReactChangeEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { getSmsServiceStatus } from "@/lib/sms-status.functions";
 import {
   Bell,
   ClipboardList,
@@ -4549,8 +4550,19 @@ export function Result() {
   const backTo = (resultFrom as Screen) || "history";
   const { blocked: entBlocked, entitlement: sendEnt, refresh: refreshEnt } = useEntitlement();
   /** 서버가 알려 준 실제 값으로만 판단합니다 (남은 무료 문자 · 체험 기간) */
-  const smsBlocked = entBlocked || sendEnt?.canSendSms === false;
-  const smsBlockMessage = sendEnt?.smsMessage ?? TRIAL_EXPIRED_MESSAGE;
+  const [senderStatus, setSenderStatus] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void getSmsServiceStatus()
+      .then((s) => { if (alive) setSenderStatus(s.senderStatus); })
+      .catch(() => { /* 서버가 발송 직전에 다시 확인합니다 */ });
+    return () => { alive = false; };
+  }, []);
+  const senderUnverified = senderStatus !== null && senderStatus !== "verified";
+  const smsBlocked = entBlocked || sendEnt?.canSendSms === false || senderUnverified;
+  const smsBlockMessage = senderUnverified
+    ? "알리고에 등록된 발신번호가 아닙니다. 알리고 발신번호 등록을 먼저 완료해 주세요."
+    : sendEnt?.smsMessage ?? TRIAL_EXPIRED_MESSAGE;
   /** 「견적 완료 · 처음으로」 진행 중 — 두 번 눌려도 한 번만 실행됩니다 */
   const [finishing, setFinishing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);

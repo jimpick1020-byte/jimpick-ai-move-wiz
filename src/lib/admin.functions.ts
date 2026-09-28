@@ -34,6 +34,10 @@ export interface CompanyAccount {
   role: string;
   approvedSmsSender: string | null;
   smsSenderApprovedAt: string | null;
+  /** 알리고 실제 등록 확인 상태 — 앱 저장 승인과 별개 */
+  smsSenderAligoStatus: "pending" | "verified" | "rejected" | null;
+  smsSenderLastCode: number | null;
+  smsSenderLastMessage: string | null;
 }
 
 /** 최고관리자인지 서버에서 확인합니다 (확인 함수는 서버에서만 실행됩니다) */
@@ -73,7 +77,7 @@ export const listCompanyAccounts = createServerFn({ method: "GET" })
           .order("paid_at", { ascending: false }),
         supabaseAdmin.from("estimate_deliveries").select("user_id, status"),
         supabaseAdmin.from("user_roles").select("user_id, role"),
-        supabaseAdmin.from("company_sms_senders").select("company_id, sender_number, approved_at"),
+        supabaseAdmin.from("company_sms_senders").select("company_id, sender_number, approved_at, aligo_status, aligo_last_code, aligo_last_message"),
       ]);
 
     if (sendersRes.error) throw new Error("승인 발신번호를 읽지 못했습니다.");
@@ -137,6 +141,9 @@ export const listCompanyAccounts = createServerFn({ method: "GET" })
         role: roles.get(u.id) ?? "subscriber",
         approvedSmsSender: senders.get(u.id)?.sender_number ?? null,
         smsSenderApprovedAt: senders.get(u.id)?.approved_at ?? null,
+        smsSenderAligoStatus: (senders.get(u.id)?.aligo_status as "pending" | "verified" | "rejected" | undefined) ?? null,
+        smsSenderLastCode: senders.get(u.id)?.aligo_last_code ?? null,
+        smsSenderLastMessage: senders.get(u.id)?.aligo_last_message ?? null,
       };
     });
   });
@@ -166,9 +173,36 @@ export const approveCompanySmsSender = createServerFn({ method: "POST" })
       approved_at: approvedAt,
       approved_by: context.userId,
       provider: "aligo",
+      // 번호 저장만으로는 알리고 등록 확인이 아닙니다. 항상 확인 전 상태로 둡니다.
+      aligo_status: "pending",
+      aligo_verified_at: null,
+      aligo_verified_by: null,
     }, { onConflict: "company_id" });
     if (error) throw new Error("승인 발신번호 저장에 실패했습니다.");
     return { senderNumber: data.senderNumber, approvedAt };
+  });
+
+/** 최고관리자가 알리고 계정에서 등록 여부를 직접 확인한 뒤 상태를 바꿉니다. */
+export const setCompanySenderAligoStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    companyId: z.string().uuid(),
+    status: z.enum(["verified", "rejected"]),
+    confirmed: z.literal(true),
+  }).parse(d))
+  .handler(async ({ data, context }): Promise<{ status: "verified" | "rejected" }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: isAdmin, error: roleError } = await supabaseAdmin.rpc("is_super_admin", { _user_id: context.userId });
+    if (roleError || isAdmin !== true) throw new Error("최고관리자만 알리고 등록 상태를 바꿀 수 있습니다.");
+    const now = new Date().toISOString();
+    const { data: row, error } = await supabaseAdmin.from("company_sms_senders").update({
+      aligo_status: data.status,
+      aligo_verified_at: data.status === "verified" ? now : null,
+      aligo_verified_by: data.status === "verified" ? context.userId : null,
+      aligo_checked_at: now,
+    } as never).eq("company_id", data.companyId).select("company_id").maybeSingle();
+    if (error || !row) throw new Error("발신번호가 저장된 업체만 상태를 바꿀 수 있습니다.");
+    return { status: data.status };
   });
 
 /**
