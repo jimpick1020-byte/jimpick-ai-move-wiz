@@ -367,6 +367,7 @@ async function sendViaAligo(v: {
       if (data.result_code == null && proxyError) {
         return { ok: false, code: r.status, error: `문자 중계 서버: ${proxyError} (HTTP ${r.status})`, raw: { result_code: -1, message: proxyError } };
       }
+      await recordSenderResult(v.companyId ?? v.userId, code, String(data.message ?? proxyError ?? ""));
       return {
         ok: false,
         error: aligoError(code, String(data.message ?? proxyError ?? "")),
@@ -400,6 +401,7 @@ async function sendViaAligo(v: {
         raw: { result_code: code, message: data.message ?? "", msg_type: data.msg_type ?? v.msgType },
       };
     }
+    await recordSenderResult(v.companyId ?? v.userId, code, data.message ?? "");
     return {
       ok: false,
       error: aligoError(code, data.message ?? ""),
@@ -410,6 +412,24 @@ async function sendViaAligo(v: {
     console.error("[send-estimate-sms] 발송 실패", e instanceof Error ? e.message : e);
     return { ok: false, error: "문자 발송 중 연결 오류가 났습니다. 잠시 후 다시 시도해 주세요." };
   }
+}
+
+/** 알리고 실패 코드·문구를 업체 발신번호 기록에 남기고, -103 이면 미등록(rejected)으로 바꿉니다. */
+async function recordSenderResult(companyId: string | undefined, code: number, message: string) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!companyId || !supabaseUrl || !serviceKey || !/^[0-9a-f-]{36}$/i.test(companyId)) return;
+  const patch: Record<string, unknown> = {
+    aligo_last_code: code,
+    aligo_last_message: String(message || "").slice(0, 300),
+    aligo_checked_at: new Date().toISOString(),
+  };
+  if (code === -103) patch.aligo_status = "rejected";
+  try {
+    await db(`company_sms_senders?company_id=eq.${companyId}`, {
+      method: "PATCH", body: JSON.stringify(patch), supabaseUrl, serviceKey,
+    });
+  } catch { /* 기록 실패는 발송 결과에 영향 없음 */ }
 }
 
 /**
