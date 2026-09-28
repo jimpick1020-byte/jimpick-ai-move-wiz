@@ -378,7 +378,13 @@ export function RoomScanScreen() {
     }
     if (r.status === "retake") return { label: "확인 필요", tone: "amber", pct: 100 };
     if (r.status === "failed") return { label: "실패", tone: "red", pct: 100 };
-    if (r.status === "done") return reviewPending(r) ? { label: "확인 필요", tone: "amber", pct: 100 } : { label: "완료", tone: "green", pct: 100 };
+    if (r.status === "done") {
+      if (reviewPending(r)) return { label: "확인 필요", tone: "amber", pct: 100 };
+      const kinds = (r.result?.items ?? []).map((d) => classify(d, catalog).kind);
+      if (kinds.includes("auto")) return { label: "자동 등록", tone: "green", pct: 100 };
+      if (kinds.length && kinds.every((k) => k === "low")) return { label: "재촬영 필요(신뢰도 낮음)", tone: "amber", pct: 100 };
+      return { label: "완료", tone: "green", pct: 100 };
+    }
     return { label: r.status, tone: "gray", pct: 0 };
   };
   const localView = (j: LocalJob): View =>
