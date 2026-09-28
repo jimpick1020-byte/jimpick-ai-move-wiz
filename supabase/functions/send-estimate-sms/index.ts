@@ -1404,6 +1404,10 @@ const handle = async (req: Request): Promise<Response> => {
     `문의: ${companyPhone}`,
   ].join("\n");
   console.log(`[quote] est=${estimateId} company=${userId} to=***${last4(phone)} contact=***${normalizePhone(companyPhone).slice(-4)}`);
+  // 미리보기는 실제 발송과 같은 최종 문자(text)를 그대로 돌려줍니다
+  if (body.preview === true) {
+    return json({ ok: true, preview: true, text, customerName: customer, recipientLast4: last4(phone) });
+  }
   // 견적서 문자는 링크 미리보기 카드만 씁니다. 그림 첨부 없이 항상 LMS.
   const msgType = "LMS";
   const title = "";
@@ -1504,6 +1508,7 @@ const handle = async (req: Request): Promise<Response> => {
     recipientLast4: last4(phone),
     requestedAt,
     sentAt: now,
+    text,
   });
 };
 
