@@ -84,11 +84,35 @@ let seq = 0;
 const waiting = new Map<number, { res: (p: PreparedPhoto) => void; rej: (e: Error) => void }>();
 
 /** 가능하면 Web Worker 에서, 지원하지 않는 기기는 화면 쪽에서 처리합니다. */
+let workerBroken = false;
+const onMain = (file: Blob) =>
+  prepPhotoCore(file, (w, h) => Object.assign(document.createElement("canvas"), { width: w, height: h })).catch((e) => {
+    // HEIC 등 브라우저가 읽지 못하는 사진은 실제 원인을 알립니다
+    throw new Error(e instanceof Error && /해상도|어둡|밝|흔들/.test(e.message) ? e.message : `이 사진 형식을 읽지 못했습니다(${file.type || "알 수 없음"}). 카메라 설정에서 JPEG로 저장하거나 다른 사진을 골라 주세요.`);
+  });
+
 export function preparePhoto(file: Blob): Promise<PreparedPhoto> {
-  const canWorker = typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined";
-  if (!canWorker) return prepPhotoCore(file, (w, h) => Object.assign(document.createElement("canvas"), { width: w, height: h }));
+  const canWorker = !workerBroken && typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined";
+  if (!canWorker) return onMain(file);
+  // 작업자가 응답하지 않으면(일부 갤럭시 브라우저) 화면 쪽 처리로 바꿉니다
+  return Promise.race([
+    viaWorker(file),
+    new Promise<never>((_, rej) => setTimeout(() => rej(new Error("worker_timeout")), 12000)),
+  ]).catch((e) => {
+    if (e instanceof Error && /해상도|어둡|밝|흔들/.test(e.message)) throw e;
+    workerBroken = true;
+    return onMain(file);
+  });
+}
+
+function viaWorker(file: Blob): Promise<PreparedPhoto> {
   if (!worker) {
     worker = new Worker(new URL("./photo-prep.worker.ts", import.meta.url), { type: "module" });
+    worker.onerror = () => {
+      workerBroken = true;
+      for (const [, w] of waiting) w.rej(new Error("worker_error"));
+      waiting.clear();
+    };
     worker.onmessage = (e: MessageEvent) => {
       const m = e.data as { id: number; ok: boolean; error?: string } & PreparedPhoto;
       const w = waiting.get(m.id);
