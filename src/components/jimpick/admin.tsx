@@ -164,6 +164,7 @@ export function AdminAccountsScreen() {
               <div className="text-right">
                 {r.role === "super_admin" ? "서비스 관리자" : "구독 업체"}
               </div>
+            </div>
             {r.cancelAtPeriodEnd && (
               <div className="rounded-xl bg-[#FBEAEA] px-2.5 py-2 text-[11px] text-[#D95C5C]">
                 해지 예약됨 · {day(r.periodEnd)} 이후 결제되지 않습니다
