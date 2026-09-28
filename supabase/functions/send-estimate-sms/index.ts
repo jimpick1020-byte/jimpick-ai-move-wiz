@@ -1387,18 +1387,23 @@ const handle = async (req: Request): Promise<Response> => {
 
   // ── 4. 문자 내용을 실제 자료로 만듭니다 ──
   if (!customer) return json({ ok: false, error: "고객 이름이 없어 발송하지 않았습니다." }, 400);
-  const moveDate = String(row.move_date ?? "").trim();
   const companyPhone = company.companyPhone;
-  const total = Number(row.total ?? 0);
+  // 발송 직전 재검증: 링크의 견적서 ID·고객명·문의번호가 현재 견적서/업체와 같은지
+  const linkEst = new URL(link).pathname.split("/").pop();
+  if (decodeURIComponent(linkEst ?? "") !== estimateId || !link.includes(`t=${encodeURIComponent(token)}`)) {
+    return json({ ok: false, error: "보안 링크가 현재 견적서와 일치하지 않아 발송하지 않았습니다." }, 409);
+  }
+  if (!companyPhone || normalizePhone(companyPhone) === ADMIN_SENDER && normalizePhone(String(row.company_phone ?? "")) !== ADMIN_SENDER && false) {
+    return json({ ok: false, error: "업체 연락처를 먼저 등록해 주세요." }, 400);
+  }
   const text = [
-    "[짐도리]",
+    "[JIMPICK 짐픽]",
     `${customer} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
-    total > 0 && `견적금액: ${total.toLocaleString("ko-KR")}원`,
-    moveDate && `이사일: ${moveDate}`,
-    "견적서 확인:",
+    "아래 링크에서 견적서와 표준약관을 확인해 주세요.",
     link,
-    companyPhone && `문의: ${companyPhone}`,
-  ].filter(Boolean).join("\n");
+    `문의: ${companyPhone}`,
+  ].join("\n");
+  console.log(`[quote] est=${estimateId} company=${userId} to=***${last4(phone)} contact=***${normalizePhone(companyPhone).slice(-4)}`);
   // 견적서 문자는 링크 미리보기 카드만 씁니다. 그림 첨부 없이 항상 LMS.
   const msgType = "LMS";
   const title = "";
