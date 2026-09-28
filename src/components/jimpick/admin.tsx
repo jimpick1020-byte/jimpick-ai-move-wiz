@@ -11,6 +11,7 @@ import {
   listCompanyAccounts,
   deleteCompanyAccount,
   approveCompanySmsSender,
+  setCompanySenderAligoStatus,
   type CompanyAccount,
 } from "@/lib/admin.functions";
 import { toast } from "sonner";
@@ -60,7 +61,7 @@ export function AdminAccountsScreen() {
         companyId: r.userId, senderNumber: senderNumber.replace(/[^0-9]/g, ""), approvalConfirmed: true,
       } });
       setRows((prev) => prev?.map((x) => x.userId === r.userId ? {
-        ...x, approvedSmsSender: result.senderNumber, smsSenderApprovedAt: result.approvedAt,
+        ...x, approvedSmsSender: result.senderNumber, smsSenderApprovedAt: result.approvedAt, smsSenderAligoStatus: "pending",
       } : x) ?? null);
       setSenderEditId(null);
       setApprovalConfirmed(false);
@@ -68,6 +69,22 @@ export function AdminAccountsScreen() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "승인 발신번호를 저장하지 못했습니다.");
     } finally { setSavingSender(false); }
+  };
+
+  const [aligoBusy, setAligoBusy] = useState<string | null>(null);
+  const markAligo = async (r: CompanyAccount, status: "verified" | "rejected") => {
+    const ask = status === "verified"
+      ? "알리고 계정(문자 보내는 계정)의 발신번호 관리에 이 번호가 등록 완료된 것을 직접 확인했습니까?"
+      : "이 번호를 알리고 미등록으로 표시할까요? 고객 문자가 막힙니다.";
+    if (aligoBusy || !window.confirm(ask)) return;
+    setAligoBusy(r.userId);
+    try {
+      const res = await setCompanySenderAligoStatus({ data: { companyId: r.userId, status, confirmed: true } });
+      setRows((prev) => prev?.map((x) => x.userId === r.userId ? { ...x, smsSenderAligoStatus: res.status } : x) ?? null);
+      toast.success(status === "verified" ? "알리고 등록 확인 완료로 바꿨습니다." : "미등록으로 표시했습니다.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "상태를 바꾸지 못했습니다.");
+    } finally { setAligoBusy(null); }
   };
 
   /** 구독으로 이용 중인 업체는 삭제 버튼을 보여주지 않습니다 */
@@ -191,6 +208,25 @@ export function AdminAccountsScreen() {
               <div className="text-right">{r.approvedSmsSender || "미등록 · 고객 문자 차단"}</div>
             </div>
             {r.smsSenderApprovedAt && <div className="text-xs text-muted-foreground">확인 기록 {day(r.smsSenderApprovedAt)}</div>}
+            {r.approvedSmsSender && (
+              <div className="space-y-1.5 rounded-lg border border-border p-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">알리고 실제 등록</span>
+                  <span className={`font-bold ${r.smsSenderAligoStatus === "verified" ? "text-[#3E9B78]" : "text-[#D95C5C]"}`}>
+                    {r.smsSenderAligoStatus === "verified" ? "등록 확인 완료 (verified)" : r.smsSenderAligoStatus === "rejected" ? "미등록·인증 실패 (rejected)" : "확인 전 (pending)"}
+                  </span>
+                </div>
+                {r.smsSenderLastCode != null && (
+                  <div className="break-words text-muted-foreground">최근 알리고 응답: 코드 {r.smsSenderLastCode}{r.smsSenderLastMessage ? ` · ${r.smsSenderLastMessage}` : ""}</div>
+                )}
+                <div className="flex gap-2">
+                  <button type="button" disabled={aligoBusy === r.userId || r.smsSenderAligoStatus === "verified"} onClick={() => void markAligo(r, "verified")}
+                    className="flex-1 rounded-lg border border-border py-1.5 font-bold disabled:opacity-50">알리고 등록 확인 완료</button>
+                  <button type="button" disabled={aligoBusy === r.userId || r.smsSenderAligoStatus === "rejected"} onClick={() => void markAligo(r, "rejected")}
+                    className="flex-1 rounded-lg border border-border py-1.5 font-bold disabled:opacity-50">미등록 표시</button>
+                </div>
+              </div>
+            )}
             {senderEditId === r.userId ? (
               <div className="space-y-2 border-t border-border pt-3">
                 <label className="block text-xs font-bold" htmlFor={`sender-${r.userId}`}>알리고 승인 발신번호</label>

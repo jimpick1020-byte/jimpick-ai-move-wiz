@@ -34,6 +34,10 @@ export interface CompanyAccount {
   role: string;
   approvedSmsSender: string | null;
   smsSenderApprovedAt: string | null;
+  /** 알리고 실제 등록 확인 상태 — 앱 저장 승인과 별개 */
+  smsSenderAligoStatus: "pending" | "verified" | "rejected" | null;
+  smsSenderLastCode: number | null;
+  smsSenderLastMessage: string | null;
 }
 
 /** 최고관리자인지 서버에서 확인합니다 (확인 함수는 서버에서만 실행됩니다) */
