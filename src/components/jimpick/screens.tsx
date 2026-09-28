@@ -717,9 +717,6 @@ export function HomeScreen() {
     };
   }, []);
   const stats = buildEstimateStats({ estimates, termsRows, archived: archivedRows });
-  const total = statsReady ? String(stats.total) : "…";
-  const done = statsReady ? String(stats.completed) : "…";
-  const inProg = statsReady ? String(stats.inProgress) : "…";
   const pct = statsReady ? stats.pct : 0;
   const stageCounts = {
     estimate_notice: 0,
@@ -6480,7 +6477,7 @@ export function History() {
                             onClick={() => doOwnerConfirm(e)}
                             className="mt-2 w-full rounded-xl bg-[#3578C8] py-2.5 text-[13.5px] font-bold text-white disabled:opacity-50"
                           >
-                            {confirmingId === e.id ? "저장 중…" : "계약완료로 표시 (업체 확정)"}
+                            {confirmingId === e.id ? "저장 중…" : "예약 요청으로 표시 (업체)"}
                           </button>
                         )}
                         {ts.row?.acceptedAt && (

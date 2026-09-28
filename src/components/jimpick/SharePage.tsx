@@ -622,6 +622,7 @@ export function SharePage() {
             parts={sentSheet.parts}
             total={sentSheet.total}
             paidDeposit={paidDeposit}
+            paymentStatus={link?.ok ? link.paymentStatus ?? null : null}
             depositClaimPending={link?.ok ? link.depositClaimPending === true : claimSent}
             depositClaimSlot={depositClaimSlot}
             companyName={companyName}

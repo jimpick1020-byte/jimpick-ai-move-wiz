@@ -36,6 +36,10 @@ export interface TermsLinkInfo {
   sheetSnapshot?: string | null;
   /** 실제로 입금 확인된 예약금 (원). 확인되지 않은 입금은 들어가지 않습니다 */
   depositPaid?: number;
+  /** 확인된 잔금 (원) */
+  balancePaid?: number;
+  /** 실제 저장된 결제 상태 */
+  paymentStatus?: string;
   /** 예약금 입금이 확인된 일시 */
   depositPaidAt?: string | null;
   /** 고객이 「입금했습니다」를 눌렀고 사장님이 아직 확인하지 않은 상태인지 (서버 기록 기준) */
@@ -122,7 +126,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("estimate_terms")
       .select(
-         "id, user_id, estimate_id, customer_name, move_date, total, contact_phone, company_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at, deleted_at",
+         "id, user_id, estimate_id, customer_name, move_date, total, contact_phone, company_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at, balance_paid, payment_status, deleted_at",
       )
       .eq("access_token", data.token)
       .maybeSingle();
@@ -204,6 +208,8 @@ export const getTermsLink = createServerFn({ method: "POST" })
       sheetSnapshot: snapshot,
       depositPaid: Number((row as { deposit_paid?: number | null }).deposit_paid ?? 0) || 0,
       depositPaidAt: (row as { deposit_paid_at?: string | null }).deposit_paid_at ?? null,
+      balancePaid: Number((row as { balance_paid?: number | null }).balance_paid ?? 0) || 0,
+      paymentStatus: String((row as { payment_status?: string | null }).payment_status ?? "unpaid"),
       depositClaimPending,
     };
   });
@@ -691,6 +697,7 @@ export const getReservationCounts = createServerFn({ method: "POST" })
         calendar_selected: boolean | null;
       }[]) {
         if (!row.move_date) continue;
+        if (!["deposit_paid", "partial", "completed"].includes(String(row.payment_status ?? "unpaid"))) continue;
         const conf = confirmed.get(String(row.id));
         if (!conf) continue;
         const key = String(row.estimate_id);

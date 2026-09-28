@@ -179,7 +179,7 @@ export async function checkSmsConfig(): Promise<SmsConfigStatus> {
 }
 
 /** 연결 시험용 문자 내용 (그림 없이 SMS 로만 나갑니다) */
-export const TEST_SMS_TEXT = "[JIMPICK 짐픽]\n문자발송 연결 테스트입니다.";
+export const TEST_SMS_TEXT = "문자발송 연결 테스트입니다.";
 
 /**
  * 고객에게 나가는 실제 견적서 문자 내용.
@@ -193,7 +193,6 @@ export function estimateSmsText(v: {
 }): string {
   const 금액 = `${(v.totalAmount || 0).toLocaleString("ko-KR")}원`;
   return [
-    "[JIMPICK 짐픽]",
     `${v.customerName || "고객"} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
     "",
     `이사일: ${v.movingDate || "미정"}`,
