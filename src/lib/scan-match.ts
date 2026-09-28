@@ -2,9 +2,11 @@ import { ITEM_CATALOG, type CustomItem } from "./jimpick";
 
 const SYNONYMS: Record<string, string> = {
   쇼파: "소파", 소파: "소파", 티비: "tv", 텔레비전: "tv", 텔레비: "tv", 에어콘: "에어컨",
+  서랍장: "서랍장", "5단서랍장": "서랍장", "3단서랍장": "서랍장", "4단서랍장": "서랍장", 수납장: "서랍장",
+  거실장: "거실장", tv장: "거실장", 티비장: "거실장",
   장농: "장롱", 옷장: "장롱", 냉동냉장고: "냉장고", 양문형냉장고: "냉장고", 김치통: "김치통장독",
   세탁기통돌이: "세탁기", 모니터: "컴퓨터모니터", 컴퓨터: "컴퓨터모니터", 식탁의자: "의자",
-  박스: "이삿짐박스", 상자: "이삿짐박스", 수납장: "주방수납장", 러그: "카펫러그", 카펫: "카펫러그",
+  박스: "이삿짐박스", 상자: "이삿짐박스", 러그: "카펫러그", 카펫: "카펫러그",
   블라인드: "커튼블라인드", 커튼: "커튼블라인드", 캐리어: "캐리어여행가방", 거울: "전신거울",
 };
 
@@ -54,4 +56,4 @@ export function matchCatalog(name: string, catalog: CatalogEntry[]): CatalogEntr
 }
 
 export const AUTO_CONF = 0.9;
-export const CHECK_CONF = 0.75;
+export const CHECK_CONF = 0.7;
