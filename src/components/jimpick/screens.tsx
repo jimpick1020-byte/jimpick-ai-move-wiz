@@ -138,6 +138,11 @@ import {
   type ArchivedContractRow,
 } from "@/lib/payment.functions";
 import { buildEstimateStats, customerKeyOf } from "@/lib/estimate-stats";
+import {
+  RESERVATION_STAGE_CLASS,
+  RESERVATION_STAGE_LABEL,
+  reservationStageOf,
+} from "@/lib/reservation-status";
 import { floorLabel, parseFloorFromDetail } from "@/lib/floor-parse";
 import { ReminderPanel } from "./ReminderPanel";
 
@@ -716,6 +721,26 @@ export function HomeScreen() {
   const done = statsReady ? String(stats.completed) : "…";
   const inProg = statsReady ? String(stats.inProgress) : "…";
   const pct = statsReady ? stats.pct : 0;
+  const stageCounts = {
+    estimate_notice: 0,
+    reservation_request: 0,
+    deposit_waiting: 0,
+    reservation_confirmed: 0,
+    payment_completed: stats.completed,
+  };
+  for (const estimate of estimates) {
+    if (!stats.currentIds.has(estimate.id)) continue;
+    const row = termsRows.find((item) => item.estimateId === estimate.id);
+    const stage = reservationStageOf({
+      paymentStatus: row?.paymentStatus,
+      depositPaid: row?.depositPaid,
+      balancePaid: row?.balancePaid,
+      acceptedAt: row?.acceptedAt,
+      reservationStatus: row?.reservationStatus,
+      depositClaimPending: Boolean(row?.depositClaimId),
+    });
+    stageCounts[stage] += 1;
+  }
   // 고객 현황·최근 작업도 같은 기준: 현재 견적(보관·삭제·취소 제외)만 씁니다
   const currentEstimates = estimates.filter((e) => stats.currentIds.has(e.id));
   const customerCount = new Set(
@@ -899,19 +924,15 @@ export function HomeScreen() {
             <ClipboardList className="h-[20px] w-[20px] text-[#25282D]" strokeWidth={1.8} />
             <div className="text-[17px] font-bold">견적 현황</div>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-[14px] bg-[#F7F8F5] py-3">
-              <div className="text-2xl font-black text-[#25282D]">{total}</div>
-              <div className="mt-0.5 text-[15px] text-[#6B7280]">총 견적</div>
-            </div>
-            <div className="rounded-[14px] bg-[#F7F8F5] py-3">
-              <div className="text-2xl font-black text-[#25282D]">{inProg}</div>
-              <div className="mt-0.5 text-[15px] text-[#6B7280]">진행 중</div>
-            </div>
-            <div className="rounded-[14px] bg-[#F7F8F5] py-3">
-              <div className="text-2xl font-black text-[#3E9B78]">{done}</div>
-              <div className="mt-0.5 text-[15px] text-[#6B7280]">완료</div>
-            </div>
+          <div className="grid grid-cols-2 gap-2 text-center">
+            {(Object.keys(stageCounts) as Array<keyof typeof stageCounts>).map((stage) => (
+              <div key={stage} className="rounded-[14px] bg-[#F7F8F5] py-3 last:col-span-2">
+                <div className="text-2xl font-black text-[#25282D]">
+                  {statsReady ? stageCounts[stage] : "…"}
+                </div>
+                <div className="mt-0.5 text-[14px] text-[#6B7280]">{RESERVATION_STAGE_LABEL[stage]}</div>
+              </div>
+            ))}
           </div>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#F1F5FA]">
             <div
@@ -5032,7 +5053,6 @@ export function Result() {
   }, [total, draft.total, updateDraft]);
   /** 확인창에 보여 줄 문자 미리보기 (서버가 만드는 내용과 같은 형식입니다) */
   const smsPreview = [
-    "[JIMPICK 짐픽]",
     `${draft.customerName || "고객"} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
     "아래 링크에서 견적서와 표준약관을 확인해 주세요.",
     ...(draft.staffPhone?.trim() ? ["", `문의: ${draft.staffPhone.trim()}`] : []),
@@ -6290,7 +6310,7 @@ export function History() {
         row: null as TermsStatusRow | null,
       };
     if (r.acceptedAt)
-      return { text: "고객 동의 완료 · 예약 확정", tone: "bg-[#E7F3EE] text-[#3E9B78]", row: r };
+      return { text: "고객 동의 완료 · 예약 요청", tone: "bg-[#EAF2FC] text-[#1D4ED8]", row: r };
     if (r.termsViewedAt)
       return { text: "고객 약관 확인", tone: "bg-[#FEF3C7] text-[#B45309]", row: r };
     if (r.firstViewedAt || r.viewedAt)
@@ -6404,21 +6424,17 @@ export function History() {
                         </div>
                         {/* 결제상태만 한 개 표시합니다 (독립적인 '완료' 문구는 쓰지 않습니다) */}
                         {(() => {
-                          const pay = normalizePaymentStatus(ts.row?.paymentStatus);
-                          // 고객이 입금했다고 알렸지만 사장님이 통장을 확인하기 전 상태
-                          const waiting = !!ts.row?.depositClaimId && (ts.row?.depositPaid ?? 0) <= 0;
+                          const stage = reservationStageOf({
+                            paymentStatus: ts.row?.paymentStatus,
+                            depositPaid: ts.row?.depositPaid,
+                            balancePaid: ts.row?.balancePaid,
+                            acceptedAt: ts.row?.acceptedAt,
+                            reservationStatus: ts.row?.reservationStatus,
+                            depositClaimPending: Boolean(ts.row?.depositClaimId),
+                          });
                           return (
-                            <span className="flex flex-col items-end gap-0.5">
-                              <span
-                                className={`text-xs px-2 py-1 rounded-full font-semibold ${
-                                  waiting ? "bg-[#FEF3C7] text-[#B45309]" : PAYMENT_STATUS_CLASS[pay]
-                                }`}
-                              >
-                                {waiting ? "입금 확인 대기" : PAYMENT_STATUS_LABEL[pay]}
-                              </span>
-                              {(pay === "deposit_paid" || pay === "partial") && !waiting && (
-                                <span className="text-[11px] font-bold text-[#EA580C] pr-1">(진행 중)</span>
-                              )}
+                            <span className={`text-xs px-2 py-1 rounded-full font-semibold ${RESERVATION_STAGE_CLASS[stage]}`}>
+                              {RESERVATION_STAGE_LABEL[stage]}
                             </span>
                           );
                         })()}
@@ -6469,7 +6485,7 @@ export function History() {
                         )}
                         {ts.row?.acceptedAt && (
                           <div className="mt-2 rounded-xl bg-[#EAF2FC] px-3 py-2 text-[12.5px] font-bold text-[#1D4ED8]">
-                            계약완료 · 달력에 표시됩니다
+                            예약 요청이 접수되었습니다 · 예약금 확인 후 달력에 표시됩니다
                           </div>
                         )}
                         {ts.row &&
@@ -6483,7 +6499,7 @@ export function History() {
                                 : ts.row.firstViewedAt
                                   ? "열람함"
                                   : "미열람",
-                              ts.row.acceptedAt ? "예약 확정" : null,
+                              ts.row.acceptedAt ? "예약 요청" : null,
                               ts.row.acceptedAt
                                 ? sent
                                   ? "알림 발송"
@@ -6564,7 +6580,7 @@ export function History() {
                                       )}
                                       {ts.row.acceptedAt && (
                                         <div className="font-semibold text-[#3E9B78]">
-                                          예약 확정{" "}
+                                          예약 요청{" "}
                                           {new Date(ts.row.acceptedAt).toLocaleString("ko-KR")}
                                         </div>
                                       )}
@@ -6633,7 +6649,7 @@ export function History() {
 export function Customers() {
   const { estimates, setScreen, loadEstimate } = useApp();
   const [q, setQ] = useState("");
-  /** 계약(예약 확정)된 견적 상태 — 고객 카드에 계약완료 표시를 붙입니다 */
+  /** 고객별 최신 실제 예약 단계를 표시합니다. */
   const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
   const [archivedRows, setArchivedRows] = useState<ArchivedContractRow[]>([]);
   useEffect(() => {
@@ -6661,9 +6677,14 @@ export function Customers() {
   const contractOf = (estimateId: string) => {
     const r = termsRows.find((t) => t.estimateId === estimateId);
     if (!r) return null;
-    const confirmed = Boolean(r.acceptedAt) || r.reservationStatus === "confirmed";
-    if (!confirmed) return null;
-    return { pay: normalizePaymentStatus(r.paymentStatus) };
+    return reservationStageOf({
+      paymentStatus: r.paymentStatus,
+      depositPaid: r.depositPaid,
+      balancePaid: r.balancePaid,
+      acceptedAt: r.acceptedAt,
+      reservationStatus: r.reservationStatus,
+      depositClaimPending: Boolean(r.depositClaimId),
+    });
   };
   const map = new Map<
     string,
@@ -6713,8 +6734,7 @@ export function Customers() {
           <div className="text-center text-[#6B7280] py-16">고객 정보가 없습니다.</div>
         )}
         {list.map((c) => {
-          // 이 고객의 견적 중 계약(예약 확정)된 건이 있으면 계약완료로 표시합니다
-          const contract = c.ids.map((id) => contractOf(id)).find(Boolean) ?? null;
+          const customerStage = c.ids.map((id) => contractOf(id)).find(Boolean) ?? "estimate_notice";
           return (
           // 카드를 누르면 이 고객의 최근 견적서를 바로 엽니다
           <Card
@@ -6729,18 +6749,9 @@ export function Customers() {
               <div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="font-bold">{c.name}</span>
-                  {contract && (
-                    <>
-                      <span className="rounded-full bg-[#E7F3EE] px-1.5 py-[1px] text-[10.5px] font-black text-[#3E9B78]">
-                        계약완료
-                      </span>
-                      <span
-                        className={`rounded-full px-1.5 py-[1px] text-[10.5px] font-black ${PAYMENT_STATUS_CLASS[contract.pay]}`}
-                      >
-                        {PAYMENT_STATUS_LABEL[contract.pay]}
-                      </span>
-                    </>
-                  )}
+                  <span className={`rounded-full px-1.5 py-[1px] text-[10.5px] font-black ${RESERVATION_STAGE_CLASS[customerStage]}`}>
+                    {RESERVATION_STAGE_LABEL[customerStage]}
+                  </span>
                 </div>
                 <div className="text-xs text-[#6B7280]">{c.phone}</div>
                 <div className="text-xs text-[#6B7280] mt-1">
