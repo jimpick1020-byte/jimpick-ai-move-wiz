@@ -72,7 +72,7 @@ function aligoError(code: number, message: string): string {
   const known: Record<number, string> = {
     [-101]: "알리고 API 인증정보(user_id/API Key)를 확인해 주세요.",
     [-102]: "알리고 API 인증정보(user_id/API Key)를 확인해 주세요.",
-    [-103]: "발송 요청 형식이 올바르지 않습니다.",
+    [-103]: "알리고에 등록된 발신번호가 아닙니다. 알리고 발신번호 등록을 먼저 완료해 주세요.",
     [-111]: "문자 잔액이 부족합니다. 알리고에서 충전해 주세요.",
     [-201]: "문자 보유건수가 부족합니다. 알리고에서 충전해 주세요.",
     [-301]: "등록되지 않은 발송 IP 입니다. 알리고에 발송 서버 IP 를 등록해 주세요.",
@@ -132,16 +132,21 @@ async function companySmsInfo(companyId: string, supabaseUrl: string, serviceKey
   if (!companyId) return { ok: false, error: "업체 정보가 필요합니다." } as const;
   const [profileRes, senderRes] = await Promise.all([
     db(`profiles?select=company_name,phone&id=eq.${encodeURIComponent(companyId)}&limit=1`, { supabaseUrl, serviceKey }),
-    db(`company_sms_senders?select=sender_number&company_id=eq.${encodeURIComponent(companyId)}&provider=eq.aligo&limit=1`, { supabaseUrl, serviceKey }),
+    db(`company_sms_senders?select=sender_number,aligo_status&company_id=eq.${encodeURIComponent(companyId)}&provider=eq.aligo&limit=1`, { supabaseUrl, serviceKey }),
   ]);
   if (!profileRes.ok || !senderRes.ok) return { ok: false, error: "업체 발신정보를 확인하지 못해 발송하지 않았습니다." } as const;
   const profile = ((await profileRes.json()) as Array<{ company_name?: string; phone?: string }>)[0];
-  const approved = ((await senderRes.json()) as Array<{ sender_number?: string }>)[0];
+  const approved = ((await senderRes.json()) as Array<{ sender_number?: string; aligo_status?: string }>)[0];
   const companyName = String(profile?.company_name ?? "").trim();
   if (!companyName) return { ok: false, error: "업체 정보가 필요합니다." } as const;
   // 저장된 번호에 하이픈이 섞여 있어도 알리고 전송 형식(숫자만)으로 맞춰 줍니다.
   const sender = normalizePhone(String(approved?.sender_number ?? ""));
   if (!/^0[0-9]{8,10}$/.test(sender)) return { ok: false, error: "알리고 승인 발신번호가 등록되지 않아 발송하지 않았습니다." } as const;
+  // 앱에 저장만 된 번호는 쓰지 않습니다. 알리고 등록 확인(verified)된 번호만 발송합니다.
+  if (approved?.aligo_status !== "verified") {
+    return { ok: false, error: "알리고에 등록된 발신번호가 아닙니다. 알리고 발신번호 등록을 먼저 완료해 주세요." } as const;
+  }
+  console.log(`[sender] company=${companyId} sender=***${sender.slice(-4)} status=verified`);
   return { ok: true, companyName, companyPhone: String(profile?.phone ?? "").trim(), sender } as const;
 }
 
