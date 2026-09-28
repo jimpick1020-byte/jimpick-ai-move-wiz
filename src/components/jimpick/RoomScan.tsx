@@ -58,8 +58,11 @@ async function dataUrlToBlob(u: string): Promise<Blob> {
 
 function classify(det: ScanDetection, catalog: CatalogEntry[]): { kind: "low" | "auto" | "check" | "candidate"; match: CatalogEntry | null } {
   const match = matchCatalog(det.name, catalog);
+  // 모델이 신뢰도를 주지 않았으면 90%로 간주하지 않고 확인 필요로 둡니다
+  if (det.confidence == null) return { kind: match ? "check" : "candidate", match } as const;
   if (det.confidence < CHECK_CONF) return { kind: "low" as const, match };
-  // 자동 등록하지 않고 사장님이 이름·수량을 확인한 뒤 추가합니다
+  // 실제 신뢰도 90% 이상 + 기존 품목과 일치하면 자동 등록
+  if (match && det.confidence >= AUTO_CONF) return { kind: "auto" as const, match };
   if (match) return { kind: "check" as const, match };
   return { kind: "candidate" as const, match: null };
 }
@@ -245,7 +248,7 @@ export function RoomScanScreen() {
       const adds: Record<string, number> = {};
       (r.result?.items ?? []).forEach((det) => {
         const c = classify(det, catalog);
-        if (false as boolean && c.match) adds[c.match.id] = (adds[c.match.id] ?? 0) + det.qty;
+        if (c.kind === "auto" && c.match) adds[c.match.id] = (adds[c.match.id] ?? 0) + det.qty;
       });
       patchDraft((d) => {
         let rooms = d.rooms;
@@ -480,14 +483,14 @@ export function RoomScanScreen() {
             )}
             {latest && latestUrl &&
               (latest.result?.items ?? []).map((det, i) =>
-                det.box && det.confidence >= CHECK_CONF ? (
+                det.box && (det.confidence ?? 1) >= CHECK_CONF ? (
                   <div
                     key={i}
-                    className={`absolute border-2 rounded-md ${det.confidence >= AUTO_CONF ? "border-[#2E9E57]" : "border-[#F2A516]"}`}
+                    className={`absolute border-2 rounded-md ${det.confidence != null && det.confidence >= AUTO_CONF ? "border-[#2E9E57]" : "border-[#F2A516]"}`}
                     style={{ left: `${det.box.x / 10}%`, top: `${det.box.y / 10}%`, width: `${det.box.w / 10}%`, height: `${det.box.h / 10}%` }}
                   >
                     <span className="absolute -top-5 left-0 whitespace-nowrap rounded bg-black/70 px-1 text-[11px] font-bold text-white">
-                      {det.name} {Math.round(det.confidence * 100)}%
+                      {det.name} {det.confidence == null ? "신뢰도 없음" : `${Math.round(det.confidence * 100)}%`}
                     </span>
                   </div>
                 ) : null,
@@ -549,7 +552,7 @@ export function RoomScanScreen() {
             })}
             {[...rows].reverse().map((r) => {
               const v = rowView(r);
-              const n = (r.result?.items ?? []).filter((d) => d.confidence >= CHECK_CONF).length;
+              const n = (r.result?.items ?? []).filter((d) => d.confidence == null || d.confidence >= CHECK_CONF).length;
               const canRetry = v.label === "실패" || v.label === "시간 초과" || r.status === "retake";
               return (
                 <div key={r.id} className="rounded-xl border border-[#E5E7EB] bg-white p-3">
@@ -728,14 +731,14 @@ function RoomReview({
         } else if (!decided && c.kind === "check" && c.match) {
           const g = check.get(c.match.id) ?? { entry: c.match, qty: 0, conf: 0, refs: [] };
           g.qty += det.qty;
-          g.conf = Math.max(g.conf, det.confidence);
+          g.conf = Math.max(g.conf, det.confidence ?? 0);
           g.refs.push({ r, i });
           check.set(c.match.id, g);
         } else if (!decided && c.kind === "candidate") {
           const k = normScanName(det.name);
           const g = cand.get(k) ?? { name: det.name, qty: 0, conf: 0, refs: [] };
           g.qty += det.qty;
-          g.conf = Math.max(g.conf, det.confidence);
+          g.conf = Math.max(g.conf, det.confidence ?? 0);
           g.refs.push({ r, i, det });
           cand.set(k, g);
         }
