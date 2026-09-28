@@ -127,27 +127,21 @@ async function isSuperAdmin(
   }
 }
 
-/** Customer messages are scoped to the estimate owner, not a global sender setting. */
+/** 실제 문자 발신번호는 관리자 공통번호로 고정합니다. 업체 연락처는 본문 "문의:" 에만 씁니다. */
+const ADMIN_SENDER = "01075662542";
+
+/** 업체 상호·문의번호는 견적 소유 업체(company_id) 기준으로만 읽습니다. */
 async function companySmsInfo(companyId: string, supabaseUrl: string, serviceKey: string) {
   if (!companyId) return { ok: false, error: "업체 정보가 필요합니다." } as const;
-  const [profileRes, senderRes] = await Promise.all([
-    db(`profiles?select=company_name,phone&id=eq.${encodeURIComponent(companyId)}&limit=1`, { supabaseUrl, serviceKey }),
-    db(`company_sms_senders?select=sender_number,aligo_status&company_id=eq.${encodeURIComponent(companyId)}&provider=eq.aligo&limit=1`, { supabaseUrl, serviceKey }),
-  ]);
-  if (!profileRes.ok || !senderRes.ok) return { ok: false, error: "업체 발신정보를 확인하지 못해 발송하지 않았습니다." } as const;
+  const profileRes = await db(`profiles?select=company_name,phone&id=eq.${encodeURIComponent(companyId)}&limit=1`, { supabaseUrl, serviceKey });
+  if (!profileRes.ok) return { ok: false, error: "업체 정보를 확인하지 못해 발송하지 않았습니다." } as const;
   const profile = ((await profileRes.json()) as Array<{ company_name?: string; phone?: string }>)[0];
-  const approved = ((await senderRes.json()) as Array<{ sender_number?: string; aligo_status?: string }>)[0];
   const companyName = String(profile?.company_name ?? "").trim();
   if (!companyName) return { ok: false, error: "업체 정보가 필요합니다." } as const;
-  // 저장된 번호에 하이픈이 섞여 있어도 알리고 전송 형식(숫자만)으로 맞춰 줍니다.
-  const sender = normalizePhone(String(approved?.sender_number ?? ""));
-  if (!/^0[0-9]{8,10}$/.test(sender)) return { ok: false, error: "알리고 승인 발신번호가 등록되지 않아 발송하지 않았습니다." } as const;
-  // 앱에 저장만 된 번호는 쓰지 않습니다. 알리고 등록 확인(verified)된 번호만 발송합니다.
-  if (approved?.aligo_status !== "verified") {
-    return { ok: false, error: "알리고에 등록된 발신번호가 아닙니다. 알리고 발신번호 등록을 먼저 완료해 주세요." } as const;
-  }
-  console.log(`[sender] company=${companyId} sender=***${sender.slice(-4)} status=verified`);
-  return { ok: true, companyName, companyPhone: String(profile?.phone ?? "").trim(), sender } as const;
+  const sender = ADMIN_SENDER;
+  const companyPhone = String(profile?.phone ?? "").trim() || ADMIN_SENDER;
+  console.log(`[sender] company=${companyId} sender=***${sender.slice(-4)} contact=***${normalizePhone(companyPhone).slice(-4)}`);
+  return { ok: true, companyName, companyPhone, sender } as const;
 }
 
 /**

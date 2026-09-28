@@ -208,20 +208,17 @@ async function sendOne(
     if (!tokErr) row.view_token = tok;
   }
   const link = await customerLink(row);
-  const [{ data: profile, error: profileErr }, { data: senderRow, error: senderErr }] = await Promise.all([
-    supabaseAdmin.from("profiles").select("company_name,phone").eq("id", row.company_id).maybeSingle(),
-    supabaseAdmin.from("company_sms_senders").select("sender_number, aligo_status").eq("company_id", row.company_id).eq("provider", "aligo").maybeSingle(),
-  ]);
-  const sender = String(senderRow?.sender_number ?? "").replace(/[^0-9]/g, "");
-  const companyPhone = String(row.company_phone ?? profile?.phone ?? "").trim();
-  const setupError = profileErr || senderErr
-    ? "업체 발신정보를 확인하지 못했습니다."
+  const { data: profile, error: profileErr } = await supabaseAdmin
+    .from("profiles").select("company_name,phone").eq("id", row.company_id).maybeSingle();
+  // 실제 발신번호는 관리자 공통번호 고정. 업체 연락처는 본문 "문의:" 에만 씁니다.
+  const ADMIN_SENDER = "01075662542";
+  const sender = ADMIN_SENDER;
+  const companyPhone = String(profile?.phone ?? "").trim() || String(row.company_phone ?? "").trim() || ADMIN_SENDER;
+  const setupError = profileErr
+    ? "업체 정보를 확인하지 못했습니다."
     : !profile?.company_name?.trim()
       ? "업체 상호명이 없습니다."
-    : !/^0[0-9]{8,10}$/.test(sender)
-      ? "알리고 승인 발신번호가 등록되지 않았습니다."
-    : (senderRow as { aligo_status?: string } | null)?.aligo_status !== "verified"
-      ? "알리고에 등록된 발신번호가 아닙니다. 알리고 발신번호 등록을 먼저 완료해 주세요." : !row.customer_name?.trim()
+      : !row.customer_name?.trim()
         ? "고객 이름이 없습니다." : !link ? "고객 보안 링크를 확인하지 못했습니다." : null;
   if (setupError) {
     await supabaseAdmin.from("move_reminders").update({ status: "failed", failed_at: now, error_code: "sender_setup", error_reason: setupError } as never).eq("id", row.id);
