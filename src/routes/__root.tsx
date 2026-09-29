@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerPwa } from "../lib/pwa";
+import { stripReceiptParam } from "../lib/app-url";
 
 function NotFoundComponent() {
   return (
@@ -161,6 +162,7 @@ function RootComponent() {
 
   // 홈 화면에 설치한 앱을 최신 버전으로 유지합니다 (미리보기·개발 화면은 제외)
   useEffect(() => {
+    stripReceiptParam();
     void registerPwa();
   }, []);
 

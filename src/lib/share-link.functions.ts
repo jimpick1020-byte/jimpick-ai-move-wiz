@@ -24,7 +24,8 @@ export interface ShareLinkResult {
 
 /** 운영 공개 주소 (끝의 / 는 제거) */
 function publicBase(): string {
-  const env = (process.env["PUBLIC_APP_URL"] ?? "").trim();
+  const env = (process.env["PUBLIC_APP_URL"] || "https://jimpick-ai-move-wiz.lovable.app").trim();
+  if (/id-preview|lovableproject|localhost/.test(env)) return "https://jimpick-ai-move-wiz.lovable.app";
   if (env) return env.replace(/\/$/, "");
   try {
     // 환경변수가 없으면 지금 요청이 들어온 주소를 씁니다.

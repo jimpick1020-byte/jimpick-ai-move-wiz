@@ -1,3 +1,4 @@
+import { publicUrl } from "@/lib/app-url";
 import {
   useCallback,
   useEffect,
@@ -5072,9 +5073,9 @@ export function Result() {
   };
   /** 고객이 열어 볼 견적서·약관 주소 */
   const shareUrl = () =>
-    typeof window === "undefined"
+    false
       ? ""
-      : `${window.location.origin}/share/${draft.id}?t=${encodeURIComponent(shareToken())}`;
+      : publicUrl(`/share/${draft.id}?t=${encodeURIComponent(shareToken())}`);
 
   /** 고객에게 보낼 견적 문자 — 화면의 「이사 정보」와 같은 내용으로 채웁니다 */
   const estimateMessage = () =>
@@ -5229,7 +5230,7 @@ export function Result() {
         return;
       }
       setStaffExpires(made.expiresAt ?? null);
-      setStaffPreparedUrl(`${window.location.origin}/staff/estimate/${made.token}`);
+      setStaffPreparedUrl(publicUrl(`/staff/estimate/${made.token}`));
     } catch (err) {
       console.error("[staffSharePrepare]", err);
       setStaffPrepareError("카카오톡 공유를 준비하지 못했습니다. 다시 시도해 주세요.");
