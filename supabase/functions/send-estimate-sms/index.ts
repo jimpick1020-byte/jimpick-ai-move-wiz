@@ -452,7 +452,7 @@ const handle = async (req: Request): Promise<Response> => {
   const apiKey = Deno.env.get("ALIGO_API_KEY")?.trim();
   // 기존 전역 발신번호는 업체별 발송에 사용하지 않습니다.
   const sender = normalizePhone(Deno.env.get("ALIGO_SENDER") ?? "");
-  const appUrl = (Deno.env.get("PUBLIC_APP_URL") ?? Deno.env.get("APP_PUBLIC_URL") ?? "")
+  const appUrl = (Deno.env.get("PUBLIC_APP_URL") || Deno.env.get("APP_PUBLIC_URL") || "https://jimpick-ai-move-wiz.lovable.app")
     .trim()
     .replace(/\/$/, "");
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
