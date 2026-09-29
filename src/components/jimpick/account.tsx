@@ -1,5 +1,5 @@
-import { useEffect, useState, type MouseEvent } from "react";
 import { PUBLIC_APP_URL } from "@/lib/app-url";
+import { useEffect, useState, type MouseEvent } from "react";
 import { toast } from "sonner";
 import { useEntitlement, TRIAL_EXPIRED_MESSAGE } from "@/lib/use-entitlement";
 import { supabase } from "@/integrations/supabase/client";
