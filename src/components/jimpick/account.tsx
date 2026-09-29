@@ -1,4 +1,5 @@
 import { useEffect, useState, type MouseEvent } from "react";
+import { PUBLIC_APP_URL } from "@/lib/app-url";
 import { toast } from "sonner";
 import { useEntitlement, TRIAL_EXPIRED_MESSAGE } from "@/lib/use-entitlement";
 import { supabase } from "@/integrations/supabase/client";
@@ -137,7 +138,7 @@ export function SignupScreen() {
           options: {
             // 게시 주소로 돌아오게 합니다 (게시: https://jimpick-ai-move-wiz.lovable.app,
             // 미리보기: lovable 프리뷰 주소). 어느 쪽이든 지금 접속한 주소로 맞춰집니다.
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: PUBLIC_APP_URL,
             data: {
               company_name: company.trim(),
               owner_name: owner.trim(),
@@ -207,7 +208,7 @@ export function SignupScreen() {
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: pendingEmail,
-        options: { emailRedirectTo: window.location.origin },
+        options: { emailRedirectTo: PUBLIC_APP_URL },
       });
       if (error) throw error;
       toast.success("인증 메일을 다시 보냈습니다. 메일함과 스팸함을 확인해 주세요.");
