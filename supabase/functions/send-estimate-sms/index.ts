@@ -997,7 +997,9 @@ const handle = async (req: Request): Promise<Response> => {
       snapDraft = {};
     }
     const sv = (k: string) => String(snapDraft[k] ?? "").trim();
-    const deposit = Number(snapDraft.deposit ?? 0) || 0;
+    // 예약금 = 총액의 10%, 1만 원 미만 버림 (앱 공통 규칙과 동일)
+    const totalForDep = Math.max(0, Math.floor(Number(trow.total ?? snapDraft.total ?? 0) || 0));
+    const deposit = Math.floor((totalForDep * 0.1) / 10000) * 10000;
     const wonM = (n: number) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
     /** 기본주소 + 상세주소를 함께 표시합니다 */
     const fullAddr = (base: string, detail: string) => [base, detail].filter(Boolean).join(" ");

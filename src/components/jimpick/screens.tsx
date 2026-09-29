@@ -4784,7 +4784,7 @@ export function Result() {
             termsEffectiveAt: TERMS_EFFECTIVE_AT,
             accessToken: shareToken(),
             sheetSnapshot: JSON.stringify({
-              draft,
+              draft: { ...draft, total, deposit: calcDeposit(total) },
               rooms: sheetRooms,
               parts,
               total,
@@ -5050,8 +5050,9 @@ export function Result() {
     .reduce((s, p) => s + p.amount, 0);
 
   useEffect(() => {
-    if (draft.total !== total) updateDraft({ total });
-  }, [total, draft.total, updateDraft]);
+    const dep = calcDeposit(total);
+    if (draft.total !== total || draft.deposit !== dep) updateDraft({ total, deposit: dep });
+  }, [total, draft.total, draft.deposit, updateDraft]);
   /** 확인창에 보여 줄 문자 미리보기 (서버가 만드는 내용과 같은 형식입니다) */
   const smsPreview = [
     `${draft.customerName || "고객"} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
@@ -5750,18 +5751,15 @@ export function Result() {
                     onChange={(n) => updateDraft({ discount: n })}
                   />
                 </Field>
-                <Field label="예약금">
-                  <MoneyInput
-                    value={draft.deposit ?? 0}
-                    step={10000}
-                    onChange={(n) => updateDraft({ deposit: n })}
-                  />
-                </Field>
-                {/* 예약금(계약금)을 넣으면 남은 잔금을 바로 보여 줍니다 */}
+                {/* 예약금은 총액의 10%(1만 원 미만 버림)로 자동 계산됩니다 */}
+                <div className="flex items-center justify-between rounded-2xl bg-[#F7F8F5] px-4 py-3">
+                  <span className="text-sm font-bold text-[#6B7280]">예약금 (총액의 10%, 자동)</span>
+                  <span className="text-[17px] font-black text-[#25282D]">{won(calcDeposit(total))}</span>
+                </div>
                 <div className="flex items-center justify-between rounded-2xl bg-[#F7F8F5] px-4 py-3">
                   <span className="text-sm font-bold text-[#6B7280]">잔금 (총액 − 예약금)</span>
                   <span className="text-[17px] font-black text-[#25282D]">
-                    {won(Math.max(0, total - (draft.deposit ?? 0)))}
+                    {won(calcBalance(total))}
                   </span>
                 </div>
                 <Field label="담당자 이름">
