@@ -4579,7 +4579,9 @@ export function Result() {
       .catch(() => { /* 서버가 발송 직전에 다시 확인합니다 */ });
     return () => { alive = false; };
   }, []);
-  const senderUnverified = senderStatus !== null && senderStatus !== "verified";
+  // 문자는 공통 발신번호로 나가므로 업체별 발신번호 등록 여부로 막지 않습니다.
+  void senderStatus;
+  const senderUnverified = false;
   const smsBlocked = entBlocked || sendEnt?.canSendSms === false || senderUnverified;
   const smsBlockMessage = senderUnverified
     ? "알리고에 등록된 발신번호가 아닙니다. 알리고 발신번호 등록을 먼저 완료해 주세요."
