@@ -8,6 +8,7 @@
  * 확정한 뒤에는 sheetSnapshot 을 우선 써서, 단가가 나중에 바뀌어도
  * 이미 보낸 견적서 금액이 흔들리지 않습니다.
  */
+import { calcDeposit } from "@/lib/deposit-rule";
 import { normalizePaymentStatus } from "@/lib/payment.functions";
 import { RESERVATION_STAGE_CLASS, RESERVATION_STAGE_LABEL, reservationStageOf } from "@/lib/reservation-status";
 import { forwardRef, useState, type ReactNode } from "react";

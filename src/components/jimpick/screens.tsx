@@ -1,3 +1,4 @@
+import { calcDeposit, calcBalance } from "@/lib/deposit-rule";
 import { publicUrl } from "@/lib/app-url";
 import {
   useCallback,

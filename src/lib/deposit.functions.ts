@@ -11,6 +11,7 @@
  * 반영이란: 견적서에 「받은 예약금」을 저장해서 고객 화면의 예약금·잔금이 바뀌고,
  * 고객에게 입금 확인 문자가 한 번 나가는 것을 말합니다.
  */
+import { calcDeposit } from "@/lib/deposit-rule";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
