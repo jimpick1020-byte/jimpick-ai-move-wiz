@@ -11,6 +11,7 @@
  * 반영이란: 견적서에 「받은 예약금」을 저장해서 고객 화면의 예약금·잔금이 바뀌고,
  * 고객에게 입금 확인 문자가 한 번 나가는 것을 말합니다.
  */
+import { calcDeposit } from "@/lib/deposit-rule";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -203,16 +204,9 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
         sheet_snapshot: string | null;
       };
 
-      // 예약금은 사장님이 보낸 견적서 원본에 적힌 금액을 씁니다.
-      let amount = 0;
-      try {
-        const snap = t.sheet_snapshot ? JSON.parse(t.sheet_snapshot) : null;
-        const v = Number(snap?.draft?.deposit ?? 0);
-        if (Number.isFinite(v) && v > 0) amount = Math.round(v);
-      } catch {
-        /* 원본을 읽지 못하면 금액은 0원으로 두고 사장님이 직접 확인합니다 */
-      }
+      // 예약금은 저장된 총액으로 공통 규칙(10%, 1만 원 미만 버림)에 따라 다시 계산합니다.
       const total = Number(t.total ?? 0);
+      let amount = calcDeposit(total);
       if (total > 0 && amount > total) amount = total;
 
       const { data: exist } = await supabaseAdmin

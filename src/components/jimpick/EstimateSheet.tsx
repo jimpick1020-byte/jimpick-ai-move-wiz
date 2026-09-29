@@ -8,6 +8,7 @@
  * 확정한 뒤에는 sheetSnapshot 을 우선 써서, 단가가 나중에 바뀌어도
  * 이미 보낸 견적서 금액이 흔들리지 않습니다.
  */
+import { calcDeposit } from "@/lib/deposit-rule";
 import { normalizePaymentStatus } from "@/lib/payment.functions";
 import { RESERVATION_STAGE_CLASS, RESERVATION_STAGE_LABEL, reservationStageOf } from "@/lib/reservation-status";
 import { forwardRef, useState, type ReactNode } from "react";
@@ -211,7 +212,8 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
   const discount = Math.max(0, draft.discount ?? 0);
   /** 입금이 확인된 금액이 있으면 그 금액이 실제 예약금입니다 */
   const paid = Math.max(0, paidDeposit ?? 0);
-  const deposit = paid > 0 ? paid : Math.max(0, draft.deposit ?? 0);
+  // 예약금은 총액의 10%(1만 원 미만 버림). 입금 확인된 금액이 있으면 그 금액을 보여 줍니다.
+  const deposit = paid > 0 ? paid : calcDeposit(total);
   const balance = Math.max(0, total - deposit);
   const version = draft.sheetVersion ?? 1;
   /** 사장님이 실제로 켠 추가 작업만 */
