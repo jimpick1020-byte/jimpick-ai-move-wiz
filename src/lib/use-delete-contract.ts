@@ -3,6 +3,7 @@
  *
  *  - 확인창을 열고, 삭제 중에는 잠그고, 성공한 뒤에만 화면에서 지웁니다.
  *  - 실패하면 성공으로 표시하지 않고 실제 오류 내용을 확인창에 남깁니다.
+ *  - 권한 오류면 "함께 삭제" 버튼을 잠급니다.
  */
 import { useState } from "react";
 import { deleteEstimateEverywhere } from "./estimate-delete.functions";
@@ -15,18 +16,21 @@ export function useDeleteContract(opts: {
   const [target, setTarget] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
 
   const ask = (estimateId: string) => {
     setError(null);
+    setForbidden(false);
     setTarget(estimateId);
   };
   const cancel = () => {
     if (busy) return;
     setTarget(null);
     setError(null);
+    setForbidden(false);
   };
   const confirm = async () => {
-    if (!target || busy) return;
+    if (!target || busy || forbidden) return;
     setBusy(true);
     setError(null);
     try {
@@ -35,6 +39,7 @@ export function useDeleteContract(opts: {
       });
       if (!r.ok) {
         setError(r.error ?? "삭제하지 못했습니다.");
+        if (r.forbidden) setForbidden(true);
         return;
       }
       const id = target;
@@ -48,5 +53,5 @@ export function useDeleteContract(opts: {
     }
   };
 
-  return { target, busy, error, ask, cancel, confirm, open: target !== null };
+  return { target, busy, error, forbidden, ask, cancel, confirm, open: target !== null };
 }

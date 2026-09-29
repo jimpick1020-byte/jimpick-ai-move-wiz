@@ -19,6 +19,8 @@ export interface DeleteEstimateResult {
   /** 이미 삭제되어 있던 계약 */
   already?: boolean;
   error?: string;
+  /** 권한 없음 — 다시 눌러도 삭제되지 않음 */
+  forbidden?: boolean;
 }
 
 /** 삭제 확인창 문구 (달력·견적 내역 공통) */
@@ -52,12 +54,14 @@ export const deleteEstimateEverywhere = createServerFn({ method: "POST" })
       const msg =
         out.reason === "forbidden"
           ? "이 계약을 삭제할 권한이 없습니다. (다른 업체의 계약)"
-          : out.reason === "not_found"
-            ? "서버에 저장된 계약을 찾지 못했습니다."
-            : out.reason === "no_auth"
-              ? "로그인이 만료되었습니다. 다시 로그인해 주세요."
-              : "삭제하지 못했습니다.";
-      return { ok: false, error: msg };
+          : out.reason === "ambiguous"
+            ? "같은 견적번호가 여러 업체에 있어 관리자 화면에서 바로 삭제할 수 없습니다. 해당 업체 계정에서 삭제해 주세요."
+            : out.reason === "not_found"
+              ? "서버에 저장된 계약을 찾지 못했습니다."
+              : out.reason === "no_auth"
+                ? "로그인이 만료되었습니다. 다시 로그인해 주세요."
+                : "삭제하지 못했습니다.";
+      return { ok: false, error: msg, forbidden: out.reason === "forbidden" || out.reason === "ambiguous" };
     }
     return { ok: true, already: !!out.already };
   });
