@@ -1271,6 +1271,7 @@ export function Step1() {
         open={contractDelete.open}
         busy={contractDelete.busy}
         error={contractDelete.error}
+        disabled={contractDelete.forbidden}
         onCancel={contractDelete.cancel}
         onConfirm={contractDelete.confirm}
       />
@@ -6638,6 +6639,7 @@ export function History() {
         open={contractDelete.open}
         busy={contractDelete.busy}
         error={contractDelete.error}
+        disabled={contractDelete.forbidden}
         onCancel={contractDelete.cancel}
         onConfirm={contractDelete.confirm}
       />
