@@ -11,7 +11,9 @@ export function DeleteContractDialog({
   error,
   onCancel,
   onConfirm,
+  disabled = false,
 }: {
+  disabled?: boolean;
   open: boolean;
   busy: boolean;
   error: string | null;
@@ -47,7 +49,7 @@ export function DeleteContractDialog({
           </button>
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || disabled}
             onClick={onConfirm}
             className="flex-1 rounded-2xl bg-[#D95C5C] py-3 text-[14px] font-black text-white disabled:opacity-50"
           >
