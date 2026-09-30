@@ -28,7 +28,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { Estimate } from "@/lib/jimpick";
-import { won, sideConditionText } from "@/lib/jimpick";
+import { won, sideConditionText, LADDER_SEPARATE_TEXT } from "@/lib/jimpick";
 import { ItemArt } from "@/lib/jimpick-art";
 import { BankAccountActions } from "./BankAccountActions";
 import {
@@ -78,7 +78,18 @@ function AddressRow({ label, value, sub }: { label: string; value: string; sub?:
       <span className="w-[52px] shrink-0 text-[16px] font-bold text-[#25282D]">{label}</span>
       <span className="min-w-0">
         <span className="block break-words text-[16px] font-medium text-[#25282D]">{value}</span>
-        {sub?.trim() && <span className="mt-0.5 block text-[15px] text-[#6B7280]">{sub}</span>}
+        {sub?.trim() && (
+          <span className="mt-0.5 block text-[15px] text-[#6B7280]">
+            {sub.split(LADDER_SEPARATE_TEXT).map((part, i, arr) => (
+              <span key={i}>
+                {part}
+                {i < arr.length - 1 && (
+                  <span className="font-bold text-[#E8590C]">{LADDER_SEPARATE_TEXT}</span>
+                )}
+              </span>
+            ))}
+          </span>
+        )}
       </span>
     </div>
   );

@@ -1396,15 +1396,14 @@ export function calcEstimate(
   e: Estimate,
   pricing: Pricing = getPricing(),
 ): { total: number; parts: { label: string; amount: number }[] } {
-  const hasSidePrice = num(e.ladderFromPrice) + num(e.ladderToPrice) > 0;
-  const sideFee =
-    (e.ladderFromSeparate ? 0 : num(e.ladderFromPrice)) +
-    (e.ladderToSeparate ? 0 : num(e.ladderToPrice));
+  // 출발지·도착지를 따로 고른 견적은 위치별 반영금액만 더합니다(별도 체크 위치는 0원).
+  // 금액이 0원이어도 예전 공용 단가로 되돌아가지 않습니다.
+  const usesSides = !!e.ladderFrom || !!e.ladderTo;
   const ladderCount = num(e.ladder) || (e.ladderFrom ? 1 : 0) + (e.ladderTo ? 1 : 0);
   const ladderFee = e.ladderSeparate
     ? 0
-    : hasSidePrice
-      ? sideFee
+    : usesSides
+      ? ladderIncludedAmount(e, "from") + ladderIncludedAmount(e, "to")
       : num(e.ladderPrice) || ladderCount * pricing.ladder;
 
   /** 5톤은 기본 차량이라 1회만, 1톤은 고른 대수만큼 금액이 더해집니다 */
@@ -2211,12 +2210,29 @@ export function sideConditionText(e: Estimate, side: "from" | "to"): string {
   const parts: string[] = [];
   if (floor) parts.push(`${floor}층`);
   if (ladder) {
-    parts.push("사다리차");
+    parts.push(isLadderSeparate(e, side) ? LADDER_SEPARATE_TEXT : "사다리차 사용(견적금액 포함)");
     return parts.join(" · ");
   }
-  if (env.includes("엘리베이터")) parts.push("엘리베이터");
-  if (env.includes("계단")) parts.push("계단");
+  if (env.includes("엘리베이터")) parts.push("엘리베이터 이용");
+  else if (env.includes("계단")) parts.push("계단");
+  else parts.push("사다리차 미사용");
   return parts.join(" · ");
+}
+
+export const LADDER_SEPARATE_TEXT = "사다리차 별도(견적금액 미포함)";
+
+/** 그 위치 사다리차가 별도(견적금액 미포함)인지 */
+export function isLadderSeparate(e: Estimate, side: "from" | "to"): boolean {
+  const on = side === "from" ? !!e.ladderFrom : !!e.ladderTo;
+  if (!on) return false;
+  return (side === "from" ? !!e.ladderFromSeparate : !!e.ladderToSeparate) || !!e.ladderSeparate;
+}
+
+/** 그 위치 사다리차가 총 견적금액에 들어가는 금액 — 미사용·별도면 0원 */
+export function ladderIncludedAmount(e: Estimate, side: "from" | "to"): number {
+  const on = side === "from" ? !!e.ladderFrom : !!e.ladderTo;
+  if (!on || isLadderSeparate(e, side)) return 0;
+  return Math.max(0, Number(side === "from" ? e.ladderFromPrice : e.ladderToPrice) || 0);
 }
 
 /** 요약 한 줄 — 출발지·도착지 작업 조건을 각각(서로 바꾸지 않고) 보여 줍니다. */
@@ -2230,9 +2246,6 @@ export function workConditionSummary(e: Estimate): string {
 export function ladderFeeText(e: Estimate, side: "from" | "to"): string {
   const on = side === "from" ? !!e.ladderFrom : !!e.ladderTo;
   if (!on) return "";
-  const price = side === "from" ? Number(e.ladderFromPrice || 0) : Number(e.ladderToPrice || 0);
-  const separate =
-    (side === "from" ? !!e.ladderFromSeparate : !!e.ladderToSeparate) || !!e.ladderSeparate;
-  if (!price) return separate ? "별도 결제" : "";
-  return `${won(price)}${separate ? " · 별도 결제" : ""}`;
+  if (isLadderSeparate(e, side)) return LADDER_SEPARATE_TEXT;
+  return `${won(ladderIncludedAmount(e, side))} (견적금액 포함)`;
 }
