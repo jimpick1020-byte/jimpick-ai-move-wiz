@@ -69,6 +69,10 @@ import {
   savePricing,
   DEFAULT_PRICING,
   sideConditionText,
+  ladderIncludedAmount,
+  isLadderSeparate,
+  ladderFeeText,
+  LADDER_SEPARATE_TEXT,
   newEstimate,
   workConditionSummary,
   type Estimate,
@@ -1748,6 +1752,7 @@ export function Step3() {
       updateDraft({
         ladderFrom: on,
         ladderFromPrice: price,
+        ladderFromSeparate: false,
         ladder: (on ? 1 : 0) + (draft.ladderTo ? 1 : 0),
         ladderPrice: price + draft.ladderToPrice,
         // 사다리차를 켜면 그 장소의 계단/엘리베이터 선택 해제(셋 중 하나만).
@@ -1759,6 +1764,7 @@ export function Step3() {
       updateDraft({
         ladderTo: on,
         ladderToPrice: price,
+        ladderToSeparate: false,
         ladder: (draft.ladderFrom ? 1 : 0) + (on ? 1 : 0),
         ladderPrice: draft.ladderFromPrice + price,
         ...(on ? { toEnv: undefined, workEnv: combineEnv(draft.fromEnv, undefined) } : {}),
@@ -1930,6 +1936,7 @@ export function Step4() {
                   updateDraft({
                     ladderFrom: on,
                     ladderFromPrice: price,
+                    ladderFromSeparate: false,
                     ladder: (on ? 1 : 0) + (draft.ladderTo ? 1 : 0),
                     ladderPrice: price + draft.ladderToPrice,
                   });
@@ -1949,6 +1956,7 @@ export function Step4() {
                   updateDraft({
                     ladderTo: on,
                     ladderToPrice: price,
+                    ladderToSeparate: false,
                     ladder: (on ? 1 : 0) + (draft.ladderFrom ? 1 : 0),
                     ladderPrice: draft.ladderFromPrice + price,
                   });
@@ -1961,7 +1969,8 @@ export function Step4() {
             {draft.ladderFrom && (
               <Field label="출발지 금액">
                 <MoneyInput
-                  value={draft.ladderFromPrice}
+                  value={draft.ladderFromSeparate ? 0 : draft.ladderFromPrice}
+                  disabled={draft.ladderFromSeparate}
                   onChange={(n) =>
                     updateDraft({ ladderFromPrice: n, ladderPrice: n + draft.ladderToPrice })
                   }
@@ -1975,17 +1984,28 @@ export function Step4() {
                     checked={draft.ladderFromSeparate}
                     onChange={(e) => {
                       tap("soft");
-                      updateDraft({ ladderFromSeparate: e.target.checked });
+                      // 별도: 즉시 0원 · 해제: 이전 금액이 아니라 기본 단가를 다시 넣습니다
+                      const sep = e.target.checked;
+                      const price = sep ? 0 : ladderUnit;
+                      updateDraft({
+                        ladderFromSeparate: sep,
+                        ladderFromPrice: price,
+                        ladderPrice: price + (draft.ladderToSeparate ? 0 : draft.ladderToPrice),
+                      });
                     }}
                   />
                   출발지 별도
                 </label>
+                {draft.ladderFromSeparate && (
+                  <p className="mt-1 text-sm font-bold text-[#E8590C]">{LADDER_SEPARATE_TEXT}</p>
+                )}
               </Field>
             )}
             {draft.ladderTo && (
               <Field label="도착지 금액">
                 <MoneyInput
-                  value={draft.ladderToPrice}
+                  value={draft.ladderToSeparate ? 0 : draft.ladderToPrice}
+                  disabled={draft.ladderToSeparate}
                   onChange={(n) =>
                     updateDraft({ ladderToPrice: n, ladderPrice: draft.ladderFromPrice + n })
                   }
@@ -1999,17 +2019,26 @@ export function Step4() {
                     checked={draft.ladderToSeparate}
                     onChange={(e) => {
                       tap("soft");
-                      updateDraft({ ladderToSeparate: e.target.checked });
+                      const sep = e.target.checked;
+                      const price = sep ? 0 : ladderUnit;
+                      updateDraft({
+                        ladderToSeparate: sep,
+                        ladderToPrice: price,
+                        ladderPrice: (draft.ladderFromSeparate ? 0 : draft.ladderFromPrice) + price,
+                      });
                     }}
                   />
                   도착지 별도
                 </label>
+                {draft.ladderToSeparate && (
+                  <p className="mt-1 text-sm font-bold text-[#E8590C]">{LADDER_SEPARATE_TEXT}</p>
+                )}
               </Field>
             )}
             <div className="flex justify-between text-sm font-bold">
               <span className="text-[#6B7280]">사다리차 합계</span>
               <span className="text-[#25282D]">
-                {won(draft.ladderFromPrice + draft.ladderToPrice)}
+                {won(ladderIncludedAmount(draft, "from") + ladderIncludedAmount(draft, "to"))}
               </span>
             </div>
           </div>
@@ -5106,7 +5135,11 @@ export function Result() {
         draft.ladderFrom || draft.ladderTo
           ? `${[draft.ladderFrom && "출발지", draft.ladderTo && "도착지"]
               .filter(Boolean)
-              .join("·")}${draft.ladderSeparate ? " · 별도" : ""}`
+              .join("·")}${
+              isLadderSeparate(draft, "from") || isLadderSeparate(draft, "to")
+                ? ` · 별도(${[isLadderSeparate(draft, "from") && "출발지", isLadderSeparate(draft, "to") && "도착지"].filter(Boolean).join("·")} 견적금액 미포함)`
+                : ""
+            }`
           : undefined,
       workers: draft.workers,
       kitchenStaff: draft.kitchenStaff,
@@ -5195,9 +5228,12 @@ export function Result() {
         draft.ladder > 0 || draft.ladderFrom || draft.ladderTo
           ? `${Math.max(1, draft.ladder || 0)}대${
               draft.ladderFrom || draft.ladderTo
-                ? `(${[draft.ladderFrom && "출발지", draft.ladderTo && "도착지"]
+                ? `(${[
+                    draft.ladderFrom && `출발지 ${ladderFeeText(draft, "from")}`,
+                    draft.ladderTo && `도착지 ${ladderFeeText(draft, "to")}`,
+                  ]
                     .filter(Boolean)
-                    .join("·")})`
+                    .join(" · ")})`
                 : ""
             }`
           : "",
