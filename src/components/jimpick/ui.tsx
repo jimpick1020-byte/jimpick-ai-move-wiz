@@ -195,7 +195,6 @@ export function Counter({
   };
 
   const hold = (dir: 1 | -1) => {
-    if (disabled) return;
     tap("soft");
     step(dir);
     clear();
@@ -282,6 +281,7 @@ export function MoneyInput({
 
   // 길게 누르면 금액이 계속 증가/감소합니다
   const hold = (dir: 1 | -1) => {
+    if (disabled) return;
     tap("soft");
     bump(dir);
     clear();
