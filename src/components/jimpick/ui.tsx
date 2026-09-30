@@ -195,6 +195,7 @@ export function Counter({
   };
 
   const hold = (dir: 1 | -1) => {
+    if (disabled) return;
     tap("soft");
     step(dir);
     clear();
@@ -243,6 +244,7 @@ export function MoneyInput({
   className = "",
   inputClassName = "",
   allowNegative = false,
+  disabled = false,
 }: {
   value: number;
   onChange: (n: number) => void;
@@ -253,6 +255,8 @@ export function MoneyInput({
   inputClassName?: string;
   /** 음수 입력 허용 (할인 금액 등) */
   allowNegative?: boolean;
+  /** 입력칸과 ± 버튼을 함께 잠급니다 */
+  disabled?: boolean;
 }) {
   const timers = useRef<{ t?: ReturnType<typeof setTimeout>; i?: ReturnType<typeof setInterval> }>(
     {},
@@ -287,9 +291,10 @@ export function MoneyInput({
   };
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex items-center gap-2 ${disabled ? "opacity-50" : ""} ${className}`}>
       <button
         type="button"
+        disabled={disabled}
         onPointerDown={() => hold(-1)}
         onPointerUp={clear}
         onPointerLeave={clear}
@@ -303,6 +308,7 @@ export function MoneyInput({
       <div className="relative flex-1">
         <TextInput
           inputMode="numeric"
+          disabled={disabled}
           placeholder={placeholder}
           value={value ? value.toLocaleString("ko-KR") : ""}
           onChange={(e) => {
@@ -317,6 +323,7 @@ export function MoneyInput({
       </div>
       <button
         type="button"
+        disabled={disabled}
         onPointerDown={() => hold(1)}
         onPointerUp={clear}
         onPointerLeave={clear}
