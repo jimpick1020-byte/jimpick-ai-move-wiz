@@ -27,6 +27,7 @@ import {
   loadEstimateFromStorage,
   won,
   workConditionSummary,
+  LADDER_SEPARATE_TEXT,
   type Estimate,
 } from "@/lib/jimpick";
 import { registerCustomIcons } from "@/lib/jimpick-icon3d";
@@ -704,7 +705,17 @@ export function SharePage() {
               </div>
             </div>
             <div className="text-[#6B7280]">
-              거리 {estimate.distanceKm}km · {workConditionSummary(estimate)}
+              거리 {estimate.distanceKm}km ·{" "}
+              {workConditionSummary(estimate)
+                .split(LADDER_SEPARATE_TEXT)
+                .map((part, i, arr) => (
+                  <span key={i}>
+                    {part}
+                    {i < arr.length - 1 && (
+                      <span className="font-bold text-[#E8590C]">{LADDER_SEPARATE_TEXT}</span>
+                    )}
+                  </span>
+                ))}
             </div>
             {estimate.memo && (
               <div className="rounded-xl bg-[#F7F8F5] p-3">
