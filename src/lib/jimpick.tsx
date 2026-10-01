@@ -23,6 +23,16 @@ export interface Room {
   id: string;
   name: string;
   items: RoomItems;
+  /**
+   * 품목별 폐기물 표시 (item_id → true). 방마다·품목마다 따로 저장합니다.
+   * 없으면 일반 이사짐입니다. AI 분석은 이 값을 바꾸지 않습니다.
+   */
+  disposal?: Record<string, boolean>;
+}
+
+/** 이 방의 이 품목이 폐기물로 표시됐는지 */
+export function isDisposal(room: { disposal?: Record<string, boolean> } | null | undefined, itemId: string): boolean {
+  return !!room?.disposal?.[itemId];
 }
 export interface OptionItem {
   id: string;
@@ -1233,6 +1243,8 @@ export function calcTruckLoad(e: Estimate): TruckLoad {
   for (const room of e.rooms ?? []) {
     for (const [id, qty] of Object.entries(room.items ?? {})) {
       if (!qty || qty <= 0) continue;
+      // 폐기물로 표시한 품목은 이사 차량에 싣지 않으므로 적재량에서 뺍니다
+      if (room.disposal?.[id]) continue;
       const cat = ITEM_CATALOG.find((i) => i.id === id)?.cat ?? custom.get(id);
       volume += volumeOf(id, cat) * qty;
     }

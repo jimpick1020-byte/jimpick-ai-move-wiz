@@ -4996,6 +4996,7 @@ export function Result() {
           itemNameById(id) ||
           id,
         qty,
+        disposal: !!r.disposal?.[id],
       })),
     }))
     .filter((r) => r.items.length > 0);
@@ -5134,7 +5135,7 @@ export function Result() {
       name: r.name,
       items: r.items.map((i) => ({
         id: i.id,
-        name: i.name,
+        name: i.disposal ? `${i.name} (폐기)` : i.name,
         qty: i.qty,
         icon: draft.customItems.find((custom) => custom.id === i.id)?.icon,
       })),
