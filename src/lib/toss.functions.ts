@@ -16,7 +16,7 @@ import { PLANS } from "./subscription.functions";
 
 const TOSS_API = "https://api.tosspayments.com/v1";
 
-/** 구독 요금제 (월 33,000원) */
+/** 구독 요금제 (월 30,000원) */
 const proPlan = () => PLANS.find((p) => p.id === "pro") ?? PLANS[PLANS.length - 1];
 
 /** 테스트 결제인지 실제 결제인지 (키 앞머리가 test_ 이면 테스트) */
@@ -253,12 +253,14 @@ async function chargeWithBillingKey(args: {
   const now = approvedAt ? new Date(approvedAt) : new Date();
   const end = new Date(now.getTime() + 30 * 86400000);
 
+  const isTest = mode === "test";
   const { error: payErr } = await supabaseAdmin.from("payments").insert({
     user_id: args.userId,
     plan: "pro",
     amount: approvedAmount,
     method: "card",
-    status: "paid",
+    // 테스트 승인은 실제 결제가 아니므로 결제 완료로 기록하지 않습니다.
+    status: isTest ? "test_approved" : "paid",
     provider: "toss",
     order_id: orderId,
     payment_key: paymentKey,
@@ -272,20 +274,22 @@ async function chargeWithBillingKey(args: {
     console.error("[toss] 결제 기록 저장 실패", payErr.message);
   }
 
-  const { error: subErr } = await supabaseAdmin.from("subscriptions").upsert(
-    {
-      user_id: args.userId,
-      plan: "pro",
-      status: "active",
-      price: plan.price,
-      interval: "month",
-      current_period_start: now.toISOString(),
-      current_period_end: end.toISOString(),
-      cancel_at_period_end: false,
-    } as never,
-    { onConflict: "user_id" },
-  );
-  if (subErr) console.error("[toss] 구독 저장 실패", subErr.message);
+  if (!isTest) {
+    const { error: subErr } = await supabaseAdmin.from("subscriptions").upsert(
+      {
+        user_id: args.userId,
+        plan: "pro",
+        status: "active",
+        price: plan.price,
+        interval: "month",
+        current_period_start: now.toISOString(),
+        current_period_end: end.toISOString(),
+        cancel_at_period_end: false,
+      } as never,
+      { onConflict: "user_id" },
+    );
+    if (subErr) console.error("[toss] 구독 저장 실패", subErr.message);
+  }
 
   return {
     ok: true,

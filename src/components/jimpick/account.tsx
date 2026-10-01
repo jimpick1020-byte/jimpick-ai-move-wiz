@@ -664,12 +664,21 @@ export function SubscriptionScreen() {
       // 유료 구독은 토스페이먼츠 자동결제(빌링)로 실제 결제합니다.
       // 이미 카드가 등록되어 있으면 그 카드로 바로 결제합니다.
       if (card?.registered) {
+        const proPlan = PLANS.find((item) => item.id === "pro");
+        if (!window.confirm(`업체 구독 ${won(proPlan?.price ?? 30000)}을 결제하시겠어요?\n매월 같은 금액으로 갱신됩니다.`)) {
+          return;
+        }
         const r = await chargeTossBilling({ headers });
         if (r.ok && r.duplicate) {
           toast.info("이미 결제가 완료된 이용기간입니다", {
             description: r.nextBillingAt
               ? `다음 결제 예정일 ${new Date(r.nextBillingAt).toLocaleDateString("ko-KR")}`
               : undefined,
+          });
+          await refresh();
+        } else if (r.ok && r.mode === "test") {
+          toast.info("테스트 승인이 확인되었습니다", {
+            description: `${won(r.amount ?? 0)} · 실제 청구와 구독 시작은 이루어지지 않았습니다`,
           });
           await refresh();
         } else if (r.ok) {
@@ -915,6 +924,7 @@ export function SubscriptionScreen() {
               <div className="divide-y divide-[#E5E7EB]">
                 {account.payments.map((pay) => {
                   const paid = pay.status === "paid";
+                  const testApproved = pay.status === "test_approved";
                   return (
                     <div
                       key={pay.id}
@@ -925,10 +935,14 @@ export function SubscriptionScreen() {
                           {PLANS.find((p) => p.id === pay.plan)?.name}
                           <span
                             className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
-                              paid ? "bg-[#E7F3EE] text-[#3E9B78]" : "bg-[#FBEAEA] text-[#D95C5C]"
+                              paid
+                                ? "bg-[#E7F3EE] text-[#3E9B78]"
+                                : testApproved
+                                  ? "bg-[#FEF3C7] text-[#92400E]"
+                                  : "bg-[#FBEAEA] text-[#D95C5C]"
                             }`}
                           >
-                            {paid ? "결제 완료" : "결제 실패"}
+                            {paid ? "결제 완료" : testApproved ? "테스트 승인" : "결제 실패"}
                           </span>
                           {pay.test_mode && (
                             <span className="rounded-full bg-[#FEF3C7] px-1.5 py-0.5 text-[11px] font-bold text-[#92400E]">

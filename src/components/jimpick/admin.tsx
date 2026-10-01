@@ -146,10 +146,16 @@ export function AdminAccountsScreen() {
               <div className="text-right">{day(r.trialEndsAt)}</div>
               <div className="text-[#6B7280]">이용기간 종료</div>
               <div className="text-right">{day(r.periodEnd)}</div>
+              <div className="text-[#6B7280]">월 갱신 금액</div>
+              <div className="text-right">
+                {r.plan === "pro" ? `${(r.renewalPrice ?? 30000).toLocaleString("ko-KR")}원` : "-"}
+              </div>
               <div className="text-[#6B7280]">결제 상태</div>
               <div className="text-right">
                 {r.paymentStatus === "paid"
                   ? `결제 완료 (${day(r.lastPaidAt)})`
+                  : r.paymentStatus === "test_approved"
+                    ? `테스트 승인 (${day(r.lastPaidAt)})`
                   : r.paymentStatus === "failed"
                     ? "결제 실패"
                     : "결제 없음"}

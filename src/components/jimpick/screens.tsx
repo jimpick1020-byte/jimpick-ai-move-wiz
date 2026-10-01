@@ -7185,7 +7185,7 @@ export function SettingsScreen() {
         <Card className="space-y-2 text-sm">
           <div className="font-bold text-base">구독 안내</div>
           <div>· 무료 체험 한 달</div>
-          <div>· 이후 월 33,000원 (부가세 포함)</div>
+          <div>· 이후 월 30,000원</div>
           <div>· 약정 없이 언제든 해지 가능</div>
           <div>· 재구독 시 기존 데이터 복원</div>
         </Card>
