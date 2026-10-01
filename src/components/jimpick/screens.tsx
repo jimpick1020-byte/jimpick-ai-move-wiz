@@ -3379,10 +3379,16 @@ export function Step6() {
                       >
                         ⋯
                       </button>
-                      <div className="flex h-[44px] items-center justify-center">
-                        <ItemArt id={p.id} name={p.name} size={44} />
+                      <div className="relative flex h-[44px] items-center justify-center">
+                        <span className="relative inline-flex h-[44px] w-[44px] items-center justify-center">
+                          <ItemArt id={p.id} name={p.name} size={44} />
+                          {room.disposal?.[p.id] && <DisposalX />}
+                        </span>
                       </div>
                       <div className="break-keep text-center text-[11.5px] font-extrabold leading-tight text-[#25282D] line-clamp-2">
+                        {room.disposal?.[p.id] && (
+                          <span className="mr-0.5 rounded bg-[#DC2626] px-1 text-[10px] font-black text-white align-middle">폐기</span>
+                        )}
                         {p.name}
                       </div>
                       <div className="mt-0.5 flex items-center justify-center gap-0.5">
