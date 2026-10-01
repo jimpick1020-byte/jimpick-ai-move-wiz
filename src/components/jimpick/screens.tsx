@@ -978,7 +978,7 @@ export function HomeScreen() {
           </div>
         </Card>
 
-        <HomeContractCalendar bookings={contractBookings} onOpenBooking={openContractBooking} />
+        <HomeContractCalendar bookings={contractBookings} companyName={companyName ?? ""} onOpenBooking={openContractBooking} onCancelled={() => { loadContractSchedule(); window.dispatchEvent(new Event("jimpick:payment-updated")); }} />
       </div>
       <BottomNav />
     </MobileShell>
@@ -1151,70 +1151,6 @@ export function Step1() {
         <Field label="이사 날짜" labelClassName="text-[#2DD4BF]">
           <MoveDateCalendar
             value={draft.moveDate}
-            counts={bookingCounts}
-            bookings={bookings}
-            onOpenBooking={(estimateId, customerName, termsId) => {
-              // 정확히 그 견적번호(estimateId)의 견적만 엽니다 → 다른 고객 견적서가 열리지 않습니다.
-              const confirmedName = customerName.trim();
-              const saved = estimates.find((e) => e.id === estimateId);
-              if (saved) {
-                loadEstimate(estimateId);
-                // 계약에 저장된 실제 고객 이름을 견적서(작성본 + 저장된 목록)에 반영합니다.
-                if (confirmedName) applyCustomerName(estimateId, confirmedName);
-                // 서버의 최신 이름을 다시 확인합니다(나중에 이름을 바꿔도 최신값 표시).
-                getReservationCustomerName({ data: { estimateId } })
-                  .then((r) => {
-                    if (r?.ok && r.customerName) applyCustomerName(estimateId, r.customerName);
-                  })
-                  .catch(() => {
-                    /* 못 읽으면 저장된 값을 그대로 둡니다(임의로 덮어쓰지 않습니다) */
-                  });
-                return;
-              }
-              // 이 기기에 없으면 서버(계약 스냅샷)에서 실제 이름과 함께 불러와 엽니다.
-              getReservationSheet({ data: { termsId } })
-                .then((r) => {
-                  if (r?.ok && r.estimateJson) {
-                    try {
-                      openEstimate(JSON.parse(r.estimateJson) as Estimate);
-                    } catch {
-                      toast.error("견적서를 불러오지 못했습니다.");
-                    }
-                  } else {
-                    toast.error(r?.error || "견적서를 불러오지 못했습니다.");
-                  }
-                })
-                .catch(() => toast.error("견적서를 불러오지 못했습니다."));
-            }}
-            onCancelBooking={(_termsId, estimateId) => {
-              // 달력에서 지우면 견적 내역도 함께 삭제됩니다(서버에서 한 번에 처리).
-              contractDelete.ask(estimateId);
-            }}
-            onToggleSelect={(termsId, next) => {
-              setCalendarSelected({ data: { termsId, selected: next } })
-                .then((r) => {
-                  if (!r.ok) {
-                    toast.error(r.error ?? "체크 상태를 저장하지 못했습니다");
-                    return;
-                  }
-                  loadBookings();
-                })
-                .catch(() => toast.error("체크 상태를 저장하지 못했습니다"));
-            }}
-            onArchiveSelected={(termsIds) => {
-              archiveCalendarSelected({ data: { termsIds } })
-                .then((r) => {
-                  if (!r.ok) {
-                    toast.error(r.error ?? "보관 처리에 실패했습니다");
-                    return;
-                  }
-                  toast.success(`${r.archived}건을 완료 보관함으로 옮겼습니다`, {
-                    description: "자료는 그대로 남아 있고, 달력에서만 정리되었습니다.",
-                  });
-                  loadBookings();
-                })
-                .catch(() => toast.error("보관 처리에 실패했습니다"));
-            }}
             onSelect={(date) =>
               updateDraft({
                 moveDate: date,
