@@ -4,7 +4,8 @@ import KoreanLunarCalendar from "korean-lunar-calendar";
 import { Button } from "@/components/ui/button";
 import { normalizePaymentStatus } from "@/lib/payment.functions";
 import { RESERVATION_STAGE_LABEL, reservationStageOf } from "@/lib/reservation-status";
-import type { ReservationRow } from "@/lib/terms.functions";
+import { cancelContract, type ReservationRow } from "@/lib/terms.functions";
+import { toast } from "sonner";
 
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -51,11 +52,42 @@ function moveTimeOrder(value: string | null) {
 
 export function HomeContractCalendar({
   bookings,
+  companyName,
   onOpenBooking,
+  onCancelled,
 }: {
   bookings: Record<string, ReservationRow[]>;
+  companyName: string;
   onOpenBooking: (booking: ReservationRow) => void;
+  onCancelled: () => void;
 }) {
+  const [cancelTarget, setCancelTarget] = useState<ReservationRow | null>(null);
+  const [cancelStep, setCancelStep] = useState<"confirm" | "completed">("confirm");
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const askCancel = (booking: ReservationRow) => {
+    setCancelStep(normalizePaymentStatus(booking.paymentStatus) === "completed" ? "completed" : "confirm");
+    setCancelTarget(booking);
+  };
+  const doCancel = async () => {
+    if (!cancelTarget || cancelBusy) return;
+    setCancelBusy(true);
+    try {
+      const result = await cancelContract({ data: { termsId: cancelTarget.termsId } });
+      if (!result.ok) {
+        toast.error(result.error ?? "계약을 취소하지 못했습니다.");
+        return;
+      }
+      toast.success("계약을 취소했습니다", {
+        description: result.reminders ? `발송 전 전날 안내 문자 ${result.reminders}건도 취소했습니다.` : "견적서와 고객정보는 그대로 남아 있습니다.",
+      });
+      setCancelTarget(null);
+      onCancelled();
+    } catch {
+      toast.error("계약을 취소하지 못했습니다. 통신 상태를 확인해 주세요.");
+    } finally {
+      setCancelBusy(false);
+    }
+  };
   const today = seoulToday();
   const [todayYear, todayMonth] = today.split("-").map(Number);
   const [view, setView] = useState({ year: todayYear, month: todayMonth });
@@ -120,7 +152,8 @@ export function HomeContractCalendar({
           <h2 className="text-[18px] font-black text-[#111827]">계약 일정</h2>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-x-2.5 gap-y-1 text-[11px] font-bold text-[#667085]">
-          <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-full bg-[#1671E8]" />계약</span>
+          <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-full bg-[#1671E8]" />1건</span>
+          <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-full bg-[#F97316]" />2건 이상</span>
           <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-full bg-[#4ED2BC]" />완료</span>
           <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-full bg-[#FF6B68]" />손 없는 날</span>
         </div>
@@ -165,13 +198,9 @@ export function HomeContractCalendar({
               </span>
               {dayBookings.length > 0 && (
                 <span
-                  className={`pointer-events-none relative z-20 mt-1 flex h-[17px] max-w-[46px] items-center justify-center whitespace-nowrap rounded-full px-1.5 text-[9px] font-black leading-none text-white ${progressing > 0 ? "bg-[#1671E8]" : "bg-[#35BBA3]"}`}
+                  className={`pointer-events-none relative z-20 mt-1 flex h-[17px] max-w-[46px] items-center justify-center whitespace-nowrap rounded-full px-1.5 text-[10px] font-black leading-none text-white ${progressing === 0 ? "bg-[#35BBA3]" : progressing >= 2 ? "bg-[#F97316]" : "bg-[#1671E8]"}`}
                 >
-                  {progressing > 0 && completed > 0
-                    ? `총 ${dayBookings.length}건`
-                    : completed > 0
-                      ? `완료 ${dayBookings.length}건`
-                      : `${dayBookings.length}건`}
+                  {progressing === 0 ? "완료" : `${progressing}건`}
                 </span>
               )}
               {cell.son && (
@@ -193,24 +222,59 @@ export function HomeContractCalendar({
           <p className="py-2 text-center text-[13px] font-semibold text-[#8A94A6]">등록된 계약 일정이 없습니다.</p>
         ) : (
           <div className="space-y-2">
-            {selectedBookings.map((booking) => (
-              <button
-                type="button"
-                key={booking.termsId}
-                onClick={() => onOpenBooking(booking)}
-                className="flex w-full min-w-0 items-center justify-between gap-2 rounded-xl bg-white p-3 text-left"
-              >
-                <div className="min-w-0">
+            {selectedBookings.map((booking) => {
+              const done = normalizePaymentStatus(booking.paymentStatus) === "completed";
+              const deposit = booking.depositPaid > 0 ? `예약금 ${booking.depositPaid.toLocaleString()}원 입금` : "예약금 미입금";
+              return (
+                <div key={booking.termsId} className="rounded-xl bg-white p-3">
                   <div className="truncate text-[15px] font-black text-[#111827]">{booking.customerName || "이름 없음"} 고객님</div>
-                  <div className="truncate text-[12px] font-semibold text-[#667085]">{booking.moveTime || "시간 미정"}{booking.fromArea ? ` · ${booking.fromArea}` : ""}</div>
-                  <div className={`mt-0.5 text-[12px] font-black ${normalizePaymentStatus(booking.paymentStatus) === "completed" ? "text-[#249F88]" : "text-[#1671E8]"}`}>{statusOf(booking)}</div>
+                  <div className="mt-0.5 text-[12.5px] font-semibold text-[#667085]">시작 {booking.moveTime || "시간 미정"}</div>
+                  <div className="break-keep text-[12.5px] font-semibold text-[#667085]">{booking.fromArea ?? "출발지 미입력"} → {booking.toArea ?? "도착지 미입력"}</div>
+                  <div className="text-[13px] font-black tabular-nums text-[#111827]">총 {booking.total.toLocaleString()}원</div>
+                  <div className="mt-0.5 flex flex-wrap gap-1.5 text-[11.5px] font-black">
+                    <span className={`rounded-full px-2 py-0.5 ${done ? "bg-[#DDF8F1] text-[#187765]" : "bg-[#EAF2FC] text-[#1671E8]"}`}>{statusOf(booking)}</span>
+                    <span className="rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[#4B5563]">{deposit}</span>
+                    {companyName && <span className="rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[#4B5563]">{companyName}</span>}
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <button type="button" onClick={() => onOpenBooking(booking)} className="flex-1 rounded-xl bg-[#EAF2FC] py-2.5 text-[13px] font-black text-[#1671E8]">견적서 보기</button>
+                    <button type="button" onClick={() => askCancel(booking)} className="flex-1 rounded-xl border border-[#EBCFCF] bg-white py-2.5 text-[13px] font-black text-[#D95C5C]">계약 취소</button>
+                  </div>
                 </div>
-                <span className="shrink-0 rounded-xl bg-[#EAF2FC] px-2.5 py-2 text-[12px] font-black text-[#1671E8]">견적서 보기</span>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
+
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+          <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => { if (!cancelBusy) setCancelTarget(null); }} />
+          <div role="dialog" aria-modal="true" className="relative w-full max-w-[340px] rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
+            {cancelStep === "completed" ? (
+              <div className="text-center text-[15px] font-black leading-relaxed text-[#B45309]">
+                이 계약은 이미 결제가 완료된 계약입니다. 그래도 취소하시겠습니까? 결제기록은 삭제되지 않으며 환불은 별도로 처리해야 합니다.
+              </div>
+            ) : (
+              <div className="text-center text-[15px] font-black leading-relaxed text-[#25282D]">
+                이 계약을 취소하시겠습니까? 취소된 계약은 계약 일정에서 제외되지만 견적서와 고객정보는 삭제되지 않습니다.
+              </div>
+            )}
+            <div className="mt-2 text-center text-[12.5px] font-semibold text-[#6B7280]">{cancelTarget.customerName || "이름 없음"} 고객님 · {cancelTarget.moveDate}</div>
+            <div className="mt-4 flex gap-2">
+              <button type="button" disabled={cancelBusy} onClick={() => setCancelTarget(null)} className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3 text-[14px] font-black text-[#6B7280] disabled:opacity-50">돌아가기</button>
+              <button
+                type="button"
+                disabled={cancelBusy}
+                onClick={() => (cancelStep === "completed" ? setCancelStep("confirm") : void doCancel())}
+                className="flex-1 rounded-2xl bg-[#D95C5C] py-3 text-[14px] font-black text-white disabled:opacity-50"
+              >
+                {cancelBusy ? "취소 중…" : cancelStep === "completed" ? "계속 진행" : "계약 취소"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
