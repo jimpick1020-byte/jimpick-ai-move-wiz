@@ -51,7 +51,16 @@ function ymd(v: string | number | Date): string {
 
 export interface SheetRoom {
   name: string;
-  items: { id: string; name: string; qty: number }[];
+  items: { id: string; name: string; qty: number; disposal?: boolean }[];
+}
+
+/** 폐기물 품목 사진 위 빨간 X */
+export function DisposalX() {
+  return (
+    <svg viewBox="0 0 24 24" aria-label="폐기물" className="pointer-events-none absolute inset-0 h-full w-full p-0.5">
+      <path d="M4 4L20 20M20 4L4 20" stroke="#DC2626" strokeWidth="3.4" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 /** 아이콘 + 제목 + 값 한 칸 */
@@ -431,11 +440,15 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                   <div className="flex min-w-0 flex-1 flex-wrap gap-x-3 gap-y-2 border-l border-[#E5E7EB] pl-2.5">
                     {r.items.map((it) => (
                       <div key={it.id} className="flex min-w-0 items-center gap-1.5">
-                        <span className="flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-[#F7F8F5]">
+                        <span className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-[#F7F8F5]">
                           <ItemArt id={it.id} name={it.name} size={40} />
+                          {it.disposal && <DisposalX />}
                         </span>
                         <span className="min-w-0">
                           <span className="block truncate text-[16px] font-medium text-[#25282D]">
+                            {it.disposal && (
+                              <span className="mr-1 rounded bg-[#DC2626] px-1 py-px text-[11px] font-black text-white align-middle">폐기</span>
+                            )}
                             {it.name}
                           </span>
                           <span className="block text-[16px] font-bold text-[#25282D]">

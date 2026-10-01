@@ -178,6 +178,7 @@ import {
 import { getCompanyDefaults, saveCompanyDefaults } from "@/lib/company-defaults.functions";
 import { formatTel, formatBizNo, formatAccount, onFormatted, digitsOnly } from "@/lib/format-input";
 import { saveEstimateDraft } from "@/lib/draft-sync.functions";
+import { nextRevision } from "@/lib/use-draft-autosave";
 import {
   getFavoriteItems,
   saveFavoriteItems,
@@ -223,7 +224,7 @@ import { shrinkPhoto } from "@/lib/photo-shrink";
 
 /** 공간별 품목 접기·펼치기 상태를 기억하는 자리 */
 const ROOM_OPEN_KEY = "jimpick_step6_open_rooms";
-import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
+import { EstimateSheet, DisposalX, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
 import { checkSendable, type MissingField } from "@/lib/send-check";
@@ -2160,8 +2161,15 @@ export function Step6() {
       rooms: draft.rooms.map((r) => {
         if (r.name !== roomName) return r;
         const items = { ...r.items };
-        if (qty <= 0) delete items[itemId];
-        else items[itemId] = qty;
+        if (qty <= 0) {
+          delete items[itemId];
+          // 목록에서 지운 품목은 폐기 표시도 함께 정리합니다 (다시 담으면 일반 이사짐)
+          if (r.disposal?.[itemId]) {
+            const disposal = { ...r.disposal };
+            delete disposal[itemId];
+            return { ...r, items, disposal };
+          }
+        } else items[itemId] = qty;
         return { ...r, items };
       }),
     });
@@ -2273,10 +2281,7 @@ export function Step6() {
 
   /** 지금 담긴 품목 개수 (평수 변경 확인창을 띄울지 판단합니다) */
   const pickedCount = draft.rooms.reduce((a, r) => a + roomSummary(r.items).count, 0);
-  /** 사장님이 직접 추가한 품목이 담겨 있는지 */
-  const hasCustomPicked = (draft.customItems || []).some((c) =>
-    draft.rooms.some((r) => (r.items[c.id] ?? 0) > 0),
-  );
+
 
   /**
    * 평수별 기본품목을 실제 품목 데이터에 넣습니다.
@@ -2315,14 +2320,68 @@ export function Step6() {
     );
   };
 
-  /** 평수 버튼 — 담긴 품목이 있으면 먼저 확인창을 띄웁니다 */
+  /**
+   * 평수 버튼 — 평수 구간·추천 기본품목·안내만 바꿉니다.
+   * 이미 담은 품목·수량·방·사진·폐기 표시는 절대 지우거나 덮어쓰지 않습니다.
+   */
   const pickSize = (key: string) => {
     tap("soft");
     if (pickedCount === 0) {
-      applyPreset(key, "replace");
+      // 아직 담은 품목이 없으면 기본품목을 채워 드립니다 (지울 품목이 없음)
+      applyPreset(key, "merge");
       return;
     }
-    setSizeConfirm({ key, stage: 1 });
+    const baseRooms = (SIZE_TABS.find((t) => t.key === key) || DEFAULT_SIZE_TAB).rooms;
+    const missingRooms = baseRooms.filter((n) => !draft.rooms.some((r) => r.name === n));
+    setSize(key);
+    setNeedRegister([]);
+    updateDraft({
+      sizeTab: key,
+      ...(missingRooms.length
+        ? {
+            rooms: [
+              ...draft.rooms,
+              ...missingRooms.map((n) => ({ id: `r_${n}`, name: n, items: {} as Record<string, number> })),
+            ],
+          }
+        : {}),
+    });
+    toast.success(`${key}으로 변경되었습니다. 기존에 입력한 품목은 그대로 유지됩니다.`);
+  };
+
+  /** 폐기물 표시 저장 중인 품목 */
+  const [disposalBusy, setDisposalBusy] = useState(false);
+  /**
+   * 폐기물로 표시/해제 — 이 방의 이 품목 하나만 바꿉니다.
+   * 서버(업체 본인 견적 임시저장)에 먼저 저장하고, 성공했을 때만 화면을 바꿉니다.
+   */
+  const toggleDisposal = async (roomName: string, itemId: string) => {
+    if (disposalBusy) return;
+    const target = draft.rooms.find((r) => r.name === roomName);
+    if (!target || !(target.items[itemId] > 0)) return;
+    const next = !target.disposal?.[itemId];
+    const rooms = draft.rooms.map((r) => {
+      if (r.name !== roomName) return r;
+      const disposal = { ...(r.disposal ?? {}) };
+      if (next) disposal[itemId] = true;
+      else delete disposal[itemId];
+      return { ...r, disposal };
+    });
+    setDisposalBusy(true);
+    try {
+      const res = await saveEstimateDraft({
+        data: { estimateId: draft.id, payload: JSON.stringify({ ...draft, rooms }), revision: nextRevision() },
+      });
+      if (!res.ok) throw new Error(res.error || "save failed");
+      updateDraft({ rooms });
+      tap("success");
+      toast.success(next ? "폐기물로 표시했습니다" : "폐기 표시를 해제했습니다");
+      setItemMenu(null);
+    } catch {
+      toast.error("폐기물 설정을 저장하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setDisposalBusy(false);
+    }
   };
 
   /** 전체 선택 해제 — 담긴 품목만 비우고 고객정보·주소·차량·옵션은 그대로입니다 */
@@ -3062,7 +3121,7 @@ export function Step6() {
         </div>
         <div className="mt-2 flex gap-2">
           <button
-            onClick={() => setSizeConfirm({ key: size, stage: pickedCount > 0 ? 1 : 2 })}
+            onClick={() => setSizeConfirm({ key: size, stage: 1 })}
             className="flex-1 min-w-0 py-2.5 rounded-2xl text-[13px] font-black text-[#2A6FD6] bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_3px_0_#E5E7EB] active:translate-y-[2px]"
           >
             기본품목 다시 적용
@@ -3466,6 +3525,7 @@ export function Step6() {
                           .filter((i) => itemFamily(i.name, i.sub || "기타").label === g)
                           .map((it) => {
                             const qty = room.items[it.id] || 0;
+                            const disposed = qty > 0 && !!room.disposal?.[it.id];
                             return (
                               <div
                                 key={it.id}
@@ -3500,7 +3560,15 @@ export function Step6() {
                                   }}
                                   className="w-full flex flex-col items-center gap-1 active:translate-y-[2px] transition-transform"
                                 >
-                                  <ItemArt id={it.id} name={it.name} size={70} />
+                                  <span className="relative inline-flex">
+                                    <ItemArt id={it.id} name={it.name} size={70} />
+                                    {disposed && <DisposalX />}
+                                  </span>
+                                  {disposed && (
+                                    <span className="rounded-full bg-[#DC2626] px-2 py-0.5 text-[11px] font-black text-white">
+                                      폐기
+                                    </span>
+                                  )}
                                   <span className="text-center text-[15px] font-black leading-tight text-[#25282D] line-clamp-2">
                                     {it.name}
                                   </span>
@@ -3989,6 +4057,20 @@ export function Step6() {
                         ? "자주 담는 품목 해제"
                         : "자주 담는 품목 등록"}
                     </button>
+                    {room && (room.items[itemMenu] ?? 0) > 0 && (
+                      <button
+                        disabled={disposalBusy}
+                        onClick={() => void toggleDisposal(room.name, itemMenu)}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-[#F7C5C5] bg-white py-3.5 font-black text-[14px] text-[#DC2626] shadow-[0_3px_0_#FDECEC] disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {disposalBusy
+                          ? "저장 중…"
+                          : room.disposal?.[itemMenu]
+                            ? "폐기 표시 해제"
+                            : "폐기물로 표시"}
+                      </button>
+                    )}
                     <button
                       onClick={() => setConfirmCatalogDel(itemMenu)}
                       className="w-full rounded-2xl border border-[#F3C7C7] bg-white py-3.5 font-black text-[14px] text-[#D95C5C] shadow-[0_3px_0_#FBEAEA]"
@@ -4146,62 +4228,26 @@ export function Step6() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-6">
           <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => setSizeConfirm(null)} />
           <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
-            {sizeConfirm.stage === 1 ? (
-              <>
-                <div className="text-center text-[17px] font-black text-[#25282D]">
-                  {sizeConfirm.key} 기본품목을 담을까요?
-                </div>
-                <p className="mt-1.5 text-center text-[13px] font-bold text-[#6B7280]">
-                  지금 담은 품목 {pickedCount}개가 있습니다
-                </p>
-                <div className="mt-4 space-y-2">
-                  <button
-                    onClick={() => applyPreset(sizeConfirm.key, "merge")}
-                    className="w-full rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-3 font-black text-[15px] text-white shadow-[0_3px_0_#285C99]"
-                  >
-                    현재 품목에 추가
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (hasCustomPicked) setSizeConfirm({ key: sizeConfirm.key, stage: 2 });
-                      else applyPreset(sizeConfirm.key, "replace");
-                    }}
-                    className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[15px] text-[#B4232A] shadow-[0_3px_0_#F7F8F5]"
-                  >
-                    새 기본품목으로 변경
-                  </button>
-                  <button
-                    onClick={() => setSizeConfirm(null)}
-                    className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280]"
-                  >
-                    취소
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-center text-[17px] font-black text-[#25282D]">
-                  직접 추가한 품목도 함께 지워집니다
-                </div>
-                <p className="mt-1.5 text-center text-[13px] font-bold text-[#6B7280]">
-                  {sizeConfirm.key} 기본품목 구성으로 새로 채울까요?
-                </p>
-                <div className="mt-4 flex gap-2">
-                  <button
-                    onClick={() => setSizeConfirm(null)}
-                    className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={() => applyPreset(sizeConfirm.key, "replace")}
-                    className="flex-1 rounded-2xl bg-[#D95C5C] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#A81E20]"
-                  >
-                    변경
-                  </button>
-                </div>
-              </>
-            )}
+            <div className="text-center text-[16px] font-black leading-snug text-[#25282D]">
+              현재 입력한 품목에 선택한 평수의 기본품목을 추가하시겠습니까?
+            </div>
+            <p className="mt-1.5 text-center text-[13px] font-bold text-[#6B7280]">
+              기존 품목은 지우지 않고, 없는 품목만 추가합니다
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setSizeConfirm(null)}
+                className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => applyPreset(sizeConfirm.key, "merge")}
+                className="flex-1 rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-3 font-black text-[14px] text-white shadow-[0_3px_0_#285C99]"
+              >
+                기본품목 추가
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -4996,6 +5042,7 @@ export function Result() {
           itemNameById(id) ||
           id,
         qty,
+        disposal: !!r.disposal?.[id],
       })),
     }))
     .filter((r) => r.items.length > 0);
@@ -5134,7 +5181,7 @@ export function Result() {
       name: r.name,
       items: r.items.map((i) => ({
         id: i.id,
-        name: i.name,
+        name: i.disposal ? `${i.name} (폐기)` : i.name,
         qty: i.qty,
         icon: draft.customItems.find((custom) => custom.id === i.id)?.icon,
       })),

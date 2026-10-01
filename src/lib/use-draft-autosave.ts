@@ -13,7 +13,7 @@ export type DraftSaveState = "idle" | "saving" | "saved" | "error" | "offline";
 
 const REV_KEY = "jimpick.draft.revision";
 
-function nextRevision(): number {
+export function nextRevision(): number {
   let rev = 0;
   try {
     rev = Number(localStorage.getItem(REV_KEY) || 0) || 0;
