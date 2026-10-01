@@ -224,7 +224,7 @@ import { shrinkPhoto } from "@/lib/photo-shrink";
 
 /** 공간별 품목 접기·펼치기 상태를 기억하는 자리 */
 const ROOM_OPEN_KEY = "jimpick_step6_open_rooms";
-import { disposalItems } from "@/lib/jimpick";
+import { disposalItems, DEFAULT_DISPOSAL_NOTICE } from "@/lib/jimpick";
 import { EstimateSheet, DisposalX, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
@@ -5792,6 +5792,27 @@ export function Result() {
                     onChange={(n) => updateDraft({ discount: n })}
                   />
                 </Field>
+                <Field label="폐기물 안내문구">
+                  <textarea
+                    value={draft.disposalNotice ?? DEFAULT_DISPOSAL_NOTICE}
+                    onChange={(e) => updateDraft({ disposalNotice: e.target.value })}
+                    rows={2}
+                    maxLength={300}
+                    className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-base focus:outline-none focus:border-[#3578C8] resize-none"
+                  />
+                </Field>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={draft.showDisposalNotice !== false}
+                  onClick={() => updateDraft({ showDisposalNotice: draft.showDisposalNotice === false })}
+                  className="flex w-full items-center justify-between rounded-2xl bg-[#F7F8F5] px-4 py-3"
+                >
+                  <span className="text-sm font-bold text-[#25282D]">고객 견적서에 표시</span>
+                  <span className={`relative h-7 w-12 rounded-full transition-colors ${draft.showDisposalNotice !== false ? "bg-[#3578C8]" : "bg-[#CBD5E1]"}`}>
+                    <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${draft.showDisposalNotice !== false ? "left-[22px]" : "left-0.5"}`} />
+                  </span>
+                </button>
                 {/* 예약금은 총액의 10%(1만 원 미만 버림)로 자동 계산됩니다 */}
                 <div className="flex items-center justify-between rounded-2xl bg-[#F7F8F5] px-4 py-3">
                   <span className="text-sm font-bold text-[#6B7280]">예약금 (총액의 10%, 자동)</span>

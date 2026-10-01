@@ -28,7 +28,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { Estimate } from "@/lib/jimpick";
-import { won, sideConditionText, LADDER_SEPARATE_TEXT, DISPOSAL_FEE_LABEL } from "@/lib/jimpick";
+import { won, sideConditionText, LADDER_SEPARATE_TEXT, DISPOSAL_FEE_LABEL, DEFAULT_DISPOSAL_NOTICE } from "@/lib/jimpick";
 import { ItemArt } from "@/lib/jimpick-art";
 import { BankAccountActions } from "./BankAccountActions";
 import {
@@ -435,9 +435,13 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         {rooms.length > 0 && (
           <div>
             <div className="mb-2 px-1 text-[17px] font-black text-[#25282D]">공간별 품목</div>
-            {disposalSummary.length > 0 && (
-              <p className="-mt-1 mb-2 px-1 text-[14px] font-bold text-[#DC2626]">X 표시는 폐기할 물건입니다.</p>
-            )}
+            {disposalSummary.length > 0 &&
+              draft.showDisposalNotice !== false &&
+              (draft.disposalNotice ?? DEFAULT_DISPOSAL_NOTICE).trim() && (
+                <p className="-mt-1 mb-2 whitespace-pre-wrap break-keep px-1 text-[14px] font-bold text-[#DC2626]">
+                  {(draft.disposalNotice ?? DEFAULT_DISPOSAL_NOTICE).trim()}
+                </p>
+              )}
             <div className="space-y-2">
               {rooms.map((r) => (
                 <div

@@ -32,6 +32,7 @@ export interface Room {
 
 /** 이 방의 이 품목이 폐기물로 표시됐는지 */
 export const DISPOSAL_FEE_LABEL = "폐기물 처리비";
+export const DEFAULT_DISPOSAL_NOTICE = "X 표시된 품목은 폐기할 물건입니다. 폐기물 처리비는 별도 협의합니다.";
 
 /** 폐기로 표시한 품목 목록 (방 이름, 품목 id, 수량) — 일반 이사짐과 분리된 폐기물 데이터 */
 export function disposalItems(e: { rooms?: Room[] }): { room: string; id: string; qty: number }[] {
@@ -150,6 +151,9 @@ export interface Estimate {
   total: number;
   /** 폐기물 처리비 — 입력한 경우에만 총액에 한 번 더합니다 (없으면 「별도 협의」) */
   disposalFee?: number | null;
+  /** 폐기물 안내문구 (없으면 기본 문구) · 고객 견적서 표시 여부 (없으면 표시) */
+  disposalNotice?: string;
+  showDisposalNotice?: boolean;
 
   // ── 종이 견적서 ─────────────────────────────────────────
   /** 견적번호 — 예) JP-2026-0810-001. 견적서를 처음 열 때 붙습니다 */
