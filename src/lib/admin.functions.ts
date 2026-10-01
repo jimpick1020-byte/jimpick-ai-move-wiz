@@ -133,7 +133,7 @@ export const listCompanyAccounts = createServerFn({ method: "GET" })
         subscriptionStatus: status,
         plan: sub?.plan ?? null,
         periodEnd: sub?.current_period_end ?? null,
-        renewalPrice: sub?.plan === "pro" ? 30000 : (sub?.price ?? null),
+        renewalPrice: sub?.price ?? null,
         cancelAtPeriodEnd: sub?.cancel_at_period_end ?? false,
         paymentStatus: pay?.status ?? null,
         lastPaidAt: pay?.paid_at ?? null,

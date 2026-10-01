@@ -154,6 +154,8 @@ export function AdminAccountsScreen() {
               <div className="text-right">
                 {r.paymentStatus === "paid"
                   ? `결제 완료 (${day(r.lastPaidAt)})`
+                  : r.paymentStatus === "test_approved"
+                    ? `테스트 승인 (${day(r.lastPaidAt)})`
                   : r.paymentStatus === "failed"
                     ? "결제 실패"
                     : "결제 없음"}

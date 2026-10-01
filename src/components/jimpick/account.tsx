@@ -935,7 +935,11 @@ export function SubscriptionScreen() {
                           {PLANS.find((p) => p.id === pay.plan)?.name}
                           <span
                             className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
-                              paid ? "bg-[#E7F3EE] text-[#3E9B78]" : "bg-[#FBEAEA] text-[#D95C5C]"
+                              paid
+                                ? "bg-[#E7F3EE] text-[#3E9B78]"
+                                : testApproved
+                                  ? "bg-[#FEF3C7] text-[#92400E]"
+                                  : "bg-[#FBEAEA] text-[#D95C5C]"
                             }`}
                           >
                             {paid ? "결제 완료" : testApproved ? "테스트 승인" : "결제 실패"}
