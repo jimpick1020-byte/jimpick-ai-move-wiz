@@ -31,6 +31,22 @@ export interface Room {
 }
 
 /** 이 방의 이 품목이 폐기물로 표시됐는지 */
+export const DISPOSAL_FEE_LABEL = "폐기물 처리비";
+
+/** 폐기로 표시한 품목 목록 (방 이름, 품목 id, 수량) — 일반 이사짐과 분리된 폐기물 데이터 */
+export function disposalItems(e: { rooms?: Room[] }): { room: string; id: string; qty: number }[] {
+  const out: { room: string; id: string; qty: number }[] = [];
+  for (const r of e.rooms ?? []) {
+    for (const [id, qty] of Object.entries(r.items ?? {})) {
+      if (qty > 0 && r.disposal?.[id]) out.push({ room: r.name, id, qty });
+    }
+  }
+  return out;
+}
+export function hasDisposalItems(e: { rooms?: Room[] }): boolean {
+  return disposalItems(e).length > 0;
+}
+
 export function isDisposal(room: { disposal?: Record<string, boolean> } | null | undefined, itemId: string): boolean {
   return !!room?.disposal?.[itemId];
 }
@@ -132,6 +148,8 @@ export interface Estimate {
   /** 예상 견적 금액 직접 입력 (null이면 자동 합계) */
   totalOverride?: number | null;
   total: number;
+  /** 폐기물 처리비 — 입력한 경우에만 총액에 한 번 더합니다 (없으면 「별도 협의」) */
+  disposalFee?: number | null;
 
   // ── 종이 견적서 ─────────────────────────────────────────
   /** 견적번호 — 예) JP-2026-0810-001. 견적서를 처음 열 때 붙습니다 */
@@ -1455,7 +1473,9 @@ export function calcEstimate(
 
   /** 할인 금액은 합계에서 바로 빼 줍니다 (총액이 자동으로 줄어듭니다) */
   const discount = Math.max(0, num(e.discount));
-  const sum = transport + ladderFee + optionFee + storageFee + extras - discount;
+  // 폐기물 처리비는 폐기 품목이 있고 금액을 직접 입력한 경우에만 한 번 더합니다
+  const disposalFee = hasDisposalItems(e) ? Math.max(0, num(e.disposalFee)) : 0;
+  const sum = transport + ladderFee + optionFee + storageFee + extras + disposalFee - discount;
   const raw =
     e.totalOverride === null || e.totalOverride === undefined ? sum : num(e.totalOverride);
   const total = Math.max(0, Math.round(Number.isFinite(raw) ? raw : 0));
@@ -1480,6 +1500,7 @@ export function calcEstimate(
       ...(ladderFee > 0 ? [{ label: "사다리차 비용", amount: ladderFee }] : []),
       ...(optionFee > 0 ? [{ label: "옵션 비용", amount: optionFee }] : []),
       ...(storageFee > 0 ? [{ label: "보관료", amount: storageFee }] : []),
+      ...(disposalFee > 0 ? [{ label: DISPOSAL_FEE_LABEL, amount: disposalFee }] : []),
       ...(e.extraCharges ?? []).map((x) => ({
         label: x.label || "추가 항목",
         amount: num(x.amount),
