@@ -70,7 +70,7 @@ export function buildEstimateStats(input: {
   const completedStatusIds = new Set<string>();
   for (const [id, row] of termsById) {
     const status = normalizePaymentStatus(row.paymentStatus);
-    if (status === "canceled" || status === "refunded") excludedIds.add(id);
+    if (status === "canceled" || status === "refunded" || row.contractCancelled) excludedIds.add(id);
     else if (status === "completed") {
       completedStatusIds.add(id);
       if (row.calendarArchived) archivedIds.add(id);

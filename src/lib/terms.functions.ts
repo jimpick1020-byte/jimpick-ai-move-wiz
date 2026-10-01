@@ -422,6 +422,8 @@ export interface TermsStatusRow {
   /** 완료 보관함으로 옮겼는지 */
   calendarArchived: boolean;
   calendarArchivedAt: string | null;
+  /** 계약 일정에서 취소된 계약 (견적·고객 자료는 그대로 남습니다) */
+  contractCancelled?: boolean;
   /** 고객이 「입금했습니다」를 누른 확인 대기 기록의 id (없으면 null) */
   depositClaimId: string | null;
   /** 고객이 알린 예약금 금액 (사장님 확인 전에는 금액에 넣지 않습니다) */
@@ -500,7 +502,7 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
     let q = context.supabase
       .from("estimate_terms")
       .select(
-        "id, estimate_id, sheet_version, terms_version, sent_at, viewed_at, first_viewed_at, last_viewed_at, view_count, terms_viewed_at, total, deposit_paid, balance_paid, balance_paid_at, payment_status, payment_note, payment_confirmed_at, payment_method, paid_at, calendar_selected, calendar_archived, calendar_archived_at",
+        "id, estimate_id, sheet_version, terms_version, sent_at, viewed_at, first_viewed_at, last_viewed_at, view_count, terms_viewed_at, total, deposit_paid, balance_paid, balance_paid_at, payment_status, payment_note, payment_confirmed_at, payment_method, paid_at, calendar_selected, calendar_archived, calendar_archived_at, contract_status",
       )
       .eq("user_id", context.userId)
       .is("deleted_at", null);
@@ -575,6 +577,7 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
           calendarSelected: Boolean(r["calendar_selected"]),
           calendarArchived: Boolean(r["calendar_archived"]),
           calendarArchivedAt: (r["calendar_archived_at"] as string | null) ?? null,
+          contractCancelled: String(r["contract_status"] ?? "active") === "cancelled",
           depositClaimId: claim?.id ?? null,
           depositClaimAmount: Number(claim?.amount ?? 0) || 0,
           depositClaimedAt: claim?.created_at ?? null,
@@ -782,6 +785,8 @@ export const getHomeContractSchedule = createServerFn({ method: "GET" })
       .select("id, estimate_id, move_date, customer_name, total, sheet_no, sheet_version, payment_status, deposit_paid, balance_paid, calendar_selected, sheet_snapshot")
       .eq("user_id", context.userId)
       .is("deleted_at", null)
+      // 취소된 계약은 계약 일정에서 제외합니다 (자료는 삭제하지 않습니다)
+      .neq("contract_status", "cancelled")
       .in("payment_status", ["deposit_paid", "partial", "completed"])
       .not("move_date", "is", null)
       .limit(2000);
@@ -823,12 +828,14 @@ export const getHomeContractSchedule = createServerFn({ method: "GET" })
       if (previous && previous.version >= version) continue;
       let moveTime: string | null = null;
       let fromArea: string | null = null;
+      let toArea: string | null = null;
       try {
         const snapshot = raw["sheet_snapshot"] ? JSON.parse(String(raw["sheet_snapshot"])) : null;
         const draft = snapshot?.draft as Record<string, unknown> | undefined;
         if (draft) {
           moveTime = typeof draft["moveTime"] === "string" ? draft["moveTime"] : null;
           fromArea = areaOf(draft["fromAddr"] ?? draft["fromAddress"]);
+          toArea = areaOf(draft["toAddr"] ?? draft["toAddress"]);
         }
       } catch {
         /* 스냅샷 표시값만 비웁니다. */
@@ -845,7 +852,7 @@ export const getHomeContractSchedule = createServerFn({ method: "GET" })
         confirmedBy: acceptance?.by ?? "deposit",
         moveTime,
         fromArea,
-        toArea: null,
+        toArea,
         moveType: null,
         truck: null,
         staffName: null,
@@ -965,6 +972,30 @@ export const cancelReservation = createServerFn({ method: "POST" })
       };
     }
     return { ok: true };
+  });
+
+/**
+ * 계약 일정에서 계약 취소 — 견적서·고객·품목·결제·문자기록은 지우지 않고,
+ * 계약 상태만 cancelled 로 바꾸고 아직 안 나간 전날 문자를 취소합니다.
+ * 권한: 본인 업체(user_id = company_id) 계약 또는 최고관리자만 (DB 함수에서 확인).
+ */
+export const cancelContract = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ termsId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }): Promise<{ ok: boolean; error?: string; reminders?: number }> => {
+    const { data: res, error } = await context.supabase.rpc("cancel_contract" as never, { _terms_id: data.termsId } as never);
+    if (error) {
+      console.error("[cancelContract]", error.message);
+      return { ok: false, error: "계약을 취소하지 못했습니다. 잠시 후 다시 시도해 주세요." };
+    }
+    const out = (res ?? {}) as { ok?: boolean; reason?: string; reminders?: number };
+    if (!out.ok) {
+      return {
+        ok: false,
+        error: out.reason === "forbidden" ? "이 계약을 취소할 권한이 없습니다." : out.reason === "not_found" ? "계약을 찾지 못했습니다." : "계약을 취소하지 못했습니다.",
+      };
+    }
+    return { ok: true, reminders: Number(out.reminders ?? 0) };
   });
 
 /**
