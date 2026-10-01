@@ -2281,10 +2281,7 @@ export function Step6() {
 
   /** 지금 담긴 품목 개수 (평수 변경 확인창을 띄울지 판단합니다) */
   const pickedCount = draft.rooms.reduce((a, r) => a + roomSummary(r.items).count, 0);
-  /** 사장님이 직접 추가한 품목이 담겨 있는지 */
-  const hasCustomPicked = (draft.customItems || []).some((c) =>
-    draft.rooms.some((r) => (r.items[c.id] ?? 0) > 0),
-  );
+
 
   /**
    * 평수별 기본품목을 실제 품목 데이터에 넣습니다.
