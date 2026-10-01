@@ -1,4 +1,5 @@
 import { calcDeposit, calcBalance } from "@/lib/deposit-rule";
+import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, shortMoveDate } from "@/lib/estimate-sort";
 import { publicUrl } from "@/lib/app-url";
 import {
   useCallback,
@@ -6143,6 +6144,7 @@ export function History() {
   const toggleLog = (id: string) => setOpenLog((p) => ({ ...p, [id]: !p[id] }));
   /** 카드 전체 펼침 상태 (기본 접힘 → 금액까지만 보임, 누르면 펼쳐짐) */
   const [openCard, setOpenCard] = useState<Record<string, boolean>>({});
+  const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
   const toggleCard = (id: string) => setOpenCard((p) => ({ ...p, [id]: !p[id] }));
   /** 완료 보관함 — 달력에서 정리한 결제완료 계약 (자료는 그대로 남아 있습니다) */
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -6267,11 +6269,27 @@ export function History() {
   // 홈 견적 현황과 같은 공통 집계 함수를 씁니다 (총 견적 = 현재 견적 전체).
   // 잔금까지 전액 받은 계약만 완료 보관함으로 옮깁니다 (예약금만 받은 건은 목록에 남습니다)
   const stats = buildEstimateStats({ estimates, termsRows, archived });
+  const qDigits = q.replace(/[^0-9]/g, "");
   const list = estimates.filter(
     (e) =>
       stats.currentIds.has(e.id) &&
-      (!q || e.customerName.includes(q) || e.phone.includes(q) || e.moveDate.includes(q)),
+      (!q ||
+        e.customerName.includes(q) ||
+        e.phone.includes(q) ||
+        (qDigits.length >= 3 && e.phone.replace(/[^0-9]/g, "").includes(qDigits)) ||
+        e.moveDate.includes(q) ||
+        shortMoveDate(e.moveDate).includes(q)),
   );
+  // 이사 날짜(move_date) ASC → 시작시간 ASC → 작성일 ASC, 월별 묶음 + 맨 아래 "이사 날짜 미정"
+  const groups = groupByMoveMonth(list);
+  const defaultOpen = defaultOpenMonths(groups);
+  // 완료 보관함: 이사 날짜 DESC → 완료(보관) 시각 DESC
+  const archivedSorted = [...archived].sort((a, b) => {
+    const da = parseMoveDate(a.moveDate) ?? -Infinity;
+    const db = parseMoveDate(b.moveDate) ?? -Infinity;
+    if (da !== db) return db - da;
+    return (Date.parse(b.archivedAt ?? "") || 0) - (Date.parse(a.archivedAt ?? "") || 0);
+  });
   /** 약관 진행 상태 — 발송 성공과 고객 열람·동의는 서로 다른 상태로 표시합니다 */
   const termsState = (id: string) => {
     const r = termsRows.find((t) => t.estimateId === id);
@@ -6329,7 +6347,7 @@ export function History() {
                   보관한 일정이 없습니다.
                 </div>
               )}
-              {archived.map((a) => (
+              {archivedSorted.map((a) => (
                 <div key={a.termsId} className="rounded-xl border border-[#E5E7EB] p-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
@@ -6376,7 +6394,21 @@ export function History() {
         {list.length === 0 && (
           <div className="text-center text-[#6B7280] py-16">저장된 견적이 없습니다.</div>
         )}
-        {list.map((e) => {
+        {groups.map((g) => {
+          const gOpen = q.trim() ? true : (openMonths[g.key] ?? defaultOpen.has(g.key));
+          return (
+            <div key={g.key} className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setOpenMonths((m) => ({ ...m, [g.key]: !gOpen }))}
+                className="flex w-full items-center justify-between rounded-xl bg-[#F3F4F6] px-3 py-2 text-[14.5px] font-black text-[#25282D]"
+              >
+                <span>
+                  {g.title} · {g.items.length}건
+                </span>
+                <span className="text-[13px] font-semibold text-[#6B7280]">{gOpen ? "접기 ▲" : "펼치기 ▾"}</span>
+              </button>
+              {gOpen && g.items.map((e) => {
           const ts = termsState(e.id);
           return (
             <Card key={e.id}>
@@ -6602,6 +6634,9 @@ export function History() {
                 );
               })()}
             </Card>
+          );
+        })}
+            </div>
           );
         })}
       </div>
