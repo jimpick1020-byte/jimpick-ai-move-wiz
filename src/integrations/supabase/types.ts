@@ -434,8 +434,11 @@ export type Database = {
           calendar_archived_at: string | null
           calendar_archived_by: string | null
           calendar_selected: boolean
+          cancelled_at: string | null
+          cancelled_by: string | null
           company_phone: string | null
           contact_phone: string | null
+          contract_status: string
           created_at: string
           customer_name: string
           deleted_at: string | null
@@ -479,8 +482,11 @@ export type Database = {
           calendar_archived_at?: string | null
           calendar_archived_by?: string | null
           calendar_selected?: boolean
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           company_phone?: string | null
           contact_phone?: string | null
+          contract_status?: string
           created_at?: string
           customer_name?: string
           deleted_at?: string | null
@@ -524,8 +530,11 @@ export type Database = {
           calendar_archived_at?: string | null
           calendar_archived_by?: string | null
           calendar_selected?: boolean
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           company_phone?: string | null
           contact_phone?: string | null
+          contract_status?: string
           created_at?: string
           customer_name?: string
           deleted_at?: string | null
@@ -1243,6 +1252,8 @@ export type Database = {
           accept_method: string
           accepted: boolean
           accepted_at: string
+          cancelled_at: string | null
+          cancelled_by: string | null
           confirmed_by: string
           confirmed_by_user_id: string | null
           created_at: string
@@ -1266,6 +1277,8 @@ export type Database = {
           accept_method?: string
           accepted?: boolean
           accepted_at?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           confirmed_by?: string
           confirmed_by_user_id?: string | null
           created_at?: string
@@ -1289,6 +1302,8 @@ export type Database = {
           accept_method?: string
           accepted?: boolean
           accepted_at?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           confirmed_by?: string
           confirmed_by_user_id?: string | null
           created_at?: string
@@ -1434,6 +1449,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_contract: { Args: { _terms_id: string }; Returns: Json }
       cancel_reservation: { Args: { _terms_id: string }; Returns: boolean }
       cancel_reservation_all: { Args: { _terms_id: string }; Returns: Json }
       cancel_reservation_all_for: {
