@@ -224,6 +224,7 @@ import { shrinkPhoto } from "@/lib/photo-shrink";
 
 /** 공간별 품목 접기·펼치기 상태를 기억하는 자리 */
 const ROOM_OPEN_KEY = "jimpick_step6_open_rooms";
+import { disposalItems } from "@/lib/jimpick";
 import { EstimateSheet, DisposalX, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
@@ -3133,6 +3134,19 @@ export function Step6() {
             전체 선택 해제
           </button>
         </div>
+        {disposalItems(draft).length > 0 && (
+          <div className="mt-2 rounded-2xl border border-[#FECACA] bg-[#FEF2F2] px-3 py-2.5">
+            <div className="text-[13px] font-black text-[#B4232A]">
+              폐기물 {disposalItems(draft).reduce((a, d) => a + d.qty, 0)}개 · 적재량 계산에서 제외됨
+            </div>
+            <div className="mt-1.5 text-[12px] font-bold text-[#6B7280]">폐기물 처리비 (비워 두면 견적서에 「별도 협의」)</div>
+            <MoneyInput
+              value={draft.disposalFee ?? 0}
+              step={10000}
+              onChange={(v: number) => updateDraft({ disposalFee: v > 0 ? v : null })}
+            />
+          </div>
+        )}
         {needRegister.length > 0 && (
           <div className="mt-2 rounded-2xl border border-[#FDE68A] bg-[#FFFBEB] p-3">
             <div className="text-[13px] font-black text-[#B45309]">
