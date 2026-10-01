@@ -17,7 +17,7 @@ export interface Plan {
 export { TRIAL_DAYS } from "@/lib/entitlement.functions";
 import { TRIAL_DAYS } from "@/lib/entitlement.functions";
 
-/** 업체용 월 구독 요금제 (VAT 포함 월 33,000원 단일 요금제) */
+/** 업체용 월 구독 요금제 (월 30,000원 단일 요금제) */
 export const PLANS: Plan[] = [
   {
     id: "free",
@@ -30,8 +30,8 @@ export const PLANS: Plan[] = [
   {
     id: "pro",
     name: "업체 구독",
-    price: 33000,
-    desc: "월 33,000원 (부가세 포함) · 약정 없음",
+    price: 30000,
+    desc: "월 30,000원 · 약정 없음",
     features: [
       "견적 작성 무제한",
       "AI 공간 스캔 무제한",
@@ -57,8 +57,8 @@ export const getMyAccount = createServerFn({ method: "GET" })
 
 /**
  * 구독 결제 처리.
- * 지금은 테스트(모의) 결제로 구독과 결제 내역을 기록합니다.
- * 실제 카드 결제 연동 시 이 핸들러 안에서 결제사 승인 후 동일하게 기록하면 됩니다.
+ * 무료 체험 시작 전용 처리입니다.
+ * 유료 구독은 토스페이먼츠가 실제 승인한 뒤에만 별도 결제 처리에서 기록합니다.
  */
 export const subscribePlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -67,6 +67,9 @@ export const subscribePlan = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const plan = PLANS.find((p) => p.id === data.plan) ?? PLANS[PLANS.length - 1];
+    if (plan.id !== "free") {
+      throw new Error("유료 구독은 카드 결제를 통해서만 시작할 수 있습니다.");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const now = new Date();
@@ -91,18 +94,6 @@ export const subscribePlan = createServerFn({ method: "POST" })
       { onConflict: "user_id" },
     );
     if (subErr) throw new Error(subErr.message);
-
-    if (plan.price > 0) {
-      const { error: payErr } = await supabaseAdmin.from("payments").insert({
-        user_id: context.userId,
-        plan: plan.id,
-        amount: plan.price,
-        method: data.method,
-        status: "paid",
-        receipt_no: `JP${now.getTime()}`,
-      });
-      if (payErr) throw new Error(payErr.message);
-    }
 
     return { ok: true, plan: plan.id, periodEnd: end.toISOString() };
   });

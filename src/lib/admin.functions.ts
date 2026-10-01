@@ -22,6 +22,7 @@ export interface CompanyAccount {
   subscriptionStatus: string;
   plan: string | null;
   periodEnd: string | null;
+  renewalPrice: number | null;
   cancelAtPeriodEnd: boolean;
   /** 마지막 결제 상태 (없으면 null) */
   paymentStatus: string | null;
@@ -69,7 +70,7 @@ export const listCompanyAccounts = createServerFn({ method: "GET" })
         supabaseAdmin
           .from("subscriptions")
           .select(
-            "user_id, plan, status, trial_started_at, trial_ends_at, current_period_end, cancel_at_period_end",
+            "user_id, plan, status, price, trial_started_at, trial_ends_at, current_period_end, cancel_at_period_end",
           ),
         supabaseAdmin
           .from("payments")
@@ -132,6 +133,7 @@ export const listCompanyAccounts = createServerFn({ method: "GET" })
         subscriptionStatus: status,
         plan: sub?.plan ?? null,
         periodEnd: sub?.current_period_end ?? null,
+        renewalPrice: sub?.plan === "pro" ? 30000 : (sub?.price ?? null),
         cancelAtPeriodEnd: sub?.cancel_at_period_end ?? false,
         paymentStatus: pay?.status ?? null,
         lastPaidAt: pay?.paid_at ?? null,

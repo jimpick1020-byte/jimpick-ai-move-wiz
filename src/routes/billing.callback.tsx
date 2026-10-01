@@ -63,7 +63,9 @@ function BillingCallbackPage() {
           setState("done");
           setAmount(r.amount ?? 0);
           setMessage(
-            r.duplicate
+            r.mode === "test"
+              ? "테스트 승인이 확인되었습니다. 실제 청구와 구독 시작은 이루어지지 않았습니다."
+              : r.duplicate
               ? "이미 결제가 완료되어 구독이 이용 중입니다. 중복 결제되지 않았습니다."
               : "결제가 완료되어 업체 구독이 시작되었습니다.",
           );
@@ -89,12 +91,12 @@ function BillingCallbackPage() {
       <div className="w-full max-w-[420px] rounded-3xl bg-white p-6 shadow-[0_10px_30px_rgba(7,81,216,0.08)]">
         <div className="text-[13px] font-bold tracking-wide text-[#0751D8]">JIMPICK</div>
         <h1 className="mt-2 text-[19px] font-extrabold text-[#111827]">
-          {state === "loading" ? "결제 확인 중" : state === "done" ? "구독이 시작되었습니다" : "결제하지 못했습니다"}
+          {state === "loading" ? "결제 확인 중" : state === "done" ? "결제 결과를 확인했습니다" : "결제하지 못했습니다"}
         </h1>
         <p className="mt-2 text-[14px] leading-relaxed text-[#4B5563]">{message}</p>
         {state === "done" && amount > 0 && (
           <div className="mt-3 rounded-2xl bg-[#EDF2FB] p-3 text-[14px] font-bold text-[#0751D8]">
-            결제 금액 {won(amount)} · 매월 자동 결제
+            확인 금액 {won(amount)} · 월 구독
           </div>
         )}
         <Link
