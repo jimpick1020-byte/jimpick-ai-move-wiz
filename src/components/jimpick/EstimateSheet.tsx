@@ -28,7 +28,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { Estimate } from "@/lib/jimpick";
-import { won, sideConditionText, LADDER_SEPARATE_TEXT } from "@/lib/jimpick";
+import { won, sideConditionText, LADDER_SEPARATE_TEXT, DISPOSAL_FEE_LABEL } from "@/lib/jimpick";
 import { ItemArt } from "@/lib/jimpick-art";
 import { BankAccountActions } from "./BankAccountActions";
 import {
@@ -220,7 +220,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
   ref,
 ) {
   const transport = parts
-    .filter((p) => !["옵션 비용", "보관료", "사다리차 비용"].includes(p.label))
+    .filter((p) => !["옵션 비용", "보관료", "사다리차 비용", DISPOSAL_FEE_LABEL].includes(p.label))
     .reduce((s, p) => s + p.amount, 0);
   /** 사다리차 비용은 따로 한 줄로 보여 줍니다 */
   const ladderCost = parts
@@ -230,6 +230,13 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     .filter((p) => ["옵션 비용", "보관료"].includes(p.label))
     .reduce((s, p) => s + p.amount, 0);
   const discount = Math.max(0, draft.discount ?? 0);
+  /** 폐기물 — 일반 이사짐과 따로 모읍니다 (같은 이름은 수량을 합칩니다) */
+  const disposalSummary = (() => {
+    const m = new Map<string, number>();
+    for (const r of rooms) for (const it of r.items) if (it.disposal && it.qty > 0) m.set(it.name, (m.get(it.name) ?? 0) + it.qty);
+    return [...m.entries()];
+  })();
+  const disposalFee = parts.filter((p) => p.label === DISPOSAL_FEE_LABEL).reduce((s, p) => s + p.amount, 0);
   /** 입금이 확인된 금액이 있으면 그 금액이 실제 예약금입니다 */
   const paid = Math.max(0, paidDeposit ?? 0);
   // 예약금은 총액의 10%(1만 원 미만 버림). 입금 확인된 금액이 있으면 그 금액을 보여 줍니다.
@@ -428,6 +435,9 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         {rooms.length > 0 && (
           <div>
             <div className="mb-2 px-1 text-[17px] font-black text-[#25282D]">공간별 품목</div>
+            {disposalSummary.length > 0 && (
+              <p className="-mt-1 mb-2 px-1 text-[14px] font-bold text-[#DC2626]">X 표시는 폐기할 물건입니다.</p>
+            )}
             <div className="space-y-2">
               {rooms.map((r) => (
                 <div
@@ -461,6 +471,14 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                 </div>
               ))}
             </div>
+            {disposalSummary.length > 0 && (
+              <div className="jp-avoid-break mt-2 flex items-start gap-3 rounded-[14px] border border-[#FCA5A5] bg-[#FEF2F2] px-3.5 py-3">
+                <span className="shrink-0 text-[16px] font-black text-[#DC2626]">폐기물</span>
+                <span className="min-w-0 break-keep text-[16px] font-medium text-[#25282D]">
+                  {disposalSummary.map(([n, q]) => `${n} ${q}`).join(", ")}
+                </span>
+              </div>
+            )}
           </div>
         )}
 
@@ -490,6 +508,15 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           <MoneyRow label="기본 운송비" amount={transport} />
           <MoneyRow label="사다리차 비용" amount={ladderCost} />
           <MoneyRow label="추가 작업비" amount={extraWork} />
+          {disposalSummary.length > 0 &&
+            (disposalFee > 0 ? (
+              <MoneyRow label={DISPOSAL_FEE_LABEL} amount={disposalFee} />
+            ) : (
+              <div className="flex items-center justify-between gap-3 py-1.5">
+                <span className="text-[16px] text-[#25282D]">{DISPOSAL_FEE_LABEL}</span>
+                <span className="text-[16px] font-bold text-[#25282D]">별도 협의</span>
+              </div>
+            ))}
           <MoneyRow label="할인금액" amount={discount} tone="minus" />
           {(deposit > 0 || discount > 0) && (
             <div className="my-1.5 border-t border-dashed border-[#E5E7EB]" />
