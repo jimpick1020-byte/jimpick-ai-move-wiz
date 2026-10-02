@@ -6,6 +6,7 @@ import { MobileShell, PrimaryButton, BottomButtonBar } from "@/components/jimpic
 import { Art3D, ItemArt, ROOM_IMG } from "@/lib/jimpick-art";
 import { SIZE_TABS, ROOM_TINT } from "@/components/jimpick/screens";
 import { tap } from "@/lib/feedback";
+import { DisposalX } from "@/components/jimpick/EstimateSheet";
 
 /** 평수별 3D 평면도 배치 (열 스팬으로 집 구조를 표현) */
 const PLAN_LAYOUT: Record<string, Record<string, string>> = {
@@ -192,6 +193,7 @@ export function Plan3D() {
                             className="relative rounded-xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] p-0.5 shadow-[0_2px_0_#E5E7EB,inset_0_1px_0_#fff]"
                           >
                             <ItemArt id={id} name={nm} size={24} />
+                            {r?.disposal?.[id] && <DisposalX />}
                             {qty > 1 && (
                               <span className="absolute -top-1 -right-1 px-1 rounded-full bg-[#3578C8] text-white text-[9px] font-black">
                                 {qty}
@@ -264,7 +266,10 @@ export function Plan3D() {
                     key={id}
                     className="flex items-center gap-3 p-2.5 rounded-2xl bg-white border border-[#E5E7EB] shadow-[0_3px_0_#F7F8F5,inset_0_1px_0_#fff]"
                   >
-                    <ItemArt id={id} name={nm} size={40} />
+                    <span className="relative inline-flex h-10 w-10 items-center justify-center">
+                      <ItemArt id={id} name={nm} size={40} />
+                      {openRoom.disposal?.[id] && <DisposalX />}
+                    </span>
                     <span className="flex-1 font-extrabold text-[15px] text-[#25282D]">{nm}</span>
                     <span className="font-black text-[15px] text-[#25282D] tabular-nums">
                       {qty}

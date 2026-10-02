@@ -266,7 +266,7 @@ export function StaffSheet() {
                               </span>
                               <span className="min-w-0">
                                 <span className="block break-words text-[15px] font-medium leading-tight text-[#25282D]">
-                                  {item.name}
+                                {item.name.replace(/\s*\(폐기\)\s*$/, "")}
                                 </span>
                                 <span className="mt-0.5 block text-[15px] font-bold text-[#25282D]">
                                   {item.qty}
