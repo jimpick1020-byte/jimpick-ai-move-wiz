@@ -30,10 +30,6 @@ export interface Room {
   disposal?: Record<string, boolean>;
 }
 
-/** 이 방의 이 품목이 폐기물로 표시됐는지 */
-export const DISPOSAL_FEE_LABEL = "폐기물 처리비";
-export const DEFAULT_DISPOSAL_NOTICE = "X 표시된 품목은 폐기할 물건입니다. 폐기물 처리비는 별도 협의합니다.";
-
 /** 폐기로 표시한 품목 목록 (방 이름, 품목 id, 수량) — 일반 이사짐과 분리된 폐기물 데이터 */
 export function disposalItems(e: { rooms?: Room[] }): { room: string; id: string; qty: number }[] {
   const out: { room: string; id: string; qty: number }[] = [];
@@ -149,9 +145,9 @@ export interface Estimate {
   /** 예상 견적 금액 직접 입력 (null이면 자동 합계) */
   totalOverride?: number | null;
   total: number;
-  /** 폐기물 처리비 — 입력한 경우에만 총액에 한 번 더합니다 (없으면 「별도 협의」) */
+  /** @deprecated 구 견적 호환용. 폐기 품목은 견적 합계에서 제외합니다. */
   disposalFee?: number | null;
-  /** 폐기물 안내문구 (없으면 기본 문구) · 고객 견적서 표시 여부 (없으면 표시) */
+  /** @deprecated 구 견적 호환용. 현재 화면에는 폐기 안내문구를 표시하지 않습니다. */
   disposalNotice?: string;
   showDisposalNotice?: boolean;
 
@@ -1477,9 +1473,8 @@ export function calcEstimate(
 
   /** 할인 금액은 합계에서 바로 빼 줍니다 (총액이 자동으로 줄어듭니다) */
   const discount = Math.max(0, num(e.discount));
-  // 폐기물 처리비는 폐기 품목이 있고 금액을 직접 입력한 경우에만 한 번 더합니다
-  const disposalFee = hasDisposalItems(e) ? Math.max(0, num(e.disposalFee)) : 0;
-  const sum = transport + ladderFee + optionFee + storageFee + extras + disposalFee - discount;
+  // 폐기 품목과 과거에 저장된 폐기물 처리비는 총 견적금액에서 제외합니다.
+  const sum = transport + ladderFee + optionFee + storageFee + extras - discount;
   const raw =
     e.totalOverride === null || e.totalOverride === undefined ? sum : num(e.totalOverride);
   const total = Math.max(0, Math.round(Number.isFinite(raw) ? raw : 0));
@@ -1504,7 +1499,6 @@ export function calcEstimate(
       ...(ladderFee > 0 ? [{ label: "사다리차 비용", amount: ladderFee }] : []),
       ...(optionFee > 0 ? [{ label: "옵션 비용", amount: optionFee }] : []),
       ...(storageFee > 0 ? [{ label: "보관료", amount: storageFee }] : []),
-      ...(disposalFee > 0 ? [{ label: DISPOSAL_FEE_LABEL, amount: disposalFee }] : []),
       ...(e.extraCharges ?? []).map((x) => ({
         label: x.label || "추가 항목",
         amount: num(x.amount),

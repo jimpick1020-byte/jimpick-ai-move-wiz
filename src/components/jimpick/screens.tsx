@@ -224,7 +224,7 @@ import { shrinkPhoto } from "@/lib/photo-shrink";
 
 /** 공간별 품목 접기·펼치기 상태를 기억하는 자리 */
 const ROOM_OPEN_KEY = "jimpick_step6_open_rooms";
-import { disposalItems, DEFAULT_DISPOSAL_NOTICE } from "@/lib/jimpick";
+import { disposalItems } from "@/lib/jimpick";
 import { EstimateSheet, DisposalX, type SheetRoom } from "./EstimateSheet";
 import { printSheet } from "@/lib/sheet-export";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
@@ -3139,12 +3139,6 @@ export function Step6() {
             <div className="text-[13px] font-black text-[#B4232A]">
               폐기물 {disposalItems(draft).reduce((a, d) => a + d.qty, 0)}개 · 적재량 계산에서 제외됨
             </div>
-            <div className="mt-1.5 text-[12px] font-bold text-[#6B7280]">폐기물 처리비 (비워 두면 견적서에 「별도 협의」)</div>
-            <MoneyInput
-              value={draft.disposalFee ?? 0}
-              step={10000}
-              onChange={(v: number) => updateDraft({ disposalFee: v > 0 ? v : null })}
-            />
           </div>
         )}
         {needRegister.length > 0 && (
@@ -3213,6 +3207,7 @@ export function Step6() {
                               className="relative rounded-xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] p-0.5 shadow-[0_2px_0_#E5E7EB,inset_0_1px_0_#fff]"
                             >
                               <ItemArt id={id} name={nameOf(id)} size={34} />
+                              {r?.disposal?.[id] && <DisposalX />}
                               {qty > 1 && (
                                 <span className="absolute -top-1 -right-1 min-w-4 px-1 rounded-full bg-[#3578C8] text-white text-[9px] font-black text-center">
                                   {qty}
@@ -3386,9 +3381,6 @@ export function Step6() {
                         </span>
                       </div>
                       <div className="break-keep text-center text-[11.5px] font-extrabold leading-tight text-[#25282D] line-clamp-2">
-                        {room.disposal?.[p.id] && (
-                          <span className="mr-0.5 rounded bg-[#DC2626] px-1 text-[10px] font-black text-white align-middle">폐기</span>
-                        )}
                         {p.name}
                       </div>
                       <div className="mt-0.5 flex items-center justify-center gap-0.5">
@@ -3584,11 +3576,6 @@ export function Step6() {
                                     <ItemArt id={it.id} name={it.name} size={70} />
                                     {disposed && <DisposalX />}
                                   </span>
-                                  {disposed && (
-                                    <span className="rounded-full bg-[#DC2626] px-2 py-0.5 text-[11px] font-black text-white">
-                                      폐기
-                                    </span>
-                                  )}
                                   <span className="text-center text-[15px] font-black leading-tight text-[#25282D] line-clamp-2">
                                     {it.name}
                                   </span>
@@ -5201,7 +5188,7 @@ export function Result() {
       name: r.name,
       items: r.items.map((i) => ({
         id: i.id,
-        name: i.disposal ? `${i.name} (폐기)` : i.name,
+        name: i.name,
         qty: i.qty,
         icon: draft.customItems.find((custom) => custom.id === i.id)?.icon,
         disposal: !!i.disposal,
@@ -5793,27 +5780,6 @@ export function Result() {
                     onChange={(n) => updateDraft({ discount: n })}
                   />
                 </Field>
-                <Field label="폐기물 안내문구">
-                  <textarea
-                    value={draft.disposalNotice ?? DEFAULT_DISPOSAL_NOTICE}
-                    onChange={(e) => updateDraft({ disposalNotice: e.target.value })}
-                    rows={2}
-                    maxLength={300}
-                    className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-base focus:outline-none focus:border-[#3578C8] resize-none"
-                  />
-                </Field>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={draft.showDisposalNotice !== false}
-                  onClick={() => updateDraft({ showDisposalNotice: draft.showDisposalNotice === false })}
-                  className="flex w-full items-center justify-between rounded-2xl bg-[#F7F8F5] px-4 py-3"
-                >
-                  <span className="text-sm font-bold text-[#25282D]">고객 견적서에 표시</span>
-                  <span className={`relative h-7 w-12 rounded-full transition-colors ${draft.showDisposalNotice !== false ? "bg-[#3578C8]" : "bg-[#CBD5E1]"}`}>
-                    <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${draft.showDisposalNotice !== false ? "left-[22px]" : "left-0.5"}`} />
-                  </span>
-                </button>
                 {/* 예약금은 총액의 10%(1만 원 미만 버림)로 자동 계산됩니다 */}
                 <div className="flex items-center justify-between rounded-2xl bg-[#F7F8F5] px-4 py-3">
                   <span className="text-sm font-bold text-[#6B7280]">예약금 (총액의 10%, 자동)</span>
