@@ -717,6 +717,18 @@ export function SharePage() {
                   </span>
                 ))}
             </div>
+            {Number(estimate.workers) > 0 && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[#6B7280]">남자 작업자</span>
+                <span className="font-bold">{Math.floor(Number(estimate.workers))}명</span>
+              </div>
+            )}
+            {Number(estimate.kitchenStaff) > 0 && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[#6B7280]">주방 작업자</span>
+                <span className="font-bold">{Math.floor(Number(estimate.kitchenStaff))}명</span>
+              </div>
+            )}
             {estimate.memo && (
               <div className="rounded-xl bg-[#F7F8F5] p-3">
                 <span className="font-semibold">고객 메모:</span> {estimate.memo}

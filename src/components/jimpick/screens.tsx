@@ -6016,6 +6016,22 @@ export function Result() {
                       {won(total)}
                     </span>
                   </div>
+                  {Number(draft.workers) > 0 && (
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="shrink-0 text-[13px] text-[#6B7280]">남자 작업자</span>
+                      <span className="min-w-0 text-right text-[13px] font-bold text-[#25282D]">
+                        {Math.floor(Number(draft.workers))}명
+                      </span>
+                    </div>
+                  )}
+                  {Number(draft.kitchenStaff) > 0 && (
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="shrink-0 text-[13px] text-[#6B7280]">주방 작업자</span>
+                      <span className="min-w-0 text-right text-[13px] font-bold text-[#25282D]">
+                        {Math.floor(Number(draft.kitchenStaff))}명
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <p className="mt-2.5 rounded-xl bg-[#FFF7ED] p-2.5 text-center text-[12.5px] font-bold text-[#B45309]">
