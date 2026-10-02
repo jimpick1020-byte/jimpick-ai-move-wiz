@@ -5204,6 +5204,7 @@ export function Result() {
         name: i.disposal ? `${i.name} (폐기)` : i.name,
         qty: i.qty,
         icon: draft.customItems.find((custom) => custom.id === i.id)?.icon,
+        disposal: !!i.disposal,
       })),
     })),
   });

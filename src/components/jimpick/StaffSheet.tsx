@@ -243,28 +243,38 @@ export function StaffSheet() {
                         </span>
                       </div>
                       <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-2 gap-y-2 border-l border-[#E5E7EB] pl-2.5">
-                        {room.items.map((item, index) => (
-                          <div
-                            key={`${item.id ?? item.name}-${index}`}
-                            className="flex min-w-0 items-center gap-1.5"
-                          >
-                            <span className="flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-[#F7F8F5]">
-                              <Icon3D
-                                src={item.icon || icon3dFor(item.id, item.name)}
-                                alt={item.name}
-                                size={40}
-                              />
-                            </span>
-                            <span className="min-w-0">
-                              <span className="block break-words text-[15px] font-medium leading-tight text-[#25282D]">
-                                {item.name}
+                        {room.items.map((item, index) => {
+                          // 새 공유는 고유 품목 ID의 저장값을 사용합니다. 기존 공유는 보존된 문구로 호환합니다.
+                          const isDisposal = !!item.disposal || /\(폐기\)\s*$/.test(item.name);
+                          return (
+                            <div
+                              key={`${item.id ?? item.name}-${index}`}
+                              className="flex min-w-0 items-center gap-1.5"
+                            >
+                              <span className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-[#F7F8F5]">
+                                <Icon3D
+                                  src={item.icon || icon3dFor(item.id, item.name)}
+                                  alt={item.name}
+                                  size={40}
+                                />
+                                {isDisposal && (
+                                  <span aria-hidden="true" className="pointer-events-none absolute inset-[3px]">
+                                    <span className="absolute left-1/2 top-1/2 h-[5px] w-[50px] -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full bg-[#DC2626] shadow-[0_1px_2px_rgba(255,255,255,0.9)]" />
+                                    <span className="absolute left-1/2 top-1/2 h-[5px] w-[50px] -translate-x-1/2 -translate-y-1/2 -rotate-45 rounded-full bg-[#DC2626] shadow-[0_1px_2px_rgba(255,255,255,0.9)]" />
+                                  </span>
+                                )}
                               </span>
-                              <span className="mt-0.5 block text-[15px] font-bold text-[#25282D]">
-                                {item.qty}
+                              <span className="min-w-0">
+                                <span className="block break-words text-[15px] font-medium leading-tight text-[#25282D]">
+                                  {item.name}
+                                </span>
+                                <span className="mt-0.5 block text-[15px] font-bold text-[#25282D]">
+                                  {item.qty}
+                                </span>
                               </span>
-                            </span>
-                          </div>
-                        ))}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}

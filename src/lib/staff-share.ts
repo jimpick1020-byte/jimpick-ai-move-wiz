@@ -48,7 +48,7 @@ export interface StaffSheetSnapshot {
   staffPhone: string;
   rooms: {
     name: string;
-    items: { id?: string; name: string; qty: number; icon?: string }[];
+    items: { id?: string; name: string; qty: number; icon?: string; disposal?: boolean }[];
   }[];
 }
 
