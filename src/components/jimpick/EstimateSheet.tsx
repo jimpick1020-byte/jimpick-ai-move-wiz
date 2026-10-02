@@ -272,6 +272,10 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     ]
       .filter(Boolean)
       .join(" · ") || "미정";
+  /** 저장된 실제 인원만 표시합니다. 0명·잘못된 값은 견적서에서 감춥니다. */
+  const maleWorkers = Math.max(0, Math.floor(Number(draft.workers) || 0));
+  const kitchenWorkers = Math.max(0, Math.floor(Number(draft.kitchenStaff) || 0));
+  const hasWorkers = maleWorkers > 0 || kitchenWorkers > 0;
 
   return (
     <div ref={ref} className="bg-[#F7F8F5] pb-4">
@@ -430,6 +434,28 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             value={draft.moveType || "미정"}
           />
         </div>
+
+        {/* 작업 인원 — 실제 저장값이 0명인 항목은 표시하지 않습니다 */}
+        {hasWorkers && (
+          <div className="jp-avoid-break rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <User className="h-[20px] w-[20px] text-[#25282D]" strokeWidth={2} />
+              <span className="text-[17px] font-black text-[#25282D]">작업 인원</span>
+            </div>
+            {maleWorkers > 0 && (
+              <div className="flex items-center justify-between gap-3 py-1.5">
+                <span className="text-[16px] text-[#6B7280]">남자 작업자</span>
+                <span className="text-[16px] font-bold tabular-nums text-[#25282D]">{maleWorkers}명</span>
+              </div>
+            )}
+            {kitchenWorkers > 0 && (
+              <div className="flex items-center justify-between gap-3 py-1.5">
+                <span className="text-[16px] text-[#6B7280]">주방 작업자</span>
+                <span className="text-[16px] font-bold tabular-nums text-[#25282D]">{kitchenWorkers}명</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 공간별 품목 */}
         {rooms.length > 0 && (
