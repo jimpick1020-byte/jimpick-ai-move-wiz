@@ -734,6 +734,14 @@ export function HomeScreen() {
     reservation_confirmed: 0,
     payment_completed: stats.completed,
   };
+  type StageItem = { key: string; estimateId: string; termsId?: string; name: string; amount: number; amountLabel: string };
+  const stageLists: Record<keyof typeof stageCounts, StageItem[]> = {
+    estimate_notice: [],
+    reservation_request: [],
+    deposit_waiting: [],
+    reservation_confirmed: [],
+    payment_completed: [],
+  };
   for (const estimate of estimates) {
     if (!stats.currentIds.has(estimate.id)) continue;
     const row = termsRows.find((item) => item.estimateId === estimate.id);
@@ -746,6 +754,44 @@ export function HomeScreen() {
       depositClaimPending: Boolean(row?.depositClaimId),
     });
     stageCounts[stage] += 1;
+    if (stage === "payment_completed") continue;
+    const depositPaid = Number(row?.depositPaid ?? 0);
+    const showDeposit = stage === "reservation_confirmed" && depositPaid > 0;
+    stageLists[stage].push({
+      key: estimate.id,
+      estimateId: estimate.id,
+      name: estimate.customerName || "이름 없음",
+      amount: showDeposit ? depositPaid : estimate.total || 0,
+      amountLabel: showDeposit ? "예약금" : "견적금액",
+    });
+  }
+  // 결제 완료 목록: 완료 보관함 + 현재 목록의 완료 건 (같은 견적은 한 번만)
+  {
+    const seen = new Set<string>();
+    for (const a of archivedRows) {
+      if (seen.has(a.estimateId)) continue;
+      seen.add(a.estimateId);
+      const live = estimates.find((e) => e.id === a.estimateId);
+      stageLists.payment_completed.push({
+        key: a.termsId,
+        estimateId: a.estimateId,
+        termsId: a.termsId,
+        name: live?.customerName || a.customerName || "이름 없음",
+        amount: live?.total || a.total || 0,
+        amountLabel: "견적금액",
+      });
+    }
+    for (const e of estimates) {
+      if (!stats.completedIds.has(e.id) || seen.has(e.id)) continue;
+      seen.add(e.id);
+      stageLists.payment_completed.push({
+        key: e.id,
+        estimateId: e.id,
+        name: e.customerName || "이름 없음",
+        amount: e.total || 0,
+        amountLabel: "견적금액",
+      });
+    }
   }
   // 고객 현황·최근 작업도 같은 기준: 현재 견적(보관·삭제·취소 제외)만 씁니다
   const currentEstimates = estimates.filter((e) => stats.currentIds.has(e.id));
@@ -932,12 +978,17 @@ export function HomeScreen() {
           </div>
           <div className="grid grid-cols-2 gap-2 text-center">
             {(Object.keys(stageCounts) as Array<keyof typeof stageCounts>).map((stage) => (
-              <div key={stage} className="rounded-[14px] bg-[#F7F8F5] py-3 last:col-span-2">
+              <button
+                type="button"
+                key={stage}
+                onClick={() => setOpenStage(stage)}
+                className="rounded-[14px] bg-[#F7F8F5] py-3 last:col-span-2 active:scale-[0.98]"
+              >
                 <div className="text-2xl font-black text-[#25282D]">
                   {statsReady ? stageCounts[stage] : "…"}
                 </div>
                 <div className="mt-0.5 text-[14px] text-[#6B7280]">{RESERVATION_STAGE_LABEL[stage]}</div>
-              </div>
+              </button>
             ))}
           </div>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#F1F5FA]">
