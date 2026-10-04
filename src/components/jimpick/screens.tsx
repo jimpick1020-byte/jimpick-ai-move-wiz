@@ -1067,8 +1067,12 @@ export function HomeScreen() {
                               <div className="min-w-0 flex-1">
                                 <div className="truncate text-[15px] font-black text-[#25282D]">{item.name} 고객님</div>
                                 <div className="mt-0.5 text-[13px] font-semibold text-[#6B7280]">
-                                  {g.title === "이사 날짜 미정" ? "이사 날짜 미정" : `이사시간 ${String(item.moveTime ?? "").trim() || "시간 미정"}`}
-                                  <span className="mx-1.5 text-[#E5E7EB]">|</span>
+                                  {g.title !== "이사 날짜 미정" && (
+                                    <>
+                                      이사시간 {String(item.moveTime ?? "").trim() || "시간 미정"}
+                                      <span className="mx-1.5 text-[#E5E7EB]">|</span>
+                                    </>
+                                  )}
                                   <span className="tabular-nums">
                                     {item.amountLabel} {item.amount.toLocaleString()}원
                                   </span>
