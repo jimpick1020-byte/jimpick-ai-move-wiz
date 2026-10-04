@@ -370,6 +370,7 @@ export const listArchivedContracts = createServerFn({ method: "GET" })
         estimateId: String(r["estimate_id"] ?? ""),
         customerName: String(r["customer_name"] ?? ""),
         moveDate: String(r["move_date"] ?? ""),
+        moveTime: (r["move_time"] as string | null) ?? null,
         total: Number(r["total"] ?? 0),
         depositPaid: Number(r["deposit_paid"] ?? 0),
         balancePaid: Number(r["balance_paid"] ?? 0),
