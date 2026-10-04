@@ -324,6 +324,7 @@ export interface ArchivedContractRow {
   estimateId: string;
   customerName: string;
   moveDate: string;
+  moveTime: string | null;
   total: number;
   depositPaid: number;
   balancePaid: number;
