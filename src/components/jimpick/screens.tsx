@@ -1,5 +1,5 @@
 import { calcDeposit, calcBalance } from "@/lib/deposit-rule";
-import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, shortMoveDate } from "@/lib/estimate-sort";
+import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate } from "@/lib/estimate-sort";
 import { publicUrl } from "@/lib/app-url";
 import {
   useCallback,
@@ -735,7 +735,7 @@ export function HomeScreen() {
     reservation_confirmed: 0,
     payment_completed: stats.completed,
   };
-  type StageItem = { key: string; estimateId: string; termsId?: string; name: string; amount: number; amountLabel: string };
+  type StageItem = { key: string; estimateId: string; termsId?: string; name: string; amount: number; amountLabel: string; moveDate?: string; moveTime?: string | null; createdAt?: number };
   const stageLists: Record<keyof typeof stageCounts, StageItem[]> = {
     estimate_notice: [],
     reservation_request: [],
@@ -764,6 +764,9 @@ export function HomeScreen() {
       name: estimate.customerName || "이름 없음",
       amount: showDeposit ? depositPaid : estimate.total || 0,
       amountLabel: showDeposit ? "예약금" : "견적금액",
+      moveDate: estimate.moveDate,
+      moveTime: estimate.moveTime,
+      createdAt: estimate.createdAt,
     });
   }
   // 결제 완료 목록: 완료 보관함 + 현재 목록의 완료 건 (같은 견적은 한 번만)
@@ -780,6 +783,9 @@ export function HomeScreen() {
         name: live?.customerName || a.customerName || "이름 없음",
         amount: live?.total || a.total || 0,
         amountLabel: "견적금액",
+        moveDate: live?.moveDate || a.moveDate,
+        moveTime: live?.moveTime ?? a.moveTime ?? null,
+        createdAt: 0,
       });
     }
     for (const e of estimates) {
@@ -791,9 +797,41 @@ export function HomeScreen() {
         name: e.customerName || "이름 없음",
         amount: e.total || 0,
         amountLabel: "견적금액",
+        moveDate: e.moveDate,
+        moveTime: e.moveTime,
+        createdAt: e.createdAt,
       });
     }
   }
+  /** 상태 목록을 이사 날짜별로 묶습니다 (가까운 날짜부터, 날짜 없는 건은 맨 아래) */
+  const stageDateGroups = (items: StageItem[]) => {
+    const dated = new Map<string, { title: string; t: number; items: StageItem[] }>();
+    const undated: StageItem[] = [];
+    const thisYear = new Date().getFullYear();
+    for (const it of items) {
+      const t = parseMoveDate(it.moveDate);
+      if (t === null) {
+        undated.push(it);
+        continue;
+      }
+      const d = new Date(t);
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+      const wd = new Intl.DateTimeFormat("ko-KR", { weekday: "short", timeZone: "UTC" }).format(d);
+      const title = `${d.getUTCFullYear() !== thisYear ? `${d.getUTCFullYear()}년 ` : ""}${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 (${wd})`;
+      if (!dated.has(key)) dated.set(key, { title, t, items: [] });
+      dated.get(key)!.items.push(it);
+    }
+    const groups = [...dated.values()].sort((a, b) => a.t - b.t);
+    for (const g of groups) {
+      g.items.sort((a, b) => {
+        const ta = parseMoveTime(a.moveTime), tb = parseMoveTime(b.moveTime);
+        if (ta !== tb) return ta - tb;
+        return (a.createdAt ?? 0) - (b.createdAt ?? 0);
+      });
+    }
+    if (undated.length) groups.push({ title: "이사 날짜 미정", t: Infinity, items: undated });
+    return groups;
+  };
   // 고객 현황·최근 작업도 같은 기준: 현재 견적(보관·삭제·취소 제외)만 씁니다
   const currentEstimates = estimates.filter((e) => stats.currentIds.has(e.id));
   const customerCount = new Set(
@@ -1010,35 +1048,57 @@ export function HomeScreen() {
                 </div>
                 <button type="button" onClick={() => setOpenStage(null)} className="text-[14px] font-bold text-[#6B7280]">닫기</button>
               </div>
-              <div className="flex-1 space-y-2 overflow-y-auto">
-                {stageLists[openStage].length === 0 ? (
-                  <p className="py-6 text-center text-[14px] font-semibold text-[#8A94A6]">해당 상태의 견적이 없습니다.</p>
-                ) : (
-                  stageLists[openStage].map((item) => (
-                    <div key={item.key} className="flex items-center gap-3 rounded-2xl bg-[#F7F8FA] p-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-[15px] font-black text-[#25282D]">{item.name} 고객님</div>
-                        <div className="text-[13px] font-semibold tabular-nums text-[#6B7280]">
-                          {item.amountLabel} {item.amount.toLocaleString()}원
+              {/* 이사 날짜별로 묶어 가까운 날짜부터 표시합니다 */}
+              {(() => {
+                const groups = stageDateGroups(stageLists[openStage]);
+                return (
+                  <div className="flex-1 space-y-4 overflow-y-auto">
+                    {stageLists[openStage].length === 0 ? (
+                      <p className="py-6 text-center text-[14px] font-semibold text-[#8A94A6]">해당 상태의 견적이 없습니다.</p>
+                    ) : (
+                      groups.map((g) => (
+                        <div key={g.title} className="space-y-2">
+                          <div className="sticky top-0 z-10 -mx-1 bg-white px-1 py-1 text-[14px] font-black text-[#25282D]">
+                            {g.title}
+                            <span className="ml-1.5 text-[13px] font-bold text-[#6B7280]">{g.items.length}건</span>
+                          </div>
+                          {g.items.map((item) => (
+                            <div key={item.key} className="flex items-center gap-3 rounded-2xl bg-[#F7F8FA] p-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-[15px] font-black text-[#25282D]">{item.name} 고객님</div>
+                                <div className="mt-0.5 text-[13px] font-semibold text-[#6B7280]">
+                                  {g.title !== "이사 날짜 미정" && (
+                                    <>
+                                      이사시간 {String(item.moveTime ?? "").trim() || "시간 미정"}
+                                      <span className="mx-1.5 text-[#E5E7EB]">|</span>
+                                    </>
+                                  )}
+                                  <span className="tabular-nums">
+                                    {item.amountLabel} {item.amount.toLocaleString()}원
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenStage(null);
+                                  if (estimates.some((e) => e.id === item.estimateId)) loadEstimate(item.estimateId);
+                                  else if (item.termsId)
+                                    openContractBooking({ estimateId: item.estimateId, termsId: item.termsId } as import("@/lib/terms.functions").ReservationRow);
+                                  else toast.error("견적서를 불러오지 못했습니다.");
+                                }}
+                                className="shrink-0 rounded-xl bg-[#EAF2FC] px-3 py-2 text-[13px] font-black text-[#1671E8]"
+                              >
+                                견적 보기
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenStage(null);
-                          if (estimates.some((e) => e.id === item.estimateId)) loadEstimate(item.estimateId);
-                          else if (item.termsId)
-                            openContractBooking({ estimateId: item.estimateId, termsId: item.termsId } as import("@/lib/terms.functions").ReservationRow);
-                          else toast.error("견적서를 불러오지 못했습니다.");
-                        }}
-                        className="shrink-0 rounded-xl bg-[#EAF2FC] px-3 py-2 text-[13px] font-black text-[#1671E8]"
-                      >
-                        견적 보기
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
+                      ))
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
