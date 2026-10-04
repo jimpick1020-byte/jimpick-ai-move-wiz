@@ -341,7 +341,7 @@ export const listArchivedContracts = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("estimate_terms")
       .select(
-        "id, estimate_id, customer_name, move_date, move_time, total, deposit_paid, balance_paid, payment_status, calendar_archived_at, paid_at, access_token, sheet_snapshot",
+        "id, estimate_id, customer_name, move_date, total, deposit_paid, balance_paid, payment_status, calendar_archived_at, paid_at, access_token, sheet_snapshot",
       )
       .eq("user_id", context.userId)
       .eq("payment_status", "completed")
