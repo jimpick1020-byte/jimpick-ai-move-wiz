@@ -697,6 +697,7 @@ export function HomeScreen() {
   const [archivedRows, setArchivedRows] = useState<ArchivedContractRow[]>([]);
   /** 서버(실제 결제 기록)를 다 읽기 전에는 숫자를 보여 주지 않습니다 */
   const [statsReady, setStatsReady] = useState(false);
+  const [openStage, setOpenStage] = useState<import("@/lib/reservation-status").ReservationStage | null>(null);
   useEffect(() => {
     let alive = true;
     const load = () => {
@@ -734,6 +735,14 @@ export function HomeScreen() {
     reservation_confirmed: 0,
     payment_completed: stats.completed,
   };
+  type StageItem = { key: string; estimateId: string; termsId?: string; name: string; amount: number; amountLabel: string };
+  const stageLists: Record<keyof typeof stageCounts, StageItem[]> = {
+    estimate_notice: [],
+    reservation_request: [],
+    deposit_waiting: [],
+    reservation_confirmed: [],
+    payment_completed: [],
+  };
   for (const estimate of estimates) {
     if (!stats.currentIds.has(estimate.id)) continue;
     const row = termsRows.find((item) => item.estimateId === estimate.id);
@@ -746,6 +755,44 @@ export function HomeScreen() {
       depositClaimPending: Boolean(row?.depositClaimId),
     });
     stageCounts[stage] += 1;
+    if (stage === "payment_completed") continue;
+    const depositPaid = Number(row?.depositPaid ?? 0);
+    const showDeposit = stage === "reservation_confirmed" && depositPaid > 0;
+    stageLists[stage].push({
+      key: estimate.id,
+      estimateId: estimate.id,
+      name: estimate.customerName || "이름 없음",
+      amount: showDeposit ? depositPaid : estimate.total || 0,
+      amountLabel: showDeposit ? "예약금" : "견적금액",
+    });
+  }
+  // 결제 완료 목록: 완료 보관함 + 현재 목록의 완료 건 (같은 견적은 한 번만)
+  {
+    const seen = new Set<string>();
+    for (const a of archivedRows) {
+      if (seen.has(a.estimateId)) continue;
+      seen.add(a.estimateId);
+      const live = estimates.find((e) => e.id === a.estimateId);
+      stageLists.payment_completed.push({
+        key: a.termsId,
+        estimateId: a.estimateId,
+        termsId: a.termsId,
+        name: live?.customerName || a.customerName || "이름 없음",
+        amount: live?.total || a.total || 0,
+        amountLabel: "견적금액",
+      });
+    }
+    for (const e of estimates) {
+      if (!stats.completedIds.has(e.id) || seen.has(e.id)) continue;
+      seen.add(e.id);
+      stageLists.payment_completed.push({
+        key: e.id,
+        estimateId: e.id,
+        name: e.customerName || "이름 없음",
+        amount: e.total || 0,
+        amountLabel: "견적금액",
+      });
+    }
   }
   // 고객 현황·최근 작업도 같은 기준: 현재 견적(보관·삭제·취소 제외)만 씁니다
   const currentEstimates = estimates.filter((e) => stats.currentIds.has(e.id));
@@ -932,12 +979,17 @@ export function HomeScreen() {
           </div>
           <div className="grid grid-cols-2 gap-2 text-center">
             {(Object.keys(stageCounts) as Array<keyof typeof stageCounts>).map((stage) => (
-              <div key={stage} className="rounded-[14px] bg-[#F7F8F5] py-3 last:col-span-2">
+              <button
+                type="button"
+                key={stage}
+                onClick={() => setOpenStage(stage)}
+                className="rounded-[14px] bg-[#F7F8F5] py-3 last:col-span-2 active:scale-[0.98]"
+              >
                 <div className="text-2xl font-black text-[#25282D]">
                   {statsReady ? stageCounts[stage] : "…"}
                 </div>
                 <div className="mt-0.5 text-[14px] text-[#6B7280]">{RESERVATION_STAGE_LABEL[stage]}</div>
-              </div>
+              </button>
             ))}
           </div>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#F1F5FA]">
@@ -948,6 +1000,48 @@ export function HomeScreen() {
           </div>
           <div className="mt-1 text-right text-[15px] text-[#6B7280]">완료율 {pct}%</div>
         </Card>
+        {openStage && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center">
+            <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => setOpenStage(null)} />
+            <div role="dialog" aria-modal="true" className="relative flex max-h-[75vh] w-full max-w-[480px] flex-col rounded-t-3xl bg-white p-5 pb-6 shadow-[0_-8px_30px_rgba(15,23,42,0.2)]">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-[17px] font-black text-[#25282D]">
+                  {RESERVATION_STAGE_LABEL[openStage]} · {stageLists[openStage].length}건
+                </div>
+                <button type="button" onClick={() => setOpenStage(null)} className="text-[14px] font-bold text-[#6B7280]">닫기</button>
+              </div>
+              <div className="flex-1 space-y-2 overflow-y-auto">
+                {stageLists[openStage].length === 0 ? (
+                  <p className="py-6 text-center text-[14px] font-semibold text-[#8A94A6]">해당 상태의 견적이 없습니다.</p>
+                ) : (
+                  stageLists[openStage].map((item) => (
+                    <div key={item.key} className="flex items-center gap-3 rounded-2xl bg-[#F7F8FA] p-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[15px] font-black text-[#25282D]">{item.name} 고객님</div>
+                        <div className="text-[13px] font-semibold tabular-nums text-[#6B7280]">
+                          {item.amountLabel} {item.amount.toLocaleString()}원
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenStage(null);
+                          if (estimates.some((e) => e.id === item.estimateId)) loadEstimate(item.estimateId);
+                          else if (item.termsId)
+                            openContractBooking({ estimateId: item.estimateId, termsId: item.termsId } as import("@/lib/terms.functions").ReservationRow);
+                          else toast.error("견적서를 불러오지 못했습니다.");
+                        }}
+                        className="shrink-0 rounded-xl bg-[#EAF2FC] px-3 py-2 text-[13px] font-black text-[#1671E8]"
+                      >
+                        견적 보기
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 고객 현황 — 전화번호로 같은 고객을 한 사람으로 셉니다 */}
         <Card className="rounded-[14px]">
