@@ -358,10 +358,12 @@ export const listArchivedContracts = createServerFn({ method: "GET" })
     );
     return rows.map((r) => {
       let sizeTab = "";
+      let moveTime: string | null = null;
       try {
         const snap = r["sheet_snapshot"] ? JSON.parse(String(r["sheet_snapshot"])) : null;
         const d = (snap?.draft ?? {}) as Record<string, unknown>;
         if (typeof d["sizeTab"] === "string") sizeTab = d["sizeTab"];
+        if (typeof d["moveTime"] === "string") moveTime = d["moveTime"];
       } catch {
         /* 스냅샷을 읽지 못하면 평수는 비워 둡니다 */
       }
