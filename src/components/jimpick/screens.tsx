@@ -784,7 +784,7 @@ export function HomeScreen() {
         amount: live?.total || a.total || 0,
         amountLabel: "견적금액",
         moveDate: live?.moveDate || a.moveDate,
-        moveTime: live?.moveTime ?? null,
+        moveTime: live?.moveTime ?? a.moveTime ?? null,
         createdAt: 0,
       });
     }
