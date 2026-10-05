@@ -804,34 +804,13 @@ export function HomeScreen() {
       });
     }
   }
-  /** 상태 목록을 이사 날짜별로 묶습니다 (가까운 날짜부터, 날짜 없는 건은 맨 아래) */
-  const stageDateGroups = (items: StageItem[]) => {
-    const dated = new Map<string, { title: string; t: number; items: StageItem[] }>();
-    const undated: StageItem[] = [];
-    const thisYear = new Date().getFullYear();
-    for (const it of items) {
-      const t = parseMoveDate(it.moveDate);
-      if (t === null) {
-        undated.push(it);
-        continue;
-      }
-      const d = new Date(t);
-      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-      const wd = new Intl.DateTimeFormat("ko-KR", { weekday: "short", timeZone: "UTC" }).format(d);
-      const title = `${d.getUTCFullYear() !== thisYear ? `${d.getUTCFullYear()}년 ` : ""}${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 (${wd})`;
-      if (!dated.has(key)) dated.set(key, { title, t, items: [] });
-      dated.get(key)!.items.push(it);
-    }
-    const groups = [...dated.values()].sort((a, b) => a.t - b.t);
-    for (const g of groups) {
-      g.items.sort((a, b) => {
-        const ta = parseMoveTime(a.moveTime), tb = parseMoveTime(b.moveTime);
-        if (ta !== tb) return ta - tb;
-        return (a.createdAt ?? 0) - (b.createdAt ?? 0);
-      });
-    }
-    if (undated.length) groups.push({ title: "이사 날짜 미정", t: Infinity, items: undated });
-    return groups;
+  /** 상태 패널을 열 때 가장 가까운 달 하나만 펼칩니다 (한국시간 기준) */
+  const nearestStageMonth = (items: StageItem[]) => {
+    const dated = groupByMoveMonth(items).filter((g) => g.key !== "undated");
+    if (dated.length === 0) return new Set<string>();
+    const cur = seoulMonthKey();
+    const nearest = dated.find((g) => g.key >= cur) ?? dated[dated.length - 1];
+    return new Set([nearest.key]);
   };
   // 고객 현황·최근 작업도 같은 기준: 현재 견적(보관·삭제·취소 제외)만 씁니다
   const currentEstimates = estimates.filter((e) => stats.currentIds.has(e.id));
