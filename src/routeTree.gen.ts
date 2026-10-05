@@ -9,30 +9,25 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ShareIdRouteImport } from './routes/share.$id'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as BillingCallbackRouteImport } from './routes/billing.callback'
+import { Route as ShareIdRouteImport } from './routes/share.$id'
 import { Route as StaffEstimateTokenRouteImport } from './routes/staff.estimate.$token'
-import { Route as ApiPublicItemIconFileRouteImport } from './routes/api/public/item-icon.$file'
-import { Route as ApiPublicHooksSweepMoveRemindersRouteImport } from './routes/api/public/hooks/sweep-move-reminders'
-import { Route as ApiPublicHooksSendMoveRemindersRouteImport } from './routes/api/public/hooks/send-move-reminders'
-import { Route as ApiPublicHooksFixNoticeRouteImport } from './routes/api/public/hooks/fix-notice'
 import { Route as ApiPublicHooksCheckMoveReminderResultsRouteImport } from './routes/api/public/hooks/check-move-reminder-results'
+import { Route as ApiPublicHooksFixNoticeRouteImport } from './routes/api/public/hooks/fix-notice'
+import { Route as ApiPublicHooksSendMoveRemindersRouteImport } from './routes/api/public/hooks/send-move-reminders'
+import { Route as ApiPublicHooksSweepMoveRemindersRouteImport } from './routes/api/public/hooks/sweep-move-reminders'
+import { Route as ApiPublicItemIconFileRouteImport } from './routes/api/public/item-icon.$file'
 
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ShareIdRoute = ShareIdRouteImport.update({
-  id: '/share/$id',
-  path: '/share/$id',
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BillingCallbackRoute = BillingCallbackRouteImport.update({
@@ -40,31 +35,14 @@ const BillingCallbackRoute = BillingCallbackRouteImport.update({
   path: '/billing/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShareIdRoute = ShareIdRouteImport.update({
+  id: '/share/$id',
+  path: '/share/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StaffEstimateTokenRoute = StaffEstimateTokenRouteImport.update({
   id: '/staff/estimate/$token',
   path: '/staff/estimate/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicItemIconFileRoute = ApiPublicItemIconFileRouteImport.update({
-  id: '/api/public/item-icon/$file',
-  path: '/api/public/item-icon/$file',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicHooksSweepMoveRemindersRoute =
-  ApiPublicHooksSweepMoveRemindersRouteImport.update({
-    id: '/api/public/hooks/sweep-move-reminders',
-    path: '/api/public/hooks/sweep-move-reminders',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksSendMoveRemindersRoute =
-  ApiPublicHooksSendMoveRemindersRouteImport.update({
-    id: '/api/public/hooks/send-move-reminders',
-    path: '/api/public/hooks/send-move-reminders',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksFixNoticeRoute = ApiPublicHooksFixNoticeRouteImport.update({
-  id: '/api/public/hooks/fix-notice',
-  path: '/api/public/hooks/fix-notice',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicHooksCheckMoveReminderResultsRoute =
@@ -73,6 +51,28 @@ const ApiPublicHooksCheckMoveReminderResultsRoute =
     path: '/api/public/hooks/check-move-reminder-results',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksFixNoticeRoute = ApiPublicHooksFixNoticeRouteImport.update({
+  id: '/api/public/hooks/fix-notice',
+  path: '/api/public/hooks/fix-notice',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHooksSendMoveRemindersRoute =
+  ApiPublicHooksSendMoveRemindersRouteImport.update({
+    id: '/api/public/hooks/send-move-reminders',
+    path: '/api/public/hooks/send-move-reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksSweepMoveRemindersRoute =
+  ApiPublicHooksSweepMoveRemindersRouteImport.update({
+    id: '/api/public/hooks/sweep-move-reminders',
+    path: '/api/public/hooks/sweep-move-reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicItemIconFileRoute = ApiPublicItemIconFileRouteImport.update({
+  id: '/api/public/item-icon/$file',
+  path: '/api/public/item-icon/$file',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -165,13 +165,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -179,11 +172,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/share/$id': {
-      id: '/share/$id'
-      path: '/share/$id'
-      fullPath: '/share/$id'
-      preLoaderRoute: typeof ShareIdRouteImport
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/billing/callback': {
@@ -193,6 +186,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BillingCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/share/$id': {
+      id: '/share/$id'
+      path: '/share/$id'
+      fullPath: '/share/$id'
+      preLoaderRoute: typeof ShareIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/staff/estimate/$token': {
       id: '/staff/estimate/$token'
       path: '/staff/estimate/$token'
@@ -200,25 +200,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffEstimateTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/item-icon/$file': {
-      id: '/api/public/item-icon/$file'
-      path: '/api/public/item-icon/$file'
-      fullPath: '/api/public/item-icon/$file'
-      preLoaderRoute: typeof ApiPublicItemIconFileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/sweep-move-reminders': {
-      id: '/api/public/hooks/sweep-move-reminders'
-      path: '/api/public/hooks/sweep-move-reminders'
-      fullPath: '/api/public/hooks/sweep-move-reminders'
-      preLoaderRoute: typeof ApiPublicHooksSweepMoveRemindersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/send-move-reminders': {
-      id: '/api/public/hooks/send-move-reminders'
-      path: '/api/public/hooks/send-move-reminders'
-      fullPath: '/api/public/hooks/send-move-reminders'
-      preLoaderRoute: typeof ApiPublicHooksSendMoveRemindersRouteImport
+    '/api/public/hooks/check-move-reminder-results': {
+      id: '/api/public/hooks/check-move-reminder-results'
+      path: '/api/public/hooks/check-move-reminder-results'
+      fullPath: '/api/public/hooks/check-move-reminder-results'
+      preLoaderRoute: typeof ApiPublicHooksCheckMoveReminderResultsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/fix-notice': {
@@ -228,11 +214,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksFixNoticeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/check-move-reminder-results': {
-      id: '/api/public/hooks/check-move-reminder-results'
-      path: '/api/public/hooks/check-move-reminder-results'
-      fullPath: '/api/public/hooks/check-move-reminder-results'
-      preLoaderRoute: typeof ApiPublicHooksCheckMoveReminderResultsRouteImport
+    '/api/public/hooks/send-move-reminders': {
+      id: '/api/public/hooks/send-move-reminders'
+      path: '/api/public/hooks/send-move-reminders'
+      fullPath: '/api/public/hooks/send-move-reminders'
+      preLoaderRoute: typeof ApiPublicHooksSendMoveRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/sweep-move-reminders': {
+      id: '/api/public/hooks/sweep-move-reminders'
+      path: '/api/public/hooks/sweep-move-reminders'
+      fullPath: '/api/public/hooks/sweep-move-reminders'
+      preLoaderRoute: typeof ApiPublicHooksSweepMoveRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/item-icon/$file': {
+      id: '/api/public/item-icon/$file'
+      path: '/api/public/item-icon/$file'
+      fullPath: '/api/public/item-icon/$file'
+      preLoaderRoute: typeof ApiPublicItemIconFileRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
