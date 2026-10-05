@@ -1000,7 +1000,10 @@ export function HomeScreen() {
               <button
                 type="button"
                 key={stage}
-                onClick={() => setOpenStage(stage)}
+                onClick={() => {
+                  setOpenStage(stage);
+                  setOpenStageMonths(nearestStageMonth(stageLists[stage]));
+                }}
                 className="rounded-[14px] bg-[#F7F8F5] py-3 last:col-span-2 active:scale-[0.98]"
               >
                 <div className="text-2xl font-black text-[#25282D]">
@@ -1028,53 +1031,75 @@ export function HomeScreen() {
                 </div>
                 <button type="button" onClick={() => setOpenStage(null)} className="text-[14px] font-bold text-[#6B7280]">닫기</button>
               </div>
-              {/* 이사 날짜별로 묶어 가까운 날짜부터 표시합니다 */}
+              {/* 이사 날짜의 월별로 묶어 가까운 달부터 표시합니다 */}
               {(() => {
-                const groups = stageDateGroups(stageLists[openStage]);
+                const groups = groupByMoveMonth(stageLists[openStage]);
                 return (
-                  <div className="flex-1 space-y-4 overflow-y-auto">
+                  <div className="flex-1 space-y-3 overflow-y-auto">
                     {stageLists[openStage].length === 0 ? (
                       <p className="py-6 text-center text-[14px] font-semibold text-[#8A94A6]">해당 상태의 견적이 없습니다.</p>
                     ) : (
-                      groups.map((g) => (
-                        <div key={g.title} className="space-y-2">
-                          <div className="sticky top-0 z-10 -mx-1 bg-white px-1 py-1 text-[14px] font-black text-[#25282D]">
-                            {g.title}
-                            <span className="ml-1.5 text-[13px] font-bold text-[#6B7280]">{g.items.length}건</span>
-                          </div>
-                          {g.items.map((item) => (
-                            <div key={item.key} className="flex items-center gap-3 rounded-2xl bg-[#F7F8FA] p-3">
-                              <div className="min-w-0 flex-1">
-                                <div className="truncate text-[15px] font-black text-[#25282D]">{item.name} 고객님</div>
-                                <div className="mt-0.5 text-[13px] font-semibold text-[#6B7280]">
-                                  {g.title !== "이사 날짜 미정" && (
-                                    <>
-                                      이사시간 {String(item.moveTime ?? "").trim() || "시간 미정"}
-                                      <span className="mx-1.5 text-[#E5E7EB]">|</span>
-                                    </>
-                                  )}
-                                  <span className="tabular-nums">
-                                    {item.amountLabel} {item.amount.toLocaleString()}원
-                                  </span>
-                                </div>
+                      groups.map((g) => {
+                        const open = openStageMonths.has(g.key);
+                        return (
+                          <div key={g.key}>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenStageMonths((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(g.key)) next.delete(g.key);
+                                  else next.add(g.key);
+                                  return next;
+                                })
+                              }
+                              aria-expanded={open}
+                              className="sticky top-0 z-10 -mx-1 flex w-full items-center bg-white px-1 py-1.5 text-left text-[15px] font-black text-[#25282D]"
+                            >
+                              {g.title}
+                              <span className="ml-1.5 text-[13px] font-bold text-[#6B7280]">{g.items.length}건</span>
+                              <ChevronDown className={`ml-auto h-4 w-4 shrink-0 text-[#6B7280] transition-transform ${open ? "" : "-rotate-90"}`} />
+                            </button>
+                            {open && (
+                              <div className="mt-1 space-y-2">
+                                {g.items.map((item) => (
+                                  <div key={item.key} className="flex items-center gap-3 rounded-2xl bg-[#F7F8FA] p-3">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="truncate text-[15px] font-black text-[#25282D]">{item.name} 고객님</div>
+                                      <div className="mt-0.5 text-[13px] font-semibold text-[#6B7280]">
+                                        {g.key !== "undated" && (
+                                          <>
+                                            {shortMoveDate(item.moveDate)}
+                                            <span className="mx-1.5 text-[#E5E7EB]">|</span>
+                                          </>
+                                        )}
+                                        이사시간 {String(item.moveTime ?? "").trim() || "시간 미정"}
+                                        <span className="mx-1.5 text-[#E5E7EB]">|</span>
+                                        <span className="tabular-nums">
+                                          {item.amountLabel} {item.amount.toLocaleString()}원
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenStage(null);
+                                        if (estimates.some((e) => e.id === item.estimateId)) loadEstimate(item.estimateId);
+                                        else if (item.termsId)
+                                          openContractBooking({ estimateId: item.estimateId, termsId: item.termsId } as import("@/lib/terms.functions").ReservationRow);
+                                        else toast.error("견적서를 불러오지 못했습니다.");
+                                      }}
+                                      className="shrink-0 rounded-xl bg-[#EAF2FC] px-3 py-2 text-[13px] font-black text-[#1671E8]"
+                                    >
+                                      견적 보기
+                                    </button>
+                                  </div>
+                                ))}
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenStage(null);
-                                  if (estimates.some((e) => e.id === item.estimateId)) loadEstimate(item.estimateId);
-                                  else if (item.termsId)
-                                    openContractBooking({ estimateId: item.estimateId, termsId: item.termsId } as import("@/lib/terms.functions").ReservationRow);
-                                  else toast.error("견적서를 불러오지 못했습니다.");
-                                }}
-                                className="shrink-0 rounded-xl bg-[#EAF2FC] px-3 py-2 text-[13px] font-black text-[#1671E8]"
-                              >
-                                견적 보기
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ))
+                            )}
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 );
