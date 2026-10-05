@@ -1,5 +1,5 @@
 import { calcDeposit, calcBalance } from "@/lib/deposit-rule";
-import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate } from "@/lib/estimate-sort";
+import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate, seoulMonthKey } from "@/lib/estimate-sort";
 import { publicUrl } from "@/lib/app-url";
 import {
   useCallback,
@@ -698,6 +698,7 @@ export function HomeScreen() {
   /** 서버(실제 결제 기록)를 다 읽기 전에는 숫자를 보여 주지 않습니다 */
   const [statsReady, setStatsReady] = useState(false);
   const [openStage, setOpenStage] = useState<import("@/lib/reservation-status").ReservationStage | null>(null);
+  const [openStageMonths, setOpenStageMonths] = useState<Set<string>>(new Set());
   useEffect(() => {
     let alive = true;
     const load = () => {
