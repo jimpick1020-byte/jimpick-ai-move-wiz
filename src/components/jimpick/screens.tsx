@@ -1,3 +1,4 @@
+import { RoomPickedStrip } from "./RoomPickedStrip";
 import { calcDeposit, calcBalance } from "@/lib/deposit-rule";
 import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate, seoulMonthKey } from "@/lib/estimate-sort";
 import { publicUrl } from "@/lib/app-url";
@@ -271,6 +272,17 @@ const ITEM_FAMILIES: { match: RegExp; label: string; rank: number }[] = [
 function itemFamily(name: string, fallback: string) {
   const found = ITEM_FAMILIES.find(({ match }) => match.test(name));
   return found ?? { label: fallback || "기타", rank: 90 };
+}
+
+/** 품목 원본은 유지하고 공간 선택창에서만 큰 종류 제목으로 묶습니다. */
+function roomPickerKind(name: string, fallback: string) {
+  const family = itemFamily(name, fallback);
+  if (family.rank === 10) return "침대";
+  if ([11, 12, 31, 32, 42].includes(family.rank)) return "수납가구";
+  if ([20, 21, 22].includes(family.rank)) return "거실가구";
+  if ([50, 55].includes(family.rank)) return "주방가전";
+  if (family.rank >= 80) return "생활용품";
+  return family.label;
 }
 
 export function Splash() {
@@ -2274,10 +2286,20 @@ export function Step6() {
     const timer = setTimeout(() => setQd(q), 200);
     return () => clearTimeout(timer);
   }, [q]);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  /** 직접 품목 선택 중 위로 드래그하면 담은 품목 영역을 접어 목록을 넓게 봅니다 */
   const [pickedCollapsed, setPickedCollapsed] = useState(false);
-  const grabberY = useRef<number | null>(null);
+  useEffect(() => {
+    if (!openRoom) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenRoom(null);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previous;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [openRoom]);
   /** 수량을 0으로 줄일 때 뜨는 삭제 확인창 */
   const [confirmRemove, setConfirmRemove] = useState<{
     id: string;
@@ -3335,7 +3357,7 @@ export function Step6() {
                     tap("soft");
                     if (r) setCurrentRoom(r.id);
                     setOpenRoom(name);
-                    setPickerOpen(false);
+                    setPickedCollapsed(false);
                     setQ("");
                   }}
                   className="w-full text-left active:translate-y-[2px] transition-transform"
@@ -3414,201 +3436,65 @@ export function Step6() {
         </PrimaryButton>
       </BottomButtonBar>
 
-      {/* 품목 추가 드로어 */}
+      {/* 4단계 공간별 전체 화면 품목 선택 */}
       {room && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div
-            className="absolute inset-0 bg-[#25282D]/45 backdrop-blur-[2px]"
-            onClick={() => setOpenRoom(null)}
-          />
-          <div
-            className={`relative w-full max-w-md flex flex-col rounded-t-3xl bg-gradient-to-b from-white to-[#F7F8F5] shadow-[0_-14px_40px_rgba(7,81,216,0.28)] pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
-              // 품목을 고를 때는 시트를 위로 더 끌어올려 넓게 보여 줍니다
-              pickerOpen && pickedCollapsed
-                ? "h-[98dvh] max-h-[98dvh]"
-                : pickerOpen
-                  ? "h-[95dvh] max-h-[95dvh]"
-                  : "max-h-[86dvh]"
-            }`}
-          >
-            {/* 드래그 손잡이 — 위로 올리면 담은 품목이 접혀 품목 목록이 넓어집니다 */}
-            {pickerOpen && (
-              <div
-                role="button"
-                tabIndex={0}
-                aria-label={pickedCollapsed ? "담은 품목 펼치기" : "담은 품목 접기"}
-                onPointerDown={(e) => {
-                  grabberY.current = e.clientY;
-                  // 마우스로 위아래로 끌어도 pointerUp이 손잡이에 전달되도록 포인터를 붙잡습니다
-                  try {
-                    e.currentTarget.setPointerCapture(e.pointerId);
-                  } catch {
-                    /* 일부 환경에서는 지원하지 않아도 탭 토글은 동작합니다 */
-                  }
-                }}
-                onPointerUp={(e) => {
-                  if (grabberY.current == null) return;
-                  const dy = e.clientY - grabberY.current;
-                  grabberY.current = null;
-                  if (Math.abs(dy) < 24) {
-                    tap("soft");
-                    setPickedCollapsed((v) => !v);
-                  } else if (dy < 0 && !pickedCollapsed) {
-                    tap("soft");
-                    setPickedCollapsed(true);
-                  } else if (dy > 0 && pickedCollapsed) {
-                    tap("soft");
-                    setPickedCollapsed(false);
-                  }
-                }}
-                className="flex w-full shrink-0 cursor-grab touch-none justify-center pt-2 pb-1 active:cursor-grabbing"
-              >
-                <span className="h-1.5 w-14 rounded-full bg-[#C9D2E0]" />
+        <div className="fixed inset-x-0 top-0 z-50 h-[100dvh] overflow-hidden bg-card text-card-foreground" role="dialog" aria-modal="true" aria-label={`${room.name} 품목 선택`} data-room-picker>
+          <div className="mx-auto flex h-full w-full max-w-md min-h-0 flex-col bg-card">
+            <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+              <div className="flex min-w-0 items-center gap-3">
+                <h2 className="truncate text-lg font-black">{room.name}</h2>
+                <span className="shrink-0 text-sm font-bold text-muted-foreground">{roomSummary(room.items).kinds}종 · {roomSummary(room.items).count}개</span>
               </div>
-            )}
-            <div className="px-4 pt-2 pb-1.5 flex items-center gap-2">
-              <span
-                className={`px-3 py-1 rounded-xl text-white text-[15px] font-black bg-gradient-to-b ${
-                  ROOM_TINT[room.name] || "from-[#5B93D6] to-[#3578C8]"
-                } shadow-[0_3px_0_rgba(0,0,0,0.18)]`}
-              >
-                {room.name}
-              </span>
-              <span className="text-[13px] font-extrabold text-[#6B7280]">
-                {roomSummary(room.items).kinds}종 · {roomSummary(room.items).count}개
-              </span>
-              <button
-                onClick={() => setOpenRoom(null)}
-                className="ml-auto w-9 h-9 rounded-full bg-white border border-[#E5E7EB] flex items-center justify-center shadow-[0_3px_0_#F7F8F5]"
-                aria-label="닫기"
-              >
-                <X className="w-5 h-5 text-[#6B7280]" />
-              </button>
-            </div>
-
-            {/* 등록된 품목 뱃지 */}
-            <div className="px-4 pt-1">
-              {pickerOpen && pickedCollapsed ? (
-                <button
-                  onClick={() => {
-                    tap("soft");
-                    setPickedCollapsed(false);
-                  }}
-                  className="w-full flex items-center gap-2 rounded-2xl bg-white border border-[#E5E7EB] px-3.5 py-2.5 shadow-[0_3px_0_#F7F8F5,inset_0_1px_0_#fff] active:translate-y-[1px] active:shadow-none"
-                >
-                  <span className="text-[14px] font-black text-[#25282D]">
-                    담은 품목 {roomSummary(room.items).kinds}종 · {roomSummary(room.items).count}개
-                  </span>
-                  <span className="ml-auto flex items-center gap-1 text-[12px] font-black text-[#2A6FD6]">
-                    펼치기 <ChevronDown className="w-4 h-4" />
-                  </span>
-                </button>
-              ) : picked.length === 0 ? (
-                <p className="text-[13px] font-bold text-[#9AA4B2]">아직 등록된 품목이 없습니다</p>
-              ) : (
-                <div
-                  className={`grid grid-cols-4 gap-1.5 ${
-                    pickerOpen ? "max-h-[34dvh] overflow-auto rounded-2xl" : ""
-                  }`}
-                >
-                  {picked.map((p) => (
-                    <div
-                      key={p.id}
-                      className="relative flex min-w-0 flex-col justify-between rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] px-1.5 pb-1 pt-1 shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff]"
+              <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" onClick={() => setOpenRoom(null)} aria-label="닫기"><X /></Button>
+            </header>
+            <RoomPickedStrip
+              items={picked} disposal={room.disposal} collapsed={pickedCollapsed}
+              onToggle={() => setPickedCollapsed((value) => !value)}
+              onRemove={(item) => setConfirmRemove({ id: item.id, name: item.name, room: room.name })}
+              onMenu={setItemMenu}
+              onDecrease={(item) => decQty(item.id, item.name, item.qty)}
+              onIncrease={(item) => setQty(item.id, item.qty + 1, item.name)}
+            />
+            <div className="shrink-0 space-y-2 border-b border-border px-4 pb-3 pt-1" data-room-filters>
+                <div className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {visibleCats.map((c) => (
+                    <Button variant="ghost"
+                      key={c}
+                      data-category={c}
+                      data-selected={!q && c === tab}
+                      onClick={() => {
+                        tap("soft");
+                        setTab(c);
+                        setQ("");
+                      }}
+                      className="jp-category-tab shrink-0 rounded-2xl px-4 py-2.5 text-[14px] font-black whitespace-nowrap transition-all active:translate-y-[2px]"
                     >
-                      <button
-                        onClick={() => setConfirmRemove({ id: p.id, name: p.name, room: room.name })}
-                        className="absolute right-0.5 top-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#94A3B8] shadow-sm"
-                        aria-label={`${p.name} 삭제`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          tap("soft");
-                          setItemMenu(p.id);
-                        }}
-                        className="absolute left-0.5 top-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[11px] font-black leading-none text-[#64748B]"
-                        aria-label={`${p.name} 관리`}
-                      >
-                        ⋯
-                      </button>
-                      <div className="relative flex h-[44px] items-center justify-center">
-                        <span className="relative inline-flex h-[44px] w-[44px] items-center justify-center">
-                          <ItemArt id={p.id} name={p.name} size={44} />
-                          {room.disposal?.[p.id] && <DisposalX />}
-                        </span>
-                      </div>
-                      <div className="break-keep text-center text-[11.5px] font-extrabold leading-tight text-[#25282D] line-clamp-2">
-                        {p.name}
-                      </div>
-                      <div className="mt-0.5 flex items-center justify-center gap-0.5">
-                        <button
-                          onClick={() => decQty(p.id, p.name, p.qty)}
-                          className="h-7 w-7 shrink-0 rounded-full bg-white border border-[#E5E7EB] text-[14px] font-black text-[#25282D]"
-                          aria-label={`${p.name} 수량 줄이기`}
-                        >
-                          −
-                        </button>
-                        <span className="min-w-4 text-center text-[12.5px] font-black text-[#25282D] tabular-nums">
-                          {p.qty}
-                        </span>
-                        <button
-                          onClick={() => setQty(p.id, p.qty + 1, p.name)}
-                          className="h-7 w-7 shrink-0 rounded-full bg-white border border-[#E5E7EB] text-[14px] font-black text-[#25282D]"
-                          aria-label={`${p.name} 수량 늘리기`}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
+                      {c}
+                    </Button>
                   ))}
                 </div>
-              )}
+
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]" />
+                  <TextInput
+                    placeholder="품목명을 검색하세요"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+              <div className="flex justify-end">
+                <Button variant="ghost" size="sm" onClick={openIconGen} className="text-auth-primary"><Plus /> 목록에 없는 품목 추가</Button>
+              </div>
             </div>
-
-            {/* 직접 품목 선택 (기본 접힘) + 3D 품목 생성 */}
-            <div className="flex items-stretch gap-2 px-4 pt-2">
-              <button
-                onClick={() => {
-                  tap("soft");
-                  setPickerOpen((v) => !v);
-                }}
-                className="flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-[#E5E7EB] bg-white py-3 text-[16px] font-black text-[#25282D] shadow-[0_5px_0_#F7F8F5,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
-              >
-                <Hand className="w-5 h-5" /> 직접 품목 선택
-                <ChevronDown
-                  className={`w-5 h-5 transition-transform ${pickerOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-              <button
-                onClick={openIconGen}
-                aria-label="목록에 없는 품목 추가"
-                className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-[#3578C8] bg-gradient-to-b from-white to-[#EEF6FF] px-3 py-2 text-[11px] font-black leading-tight text-[#2A6FD6] shadow-[0_5px_0_#DCE9FF,inset_0_1px_0_#fff] active:translate-y-[3px] active:shadow-none"
-              >
-                <Sofa className="h-5 w-5" />
-                목록에 없는
-                <br />
-                품목 추가
-              </button>
-            </div>
-
-
-            <p className="px-4 pt-1.5 text-[11.5px] font-bold leading-snug text-[#9AA4B2]">
-              찾는 품목이 없으면 「목록에 없는 품목 추가」를 눌러 품목 이름과 사진을 등록하세요.
-              추가한 품목은 현재 방과 알맞은 품목 그룹에 자동으로 들어갑니다.
-            </p>
-
-            {pickerOpen && (
-              <div className="flex-1 min-h-[44dvh] overflow-auto px-4 pt-3 space-y-3" {...tabSwipe}>
+            <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pt-3 pb-8 space-y-4 [-webkit-overflow-scrolling:touch]" data-room-item-list {...tabSwipe}>
                 {/* 자주 담는 품목 — 검색 없이 눌러서 바로 담습니다 */}
-                <div className="rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 space-y-2 shadow-[inset_0_1px_0_#fff]">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-[13.5px] font-black text-[#25282D]">
                       자주 담는 품목
-                      <span className="ml-1.5 text-[11.5px] font-semibold text-[#9AA4B2]">
-                        한 번 눌러 바로 담기
-                      </span>
+
                     </div>
                     <button
                       onClick={openFavEdit}
@@ -3617,7 +3503,7 @@ export function Step6() {
                       편집
                     </button>
                   </div>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="flex gap-2 overflow-x-auto py-2">
                     {frequent.map((it) => {
                       const qty = room?.items[it.id] || 0;
                       return (
@@ -3627,14 +3513,14 @@ export function Step6() {
                             setQty(it.id, qty + 1, it.name);
                             tap("success");
                           }}
-                          className="relative flex flex-col items-center gap-1 rounded-2xl border px-1 pb-1.5 pt-2 transition-transform active:translate-y-[2px]"
+                          className="relative flex w-20 shrink-0 flex-col items-center gap-1 rounded-lg border px-1 pb-1.5 pt-2 transition-transform active:translate-y-[2px]"
                           style={{
                             borderColor: qty > 0 ? "#3578C8" : "#E5E7EB",
                             background: qty > 0 ? "#F7F8F5" : "#FFFFFF",
                             boxShadow: qty > 0 ? "0 3px 0 #E5E7EB" : "0 2px 0 #F7F8F5",
                           }}
                         >
-                          <ItemArt id={it.id} name={it.name} size={36} />
+                          <span className="relative inline-flex"><ItemArt id={it.id} name={it.name} size={36} />{room.disposal?.[it.id] && <DisposalX />}</span>
                           <span
                             className="w-full text-center text-[14px] font-black leading-tight line-clamp-2"
                             style={{ color: qty > 0 ? "#3578C8" : "#6B7280" }}
@@ -3653,37 +3539,9 @@ export function Step6() {
                   </div>
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {visibleCats.map((c) => (
-                    <button
-                      key={c}
-                      data-category={c}
-                      data-selected={!q && c === tab}
-                      onClick={() => {
-                        tap("soft");
-                        setTab(c);
-                        setQ("");
-                      }}
-                      className="jp-category-tab shrink-0 rounded-2xl px-4 py-2.5 text-[14px] font-black whitespace-nowrap transition-all active:translate-y-[2px]"
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]" />
-                  <TextInput
-                    placeholder="품목명을 검색하세요"
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-
                 {/* 소분류로 묶어서 3D 카드로 보여줍니다 */}
                 <div className="space-y-4">
-                  {[...new Set(items.map((i) => itemFamily(i.name, i.sub || "기타").label))].map((g) => (
+                  {[...new Set(items.map((i) => roomPickerKind(i.name, i.sub || "기타")))].map((g) => (
                     <div key={g}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="px-2.5 py-1 rounded-xl text-[12px] font-black text-white bg-gradient-to-b from-[#7FB6FF] to-[#2A6FD6] shadow-[0_2px_0_#1F5AB0]">
@@ -3693,7 +3551,7 @@ export function Step6() {
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         {items
-                          .filter((i) => itemFamily(i.name, i.sub || "기타").label === g)
+                          .filter((i) => roomPickerKind(i.name, i.sub || "기타") === g)
                           .map((it) => {
                             const qty = room.items[it.id] || 0;
                             const disposed = qty > 0 && !!room.disposal?.[it.id];
@@ -3808,18 +3666,12 @@ export function Step6() {
                   )}
                 </div>
 
-                {/* 아래 「이 공간 완료」 버튼에 목록이 가리지 않도록 여백을 둡니다 */}
-                <div aria-hidden className="h-6" />
-              </div>
-            )}
-
-            <div className="border-t border-[#E5E7EB] bg-white/95 px-4 pt-3 pb-1 backdrop-blur-sm">
-              <PrimaryButton onClick={() => setOpenRoom(null)}>
-                <span className="inline-flex items-center gap-2">
-                  <Check className="w-5 h-5" /> 이 공간 완료
-                </span>
-              </PrimaryButton>
             </div>
+            <footer className="shrink-0 border-t border-border bg-card px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]" data-room-picker-footer>
+              <PrimaryButton onClick={() => setOpenRoom(null)}>
+                <span className="inline-flex items-center gap-2"><Check className="w-5 h-5" /> 이 공간 완료</span>
+              </PrimaryButton>
+            </footer>
 
             {/* 품목 만들기 · 고치기 */}
             {/* 3D 아이콘 만들기 — 확인 후 실제로 그림을 만듭니다 */}
