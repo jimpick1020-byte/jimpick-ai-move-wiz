@@ -14,6 +14,12 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    resolve: {
+      // AI 부품이 끌고 오는 Vercel 전용 부품은 공개 서버 시작을 막으므로 빈 대체품을 씁니다.
+      alias: {
+        "@vercel/oidc": new URL("./src/lib/vercel-oidc-stub.ts", import.meta.url).pathname,
+      },
+    },
     plugins: [
       VitePWA({
         strategies: "generateSW",
