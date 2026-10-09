@@ -306,7 +306,7 @@ export function SharePage() {
       : validLink && typeof link.total === "number" && link.total > 0
         ? link.total
         : 0;
-  const contactPhone = (validLink ? link.contactPhone ?? "" : "").trim();
+  const contactPhone = formatTel(validLink ? link.contactPhone ?? "" : "");
   const companyName = (validLink ? link.companyName ?? "" : "").trim();
   /** 견적서 번호와 차수 — 서버(토큰) 값을 먼저 씁니다 */
   const sheetNo = ((link?.ok ? link.sheetNo : "") || estimate?.sheetNo || "").trim();

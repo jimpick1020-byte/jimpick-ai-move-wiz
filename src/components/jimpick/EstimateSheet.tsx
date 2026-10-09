@@ -571,7 +571,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           <Stat
             icon={<Phone className="h-[19px] w-[19px]" strokeWidth={2} />}
             label="연락처"
-            value={draft.staffPhone?.trim() || companyPhone || "미입력"}
+            value={formatTel(draft.staffPhone?.trim() || companyPhone || "") || "미입력"}
           />
         </div>
 

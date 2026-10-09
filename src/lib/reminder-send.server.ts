@@ -10,7 +10,7 @@
  */
 
 
-interface Reminder {
+ interface Reminder {
   id: string;
   estimate_id: string;
   estimate_terms_id: string | null;

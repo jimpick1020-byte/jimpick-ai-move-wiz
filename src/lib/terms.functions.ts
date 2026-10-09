@@ -9,6 +9,7 @@
  * 약관이 나중에 바뀌어도 고객이 동의한 내용이 그대로 남습니다.
  */
 import { createServerFn } from "@tanstack/react-start";
+import { formatTel } from "./format-input";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { z } from "zod";
@@ -84,8 +85,8 @@ export const publishEstimateTerms = createServerFn({ method: "POST" })
           customer_name: data.customerName,
           move_date: data.moveDate ?? null,
           total: data.total,
-          contact_phone: data.contactPhone ?? null,
-          company_phone: data.companyPhone ?? null,
+          contact_phone: data.contactPhone == null ? null : formatTel(data.contactPhone),
+          company_phone: data.companyPhone == null ? null : formatTel(data.companyPhone),
           terms_name: data.termsName,
           terms_version: data.termsVersion,
           terms_effective_at: data.termsEffectiveAt ?? null,
@@ -913,7 +914,7 @@ export const ownerConfirmContract = createServerFn({ method: "POST" })
         _sheet_no: data.sheetNo ?? null,
         _sheet_version: data.sheetVersion,
         _estimate_snapshot: data.estimateSnapshot ?? null,
-        _contact_phone: data.contactPhone ?? null,
+        _contact_phone: data.contactPhone == null ? null : formatTel(data.contactPhone),
       } as never);
       if (error) {
         console.error("[ownerConfirmContract]", error.message);
