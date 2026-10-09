@@ -3,6 +3,7 @@
  * 금액·계좌·약관은 없습니다. 현장에서 필요한 정보만 담습니다.
  */
 import { useEffect, useState } from "react";
+import { formatTel } from "@/lib/format-input";
 import { useParams } from "@tanstack/react-router";
 import { openStaffShare } from "@/lib/staff-share.functions";
 import type { StaffSheetSnapshot } from "@/lib/staff-share";
@@ -129,7 +130,7 @@ export function StaffSheet() {
               <Row
                 icon={<Phone className="h-5 w-5" />}
                 label="연락처"
-                value={state.snap.customerPhone}
+                value={formatTel(state.snap.customerPhone)}
               />
               <Row
                 icon={<Calendar className="h-5 w-5" />}

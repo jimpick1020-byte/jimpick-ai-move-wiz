@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
+import { formatTel } from "./format-input";
 
 /** 견적서 기본 업체 정보 (사장님 계정별로 profiles 에 저장됩니다) */
 export interface CompanyDefaults {
@@ -78,11 +79,11 @@ export const getCompanyDefaults = createServerFn({ method: "GET" })
       data: {
         companyName: data?.company_name ?? "",
         ownerName: data?.owner_name ?? "",
-        phone: data?.phone ?? "",
+        phone: formatTel(data?.phone ?? ""),
         businessNumber: data?.business_number ?? "",
         certPath: data?.cert_path ?? "",
         staffName: data?.staff_name ?? "",
-        staffPhone: data?.staff_phone ?? "",
+        staffPhone: formatTel(data?.staff_phone ?? ""),
         bankName: data?.bank_name ?? "",
         bankAccount: data?.bank_account ?? "",
         bankHolder: data?.bank_holder ?? "",
@@ -109,11 +110,11 @@ export const saveCompanyDefaults = createServerFn({ method: "POST" })
     };
     put("company_name", data.companyName);
     put("owner_name", data.ownerName);
-    put("phone", data.phone);
+    put("phone", data.phone === undefined ? undefined : formatTel(data.phone));
     put("business_number", data.businessNumber);
     put("cert_path", data.certPath);
     put("staff_name", data.staffName);
-    put("staff_phone", data.staffPhone);
+    put("staff_phone", data.staffPhone === undefined ? undefined : formatTel(data.staffPhone));
     put("bank_name", data.bankName);
     put("bank_account", data.bankAccount);
     put("bank_holder", data.bankHolder);

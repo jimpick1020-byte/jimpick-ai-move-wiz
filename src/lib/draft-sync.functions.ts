@@ -12,6 +12,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { z } from "zod";
+import { formatDraftPhones } from "./format-input";
 
 export interface DraftSyncResult {
   ok: boolean;
@@ -40,6 +41,9 @@ export const saveEstimateDraft = createServerFn({ method: "POST" })
       parsed = JSON.parse(data.payload);
     } catch {
       return { ok: false, error: "임시저장 내용을 읽지 못했습니다." };
+    }
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      parsed = formatDraftPhones(parsed as { phone?: string; staffPhone?: string });
     }
 
     const { data: existing } = await context.supabase
