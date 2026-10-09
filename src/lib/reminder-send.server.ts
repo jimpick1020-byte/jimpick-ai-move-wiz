@@ -10,7 +10,9 @@
  */
 
 
- interface Reminder {
+import { formatTel } from "./format-input";
+
+interface Reminder {
   id: string;
   estimate_id: string;
   estimate_terms_id: string | null;
@@ -214,7 +216,7 @@ async function sendOne(
   const ADMIN_SENDER = "01075662542";
   const sender = ADMIN_SENDER;
   // 문의번호는 해당 업체(company_id) 설정 연락처만. 관리자 번호로 대체하지 않습니다.
-  const companyPhone = String(profile?.phone ?? "").trim();
+  const companyPhone = formatTel(String(profile?.phone ?? ""));
   const setupError = profileErr
     ? "업체 정보를 확인하지 못했습니다."
     : !profile?.company_name?.trim()
