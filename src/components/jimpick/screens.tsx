@@ -1,4 +1,5 @@
 import { StaffSendScreen } from "./StaffSendScreen";
+import { isWaitingHistoryTarget } from "@/lib/history-focus";
 import { WorkerContacts } from "./WorkerContacts";
 import { workerSmsHref, type WorkerContact } from "@/lib/worker-contact";
 import { RoomPickedStrip } from "./RoomPickedStrip";
@@ -1110,9 +1111,16 @@ export function HomeScreen() {
                                         </span>
                                       </div>
                                     </div>
-                                    <button
+                                    <Button
                                       type="button"
+                                      variant="ghost"
                                       onClick={() => {
+                                        if (openStage === "deposit_waiting") {
+                                          try { sessionStorage.setItem("jp_waiting_history_target", item.estimateId); } catch { /* 저장소 제한 */ }
+                                          setOpenStage(null);
+                                          setScreen("history");
+                                          return;
+                                        }
                                         try { sessionStorage.setItem("jp_return_stage", openStage); } catch { /* 무시 */ }
                                         setOpenStage(null);
                                         if (estimates.some((e) => e.id === item.estimateId)) loadEstimate(item.estimateId);
@@ -1120,10 +1128,10 @@ export function HomeScreen() {
                                           openContractBooking({ estimateId: item.estimateId, termsId: item.termsId } as import("@/lib/terms.functions").ReservationRow);
                                         else toast.error("견적서를 불러오지 못했습니다.");
                                       }}
-                                      className="shrink-0 rounded-xl bg-[#EAF2FC] px-3 py-2 text-[13px] font-black text-[#1671E8]"
+                                      className="h-auto min-h-11 shrink-0 rounded-xl bg-auth-soft px-3 py-2 text-[13px] font-black text-auth-primary"
                                     >
-                                      견적 보기
-                                    </button>
+                                      {openStage === "deposit_waiting" ? "입금 대기" : "견적 보기"}
+                                    </Button>
                                   </div>
                                 ))}
                               </div>
@@ -6222,6 +6230,13 @@ export function Result() {
 // ============ History ============
 export function History() {
   const { estimates, setScreen, loadEstimate, deleteEstimate } = useApp();
+  const [waitingTargetId, setWaitingTargetId] = useState<string | null>(null);
+  const [termsReady, setTermsReady] = useState(false);
+  const historyCards = useRef(new Map<string, HTMLDivElement>());
+  const scrolledTarget = useRef<string | null>(null);
+  useEffect(() => {
+    try { setWaitingTargetId(sessionStorage.getItem("jp_waiting_history_target")); } catch { /* 저장소 제한 */ }
+  }, []);
   const [q, setQ] = useState("");
   const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
   /** 사장님 예약확정 알림 문자 발송 기록 */
@@ -6265,7 +6280,7 @@ export function History() {
     const load = () => {
       getTermsStatuses({ data: {} })
         .then((r) => {
-          if (alive && r.ok) setTermsRows(r.rows);
+          if (alive && r.ok) { setTermsRows(r.rows); setTermsReady(true); }
         })
         .catch(() => {});
       listArchivedContracts()
@@ -6373,6 +6388,33 @@ export function History() {
   // 이사 날짜(move_date) ASC → 시작시간 ASC → 작성일 ASC, 월별 묶음 + 맨 아래 "이사 날짜 미정"
   const groups = groupByMoveMonth(list);
   const defaultOpen = defaultOpenMonths(groups);
+  useEffect(() => {
+    if (!waitingTargetId || !termsReady) return;
+    const row = termsRows.find((r) => r.estimateId === waitingTargetId);
+    const stage = reservationStageOf({
+      paymentStatus: row?.paymentStatus, depositPaid: row?.depositPaid,
+      balancePaid: row?.balancePaid, acceptedAt: row?.acceptedAt,
+      reservationStatus: row?.reservationStatus, depositClaimPending: Boolean(row?.depositClaimId),
+    });
+    if (!isWaitingHistoryTarget(waitingTargetId, waitingTargetId, stage)) {
+      setWaitingTargetId(null);
+      try { sessionStorage.removeItem("jp_waiting_history_target"); } catch { /* 저장소 제한 */ }
+      return;
+    }
+    const group = groups.find((g) => g.items.some((e) => e.id === waitingTargetId));
+    if (!group || scrolledTarget.current === waitingTargetId) return;
+    if (!(openMonths[group.key] ?? defaultOpen.has(group.key))) {
+      setOpenMonths((m) => ({ ...m, [group.key]: true }));
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      const card = historyCards.current.get(waitingTargetId);
+      if (!card) return;
+      card.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+      scrolledTarget.current = waitingTargetId;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [waitingTargetId, termsReady, termsRows, groups, openMonths, defaultOpen]);
   // 완료 보관함: 이사 날짜 DESC → 완료(보관) 시각 DESC
   const archivedSorted = [...archived].sort((a, b) => {
     const da = parseMoveDate(a.moveDate) ?? -Infinity;
@@ -6500,8 +6542,15 @@ export function History() {
               </button>
               {gOpen && g.items.map((e) => {
           const ts = termsState(e.id);
+          const waitingSelected = termsReady && isWaitingHistoryTarget(waitingTargetId, e.id, reservationStageOf({
+            paymentStatus: ts.row?.paymentStatus, depositPaid: ts.row?.depositPaid,
+            balancePaid: ts.row?.balancePaid, acceptedAt: ts.row?.acceptedAt,
+            reservationStatus: ts.row?.reservationStatus, depositClaimPending: Boolean(ts.row?.depositClaimId),
+          }));
           return (
-            <Card key={e.id}>
+            <div key={e.id} data-history-estimate-id={e.id} data-waiting-selected={waitingSelected}
+              ref={(node) => { if (node) historyCards.current.set(e.id, node); else historyCards.current.delete(e.id); }}>
+            <Card className={waitingSelected ? "jp-waiting-history-card" : ""}>
               {(() => {
                 const open = !!openCard[e.id];
                 return (
