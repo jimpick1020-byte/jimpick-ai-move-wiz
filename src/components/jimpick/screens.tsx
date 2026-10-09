@@ -5648,7 +5648,7 @@ export function Result() {
             onSelect={(assignedWorkerIds) => updateDraft({ assignedWorkerIds })}
             onContacts={(contacts, changed) => {
               setShareContacts(contacts);
-              if (changed && (changed.legacy || changed.name === draft.staffName)) {
+              if (changed?.legacy) {
                 updateDraft({ staffPhone: changed.phone });
               }
               if (changed) setStaffPreparedUrl(null);
