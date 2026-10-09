@@ -105,6 +105,7 @@ export interface Estimate {
   fromFloorEdited?: boolean;
   toFloorEdited?: boolean;
   workers: number;
+  assignedWorkerIds?: string[];
   kitchenStaff: number;
   truck1t: number;
   truck5t: number;
