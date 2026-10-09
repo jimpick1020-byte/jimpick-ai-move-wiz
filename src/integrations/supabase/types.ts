@@ -934,6 +934,7 @@ export type Database = {
           staff_phone: string | null
           terms_accepted_at: string | null
           updated_at: string
+          worker_contacts: Json
         }
         Insert: {
           bank_account?: string | null
@@ -956,6 +957,7 @@ export type Database = {
           staff_phone?: string | null
           terms_accepted_at?: string | null
           updated_at?: string
+          worker_contacts?: Json
         }
         Update: {
           bank_account?: string | null
@@ -978,6 +980,7 @@ export type Database = {
           staff_phone?: string | null
           terms_accepted_at?: string | null
           updated_at?: string
+          worker_contacts?: Json
         }
         Relationships: []
       }
@@ -1540,6 +1543,7 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
+      list_worker_contacts: { Args: never; Returns: Json }
       mark_reminder_viewed: { Args: { _token: string }; Returns: Json }
       owner_confirm_contract: {
         Args: {
@@ -1562,6 +1566,7 @@ export type Database = {
         Args: { _count?: number; _key: string; _user_id: string }
         Returns: Json
       }
+      save_worker_contact: { Args: { _contact: Json }; Returns: Json }
       sms_free_limit: { Args: never; Returns: number }
       sms_quota: { Args: { _user_id?: string }; Returns: Json }
       soft_delete_estimate: {

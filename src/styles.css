@@ -60,6 +60,8 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-auth-canvas: var(--auth-canvas);
+  --color-kakao: var(--kakao);
+  --color-kakao-foreground: var(--kakao-foreground);
   --color-auth-soft: var(--auth-soft);
   --color-auth-border: var(--auth-border);
   --color-auth-text: var(--auth-text);
@@ -75,6 +77,8 @@
 }
 
 :root {
+  --kakao: oklch(0.92 0.19 100);
+  --kakao-foreground: oklch(0.23 0.025 85);
   --radius: 0.625rem;
   --background: #f7f8f5;
   --foreground: oklch(0.129 0.042 264.695);
@@ -124,6 +128,8 @@
 }
 
 .dark {
+  --kakao: oklch(0.92 0.19 100);
+  --kakao-foreground: oklch(0.23 0.025 85);
   --background: oklch(0.129 0.042 264.695);
   --foreground: oklch(0.984 0.003 247.858);
   --card: oklch(0.208 0.042 265.755);

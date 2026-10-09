@@ -1,3 +1,6 @@
+import { StaffSendScreen } from "./StaffSendScreen";
+import { WorkerContacts } from "./WorkerContacts";
+import { workerSmsHref, type WorkerContact } from "@/lib/worker-contact";
 import { RoomPickedStrip } from "./RoomPickedStrip";
 import { calcDeposit, calcBalance } from "@/lib/deposit-rule";
 import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate, seoulMonthKey } from "@/lib/estimate-sort";
@@ -4635,6 +4638,7 @@ export function Result() {
   /** 카카오톡 직원 공유 확인창 */
   const [staffShareOpen, setStaffShareOpen] = useState(false);
   const [staffSharing, setStaffSharing] = useState(false);
+  const [shareContacts, setShareContacts] = useState<WorkerContact[]>([]);
   const [staffExpires, setStaffExpires] = useState<string | null>(null);
   const [staffPreparedUrl, setStaffPreparedUrl] = useState<string | null>(null);
   const [staffPrepareError, setStaffPrepareError] = useState<string | null>(null);
@@ -5259,10 +5263,10 @@ export function Result() {
         createStaffShare({
           data: {
             estimateId: draft.id,
-            staffName: draft.staffName || undefined,
+            staffName: shareContacts.filter((c) => draft.assignedWorkerIds?.includes(c.id)).map((c) => c.name).join(" · ") || draft.staffName || undefined,
             moveDate: draft.moveDate || undefined,
             shareMethod: "kakao",
-            snapshot: JSON.stringify(staffSnapshot()),
+            snapshot: JSON.stringify({ ...staffSnapshot(), assignedWorkers: shareContacts.filter((c) => draft.assignedWorkerIds?.includes(c.id)).map((c) => ({ id: c.id, name: c.name, role: c.role, phone: c.phone })) }),
           },
         }),
         loadKakaoShareSdk(),
@@ -5605,6 +5609,10 @@ export function Result() {
               <div>
                 작업 인원: 남자 {draft.workers}명 · 주방 {draft.kitchenStaff}명
               </div>
+              <Button variant="staff" className="h-auto min-h-12 w-full whitespace-normal py-3 font-bold"
+                onClick={() => { setStaffPreparedUrl(null); setStaffPrepareError(null); setStaffShareOpen(true); }}>
+                <Users />작업자 배정·작업지시서 보내기
+              </Button>
               {usesStorage(draft) && (
                 <div>
                   보관: {draft.storageStart || "-"} ~ {draft.storageEnd || "-"} (
@@ -5630,76 +5638,51 @@ export function Result() {
         >
           <FileText className="w-5 h-5" /> 견적서 확인
         </button>
-        <button
-          onClick={() => {
-            tap("soft");
-            saveDraft();
-            setStaffExpires(null);
-            setStaffPreparedUrl(null);
-            setStaffPrepareError(null);
-            setStaffShareOpen(true);
-            void prepareStaffShare();
-          }}
-          className="w-full min-h-[56px] py-4 rounded-2xl bg-[#FEE500] text-[#191600] font-black flex items-center justify-center gap-2 shadow-[0_4px_0_#E3CE00] active:translate-y-[2px] active:shadow-[0_2px_0_#E3CE00]"
-        >
-          <MessageSquare className="w-5 h-5" /> 카카오톡으로 직원 공유
-        </button>
-
         {staffShareOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
-            <div
-              className="absolute inset-0 bg-[#25282D]/45"
-              onClick={() => !staffSharing && setStaffShareOpen(false)}
-            />
-            <div className="relative w-full max-w-[330px] rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
-              <div className="text-center text-[17px] font-black text-[#25282D]">
-                직원에게 이사정보를 보낼까요?
-              </div>
-              <p className="mt-1.5 text-center text-[12.5px] font-bold text-[#6B7280]">
-                금액·계좌·약관은 직원 화면에 표시되지 않습니다.
-              </p>
-              <div className="mt-3 max-h-[240px] space-y-1 overflow-auto rounded-2xl bg-[#F5F8FE] px-3.5 py-3 text-[13px] font-bold text-[#6B7280]">
-                <div className="text-[12px] font-black text-[#25282D]">보낼 내용 미리보기</div>
-                {staffKakaoLines().map((line, i) => (
-                  <div key={i} className="whitespace-pre-wrap break-words">
-                    {line}
-                  </div>
-                ))}
-                <div className="text-[#6B7280]">상세보기 링크는 공유할 때 새로 만들어집니다</div>
-                <div className="text-[#6B7280]">
-                  링크 만료{" "}
-                  {staffExpires
-                    ? new Date(staffExpires).toLocaleString("ko-KR")
-                    : "이사 다음 날까지"}
-                </div>
-              </div>
-              <div className="mt-4 space-y-2">
-                <button
-                  onClick={() => void doStaffShare()}
-                  disabled={staffSharing || !staffPreparedUrl}
-                  className="w-full min-h-[56px] rounded-2xl bg-[#FEE500] text-[15px] font-black text-[#191600] shadow-[0_4px_0_#E3CE00] disabled:opacity-50"
-                >
-                  {staffSharing || !staffPreparedUrl ? "준비 중…" : "카카오톡 열기"}
-                </button>
-                {staffPrepareError && (
-                  <button
-                    onClick={() => void prepareStaffShare()}
-                    disabled={staffSharing}
-                    className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3 text-[13px] font-black text-[#25282D]"
-                  >
-                    다시 준비하기
-                  </button>
-                )}
-                <button
-                  onClick={() => setStaffShareOpen(false)}
-                  disabled={staffSharing}
-                  className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3.5 text-[14px] font-black text-[#6B7280] shadow-[0_3px_0_#F7F8F5] disabled:opacity-50"
-                >
-                  취소
-                </button>
-              </div>
-            </div>
-          </div>
+          <StaffSendScreen
+            date={formatMoveDateTime(draft.moveDate, draft.moveTime)}
+            customer={draft.customerName}
+            from={`${draft.fromAddress} ${draft.fromDetail}`.trim()}
+            to={`${draft.toAddress} ${draft.toDetail}`.trim()}
+            selected={draft.assignedWorkerIds ?? []}
+            onSelect={(assignedWorkerIds) => updateDraft({ assignedWorkerIds })}
+            onContacts={(contacts, changed) => {
+              setShareContacts(contacts);
+              if (changed?.legacy) {
+                updateDraft({ staffPhone: changed.phone });
+              }
+              if (changed) setStaffPreparedUrl(null);
+            }}
+            preview={[
+              `작업시간: ${formatMoveDateTime(draft.moveDate, draft.moveTime)}`,
+              `출발지: ${`${draft.fromAddress} ${draft.fromDetail}`.trim() || "미정"}`,
+              `도착지: ${`${draft.toAddress} ${draft.toDetail}`.trim() || "미정"}`,
+              `차량: ${staffSnapshot().truckText || "미정"}`,
+              `작업인원: 남자 ${draft.workers}명 · 주방 ${draft.kitchenStaff}명`,
+              ...(shareContacts.filter((c) => draft.assignedWorkerIds?.includes(c.id)).length
+                ? [`배정 작업자: ${shareContacts.filter((c) => draft.assignedWorkerIds?.includes(c.id)).map((c) => c.name).join(" · ")}`] : []),
+              ...(staffPreparedUrl ? [`보안링크: ${staffPreparedUrl}`] : []),
+            ]}
+            onClose={() => setStaffShareOpen(false)}
+            prepare={prepareStaffShare}
+            busy={staffSharing}
+            ready={!!staffPreparedUrl}
+            error={staffPrepareError}
+            onKakao={doStaffShare}
+            onSms={(contacts) => {
+              if (!staffPreparedUrl) return;
+              try {
+                const text = ["[JIMPICK 작업지시서]", ...staffKakaoLines().filter((line) => !line.startsWith("추가 품목:")), `보안링크: ${staffPreparedUrl}`].join("\n");
+                const href = workerSmsHref(contacts, text, /iPad|iPhone|iPod/.test(navigator.userAgent));
+                if (!hasSmsApp()) {
+                  toast.error("이 기기에서는 휴대폰 문자 앱을 열 수 없습니다. 휴대폰에서 이용해 주세요.");
+                  return;
+                }
+                window.location.href = href;
+                toast.info("문자 앱에서 수신번호를 확인하고 직접 보내 주세요.");
+              } catch (e) { toast.error(e instanceof Error ? e.message : "연락처를 확인해 주세요."); }
+            }}
+          />
         )}
 
         {backTo !== "options" && (
@@ -7263,6 +7246,7 @@ export function SettingsScreen() {
           />
         )}
 
+        <WorkerContacts />
         <SmsTemplateCard />
         <Card className="space-y-3">
           <div className="font-bold">견적 단가 설정</div>
