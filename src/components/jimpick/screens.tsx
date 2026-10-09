@@ -714,6 +714,14 @@ export function HomeScreen() {
   const [statsReady, setStatsReady] = useState(false);
   const [openStage, setOpenStage] = useState<import("@/lib/reservation-status").ReservationStage | null>(null);
   const [openStageMonths, setOpenStageMonths] = useState<Set<string>>(new Set());
+  /** 견적 상세에서 뒤로 오면 보던 상태 목록을 다시 엽니다 */
+  const [returnStage, setReturnStage] = useState<import("@/lib/reservation-status").ReservationStage | null>(null);
+  useEffect(() => {
+    try {
+      const v = sessionStorage.getItem("jp_return_stage");
+      if (v) { sessionStorage.removeItem("jp_return_stage"); setReturnStage(v as import("@/lib/reservation-status").ReservationStage); }
+    } catch { /* 저장소를 못 쓰면 그냥 홈을 보여 줍니다 */ }
+  }, []);
   useEffect(() => {
     let alive = true;
     const load = () => {
@@ -1036,6 +1044,7 @@ export function HomeScreen() {
           </div>
           <div className="mt-1 text-right text-[15px] text-[#6B7280]">완료율 {pct}%</div>
         </Card>
+        {returnStage && statsReady && (() => { const st = returnStage; queueMicrotask(() => { setReturnStage(null); setOpenStage(st); setOpenStageMonths(nearestStageMonth(stageLists[st])); }); return null; })()}
         {openStage && (
           <div className="fixed inset-0 z-50 flex items-end justify-center">
             <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => setOpenStage(null)} />
@@ -1098,6 +1107,7 @@ export function HomeScreen() {
                                     <button
                                       type="button"
                                       onClick={() => {
+                                        try { sessionStorage.setItem("jp_return_stage", openStage); } catch { /* 무시 */ }
                                         setOpenStage(null);
                                         if (estimates.some((e) => e.id === item.estimateId)) loadEstimate(item.estimateId);
                                         else if (item.termsId)
@@ -5703,7 +5713,7 @@ export function Result() {
             className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7F8F5] px-4 py-3 text-base font-bold text-[#25282D] shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff] transition-transform active:translate-y-[2px] active:shadow-none"
           >
             <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
-            {backTo === "customers" ? "고객 목록으로" : "견적 내역으로"}
+            {backTo === "customers" ? "고객 목록으로" : backTo === "home" ? "이전 목록으로" : "견적 내역으로"}
           </button>
         )}
       </div>
