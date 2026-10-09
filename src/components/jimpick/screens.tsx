@@ -1116,7 +1116,10 @@ export function HomeScreen() {
                                       variant="ghost"
                                       onClick={() => {
                                         if (openStage === "deposit_waiting") {
-                                          try { sessionStorage.setItem("jp_waiting_history_target", item.estimateId); } catch { /* 저장소 제한 */ }
+                                          try {
+                                            sessionStorage.setItem("jp_waiting_history_target", item.estimateId);
+                                            sessionStorage.setItem("jp_return_stage", "deposit_waiting");
+                                          } catch { /* 저장소 제한 */ }
                                           setOpenStage(null);
                                           setScreen("history");
                                           return;
