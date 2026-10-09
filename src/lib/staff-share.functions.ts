@@ -45,6 +45,20 @@ export const createStaffShare = createServerFn({ method: "POST" })
       data,
       context,
     }): Promise<{ ok: boolean; token?: string; expiresAt?: string; error?: string }> => {
+      // DB에 저장된 결제상태로 예약금 입금이 확인된 계약에만 작업지시서 링크를 만듭니다
+      const { data: terms } = await context.supabase
+        .from("estimate_terms")
+        .select("payment_status, contract_status")
+        .eq("user_id", context.userId)
+        .eq("estimate_id", data.estimateId)
+        .is("deleted_at", null)
+        .order("sheet_version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const paid = ["deposit_paid", "partial", "balance_paid", "completed"].includes(String(terms?.payment_status ?? ""));
+      if (!terms || !paid || terms.contract_status === "cancelled") {
+        return { ok: false, error: "예약금 입금이 확인된 계약만 작업지시서를 보낼 수 있습니다." };
+      }
       const { makeStaffToken, hashStaffToken, defaultExpiry } = await import("./staff-share.server");
       const token = makeStaffToken();
       const hash = await hashStaffToken(token);
