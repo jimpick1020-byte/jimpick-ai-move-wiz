@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { disableWorkerContact, listWorkerContacts, saveWorkerContact } from "@/lib/worker-contact.functions";
 import { maskedWorkerPhone, type WorkerContact } from "@/lib/worker-contact";
 import { CHAR_IMG } from "@/lib/jimpick-art";
+import { formatTel, onFormatted } from "@/lib/format-input";
 
 export function WorkerContacts({ selected, onSelect, onChange, defaultOpen = false }: {
   defaultOpen?: boolean;
@@ -97,7 +98,7 @@ export function WorkerContacts({ selected, onSelect, onChange, defaultOpen = fal
         <div className="flex items-center justify-between"><h3 className="font-bold"><User className="mr-2 inline h-4 w-4" />작업자 연락처</h3><Button type="button" variant="ghost" size="icon" aria-label="연락처 수정 닫기" disabled={busy} onClick={() => setEditing(null)}><X /></Button></div>
         <label className="block text-sm font-semibold">이름<input required value={editing.name} onChange={(e) => setEditing({...editing, name: e.target.value})} className="mt-1 w-full rounded-md border border-input bg-background p-3" /></label>
         <label className="block text-sm font-semibold">역할<select value={editing.role} onChange={(e) => setEditing({...editing, role: e.target.value})} className="mt-1 w-full rounded-md border border-input bg-background p-3">{[...new Set([editing.role, "현장팀장", "일반작업자", "주방작업자"])].map((role) => <option key={role}>{role}</option>)}</select></label>
-        <label className="block text-sm font-semibold">전화번호<input required type="tel" value={editing.phone} onChange={(e) => setEditing({...editing, phone: e.target.value})} className="mt-1 w-full rounded-md border border-input bg-background p-3" /></label>
+        <label className="block text-sm font-semibold">전화번호<input required type="tel" inputMode="tel" value={formatTel(editing.phone)} onChange={(e) => onFormatted(e, formatTel, (phone) => setEditing({...editing, phone}))} className="mt-1 w-full rounded-md border border-input bg-background p-3" /></label>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <Button type="submit" variant="staff" className="h-12 w-full" disabled={busy}>{busy ? "저장 중…" : "저장"}</Button>
       </form>

@@ -112,7 +112,6 @@ import {
 import { getSizePresets } from "@/lib/size-presets.functions";
 
 import { toast } from "sonner";
-import { handleGoogleLogin, GOOGLE_RETRY_MESSAGE } from "@/lib/google-auth";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
@@ -576,23 +575,6 @@ export function Login() {
         <AuthPrimaryButton type="submit" busy={busy}>
           {busy ? "로그인 중…" : "로그인"}
         </AuthPrimaryButton>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={async (event) => {
-            // 폼 제출·이메일 검사 없이 바로 구글 계정 선택 화면을 엽니다
-            // 구글 복귀 후 세션을 어디에 둘지 먼저 정합니다(유지 체크 시 영구 저장)
-            setRememberMe(keepLoggedIn);
-            const p = handleGoogleLogin(event);
-            setErr("");
-            const r = await p;
-            if (r === "failed") setErr(GOOGLE_RETRY_MESSAGE);
-          }}
-          onKeyDown={(event) => event.stopPropagation()}
-          className="h-12 w-full rounded-[14px] border-border bg-background text-base font-bold text-foreground hover:bg-auth-soft"
-        >
-          <span className="mr-2 text-lg font-black">G</span> 구글로 로그인
-        </Button>
         <Button
           type="button"
           variant="outline"
@@ -1309,7 +1291,7 @@ export function Step1() {
         <Field label="연락처" labelClassName="text-[#2DD4BF]">
           <TextInput
             placeholder="010-0000-0000"
-            value={draft.phone}
+            value={formatTel(draft.phone)}
             onChange={(e) => onFormatted(e, formatTel, (v) => updateDraft({ phone: v }))}
             inputMode="numeric"
           />
@@ -5560,7 +5542,7 @@ export function Result() {
               </Field>
               <Field label="연락처">
                 <TextInput
-                  value={draft.phone}
+                  value={formatTel(draft.phone)}
                   onChange={(e) => onFormatted(e, formatTel, (v) => updateDraft({ phone: v }))}
                 />
               </Field>
@@ -5620,7 +5602,7 @@ export function Result() {
           ) : (
             <>
               <div>
-                👤 {draft.customerName || "이름 미입력"} · {draft.phone || "연락처 미입력"}
+                👤 {draft.customerName || "이름 미입력"} · {formatTel(draft.phone) || "연락처 미입력"}
               </div>
               <div>📅 {formatMoveDateTime(draft.moveDate, draft.moveTime)}</div>
               <div>🚚 {draft.moveType}</div>
@@ -5830,7 +5812,7 @@ export function Result() {
                 </Field>
                 <Field label="담당자 연락처">
                   <TextInput
-                    value={draft.staffPhone ?? ""}
+                    value={formatTel(draft.staffPhone ?? "")}
                     placeholder="예: 010-7566-2542"
                     inputMode="tel"
                     onChange={(e) => onFormatted(e, formatTel, (v) => updateDraft({ staffPhone: v }))}
@@ -5986,7 +5968,7 @@ export function Result() {
                   <div className="flex items-start justify-between gap-3">
                     <span className="shrink-0 text-[13px] text-[#6B7280]">받는 번호</span>
                     <span className="min-w-0 break-words text-right text-[13px] font-bold text-[#25282D]">
-                      {draft.phone || "번호 없음"}
+                      {formatTel(draft.phone) || "번호 없음"}
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
@@ -6566,7 +6548,7 @@ export function History() {
                       <div className="flex justify-between items-start">
                         <div>
                           <div className="font-bold">{e.customerName || "이름 없음"}</div>
-                          <div className="text-xs text-[#6B7280]">{e.phone}</div>
+                          <div className="text-xs text-[#6B7280]">{formatTel(e.phone)}</div>
                         </div>
                         {/* 결제상태만 한 개 표시합니다 (독립적인 '완료' 문구는 쓰지 않습니다) */}
                         {(() => {
@@ -6909,7 +6891,7 @@ export function Customers() {
                     {RESERVATION_STAGE_LABEL[customerStage]}
                   </span>
                 </div>
-                <div className="text-xs text-[#6B7280]">{c.phone}</div>
+                <div className="text-xs text-[#6B7280]">{formatTel(c.phone)}</div>
                 <div className="text-xs text-[#6B7280] mt-1">
                   최근: {new Date(c.last).toLocaleDateString("ko-KR")} · {c.count}회
                 </div>

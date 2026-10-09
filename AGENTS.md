@@ -19,3 +19,4 @@
 - Worker contacts are never hard-deleted; deletion sets disabled in the profile JSON via disable_worker_contact so past contracts and staff-share records stay intact.
 - Staff-share links are created only when the latest estimate_terms payment_status confirms the deposit; the UI and server both check stored status, not displayed amounts.
 - Deposit-waiting history navigation carries estimate_id in session storage and validates it against the current company list and stored reservation stage; highlighting must disappear when payment is confirmed.
+- Telephone inputs, draft saves, company defaults and worker RPCs use formatTel for stored/display values; SMS transport alone strips separators, preserving legacy records on reads.

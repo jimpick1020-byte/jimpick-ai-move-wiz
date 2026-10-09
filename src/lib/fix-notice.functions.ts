@@ -6,6 +6,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { formatTel } from "./format-input";
 
 async function assertSuperAdmin(userId: string): Promise<void> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -58,7 +59,7 @@ export const getFixNoticeState = createServerFn({ method: "GET" })
       if (error) throw new Error(error.message);
       return {
         settings: {
-          phone: s?.notice_phone ?? "",
+          phone: formatTel(s?.notice_phone ?? ""),
           enabled: s?.notify_enabled !== false,
           updatedAt: s?.updated_at ?? null,
         },
@@ -86,7 +87,7 @@ export const saveFixNoticeSettings = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
     await assertSuperAdmin(context.userId);
-    const phone = data.phone.replace(/\D/g, "");
+    const phone = formatTel(data.phone);
     if (phone && !phoneOk(phone)) {
       return { ok: false, error: "휴대전화 번호 형식이 올바르지 않습니다." };
     }

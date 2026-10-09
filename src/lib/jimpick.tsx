@@ -8,6 +8,7 @@ import { mergeItemCatalog } from "./item-catalog-merge";
 import { usePersistentItemCatalog } from "./use-persistent-item-catalog";
 import { FEATURED_HOUSEHOLD_100 } from "./featured-household-100";
 import { saveSafeSnapshot } from "./safe-state";
+import { formatDraftPhones } from "./format-input";
 
 // ============ Types ============
 export type MoveType = "포장이사" | "반포장이사" | "일반이사" | "보관이사" | "사무실이사";
@@ -1974,8 +1975,8 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       void supabase.auth.signOut().catch(() => {});
       setState((s) => ({ ...s, loggedIn: false, screen: "login" }));
     },
-    updateDraft: (patch) => setState((s) => ({ ...s, draft: { ...s.draft, ...patch } })),
-    patchDraft: (make) => setState((s) => ({ ...s, draft: { ...s.draft, ...make(s.draft) } })),
+    updateDraft: (patch) => setState((s) => ({ ...s, draft: formatDraftPhones({ ...s.draft, ...patch }) })),
+    patchDraft: (make) => setState((s) => ({ ...s, draft: formatDraftPhones({ ...s.draft, ...make(s.draft) }) })),
     resetDraft: () =>
       setState((s) => ({
         ...s,
@@ -1985,7 +1986,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     saveDraft: () =>
       setState((s) => {
         const { total } = calcEstimate(s.draft);
-        const finalized: Estimate = { ...s.draft, total, status: "완료" };
+        const finalized: Estimate = formatDraftPhones({ ...s.draft, total, status: "완료" });
         const idx = s.estimates.findIndex((e) => e.id === finalized.id);
         const estimates =
           idx >= 0
@@ -2008,7 +2009,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       setState((s) => {
         const e = s.estimates.find((x) => x.id === id);
         // 어느 목록에서 열었는지 기록해 두어, 뒤로가기로 그 목록으로 돌아갑니다.
-        return e ? { ...s, draft: { ...e }, screen: "result", resultFrom: s.screen } : s;
+        return e ? { ...s, draft: formatDraftPhones(e), screen: "result", resultFrom: s.screen } : s;
       });
     },
     applyCustomerName: (estimateId, name) => {
@@ -2031,7 +2032,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
           /* 기록을 못 쌓아도 화면 이동은 그대로 합니다 */
         }
       }
-      setState((s) => ({ ...s, draft: { ...e }, screen: "result", resultFrom: s.screen }));
+      setState((s) => ({ ...s, draft: formatDraftPhones(e), screen: "result", resultFrom: s.screen }));
     },
     setResultFrom: (v) => setState((s) => ({ ...s, resultFrom: v })),
     hideCatalogItem: (id) =>

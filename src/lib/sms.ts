@@ -7,6 +7,8 @@
  * 자동 발송은 Supabase Edge Function(send-estimate-sms)이 맡습니다 — sms.edge.ts 참고.
  */
 
+import { formatTel } from "./format-input";
+
 /** 숫자만 남깁니다 (010-1234-5678 → 01012345678) */
 export function normalizePhone(phone: string): string {
   return (phone || "").replace(/[^0-9]/g, "");
@@ -80,7 +82,7 @@ export function buildEstimateMessage(e: EstimateSmsInput): string {
   const lines: string[] = [
     `[JIMPICK 이사 견적]`,
     ``,
-    `👤 ${e.customerName || "이름 미입력"} · ${e.phone || "연락처 미입력"}`,
+    `👤 ${e.customerName || "이름 미입력"} · ${formatTel(e.phone) || "연락처 미입력"}`,
     `📅 ${e.moveDateText}`,
     `🚚 ${e.moveType}`,
     `출발: ${e.fromAddress}`,

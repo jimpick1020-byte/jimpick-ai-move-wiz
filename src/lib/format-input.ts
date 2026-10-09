@@ -1,5 +1,5 @@
 /**
- * 입력 중 자동 하이픈. 화면에는 하이픈을 보이고, 저장·API용 숫자 원본은 digitsOnly()로 얻습니다.
+ * 입력·저장은 자동 하이픈. 문자 API용 숫자 원본은 digitsOnly()로 얻습니다.
  */
 import type React from "react";
 
@@ -18,6 +18,14 @@ export function formatTel(v: string): string {
   const mid = d.length >= (a === 2 ? 10 : 11) ? 4 : 3;
   if (rest.length <= mid) return `${d.slice(0, a)}-${rest}`;
   return `${d.slice(0, a)}-${rest.slice(0, mid)}-${rest.slice(mid, mid + 4)}`;
+}
+
+/** Normalize known draft phone fields without changing any other stored values. */
+export function formatDraftPhones<T extends { phone?: string; staffPhone?: string }>(draft: T): T {
+  return { ...draft,
+    ...(typeof draft.phone === "string" ? { phone: formatTel(draft.phone) } : {}),
+    ...(typeof draft.staffPhone === "string" ? { staffPhone: formatTel(draft.staffPhone) } : {}),
+  };
 }
 
 /** 사업자등록번호 123-45-67890 */

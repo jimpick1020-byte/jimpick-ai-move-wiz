@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatTel } from "@/lib/format-input";
 import { Calendar, ChevronLeft, MessageSquare, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WorkerContacts } from "./WorkerContacts";
@@ -40,7 +41,7 @@ export function StaffSendScreen({ date, customer, from, to, selected, onSelect, 
     {confirm && <div className="absolute inset-0 z-10 flex items-center justify-center bg-foreground/40 p-4" role="dialog" aria-modal="true" aria-label="발송 최종 확인">
       <div className="max-h-[85dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-lg bg-card p-5">
         <h2 className="text-lg font-bold">선택한 작업자에게 보낼까요?</h2>
-        <ul className="divide-y divide-border rounded-md bg-auth-soft px-3">{recipients.map((c) => <li key={c.id} className="flex flex-wrap justify-between gap-2 py-3 text-sm"><strong>{c.name}</strong><span>{c.phone}</span></li>)}</ul>
+        <ul className="divide-y divide-border rounded-md bg-auth-soft px-3">{recipients.map((c) => <li key={c.id} className="flex flex-wrap justify-between gap-2 py-3 text-sm"><strong>{c.name}</strong><span>{formatTel(c.phone)}</span></li>)}</ul>
         <p className="text-sm text-muted-foreground">{confirm === "kakao" ? "카카오톡 공유창에서 위 작업자를 직접 선택해 주세요. 공유창이 열린 것만으로 전송이 완료되지 않습니다." : "휴대폰 문자 앱에서 수신번호를 확인한 뒤 직접 보내 주세요."}</p>
         {busy && <p className="text-sm text-muted-foreground">보안 링크 준비 중…</p>}
         {error && <p role="alert" className="text-sm text-destructive">{error}<Button variant="link" disabled={busy} onClick={() => void prepare()}>다시 준비하기</Button></p>}

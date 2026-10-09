@@ -12,6 +12,7 @@ import {
   type FixNoticeRow,
 } from "@/lib/fix-notice.functions";
 import { withRetry } from "@/lib/retry";
+import { formatTel, onFormatted } from "@/lib/format-input";
 
 const SCREEN_LABEL: Record<string, string> = {
   step1: "1단계 고객 정보",
@@ -148,8 +149,8 @@ export function ErrorLogScreen() {
           </p>
           <div className="flex gap-2">
             <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              value={formatTel(phone)}
+              onChange={(e) => onFormatted(e, formatTel, setPhone)}
               inputMode="numeric"
               placeholder="통보받을 휴대전화 번호"
               className="min-w-0 flex-1 rounded-xl border border-[#E5E7EB] px-3 py-2 text-sm"

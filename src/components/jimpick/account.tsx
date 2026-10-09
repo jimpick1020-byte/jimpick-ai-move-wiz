@@ -1,4 +1,5 @@
 import { PUBLIC_APP_URL } from "@/lib/app-url";
+import { formatTel, onFormatted } from "@/lib/format-input";
 import { useEffect, useState, type MouseEvent } from "react";
 import { toast } from "sonner";
 import { useEntitlement, TRIAL_EXPIRED_MESSAGE } from "@/lib/use-entitlement";
@@ -107,12 +108,6 @@ export function SignupScreen() {
       ? emailValid && password.length > 0
       : requiredComplete && termsAccepted && privacyAccepted;
 
-  const formatSignupPhone = (value: string) => {
-    const digits = value.replace(/\D/g, "").slice(0, 11);
-    if (digits.length <= 3) return digits;
-    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-    return `${digits.slice(0, 3)}-${digits.slice(3, digits.length === 10 ? 6 : 7)}-${digits.slice(digits.length === 10 ? 6 : 7)}`;
-  };
 
   const submit = async () => {
     if (busy) return; // 연속 클릭으로 중복 요청되지 않게 잠급니다
@@ -142,7 +137,7 @@ export function SignupScreen() {
             data: {
               company_name: company.trim(),
               owner_name: owner.trim(),
-              phone,
+              phone: formatTel(phone),
               terms_accepted: termsAccepted,
               privacy_accepted: privacyAccepted,
               marketing_accepted: marketingAccepted,
@@ -392,7 +387,7 @@ export function SignupScreen() {
                   autoComplete="tel"
                   placeholder="010-0000-0000"
                   value={phone}
-                  onChange={(e) => setPhone(formatSignupPhone(e.target.value))}
+                  onChange={(e) => onFormatted(e, formatTel, setPhone)}
                   maxLength={13}
                   aria-invalid={!!phone && !phoneValid}
                   aria-describedby={phone && !phoneValid ? "signup-phone-error" : undefined}

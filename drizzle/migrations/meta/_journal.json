@@ -15,6 +15,13 @@
       "when": 1791558319743,
       "tag": "0001_disable_worker_contact",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791583285509,
+      "tag": "0002_worker_contact_hyphen_storage",
+      "breakpoints": true
     }
   ]
 }

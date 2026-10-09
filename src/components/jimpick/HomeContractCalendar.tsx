@@ -193,7 +193,7 @@ export function HomeContractCalendar({
               aria-label={`${cell.date}${dayBookings.length ? ` 계약 ${dayBookings.length}건` : ""}${cell.son ? " 손 없는 날" : ""}`}
               className="relative flex min-h-[64px] min-w-0 flex-col items-center pt-1"
             >
-              <span className={`relative z-10 flex h-7 min-w-7 items-center justify-center rounded-full px-1 text-[15px] font-bold tabular-nums ${selected ? "bg-[#1671E8] text-white" : dow === 0 ? "text-[#FF4D4F]" : dow === 6 ? "text-[#1671E8]" : "text-[#111827]"} ${isToday && !selected ? "ring-1 ring-[#1671E8]" : ""}`}>
+              <span className={`relative z-10 flex h-7 min-w-7 items-center justify-center rounded-full px-1 text-[15px] font-bold tabular-nums ${selected ? "bg-calendar-selected text-primary-foreground" : dow === 0 ? "text-[#FF4D4F]" : dow === 6 ? "text-[#1671E8]" : "text-[#111827]"} ${isToday && !selected ? "ring-1 ring-[#1671E8]" : ""}`}>
                 {cell.day}
               </span>
               {dayBookings.length > 0 && (
