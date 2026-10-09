@@ -112,7 +112,6 @@ import {
 import { getSizePresets } from "@/lib/size-presets.functions";
 
 import { toast } from "sonner";
-import { handleGoogleLogin, GOOGLE_RETRY_MESSAGE } from "@/lib/google-auth";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
@@ -576,23 +575,6 @@ export function Login() {
         <AuthPrimaryButton type="submit" busy={busy}>
           {busy ? "로그인 중…" : "로그인"}
         </AuthPrimaryButton>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={async (event) => {
-            // 폼 제출·이메일 검사 없이 바로 구글 계정 선택 화면을 엽니다
-            // 구글 복귀 후 세션을 어디에 둘지 먼저 정합니다(유지 체크 시 영구 저장)
-            setRememberMe(keepLoggedIn);
-            const p = handleGoogleLogin(event);
-            setErr("");
-            const r = await p;
-            if (r === "failed") setErr(GOOGLE_RETRY_MESSAGE);
-          }}
-          onKeyDown={(event) => event.stopPropagation()}
-          className="h-12 w-full rounded-[14px] border-border bg-background text-base font-bold text-foreground hover:bg-auth-soft"
-        >
-          <span className="mr-2 text-lg font-black">G</span> 구글로 로그인
-        </Button>
         <Button
           type="button"
           variant="outline"

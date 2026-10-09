@@ -9,6 +9,7 @@
  * 이미 보낸 견적서 금액이 흔들리지 않습니다.
  */
 import { calcDeposit } from "@/lib/deposit-rule";
+import { formatTel } from "@/lib/format-input";
 import { normalizePaymentStatus } from "@/lib/payment.functions";
 import { RESERVATION_STAGE_CLASS, RESERVATION_STAGE_LABEL, reservationStageOf } from "@/lib/reservation-status";
 import { forwardRef, useState, type ReactNode } from "react";
@@ -272,11 +273,6 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
 
   return (
     <div ref={ref} className="bg-[#F7F8F5] pb-4">
-      <div className="flex min-h-14 items-center justify-center bg-[#3578C8] px-4 py-3.5 text-center">
-        <span className="break-keep text-[19px] font-black text-white">
-          {companyName.trim() || "이사 견적서"}
-        </span>
-      </div>
 
       <div className="space-y-3 px-3 pt-3">
         {/* 제목 · 견적번호 · 확정 */}
@@ -328,7 +324,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
               <div className="flex min-w-0 items-center gap-2">
                 <Phone className="h-[19px] w-[19px] shrink-0 text-[#25282D]" strokeWidth={2} />
                 <span className="min-w-0 truncate text-[16px] text-[#6B7280]">
-                  연락처 <span className="font-bold text-[#25282D]">{draft.phone.trim()}</span>
+                  연락처 <span className="font-bold text-[#25282D]">{formatTel(draft.phone)}</span>
                 </span>
               </div>
             )}

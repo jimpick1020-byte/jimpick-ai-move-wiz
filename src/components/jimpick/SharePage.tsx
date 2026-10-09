@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { formatTel } from "@/lib/format-input";
 import { useLoaderData, useParams, useSearch } from "@tanstack/react-router";
 import {
   Phone,
@@ -449,12 +450,6 @@ export function SharePage() {
 
   const shell = (children: React.ReactNode) => (
     <div className="min-h-[100dvh] w-full overflow-x-hidden bg-white">
-      {/* 상단 파란색 헤더 */}
-      <header className="flex h-[88px] w-full items-center justify-center bg-[#3578C8]">
-        <span className="break-keep px-4 text-center text-[24px] font-black text-white">
-          {companyName || "이사 견적서"}
-        </span>
-      </header>
       <div className="mx-auto w-full max-w-[430px] px-4 pb-12">{children}</div>
     </div>
   );
@@ -684,7 +679,7 @@ export function SharePage() {
             <div className="flex items-center gap-2">
               <Phone className="h-4 w-4 text-[#25282D]" />
               <span className="min-w-0 truncate">
-                {estimate.customerName} · {estimate.phone}
+                {estimate.customerName} · {formatTel(estimate.phone)}
               </span>
             </div>
             <div className="flex items-center gap-2">
