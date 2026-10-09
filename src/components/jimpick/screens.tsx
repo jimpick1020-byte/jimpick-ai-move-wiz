@@ -6773,6 +6773,7 @@ export function History() {
                 );
               })()}
             </Card>
+            </div>
           );
         })}
             </div>
