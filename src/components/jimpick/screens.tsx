@@ -4744,6 +4744,21 @@ export function Result() {
     };
   }, [draft.id]);
 
+  /** 예약금 입금이 DB에서 확인된 계약인지 (취소 계약 제외) */
+  const depositConfirmed =
+    !!termsStatus &&
+    !termsStatus.contractCancelled &&
+    ["deposit_paid", "partial", "completed"].includes(normalizePaymentStatus(termsStatus.paymentStatus));
+  useEffect(() => {
+    if (!depositConfirmed && staffShareOpen) setStaffShareOpen(false);
+  }, [depositConfirmed, staffShareOpen]);
+  // 다른 화면에서 입금 확인을 바꾸고 돌아오면 다시 확인합니다
+  useEffect(() => {
+    const onFocus = () => { if (document.visibilityState === "visible") loadTermsStatus(); };
+    document.addEventListener("visibilitychange", onFocus);
+    return () => document.removeEventListener("visibilitychange", onFocus);
+  }, [draft.id]);
+
   /** 약관 미리보기(요약)·전체보기 펼침 */
   const [termsPreviewOpen, setTermsPreviewOpen] = useState(false);
   const [termsFullOpen, setTermsFullOpen] = useState(false);
@@ -5609,10 +5624,6 @@ export function Result() {
               <div>
                 작업 인원: 남자 {draft.workers}명 · 주방 {draft.kitchenStaff}명
               </div>
-              <Button variant="staff" className="h-auto min-h-12 w-full whitespace-normal py-3 font-bold"
-                onClick={() => { setStaffPreparedUrl(null); setStaffPrepareError(null); setStaffShareOpen(true); }}>
-                <Users />작업자 배정·작업지시서 보내기
-              </Button>
               {usesStorage(draft) && (
                 <div>
                   보관: {draft.storageStart || "-"} ~ {draft.storageEnd || "-"} (
@@ -5631,6 +5642,13 @@ export function Result() {
             </>
           )}
         </Card>
+        {/* DB에 저장된 결제상태가 입금 확인·결제 완료인 계약에만 표시합니다 */}
+        {depositConfirmed && (
+          <Button variant="staff" className="h-auto min-h-14 w-full whitespace-normal py-3 text-base font-bold"
+            onClick={() => { setStaffPreparedUrl(null); setStaffPrepareError(null); setStaffShareOpen(true); }}>
+            <Users />작업자 배정·작업지시서 보내기
+          </Button>
+        )}
         <button
           onClick={openSheet}
           className="w-full py-4 rounded-2xl font-black text-[16px] text-white flex items-center justify-center gap-2 shadow-[0_5px_0_#285C99,0_12px_24px_-10px_rgba(7,81,216,0.5)] active:translate-y-[3px] active:shadow-[0_2px_0_#285C99]"
@@ -5653,16 +5671,6 @@ export function Result() {
               }
               if (changed) setStaffPreparedUrl(null);
             }}
-            preview={[
-              `작업시간: ${formatMoveDateTime(draft.moveDate, draft.moveTime)}`,
-              `출발지: ${`${draft.fromAddress} ${draft.fromDetail}`.trim() || "미정"}`,
-              `도착지: ${`${draft.toAddress} ${draft.toDetail}`.trim() || "미정"}`,
-              `차량: ${staffSnapshot().truckText || "미정"}`,
-              `작업인원: 남자 ${draft.workers}명 · 주방 ${draft.kitchenStaff}명`,
-              ...(shareContacts.filter((c) => draft.assignedWorkerIds?.includes(c.id)).length
-                ? [`배정 작업자: ${shareContacts.filter((c) => draft.assignedWorkerIds?.includes(c.id)).map((c) => c.name).join(" · ")}`] : []),
-              ...(staffPreparedUrl ? [`보안링크: ${staffPreparedUrl}`] : []),
-            ]}
             onClose={() => setStaffShareOpen(false)}
             prepare={prepareStaffShare}
             busy={staffSharing}
@@ -5672,7 +5680,8 @@ export function Result() {
             onSms={(contacts) => {
               if (!staffPreparedUrl) return;
               try {
-                const text = ["[JIMPICK 작업지시서]", ...staffKakaoLines().filter((line) => !line.startsWith("추가 품목:")), `보안링크: ${staffPreparedUrl}`].join("\n");
+                // 본문에는 작업자용 보안 링크 한 줄만 넣습니다
+                const text = staffPreparedUrl;
                 const href = workerSmsHref(contacts, text, /iPad|iPhone|iPod/.test(navigator.userAgent));
                 if (!hasSmsApp()) {
                   toast.error("이 기기에서는 휴대폰 문자 앱을 열 수 없습니다. 휴대폰에서 이용해 주세요.");
