@@ -854,6 +854,13 @@ export function HomeScreen() {
     .reduce((s, e) => s + (e.total || 0), 0);
   const { blocked, remainingText, entitlement } = useEntitlement();
 
+  useEffect(() => {
+    if (!returnStage || !statsReady) return;
+    setOpenStage(returnStage);
+    setOpenStageMonths(nearestStageMonth(stageLists[returnStage]));
+    setReturnStage(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnStage, statsReady]);
   return (
     <MobileShell>
       <div className="px-5 py-4 flex items-center justify-between gap-3">
@@ -1044,7 +1051,6 @@ export function HomeScreen() {
           </div>
           <div className="mt-1 text-right text-[15px] text-[#6B7280]">완료율 {pct}%</div>
         </Card>
-        {returnStage && statsReady && (() => { const st = returnStage; queueMicrotask(() => { setReturnStage(null); setOpenStage(st); setOpenStageMonths(nearestStageMonth(stageLists[st])); }); return null; })()}
         {openStage && (
           <div className="fixed inset-0 z-50 flex items-end justify-center">
             <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => setOpenStage(null)} />
