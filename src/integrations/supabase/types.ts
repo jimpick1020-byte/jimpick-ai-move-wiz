@@ -1535,6 +1535,7 @@ export type Database = {
         }
         Returns: Json
       }
+      disable_worker_contact: { Args: { _id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -714,6 +714,14 @@ export function HomeScreen() {
   const [statsReady, setStatsReady] = useState(false);
   const [openStage, setOpenStage] = useState<import("@/lib/reservation-status").ReservationStage | null>(null);
   const [openStageMonths, setOpenStageMonths] = useState<Set<string>>(new Set());
+  /** 견적 상세에서 뒤로 오면 보던 상태 목록을 다시 엽니다 */
+  const [returnStage, setReturnStage] = useState<import("@/lib/reservation-status").ReservationStage | null>(null);
+  useEffect(() => {
+    try {
+      const v = sessionStorage.getItem("jp_return_stage");
+      if (v) { sessionStorage.removeItem("jp_return_stage"); setReturnStage(v as import("@/lib/reservation-status").ReservationStage); }
+    } catch { /* 저장소를 못 쓰면 그냥 홈을 보여 줍니다 */ }
+  }, []);
   useEffect(() => {
     let alive = true;
     const load = () => {
@@ -846,6 +854,13 @@ export function HomeScreen() {
     .reduce((s, e) => s + (e.total || 0), 0);
   const { blocked, remainingText, entitlement } = useEntitlement();
 
+  useEffect(() => {
+    if (!returnStage || !statsReady) return;
+    setOpenStage(returnStage);
+    setOpenStageMonths(nearestStageMonth(stageLists[returnStage]));
+    setReturnStage(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnStage, statsReady]);
   return (
     <MobileShell>
       <div className="px-5 py-4 flex items-center justify-between gap-3">
@@ -1098,6 +1113,7 @@ export function HomeScreen() {
                                     <button
                                       type="button"
                                       onClick={() => {
+                                        try { sessionStorage.setItem("jp_return_stage", openStage); } catch { /* 무시 */ }
                                         setOpenStage(null);
                                         if (estimates.some((e) => e.id === item.estimateId)) loadEstimate(item.estimateId);
                                         else if (item.termsId)
@@ -4744,6 +4760,21 @@ export function Result() {
     };
   }, [draft.id]);
 
+  /** 예약금 입금이 DB에서 확인된 계약인지 (취소 계약 제외) */
+  const depositConfirmed =
+    !!termsStatus &&
+    !termsStatus.contractCancelled &&
+    ["deposit_paid", "partial", "completed"].includes(normalizePaymentStatus(termsStatus.paymentStatus));
+  useEffect(() => {
+    if (!depositConfirmed && staffShareOpen) setStaffShareOpen(false);
+  }, [depositConfirmed, staffShareOpen]);
+  // 다른 화면에서 입금 확인을 바꾸고 돌아오면 다시 확인합니다
+  useEffect(() => {
+    const onFocus = () => { if (document.visibilityState === "visible") loadTermsStatus(); };
+    document.addEventListener("visibilitychange", onFocus);
+    return () => document.removeEventListener("visibilitychange", onFocus);
+  }, [draft.id]);
+
   /** 약관 미리보기(요약)·전체보기 펼침 */
   const [termsPreviewOpen, setTermsPreviewOpen] = useState(false);
   const [termsFullOpen, setTermsFullOpen] = useState(false);
@@ -5609,10 +5640,6 @@ export function Result() {
               <div>
                 작업 인원: 남자 {draft.workers}명 · 주방 {draft.kitchenStaff}명
               </div>
-              <Button variant="staff" className="h-auto min-h-12 w-full whitespace-normal py-3 font-bold"
-                onClick={() => { setStaffPreparedUrl(null); setStaffPrepareError(null); setStaffShareOpen(true); }}>
-                <Users />작업자 배정·작업지시서 보내기
-              </Button>
               {usesStorage(draft) && (
                 <div>
                   보관: {draft.storageStart || "-"} ~ {draft.storageEnd || "-"} (
@@ -5631,6 +5658,13 @@ export function Result() {
             </>
           )}
         </Card>
+        {/* DB에 저장된 결제상태가 입금 확인·결제 완료인 계약에만 표시합니다 */}
+        {depositConfirmed && (
+          <Button variant="staff" className="h-auto min-h-14 w-full whitespace-normal py-3 text-base font-bold"
+            onClick={() => { setStaffPreparedUrl(null); setStaffPrepareError(null); setStaffShareOpen(true); }}>
+            <Users />작업자 배정·작업지시서 보내기
+          </Button>
+        )}
         <button
           onClick={openSheet}
           className="w-full py-4 rounded-2xl font-black text-[16px] text-white flex items-center justify-center gap-2 shadow-[0_5px_0_#285C99,0_12px_24px_-10px_rgba(7,81,216,0.5)] active:translate-y-[3px] active:shadow-[0_2px_0_#285C99]"
@@ -5653,16 +5687,6 @@ export function Result() {
               }
               if (changed) setStaffPreparedUrl(null);
             }}
-            preview={[
-              `작업시간: ${formatMoveDateTime(draft.moveDate, draft.moveTime)}`,
-              `출발지: ${`${draft.fromAddress} ${draft.fromDetail}`.trim() || "미정"}`,
-              `도착지: ${`${draft.toAddress} ${draft.toDetail}`.trim() || "미정"}`,
-              `차량: ${staffSnapshot().truckText || "미정"}`,
-              `작업인원: 남자 ${draft.workers}명 · 주방 ${draft.kitchenStaff}명`,
-              ...(shareContacts.filter((c) => draft.assignedWorkerIds?.includes(c.id)).length
-                ? [`배정 작업자: ${shareContacts.filter((c) => draft.assignedWorkerIds?.includes(c.id)).map((c) => c.name).join(" · ")}`] : []),
-              ...(staffPreparedUrl ? [`보안링크: ${staffPreparedUrl}`] : []),
-            ]}
             onClose={() => setStaffShareOpen(false)}
             prepare={prepareStaffShare}
             busy={staffSharing}
@@ -5672,7 +5696,8 @@ export function Result() {
             onSms={(contacts) => {
               if (!staffPreparedUrl) return;
               try {
-                const text = ["[JIMPICK 작업지시서]", ...staffKakaoLines().filter((line) => !line.startsWith("추가 품목:")), `보안링크: ${staffPreparedUrl}`].join("\n");
+                // 본문에는 작업자용 보안 링크 한 줄만 넣습니다
+                const text = staffPreparedUrl;
                 const href = workerSmsHref(contacts, text, /iPad|iPhone|iPod/.test(navigator.userAgent));
                 if (!hasSmsApp()) {
                   toast.error("이 기기에서는 휴대폰 문자 앱을 열 수 없습니다. 휴대폰에서 이용해 주세요.");
@@ -5694,7 +5719,7 @@ export function Result() {
             className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7F8F5] px-4 py-3 text-base font-bold text-[#25282D] shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff] transition-transform active:translate-y-[2px] active:shadow-none"
           >
             <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
-            {backTo === "customers" ? "고객 목록으로" : "견적 내역으로"}
+            {backTo === "customers" ? "고객 목록으로" : backTo === "home" ? "이전 목록으로" : "견적 내역으로"}
           </button>
         )}
       </div>
