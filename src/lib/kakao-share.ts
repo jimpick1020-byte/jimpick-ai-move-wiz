@@ -273,7 +273,8 @@ export function openKakaoLinkCard(card: {
   if (!kakaoReady()) return null;
   // 본문은 카카오 템플릿 한도(약 190자) 안으로 맞춥니다.
   const head = `${card.title}\n${card.description}`.slice(0, 140);
-  const text = `${head}\n\n${card.url}`;
+  // 제목·설명이 비어 있으면 주소 한 줄만 보냅니다 (작업지시서 보안 링크)
+  const text = head.trim() ? `${head}\n\n${card.url}` : card.url;
   try {
     window.Kakao.Share.sendDefault({
       objectType: "text",
@@ -309,7 +310,8 @@ export async function shareLinkCardToKakao(card: {
   if (typeof navigator !== "undefined" && navigator.share) {
     try {
       // 일부 공유 대상은 url 필드를 버리므로 본문에도 주소를 넣습니다.
-      await navigator.share({ title: card.title, text: `${card.description}\n${card.url}`, url: card.url });
+      if (!card.title && !card.description) await navigator.share({ text: card.url });
+      else await navigator.share({ title: card.title, text: `${card.description}\n${card.url}`, url: card.url });
       return { ok: true, method: "web_share" };
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError")

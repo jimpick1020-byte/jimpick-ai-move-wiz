@@ -167,8 +167,9 @@ export async function shareToKakao(
   card: StaffShareCard,
 ): Promise<{ ok: boolean; method: ShareMethod; error?: string; code?: KakaoShareCode }> {
   return shareLinkCardToKakao({
-    title: "JIMPICK 직원용 작업 지시서",
-    description: "현장 작업에 필요한 이사 정보를 확인하세요.",
+    // 본문에는 작업자용 보안 링크 한 줄만 넣습니다
+    title: "",
+    description: "",
     url: card.url,
     buttonTitle: "작업 지시서 보기",
   });
