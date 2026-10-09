@@ -16,7 +16,7 @@ export const listWorkerContacts = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<WorkerContact[]> => {
     const { data, error } = await context.supabase.rpc("list_worker_contacts");
     if (error) throw new Error("작업자 목록을 불러오지 못했습니다.");
-    return z.array(schema.extend({ legacy: z.boolean().optional() })).parse(data ?? []);
+    return z.array(schema.extend({ phone: z.string(), legacy: z.boolean().optional() })).parse(data ?? []);
   });
 
 export const saveWorkerContact = createServerFn({ method: "POST" })

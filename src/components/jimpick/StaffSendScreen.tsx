@@ -22,19 +22,18 @@ export function StaffSendScreen({ date, customer, from, to, preview, selected, o
   const request = (method: "sms" | "kakao") => { setConfirm(method); void prepare(); };
   return <div className="fixed inset-0 z-[60] flex h-dvh flex-col bg-auth-canvas text-auth-text" role="dialog" aria-modal="true" aria-label="작업지시서 보내기">
     <header className="shrink-0 border-b border-auth-border bg-card">
-      <div className="mx-auto flex max-w-2xl items-center gap-2 px-4 py-3"><Button variant="ghost" size="icon" aria-label="작업지시서 보내기 닫기" disabled={busy} onClick={onClose}><ChevronLeft /></Button><h1 className="text-lg font-bold">작업지시서 보내기</h1></div>
+      <div className="mx-auto grid max-w-2xl grid-cols-[36px_1fr_36px] items-center gap-2 px-4 py-3"><Button variant="ghost" size="icon" aria-label="작업지시서 보내기 닫기" disabled={busy} onClick={onClose}><ChevronLeft /></Button><h1 className="text-center text-lg font-bold">작업지시서 보내기</h1></div>
     </header>
     <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
       <div className="mx-auto max-w-2xl space-y-4 p-4 pb-8">
         <section className="rounded-lg border border-auth-border bg-card p-5">
-          <div className="flex items-center gap-2 text-base font-bold text-auth-primary"><Calendar className="h-5 w-5 shrink-0" />{date}</div>
-          <h2 className="mt-3 break-words text-2xl font-bold">{customer || "이름 미입력"} 고객님</h2>
+          <div className="flex items-start gap-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-auth-soft text-auth-primary"><Calendar className="h-7 w-7" /></div><div className="min-w-0"><div className="break-words text-lg font-bold">{date}</div><h2 className="mt-2 break-words text-lg">{customer || "이름 미입력"} 고객님</h2></div></div>
           <div className="mt-4 space-y-2 border-t border-auth-border pt-4 text-sm"><p className="break-words"><span className="mr-3 text-muted-foreground">출발</span>{from || "미정"}</p><p className="break-words"><span className="mr-3 text-muted-foreground">도착</span>{to || "미정"}</p></div>
         </section>
         <WorkerContacts selected={selected} onSelect={onSelect} onChange={(rows, changed) => {setContacts(rows); onContacts(rows, changed);}} />
         <section className="overflow-hidden rounded-lg border border-auth-border bg-card">
           <h2 className="flex items-center gap-2 border-b border-auth-border px-4 py-4 text-base font-bold"><ClipboardList className="h-5 w-5 text-auth-primary" />작업지시서 미리보기</h2>
-          <div className="space-y-2 px-4 py-4 text-sm leading-relaxed"><strong className="block text-auth-primary">[JIMPICK 작업지시서]</strong>{preview.map((line, i) => <p key={i} className="whitespace-pre-wrap break-words">{line}</p>)}</div>
+          <div className="m-4 space-y-2 rounded-lg bg-auth-soft px-4 py-4 text-sm leading-relaxed"><strong className="block text-auth-primary">[JIMPICK 작업지시서]</strong>{preview.map((line, i) => <p key={i} className="whitespace-pre-wrap break-words">{line}</p>)}</div>
         </section>
         <div className="grid gap-3 sm:grid-cols-2">
           <Button variant="staff" className="h-auto min-h-14 whitespace-normal px-4 py-4 text-base font-bold" disabled={!recipients.length || busy} onClick={() => request("sms")}><Smartphone />휴대폰 문자로 보내기</Button>
