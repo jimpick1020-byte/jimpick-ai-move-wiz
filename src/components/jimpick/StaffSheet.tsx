@@ -324,7 +324,7 @@ export function StaffSheet() {
               <Row
                 icon={<Phone className="h-5 w-5" />}
                 label="연락처"
-                value={state.snap.staffPhone}
+                value={formatTel(state.snap.staffPhone)}
               />
             </Card>
 
