@@ -1452,6 +1452,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_archive_past_estimate_notices: { Args: never; Returns: number }
       cancel_contract: { Args: { _terms_id: string }; Returns: Json }
       cancel_reservation: { Args: { _terms_id: string }; Returns: boolean }
       cancel_reservation_all: { Args: { _terms_id: string }; Returns: Json }
