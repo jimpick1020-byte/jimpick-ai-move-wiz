@@ -7367,13 +7367,16 @@ export function SettingsScreen() {
 // ============ Stats ============
 export function StatsScreen() {
   const { estimates, setScreen } = useApp();
-  const now = new Date();
-  const thisMonth = estimates.filter((e) => {
-    const d = new Date(e.createdAt);
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-  });
-  const sum = (list: typeof estimates) => list.reduce((s, e) => s + (e.total || 0), 0);
-  const avg = estimates.length ? Math.round(sum(estimates) / estimates.length) : 0;
+  const [month, setMonth] = useState(() => seoulMonthKey());
+  const [ms, setMs] = useState<{ count: number; revenue: number } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setMs(null);
+    getMonthlyStats({ data: { month } })
+      .then((r) => { if (alive && r.ok) setMs({ count: r.count, revenue: r.revenue }); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [month]);
   const byType = Array.from(
     estimates.reduce(
       (m, e) => m.set(e.moveType, (m.get(e.moveType) ?? 0) + 1),
@@ -7381,24 +7384,37 @@ export function StatsScreen() {
     ),
   ).sort((a, b) => b[1] - a[1]);
   const maxType = byType[0]?.[1] ?? 1;
+  const [yy, mm] = month.split("-").map(Number);
+  const navBtn = "w-12 h-11 rounded-2xl bg-white shadow flex items-center justify-center";
 
   return (
     <MobileShell>
       <TopBar title="통계 확인" onBack={() => setScreen("home")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { label: "전체 견적", value: `${estimates.length}건` },
-            { label: "이번 달 견적", value: `${thisMonth.length}건` },
-            { label: "이번 달 매출", value: won(sum(thisMonth)) },
-            { label: "평균 견적가", value: won(avg) },
-          ].map((c) => (
-            <Card key={c.label} className="py-4">
-              <div className="text-xs text-[#6B7280]">{c.label}</div>
-              <div className="text-lg font-black text-[#25282D] mt-1">{c.value}</div>
-            </Card>
-          ))}
+        <div className="flex items-center justify-between">
+          <button type="button" aria-label="이전 달" className={navBtn} onClick={() => setMonth((k) => shiftMonth(k, -1))}>
+            <ChevronLeft className="w-5 h-5 text-[#25282D]" />
+          </button>
+          <div className="text-lg font-black text-[#25282D]">{yy}년 {mm}월</div>
+          <button type="button" aria-label="다음 달" className={navBtn} onClick={() => setMonth((k) => shiftMonth(k, 1))}>
+            <ChevronRight className="w-5 h-5 text-[#25282D]" />
+          </button>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Card className="py-4">
+            <div className="text-xs text-[#6B7280]">전체 견적</div>
+            <div className="text-lg font-black text-[#25282D] mt-1">{estimates.length}건</div>
+          </Card>
+          <Card className="py-4">
+            <div className="text-xs text-[#6B7280]">이번 달 견적</div>
+            <div className="text-lg font-black text-[#25282D] mt-1">{ms ? `${ms.count}건` : "…"}</div>
+          </Card>
+        </div>
+        <Card className="py-4">
+          <div className="text-xs text-[#6B7280]">이번 달 매출</div>
+          <div className="text-2xl font-black text-[#25282D] mt-1">{ms ? won(ms.revenue) : "…"}</div>
+          <div className="text-xs text-[#6B7280] mt-1">예약금 입금 확인 건만 합산</div>
+        </Card>
         <Card className="space-y-3">
           <div className="font-bold">이사 유형별 건수</div>
           {byType.length === 0 && (
@@ -7421,18 +7437,6 @@ export function StatsScreen() {
               </div>
             </div>
           ))}
-        </Card>
-        <Card className="space-y-2">
-          <div className="font-bold">최근 견적</div>
-          {estimates.slice(0, 5).map((e) => (
-            <div key={e.id} className="flex justify-between text-sm">
-              <span className="text-[#6B7280]">
-                {e.customerName || "이름 없음"} · {e.moveDate || "-"}
-              </span>
-              <span className="font-semibold">{won(e.total || 0)}</span>
-            </div>
-          ))}
-          {estimates.length === 0 && <div className="text-sm text-[#6B7280]">기록이 없습니다.</div>}
         </Card>
       </div>
     </MobileShell>
