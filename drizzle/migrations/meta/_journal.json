@@ -29,6 +29,13 @@
       "when": 1791604407831,
       "tag": "0003_worker_contact_explicit_gender",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791650473980,
+      "tag": "0004_auto_archive_past_estimate_notices",
+      "breakpoints": true
     }
   ]
 }
