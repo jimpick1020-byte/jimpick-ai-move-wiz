@@ -7,6 +7,8 @@
  */
 import type React from "react";
 import { lovable } from "@/integrations/lovable/index";
+import { supabase } from "@/integrations/supabase/client";
+import { setRememberMe } from "@/integrations/supabase/auth-persistence";
 
 export const GOOGLE_RETRY_MESSAGE = "Google 보안 확인을 완료한 뒤 다시 시도해 주세요.";
 
@@ -18,6 +20,8 @@ export async function handleGoogleLogin(
   event?.preventDefault();
   event?.stopPropagation();
   try {
+    // 전체 화면 OAuth로 이동하기 전에 저장 정책을 확정합니다.
+    setRememberMe(true);
     const result = await lovable.auth.signInWithOAuth("google", {
       // 관리형 구글 로그인은 지금 열린 주소로만 돌아올 수 있습니다(운영 앱에서는 운영 주소).
       redirect_uri: window.location.origin,
@@ -25,6 +29,8 @@ export async function handleGoogleLogin(
     });
     if (result.error) return "failed";
     if (result.redirected) return "redirected";
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) return "failed";
     return "signed-in";
   } catch {
     return "failed";

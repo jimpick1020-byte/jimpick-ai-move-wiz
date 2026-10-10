@@ -22,14 +22,14 @@ export interface AuthStorageLike {
 /**
  * 지금 "로그인 상태 유지"를 쓰는지.
  *
- * 처음 접속했을 때는(표시가 없을 때) 유지하지 않습니다.
- * 사장님이 로그인 화면에서 직접 「로그인 상태 유지」를 선택한 경우에만 유지합니다.
+ * 선택 기록이 없는 기존 Google 세션도 영구 보관합니다.
+ * 공용 기기에서 명시적으로 해제한 경우에만 탭 한정 저장을 사용합니다.
  */
 export function isRememberMe(): boolean {
   try {
-    return localStorage.getItem(REMEMBER_KEY) === "1";
+    return localStorage.getItem(REMEMBER_KEY) !== "0";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -58,8 +58,8 @@ function safeSession(): Storage | null {
  * "로그인 상태 유지" 선택에 따라 sessionStorage 로 우회시킵니다.
  *
  * - 유지 ON  : base 를 그대로 사용(브라우저 종료 후에도 세션 보존).
- * - 유지 OFF : sessionStorage 에만 저장하고 base 에 남은 세션은 지웁니다
- *             (브라우저 종료 시 세션 소멸 = 공용 컴퓨터 안전).
+ * - 유지 OFF : 새 로그인은 sessionStorage 에 저장합니다. 기존 영구 세션은
+ *             토큰 갱신만으로 삭제하지 않습니다.
  * removeItem(로그아웃)은 항상 양쪽을 모두 지워 세션을 완전히 제거합니다.
  */
 export function rememberAwareAuthStorage(
@@ -67,29 +67,39 @@ export function rememberAwareAuthStorage(
 ): AuthStorageLike | undefined {
   if (typeof window === "undefined") return base; // SSR: 저장소 없음
 
+  // 이미 영구 보관된 세션은 이전 버전의 선택값이 0이어도 갱신 중 삭제하지 않습니다.
+  const persistentKeys = new Set<string>();
+
   return {
-    getItem(key: string): MaybePromise<string | null> {
-      if (isRememberMe()) return base ? base.getItem(key) : null;
-      // 세션 한정: sessionStorage 우선, 없으면 기존 세션을 한 번은 읽어 이어받기
-      try {
-        const v = safeSession()?.getItem(key);
-        if (v != null) return v;
-      } catch {
-        /* noop */
+    async getItem(key: string): Promise<string | null> {
+      const temporary = safeSession()?.getItem(key) ?? null;
+      if (!isRememberMe() && temporary != null) return temporary;
+      const stored = base ? await base.getItem(key) : null;
+      if (stored != null) {
+        persistentKeys.add(key);
+        return stored;
       }
-      return base ? base.getItem(key) : null;
+      if (temporary != null && isRememberMe()) {
+        await base?.setItem(key, temporary);
+        persistentKeys.add(key);
+        safeSession()?.removeItem(key);
+      }
+      return temporary;
     },
     setItem(key: string, value: string): MaybePromise<void> | void {
-      if (isRememberMe()) return base?.setItem(key, value);
-      // 세션 한정으로 저장하고, 유지 저장소에 남지 않도록 base 에서 제거
+      if (isRememberMe() || persistentKeys.has(key)) {
+        persistentKeys.add(key);
+        safeSession()?.removeItem(key);
+        return base?.setItem(key, value);
+      }
       try {
         safeSession()?.setItem(key, value);
       } catch {
         /* noop */
       }
-      return base?.removeItem(key);
     },
     removeItem(key: string): MaybePromise<void> | void {
+      persistentKeys.delete(key);
       // 로그아웃: 두 저장소 모두에서 세션을 완전히 지웁니다.
       try {
         safeSession()?.removeItem(key);
