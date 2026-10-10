@@ -78,6 +78,10 @@
 }
 
 :root {
+  --worker-male: oklch(0.55 0.21 257);
+  --worker-male-soft: oklch(0.96 0.025 250);
+  --worker-female: oklch(0.64 0.19 22);
+  --worker-female-soft: oklch(0.97 0.018 22);
   --calendar-selected: oklch(0.28 0.12 267);
   --history-waiting-border: oklch(0.45 0.2 260);
   --kakao: oklch(0.92 0.19 100);
@@ -131,6 +135,10 @@
 }
 
 .dark {
+  --worker-male: oklch(0.76 0.13 250);
+  --worker-male-soft: oklch(0.28 0.05 250);
+  --worker-female: oklch(0.78 0.13 22);
+  --worker-female-soft: oklch(0.28 0.04 22);
   --calendar-selected: oklch(0.28 0.12 267);
   --history-waiting-border: oklch(0.65 0.2 260);
   --kakao: oklch(0.92 0.19 100);
@@ -183,6 +191,26 @@
 .jp-waiting-history-card {
   border: 4px solid var(--history-waiting-border);
   scroll-margin-block: 1rem;
+}
+
+.jp-worker-gender {
+  --worker-tone: var(--muted-foreground);
+  --worker-soft: var(--muted);
+  color: var(--worker-tone);
+  background: var(--worker-soft);
+  border-color: color-mix(in oklch, var(--worker-tone) 25%, var(--card));
+}
+.jp-worker-gender[data-gender="male"] {
+  --worker-tone: var(--worker-male);
+  --worker-soft: var(--worker-male-soft);
+}
+.jp-worker-gender[data-gender="female"] {
+  --worker-tone: var(--worker-female);
+  --worker-soft: var(--worker-female-soft);
+}
+.jp-worker-gender[aria-pressed="true"] {
+  outline: 2px solid var(--worker-tone);
+  outline-offset: -2px;
 }
 
 /* 견적 작성 1~6단계: 휴대폰 현장에서 읽기 쉬운 큰 글씨와 선명한 색상 */
