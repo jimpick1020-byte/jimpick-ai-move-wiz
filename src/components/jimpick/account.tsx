@@ -47,25 +47,8 @@ import { AuthField, AuthInput, AuthPrimaryButton, AuthShell, AuthTopBar } from "
 
 /** 로그인한 Cloud 사용자 세션 */
 export function useSession() {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [email, setEmail] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUserId(session?.user?.id ?? null);
-      setEmail(session?.user?.email ?? "");
-      setLoading(false);
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      setUserId(data.session?.user?.id ?? null);
-      setEmail(data.session?.user?.email ?? "");
-      setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  return { userId, email, loading };
+  const { authUser, authChecking } = useApp();
+  return { userId: authUser?.id ?? null, email: authUser?.email ?? "", loading: authChecking };
 }
 
 // ============ 회원가입 / 구독 계정 만들기 ============
@@ -607,7 +590,7 @@ const PRIVACY_DRAFT = `1. 수집 항목\n이메일, 업체명, 담당자명, 연
 type Account = Awaited<ReturnType<typeof getMyAccount>>;
 
 export function SubscriptionScreen() {
-  const { setScreen, loggedIn } = useApp();
+  const { setScreen, loggedIn, logout } = useApp();
   const { userId, email, loading } = useSession();
   const [account, setAccount] = useState<Account | null>(null);
   const [busy, setBusy] = useState<PlanId | null>(null);
@@ -991,9 +974,12 @@ export function SubscriptionScreen() {
 
         <button
           onClick={async () => {
-            await supabase.auth.signOut();
-            toast.success("로그아웃되었습니다");
-            setScreen("home");
+            try {
+              await logout();
+              toast.success("로그아웃되었습니다");
+            } catch {
+              toast.error("로그아웃하지 못했습니다. 다시 시도해 주세요.");
+            }
           }}
           className="w-full py-3 rounded-2xl bg-white border border-[#E5E7EB] font-semibold flex items-center justify-center gap-2"
         >

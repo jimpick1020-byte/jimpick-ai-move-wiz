@@ -116,8 +116,8 @@ import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
 import { sendSmsViaEdge, resendManagerNotice, type EdgeSmsResult } from "@/lib/sms.edge";
-import { hasSession, signIn, signOut } from "@/lib/auth";
-import { setRememberMe } from "@/integrations/supabase/auth-persistence";
+import { hasSession, signIn } from "@/lib/auth";
+import { isRememberMe, setRememberMe } from "@/integrations/supabase/auth-persistence";
 import { AuthField, AuthInput, AuthPrimaryButton, AuthShell } from "./AuthUi";
 import { Button } from "@/components/ui/button";
 import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functions";
@@ -422,10 +422,10 @@ export function Login() {
   /** 아이디 저장 — 다음 접속 때 아이디 칸만 미리 채웁니다 (세션과 무관) */
   const [remember, setRemember] = useState(!!savedId);
   /**
-   * 로그인 상태 유지 — 처음에는 꺼져 있습니다(공용 PC 안전).
-   * 사장님이 직접 선택한 경우에만 브라우저를 닫아도 세션이 유지됩니다.
+   * 로그인 상태 유지 — 마지막 선택을 복원합니다.
    */
-  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+  const [keepLoggedIn, setKeepLoggedIn] = useState(true);
+  useEffect(() => { setKeepLoggedIn(isRememberMe()); }, []);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -7352,9 +7352,7 @@ export function SettingsScreen() {
         </Card>
         <button
           onClick={() => {
-            // 계정 세션도 함께 끊습니다
-            void signOut();
-            logout();
+            void logout().catch(() => toast.error("로그아웃하지 못했습니다. 다시 시도해 주세요."));
           }}
           className="w-full py-4 rounded-2xl bg-white border border-[#D95C5C] text-[#D95C5C] font-bold flex items-center justify-center gap-2"
         >
