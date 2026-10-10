@@ -6789,8 +6789,15 @@ export function History() {
 
 // ============ Customers ============
 export function Customers() {
-  const { estimates, setScreen, loadEstimate } = useApp();
+  const { estimates: allEstimates, setScreen, loadEstimate } = useApp();
   const [q, setQ] = useState("");
+  const [custOpen, setCustOpen] = useState<Record<string, boolean>>({});
+  /** 자동 정리·삭제된 견적은 고객 관리에서도 숨깁니다 (자료는 서버에 보존) */
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    listDeletedEstimateIds().then((r) => { if (r?.ok) setHiddenIds(new Set(r.ids)); }).catch(() => {});
+  }, []);
+  const estimates = allEstimates.filter((e) => !hiddenIds.has(e.id));
   /** 고객별 최신 실제 예약 단계를 표시합니다. */
   const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
   const [archivedRows, setArchivedRows] = useState<ArchivedContractRow[]>([]);
