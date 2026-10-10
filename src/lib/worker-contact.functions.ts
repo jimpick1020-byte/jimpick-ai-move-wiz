@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { WorkerContact } from "./worker-contact";
+import { workerGender } from "./worker-contact";
 import { formatTel } from "./format-input";
 
 const schema = z.object({
@@ -10,6 +11,7 @@ const schema = z.object({
   role: z.string().trim().max(60),
   phone: z.string().transform((s) => s.replace(/\D/g, "")).pipe(z.string().regex(/^01[016789][0-9]{7,8}$/)).transform(formatTel),
   photo: z.string().max(1000),
+  gender: z.enum(["male", "female", "unspecified"]).optional(),
 });
 
 export const listWorkerContacts = createServerFn({ method: "GET" })
@@ -18,8 +20,8 @@ export const listWorkerContacts = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase.rpc("list_worker_contacts");
     if (error) throw new Error("작업자 목록을 불러오지 못했습니다.");
     // 사용 중지된 작업자는 목록에서 숨깁니다 (기록은 DB에 그대로 남습니다)
-    const rows = z.array(schema.extend({ phone: z.string(), legacy: z.boolean().optional(), disabled: z.boolean().optional() }).passthrough()).parse(data ?? []);
-    return rows.filter((r) => !r.disabled).map(({ id, name, role, phone, photo, legacy }) => ({ id, name, role, phone: formatTel(phone), photo, legacy }));
+    const rows = z.array(schema.extend({ phone: z.string(), gender: z.unknown().optional(), legacy: z.boolean().optional(), disabled: z.boolean().optional() }).passthrough()).parse(data ?? []);
+    return rows.filter((r) => !r.disabled).map(({ id, name, role, phone, photo, legacy, gender }) => ({ id, name, role, phone: formatTel(phone), photo, legacy, gender: workerGender({ gender }) }));
   });
 
 export const saveWorkerContact = createServerFn({ method: "POST" })
