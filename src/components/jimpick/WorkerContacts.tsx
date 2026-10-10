@@ -84,7 +84,7 @@ export function WorkerContacts({ selected, onSelect, onChange, defaultOpen = fal
     {!loading && !contacts.length && <p className="px-4 py-5 text-sm text-muted-foreground">등록된 작업자가 없습니다.</p>}
     <div className="max-h-[60dvh] overflow-y-auto overscroll-contain" aria-label="작업자 목록">
       {WORKER_GENDERS.map((gender) => <div key={gender} ref={(node) => { if (node) groupRefs.current[gender] = node; }}>
-      <h3 className="jp-worker-gender border-y px-4 py-3 text-base font-bold" data-gender={gender}>{genderLabels[gender]}{gender === "unspecified" ? " 작업자" : " 작업자"} · {groups[gender].length}명</h3>
+      <h3 className="jp-worker-gender border-y px-4 py-3 text-base font-bold" data-gender={gender}>{genderLabels[gender]} 작업자 · {groups[gender].length}명</h3>
       {!loading && !groups[gender].length && <p className="px-4 py-4 text-sm text-muted-foreground">등록된 작업자가 없습니다.</p>}
       <div className="divide-y divide-border">
       {groups[gender].map((c) => <div key={c.id} className="flex flex-wrap items-center gap-3 px-3 py-4">

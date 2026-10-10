@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { groupWorkerContacts, workerGender, maskedWorkerPhone, selectedWorkerContacts, workerSmsHref, type WorkerContact } from "./worker-contact";
-const contacts = [
+const contacts: WorkerContact[] = [
   { id: "a", name: "동명이인", role: "현장팀장", phone: "01012345678", photo: "" },
   { id: "b", name: "동명이인", role: "주방작업자", phone: "01023456789", photo: "" },
 ];
