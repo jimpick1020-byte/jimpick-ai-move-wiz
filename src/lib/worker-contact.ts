@@ -5,6 +5,18 @@ export interface WorkerContact {
   phone: string;
   photo: string;
   legacy?: boolean;
+  gender?: WorkerGender;
+}
+
+export type WorkerGender = "male" | "female" | "unspecified";
+export const WORKER_GENDERS: WorkerGender[] = ["male", "female", "unspecified"];
+export function workerGender(contact: { gender?: unknown }): WorkerGender {
+  return contact.gender === "male" || contact.gender === "female" ? contact.gender : "unspecified";
+}
+export function groupWorkerContacts(contacts: WorkerContact[]): Record<WorkerGender, WorkerContact[]> {
+  const groups: Record<WorkerGender, WorkerContact[]> = { male: [], female: [], unspecified: [] };
+  for (const contact of contacts) groups[workerGender(contact)].push(contact);
+  return groups;
 }
 
 export function maskedWorkerPhone(phone: string): string {
