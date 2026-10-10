@@ -53,6 +53,14 @@ function safeSession(): Storage | null {
   }
 }
 
+function readTemporary(key: string): string | null {
+  try { return safeSession()?.getItem(key) ?? null; } catch { return null; }
+}
+
+function clearTemporary(key: string): void {
+  try { safeSession()?.removeItem(key); } catch { /* durable storage remains authoritative */ }
+}
+
 /**
  * 기존 저장소(base: localStorage 또는 Lovable 프리뷰 브로커)를 감싸,
  * "로그인 상태 유지" 선택에 따라 sessionStorage 로 우회시킵니다.
@@ -72,7 +80,7 @@ export function rememberAwareAuthStorage(
 
   return {
     async getItem(key: string): Promise<string | null> {
-      const temporary = safeSession()?.getItem(key) ?? null;
+      const temporary = readTemporary(key);
       if (!isRememberMe() && temporary != null) return temporary;
       const stored = base ? await base.getItem(key) : null;
       if (stored != null) {
@@ -82,14 +90,14 @@ export function rememberAwareAuthStorage(
       if (temporary != null && isRememberMe()) {
         await base?.setItem(key, temporary);
         persistentKeys.add(key);
-        safeSession()?.removeItem(key);
+        clearTemporary(key);
       }
       return temporary;
     },
     setItem(key: string, value: string): MaybePromise<void> | void {
       if (isRememberMe() || persistentKeys.has(key)) {
         persistentKeys.add(key);
-        safeSession()?.removeItem(key);
+        clearTemporary(key);
         return base?.setItem(key, value);
       }
       try {
