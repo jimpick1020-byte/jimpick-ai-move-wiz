@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { isIdentityEvent, recoverAuthSession } from "./auth-recovery";
 import { ITEMS_1000, CATS20 } from "./items-catalog-1000";
 import { useDraftAutosave, type DraftSaveState } from "./use-draft-autosave";
 import { loadEstimateDraft } from "./draft-sync.functions";
@@ -1612,6 +1614,7 @@ interface AppState {
 }
 
 interface Ctx extends AppState {
+  authUser: { id: string; email?: string } | null;
   authChecking: boolean;
   retryAuthCheck: () => void;
   /** 작성 중인 견적 자동 임시저장 상태 */
@@ -1624,7 +1627,7 @@ interface Ctx extends AppState {
 
   setScreen: (s: Screen) => void;
   login: (id: string, remember: boolean) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateDraft: (patch: Partial<Estimate>) => void;
   /**
    * 항상 「가장 최신 견적」을 기준으로 값을 바꿉니다.
@@ -1691,6 +1694,7 @@ async function savePendingOAuthConsent(userId: string): Promise<void> {
 }
 
 export function JimpickProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [state, setState] = useState<AppState>(() => ({
     loggedIn: false,
     savedId: "",
@@ -1707,6 +1711,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   const [authChecked, setAuthChecked] = useState(false);
   const [authRetry, setAuthRetry] = useState(0);
   const [authUserId, setAuthUserId] = useState("");
+  const [authUser, setAuthUser] = useState<Ctx["authUser"]>(null);
   const companyCatalog = usePersistentItemCatalog(
     hydrated && state.loggedIn && authChecked,
     authUserId,
@@ -1738,13 +1743,16 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   //  - 세션이 없거나 만료되면 loggedIn=false 로 내리고 로그인 화면으로 보냅니다.
   //  - 비밀번호 원문은 어디에도 저장하지 않습니다.
   useEffect(() => {
+    if (!hydrated) return;
     let alive = true;
+    let revision = 0;
     const apply = (hasSession: boolean, userId?: string) => {
       if (hasSession && userId) void savePendingOAuthConsent(userId);
       setAuthUserId(hasSession && userId ? userId : "");
       setState((s) => {
         if (hasSession) {
-          return { ...s, loggedIn: true, screen: s.screen === "splash" ? "home" : s.screen };
+          const entryScreens: Screen[] = ["splash", "login", "signup"];
+          return { ...s, loggedIn: true, screen: entryScreens.includes(s.screen) ? "home" : s.screen };
         }
         const publicScreens: Screen[] = ["login", "signup", "forgot"];
         return {
@@ -1756,38 +1764,47 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     };
 
     setAuthChecked(false);
-    // 세션 확인이 느려도(러버블 미리보기의 브로커 저장소는 응답에 최대 수 초가 걸립니다)
-    // 로딩 화면에 오래 머물지 않도록 상한을 둡니다. 실제 세션은 아래 getSession·
-    // onAuthStateChange 가 도착하는 즉시 loggedIn 에 반영됩니다.
-    const cap = setTimeout(() => {
-      if (alive) setAuthChecked(true);
-    }, 10000); // 세션 확인이 끝날 때까지 로그인 화면을 먼저 보여 주지 않습니다
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
-        if (!alive) return;
-        clearTimeout(cap);
-        apply(!!data.session, data.session?.user.id);
+    const recover = async () => {
+      const current = ++revision;
+      try {
+        const session = await recoverAuthSession(supabase.auth);
+        if (!alive || current !== revision) return;
+        setAuthUser(session?.user ?? null);
+        apply(!!session, session?.user.id);
         setAuthChecked(true);
-      })
-      .catch(() => {
-        if (alive) {
-          clearTimeout(cap);
-          setAuthChecked(true);
-        }
-      });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      } catch {
+        // 통신 실패는 세션 삭제/로그인 강제 이동이 아닙니다. 로딩에서 재시도합니다.
+      }
+    };
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!alive) return;
-      clearTimeout(cap);
-      apply(!!session, session?.user.id);
-      setAuthChecked(true);
+      if (!isIdentityEvent(event)) return;
+      if (event === "SIGNED_OUT") {
+        ++revision;
+        queryClient.clear();
+        setAuthUser(null);
+        apply(false);
+        setAuthChecked(true);
+      } else if (session) {
+        // SDK 저장 잠금 해제 이후 검증하므로 콜백에서 인증 API를 await하지 않습니다.
+        queueMicrotask(() => { if (alive) void recover(); });
+      }
     });
+    void recover();
+    const resume = () => {
+      if (document.visibilityState === "visible") void recover();
+    };
+    window.addEventListener("pageshow", resume);
+    window.addEventListener("online", resume);
+    document.addEventListener("visibilitychange", resume);
     return () => {
       alive = false;
-      clearTimeout(cap);
       sub.subscription.unsubscribe();
+      window.removeEventListener("pageshow", resume);
+      window.removeEventListener("online", resume);
+      document.removeEventListener("visibilitychange", resume);
     };
-  }, [authRetry]);
+  }, [authRetry, hydrated, queryClient]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -1928,6 +1945,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
 
   const ctx: Ctx = {
     ...state,
+    authUser,
     authChecking: !hydrated || !authChecked,
     draftSaveState: autosave.state,
     draftSavedAt: autosave.savedAt,
@@ -1969,11 +1987,12 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
 
     login: (id, remember) =>
       setState((s) => ({ ...s, loggedIn: true, savedId: remember ? id : "", screen: "home" })),
-    logout: () => {
-      // 저장된 인증 세션을 완전히 삭제합니다(localStorage·sessionStorage 양쪽).
-      // 세션 변화는 위 onAuthStateChange 가 감지해 loggedIn 을 내립니다.
-      void supabase.auth.signOut().catch(() => {});
-      setState((s) => ({ ...s, loggedIn: false, screen: "login" }));
+    logout: async () => {
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      window.history.replaceState({ jpScreen: "login" }, "");
     },
     updateDraft: (patch) => setState((s) => ({ ...s, draft: formatDraftPhones({ ...s.draft, ...patch }) })),
     patchDraft: (make) => setState((s) => ({ ...s, draft: formatDraftPhones({ ...s.draft, ...make(s.draft) }) })),
