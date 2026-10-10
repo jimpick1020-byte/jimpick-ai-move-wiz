@@ -6961,11 +6961,7 @@ export function Customers() {
             </div>
           </Card>
           );
-        })}
-      </div>
-      <BottomNav />
-    </MobileShell>
-  );
+  }
 }
 
 // ============ Settings ============
