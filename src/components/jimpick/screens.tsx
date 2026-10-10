@@ -124,6 +124,8 @@ import { createStaffShare, markStaffShareShared } from "@/lib/staff-share.functi
 import { DeleteContractDialog } from "./DeleteContractDialog";
 import { useDeleteContract } from "@/lib/use-delete-contract";
 import { listDeletedEstimateIds } from "@/lib/estimate-delete.functions";
+import { getMonthlyStats } from "@/lib/monthly-stats.functions";
+import { shiftMonth, MOVE_TYPE_BADGE } from "@/lib/monthly-stats";
 import {
   shareToKakao,
   loadKakaoShareSdk,
@@ -6547,7 +6549,14 @@ export function History() {
                     >
                       <div className="flex justify-between items-start">
                         <div>
-                          <div className="font-bold">{e.customerName || "이름 없음"}</div>
+                          <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
+                            <span className="font-bold truncate">{e.customerName || "이름 없음"}</span>
+                            {MOVE_TYPE_BADGE[String(e.moveType ?? "").trim()] && (
+                              <span className={`shrink-0 whitespace-nowrap text-xs px-2 py-0.5 rounded-full font-bold ${MOVE_TYPE_BADGE[String(e.moveType).trim()]}`}>
+                                {String(e.moveType).trim()}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs text-[#6B7280]">{formatTel(e.phone)}</div>
                         </div>
                         {/* 결제상태만 한 개 표시합니다 (독립적인 '완료' 문구는 쓰지 않습니다) */}
@@ -6829,6 +6838,7 @@ export function Customers() {
       count: number;
       lastAmount: number;
       ids: string[];
+      moveDate?: string;
     }
   >();
   // 홈 고객 현황과 같은 공통 기준: 현재 견적(보관·삭제·취소 제외)의 고객만 셉니다
@@ -6847,6 +6857,7 @@ export function Customers() {
         count: (cur?.count || 0) + 1,
         lastAmount: e.total,
         ids: [...(cur?.ids ?? []), e.id],
+        moveDate: e.moveDate,
       });
     } else {
       cur.count += 1;
@@ -6866,7 +6877,37 @@ export function Customers() {
         {list.length === 0 && (
           <div className="text-center text-[#6B7280] py-16">고객 정보가 없습니다.</div>
         )}
-        {list.map((c) => {
+        {(() => {
+          const gm = new Map<string, typeof list>();
+          for (const c of list) {
+            const t = parseMoveDate(c.moveDate);
+            const k = t === null ? "undated" : new Date(t).toISOString().slice(0, 7);
+            gm.set(k, [...(gm.get(k) ?? []), c]);
+          }
+          const keys = [...gm.keys()].filter((k) => k !== "undated").sort().reverse();
+          if (gm.has("undated")) keys.push("undated");
+          return keys.map((k, i) => {
+            const open = q ? true : (custOpen[k] ?? i === 0);
+            const rows = [...gm.get(k)!].sort((a, b) => (parseMoveDate(a.moveDate) ?? 0) - (parseMoveDate(b.moveDate) ?? 0));
+            const title = k === "undated" ? "이사 날짜 미정" : `${Number(k.slice(0, 4))}년 ${Number(k.slice(5))}월`;
+            return (
+              <div key={k} className="space-y-3">
+                <button type="button" onClick={() => setCustOpen((p) => ({ ...p, [k]: !open }))}
+                  className="w-full flex items-center justify-between rounded-2xl bg-[#EEF1F5] px-4 py-2.5 font-black text-[#25282D]">
+                  <span>{title} · {rows.length}명</span>
+                  <span className="text-sm font-bold text-[#6B7280]">{open ? "접기 ▲" : "펼치기 ▼"}</span>
+                </button>
+                {open && rows.map(renderCustomer)}
+              </div>
+            );
+          });
+        })()}
+        {false && list.map(renderCustomer)}
+      </div>
+      <BottomNav />
+    </MobileShell>
+  );
+  function renderCustomer(c: (typeof list)[number]) {
           const stages = c.ids.map((id) => contractOf(id)).filter((stage): stage is NonNullable<typeof stage> => Boolean(stage));
           const rank = ["estimate_notice", "reservation_request", "deposit_waiting", "reservation_confirmed", "payment_completed"] as const;
           const customerStage = stages.reduce(
