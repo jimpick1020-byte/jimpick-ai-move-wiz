@@ -9,6 +9,18 @@ export interface WorkerContact {
 }
 
 export type WorkerGender = "male" | "female" | "unspecified";
+export type WorkerCategory = "male" | "kitchen";
+export const WORKER_CATEGORIES: WorkerCategory[] = ["male", "kitchen"];
+export function workerCategory(contact: Pick<WorkerContact, "gender" | "role">): WorkerCategory {
+  if (contact.gender === "female") return "kitchen";
+  if (contact.gender === "male") return "male";
+  return contact.role.includes("주방") ? "kitchen" : "male";
+}
+export function groupWorkerCategories(contacts: WorkerContact[]): Record<WorkerCategory, WorkerContact[]> {
+  const groups: Record<WorkerCategory, WorkerContact[]> = { male: [], kitchen: [] };
+  for (const contact of contacts) groups[workerCategory(contact)].push(contact);
+  return groups;
+}
 export const WORKER_GENDERS: WorkerGender[] = ["male", "female", "unspecified"];
 export function workerGender(contact: { gender?: unknown }): WorkerGender {
   return contact.gender === "male" || contact.gender === "female" ? contact.gender : "unspecified";

@@ -1,10 +1,29 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { groupWorkerContacts, workerGender, maskedWorkerPhone, selectedWorkerContacts, workerSmsHref, type WorkerContact } from "./worker-contact";
+import { groupWorkerCategories, workerCategory, groupWorkerContacts, workerGender, maskedWorkerPhone, selectedWorkerContacts, workerSmsHref, type WorkerContact } from "./worker-contact";
 const contacts: WorkerContact[] = [
   { id: "a", name: "동명이인", role: "현장팀장", phone: "01012345678", photo: "" },
   { id: "b", name: "동명이인", role: "주방작업자", phone: "01023456789", photo: "" },
 ];
+test("기존 여자 작업자는 역할을 변경하지 않고 주방 작업자로 분류", () => {
+  const row: WorkerContact = { ...contacts[0], gender: "female" };
+  assert.equal(workerCategory(row), "kitchen");
+  assert.deepEqual(groupWorkerCategories([row]).kitchen, [row]);
+});
+test("기존 미지정 작업자도 두 분류에 모두 보존", () => {
+  const groups = groupWorkerCategories(contacts);
+  assert.deepEqual(groups.male, [contacts[0]]);
+  assert.deepEqual(groups.kitchen, [contacts[1]]);
+  assert.equal(groups.male.length + groups.kitchen.length, contacts.length);
+});
+test("작업 구분 변경은 ID와 역할을 보존하며 즉시 이동 및 인원 재계산", () => {
+  const original: WorkerContact = { ...contacts[0], gender: "male" };
+  const edited: WorkerContact = { ...original, gender: "female" };
+  const groups = groupWorkerCategories([edited]);
+  assert.equal(groups.male.length, 0);
+  assert.equal(groups.kitchen.length, 1);
+  assert.deepEqual(groups.kitchen[0], { ...original, gender: "female" });
+});
 test("작업자 선택은 이름이 아닌 고유 ID 기준", () => {
   assert.deepEqual(selectedWorkerContacts(contacts, ["b"]).map((c) => c.id), ["b"]);
 });
