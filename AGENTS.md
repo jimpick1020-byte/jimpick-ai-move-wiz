@@ -14,7 +14,7 @@
 - The company subscription price has one source of truth in `PLANS` at KRW 30,000 monthly; Toss charges and renewal displays must read that value to prevent price drift.
 - The Step6 room picker uses a full-viewport flex layout with one vertical list scroller and a separate RoomPickedStrip reading the same room items and disposal map; this prevents overlapping controls and divergent selection state.
 - Worker contacts are stored in company-owned profiles and changed through locked security-invoker RPCs; assignment stores contact IDs in draft JSON so management and sending read one contact source.
-- Worker gender grouping uses the shared worker-contact helpers and optional JSON gender field; this keeps legacy contacts readable and selection keyed by unchanged contact IDs.
+- Worker work-category grouping uses shared helpers with the existing JSON gender encoding (male for male work, female for kitchen work); legacy female contacts map to kitchen and unspecified contacts fall back to their role without rewriting stored records, preserving IDs and RPC compatibility.
 
 - AI SDK imports `@vercel/oidc`, which uses Node-only `createRequire(import.meta.url)` and crashes the Cloudflare worker at startup; `vite.config.ts` aliases it to `src/lib/vercel-oidc-stub.ts` — keep this alias.
 - Worker contacts are never hard-deleted; deletion sets disabled in the profile JSON via disable_worker_contact so past contracts and staff-share records stay intact.
