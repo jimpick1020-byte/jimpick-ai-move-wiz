@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /** 사장님이 직접 고른 「자주 담는 품목」 최대 개수 */
-export const FAVORITE_LIMIT = 20;
+export const FAVORITE_LIMIT = 30;
 
 const schema = z.object({
   itemIds: z.array(z.string().min(1).max(80)).max(FAVORITE_LIMIT),
