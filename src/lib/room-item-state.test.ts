@@ -1,10 +1,17 @@
 import { describe, it } from "node:test";
 import { strict as assert } from "node:assert";
-import { isSameCardDoubleTap, pickedIdsInInputOrder, withRoomDisposal, withRoomQuantity } from "./room-item-state";
+import { favoriteCardTapQuantity, isSameCardDoubleTap, pickedIdsInInputOrder, withRoomDisposal, withRoomQuantity } from "./room-item-state";
 import type { Room } from "./jimpick";
 
 const rooms: Room[] = [{ id: "a", name: "안방", items: { bed: 2, desk: 1 }, disposal: { bed: true } }, { id: "b", name: "거실", items: { bed: 1 } }];
 describe("shared room item rules", () => {
+  it("a favorite card tap selects quantity 1 when unselected", () => {
+    assert.equal(favoriteCardTapQuantity(0), 1);
+  });
+  it("a selected favorite card tap clears quantity to 0 even after increasing it", () => {
+    assert.equal(favoriteCardTapQuantity(1), 0);
+    assert.equal(favoriteCardTapQuantity(4), 0);
+  });
   it("recognizes the same card within 350ms, not another card or 351ms", () => {
     assert.equal(isSameCardDoubleTap({ key: "안방:bed", at: 100 }, "안방:bed", 450), true);
     assert.equal(isSameCardDoubleTap({ key: "안방:bed", at: 100 }, "안방:bed", 451), false);

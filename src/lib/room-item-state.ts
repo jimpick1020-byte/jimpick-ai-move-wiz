@@ -1,6 +1,11 @@
 import type { Room } from "./jimpick";
 
 export const CARD_DOUBLE_TAP_MS = 350;
+/** Favorite card taps select one item or clear the current selection. */
+export function favoriteCardTapQuantity(qty: number): number {
+  return qty > 0 ? 0 : 1;
+}
+
 export function isSameCardDoubleTap(previous: { key: string; at: number } | null, key: string, at: number) {
   return !!previous && previous.key === key && at - previous.at <= CARD_DOUBLE_TAP_MS;
 }
