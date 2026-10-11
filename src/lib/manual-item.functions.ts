@@ -8,6 +8,10 @@ const schema = z.object({
   name: z.string().trim().min(2).max(24), cat: z.enum(["가구", "가전", "주방", "생활용품", "운동·레저"]),
   room: z.string().min(1).max(20), volume: z.number().min(0).max(5),
   photo: z.string().max(4_000_000).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/),
+  group: z.string().trim().min(1).max(20).optional(),
+  rooms: z.array(z.string().min(1).max(10)).max(10).optional(),
+  keywords: z.array(z.string().min(1).max(30)).max(12).optional(),
+  favorite: z.boolean().optional(),
 });
 
 /** Reuses company-owned item_icons; photos are stored without AI generation. */
@@ -30,13 +34,13 @@ export const createManualItem = createServerFn({ method: "POST" })
     const isPng = data.photo.startsWith("data:image/png");
     const bytes = Uint8Array.from(atob(data.photo.split(",")[1]), (ch) => ch.charCodeAt(0));
     if (bytes.length < 100 || (isPng ? bytes[0] !== 137 || bytes[1] !== 80 : bytes[0] !== 255 || bytes[1] !== 216)) return { ok: false, error: "사진 파일을 확인해 주세요." };
-    const subgroup = itemSubgroup(name, data.cat);
+    const subgroup = data.group || itemSubgroup(name, data.cat);
     const inserted = await context.supabase.from("item_icons").insert({
       id, user_id: context.userId, created_by: context.userId, item_id: itemId, name, norm_name: norm,
       normalized_name: norm, display_name: name, requested_name: name, original_name: name,
       cat: data.cat, category_group: data.cat, subcategory_group: subgroup, room: data.room,
       default_volume: data.volume, status: "pending", active: true, source: "company", is_generated: false,
-      from_photo: true, metadata: { manual: true },
+      from_photo: true, metadata: { manual: true, custom_item: true, item_group: subgroup, recommended_rooms: data.rooms ?? [], search_keywords: data.keywords ?? [], is_favorite: !!data.favorite, classifier: "keyword-v1" },
     }).select("id").single();
     if (inserted.error) return { ok: false, error: inserted.error.code === "23505" ? "같은 품목을 저장 중입니다. 잠시 후 다시 확인해 주세요." : "품목을 저장하지 못했습니다." };
     const path = `${context.userId}/${id}.${isPng ? "png" : "jpg"}`;
