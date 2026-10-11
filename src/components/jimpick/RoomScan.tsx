@@ -687,7 +687,7 @@ export function RoomScanScreen() {
           onDecide={async (r, idxs, decision, add) => {
             const decisions = { ...(r.result?.decisions ?? {}) };
             idxs.forEach((i) => (decisions[String(i)] = decision));
-            void recordFeedback(r, idxs, decision === "rejected" ? "reject" : "confirm", add ? { id: add.id, name: catalog.find((c) => c.id === add.id)?.name ?? null, qty: add.qty } : null);
+            void recordFeedback(r, idxs, decision === "skipped" ? "reject" : "confirm", add ? { id: add.id, name: catalog.find((c) => c.id === add.id)?.name ?? null, qty: add.qty } : null);
             if (add)
               patchDraft((d) => {
                 let rooms = d.rooms;
