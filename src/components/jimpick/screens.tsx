@@ -2551,10 +2551,27 @@ export function Step6() {
    * 폐기물로 표시/해제 — 이 방의 이 품목 하나만 바꿉니다.
    * 서버(업체 본인 견적 임시저장)에 먼저 저장하고, 성공했을 때만 화면을 바꿉니다.
    */
-  const toggleDisposal = async (roomName: string, itemId: string) => {
+  const toggleDisposalRef = useRef<(roomName: string, itemId: string, undo?: boolean) => Promise<void>>(async () => {});
+  /** 두 번 누르기 판정 — 350ms 안에 같은 카드를 다시 누르면 폐기 전환, 아니면 한 번 누르기 실행 */
+  const tapTimer = useRef<{ id: string; t: ReturnType<typeof setTimeout> } | null>(null);
+  const cardTap = (roomName: string, itemId: string, single: () => void) => {
+    const key = `${roomName}:${itemId}`;
+    if (tapTimer.current?.id === key) {
+      clearTimeout(tapTimer.current.t);
+      tapTimer.current = null;
+      void toggleDisposalRef.current(roomName, itemId);
+      return;
+    }
+    if (tapTimer.current) { clearTimeout(tapTimer.current.t); tapTimer.current = null; }
+    tapTimer.current = { id: key, t: setTimeout(() => { tapTimer.current = null; single(); }, 350) };
+  };
+  const toggleDisposal = async (roomName: string, itemId: string, undo = false) => {
     if (disposalBusy) return;
     const target = draft.rooms.find((r) => r.name === roomName);
-    if (!target || !(target.items[itemId] > 0)) return;
+    if (!target || !(target.items[itemId] > 0)) {
+      toast.error("먼저 품목을 담은 뒤 폐기물로 바꿀 수 있습니다.");
+      return;
+    }
     const next = !target.disposal?.[itemId];
     const rooms = draft.rooms.map((r) => {
       if (r.name !== roomName) return r;
@@ -2571,14 +2588,22 @@ export function Step6() {
       if (!res.ok) throw new Error(res.error || "save failed");
       updateDraft({ rooms });
       tap("success");
-      toast.success(next ? "폐기물로 표시했습니다" : "폐기 표시를 해제했습니다");
+      if (next) {
+        toast.success("폐기물로 변경했습니다", {
+          duration: 3000,
+          action: { label: "실행 취소", onClick: () => void toggleDisposalRef.current(roomName, itemId, true) },
+        });
+      } else {
+        toast.success(undo ? "일반 품목으로 되돌렸습니다" : "폐기물에서 제외했습니다");
+      }
       setItemMenu(null);
     } catch {
-      toast.error("폐기물 설정을 저장하지 못했습니다. 다시 시도해 주세요.");
+      toast.error("저장하지 못했습니다. 다시 시도해 주세요");
     } finally {
       setDisposalBusy(false);
     }
   };
+  toggleDisposalRef.current = toggleDisposal;
 
   /** 전체 선택 해제 — 담긴 품목만 비우고 고객정보·주소·차량·옵션은 그대로입니다 */
   const clearAllItems = () => {
@@ -3599,13 +3624,20 @@ export function Step6() {
                                 <button
                                   onClick={() => {
                                     tap("soft");
-                                    setQty(it.id, qty + 1);
+                                    cardTap(room.name, it.id, () => setQty(it.id, qty + 1));
                                   }}
-                                  className="w-full flex flex-col items-center gap-1 active:translate-y-[2px] transition-transform"
+                                  style={{ touchAction: "manipulation" }}
+                                  aria-label={`${it.name} (두 번 누르면 폐기물 전환)`}
+                                  className="w-full flex flex-col items-center gap-1 select-none active:translate-y-[2px] transition-transform"
                                 >
                                   <span className="relative inline-flex">
-                                    <ItemArt id={it.id} name={it.name} size={70} />
+                                    <span className={disposed ? "opacity-60" : ""}>
+                                      <ItemArt id={it.id} name={it.name} size={70} />
+                                    </span>
                                     {disposed && <DisposalX />}
+                                    {disposed && (
+                                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-[#DC2626] px-1.5 py-[1px] text-[10px] font-black text-white">폐기물</span>
+                                    )}
                                   </span>
                                   <span className="text-center text-[15px] font-black leading-tight text-[#25282D] line-clamp-2">
                                     {it.name}
