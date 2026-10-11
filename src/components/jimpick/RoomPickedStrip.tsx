@@ -5,11 +5,13 @@ import { DisposalX } from "./EstimateSheet";
 
 interface PickedItem { id: string; name: string; qty: number }
 
-export function RoomPickedStrip({ items, disposal, collapsed, onToggle, onRemove, onMenu, onDecrease, onIncrease }: {
+export function RoomPickedStrip({ items, disposal, collapsed, onToggle, onView, busy = false, onRemove, onMenu, onDecrease, onIncrease }: {
   items: PickedItem[];
   disposal?: Record<string, boolean>;
   collapsed: boolean;
   onToggle: () => void;
+  onView?: () => void;
+  busy?: boolean;
   onRemove: (item: PickedItem) => void;
   onMenu: (id: string) => void;
   onDecrease: (item: PickedItem) => void;
@@ -17,17 +19,20 @@ export function RoomPickedStrip({ items, disposal, collapsed, onToggle, onRemove
 }) {
   return (
     <section className="shrink-0 border-b border-border px-4 py-2" aria-label="선택한 품목">
-      <Button variant="ghost" onClick={onToggle} aria-expanded={!collapsed} aria-controls="room-picked-items" className="h-8 w-full justify-between px-0">
-        <span className="text-sm font-bold">선택 품목 {items.length}종 · {items.reduce((sum, item) => sum + item.qty, 0)}개</span>
-        <ChevronDown className={collapsed ? "" : "rotate-180"} />
-      </Button>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+        <Button variant="ghost" onClick={onToggle} aria-expanded={!collapsed} aria-controls="room-picked-items" className="h-8 min-w-0 justify-between px-0">
+          <span className="min-w-0 truncate text-sm font-bold">선택 품목 {items.length}종 · {items.reduce((sum, item) => sum + item.qty, 0)}개</span>
+          <ChevronDown className={collapsed ? "shrink-0" : "shrink-0 rotate-180"} />
+        </Button>
+        {onView && <Button variant="ghost" size="sm" onClick={onView} className="shrink-0 px-1 font-bold">보기 <ChevronDown className="size-4" /></Button>}
+      </div>
       {!collapsed && (
         <div id="room-picked-items" className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1" data-room-picked-strip>
           {items.length === 0 ? <p className="py-2 text-xs text-muted-foreground">선택한 품목이 없습니다</p> : items.map((item) => (
             <div key={item.id} className="flex w-44 shrink-0 items-center gap-2 rounded-lg border border-border bg-background p-1.5">
               <span className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center">
                 <ItemArt id={item.id} name={item.name} size={40} />
-                {disposal?.[item.id] && <DisposalX />}
+                 {disposal?.[item.id] && <DisposalX />}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center">
@@ -36,9 +41,9 @@ export function RoomPickedStrip({ items, disposal, collapsed, onToggle, onRemove
                   <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => onRemove(item)} aria-label={`${item.name} 삭제`}><X /></Button>
                 </div>
                 <div className="flex items-center justify-between">
-                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onDecrease(item)} aria-label={`${item.name} 수량 줄이기`}><Minus /></Button>
+                  <Button variant="outline" size="icon" disabled={busy} className="h-7 w-7" onClick={() => onDecrease(item)} aria-label={`${item.name} 수량 줄이기`}><Minus /></Button>
                   <span className="text-xs font-bold tabular-nums">{item.qty}</span>
-                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onIncrease(item)} aria-label={`${item.name} 수량 늘리기`}><Plus /></Button>
+                  <Button variant="outline" size="icon" disabled={busy} className="h-7 w-7" onClick={() => onIncrease(item)} aria-label={`${item.name} 수량 늘리기`}><Plus /></Button>
                 </div>
               </div>
             </div>

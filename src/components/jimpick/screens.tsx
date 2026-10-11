@@ -3,6 +3,10 @@ import { isWaitingHistoryTarget } from "@/lib/history-focus";
 import { WorkerContacts } from "./WorkerContacts";
 import { workerSmsHref, type WorkerContact } from "@/lib/worker-contact";
 import { RoomPickedStrip } from "./RoomPickedStrip";
+import { ItemListLayer, FullScreenItemFrame, type ItemListMode } from "./ItemListLayer";
+import { ManualItemForm, type ManualItemInput } from "./ManualItemForm";
+import { createManualItem } from "@/lib/manual-item.functions";
+import { CARD_DOUBLE_TAP_MS, isSameCardDoubleTap, withRoomQuantity, withRoomDisposal } from "@/lib/room-item-state";
 import { calcDeposit, calcBalance } from "@/lib/deposit-rule";
 import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate, seoulMonthKey } from "@/lib/estimate-sort";
 import { publicUrl } from "@/lib/app-url";
@@ -2301,12 +2305,47 @@ export function Step6() {
     return () => clearTimeout(timer);
   }, [q]);
   const [pickedCollapsed, setPickedCollapsed] = useState(false);
+  const [listMode, setListMode] = useState<ItemListMode | null>(null);
+  const [listTab, setListTab] = useState<string>(CATS5[0]);
+  const [listQuery, setListQuery] = useState("");
+  const [manualOpen, setManualOpen] = useState(false);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const itemWriteLock = useRef(false);
+  const [itemWriteBusy, setItemWriteBusy] = useState(false);
+  const openList = (mode: ItemListMode, category = tab) => {
+    setListTab(category);
+    setListQuery(q);
+    setListMode(mode);
+  };
+  /** Optimistic shared state, immediate persistence, and exact rollback on failure. */
+  const persistItemPatch = async (make: (current: Estimate) => Partial<Estimate>): Promise<boolean> => {
+    if (itemWriteLock.current) return false;
+    itemWriteLock.current = true;
+    setItemWriteBusy(true);
+    const before = draftRef.current;
+    const patch = make(before);
+    const next = { ...before, ...patch };
+    draftRef.current = next;
+    updateDraft(patch);
+    try {
+      const result = await saveEstimateDraft({ data: { estimateId: next.id, payload: JSON.stringify(next), revision: nextRevision() } });
+      if (!result.ok || result.stale) throw new Error(result.error || "저장 내용이 변경되었습니다. 다시 확인해 주세요.");
+      return true;
+    } catch (cause) {
+      const rollback = Object.fromEntries(Object.keys(patch).map((key) => [key, before[key as keyof Estimate]])) as Partial<Estimate>;
+      draftRef.current = { ...draftRef.current, ...rollback };
+      updateDraft(rollback);
+      toast.error(cause instanceof Error ? cause.message : "저장하지 못했습니다. 이전 상태로 되돌렸습니다.");
+      return false;
+    } finally { itemWriteLock.current = false; setItemWriteBusy(false); }
+  };
   useEffect(() => {
     if (!openRoom) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenRoom(null);
+      if (event.key === "Escape" && !document.querySelector("[data-item-layer]")) setOpenRoom(null);
     };
     document.addEventListener("keydown", closeOnEscape);
     return () => {
@@ -2353,22 +2392,7 @@ export function Step6() {
   /** 특정 공간의 품목 수량을 바꿉니다 (다른 공간·품목은 건드리지 않습니다) */
   const setQtyInRoom = (roomName: string, itemId: string, qty: number) => {
     tap("soft");
-    updateDraft({
-      rooms: draft.rooms.map((r) => {
-        if (r.name !== roomName) return r;
-        const items = { ...r.items };
-        if (qty <= 0) {
-          delete items[itemId];
-          // 목록에서 지운 품목은 폐기 표시도 함께 정리합니다 (다시 담으면 일반 이사짐)
-          if (r.disposal?.[itemId]) {
-            const disposal = { ...r.disposal };
-            delete disposal[itemId];
-            return { ...r, items, disposal };
-          }
-        } else items[itemId] = qty;
-        return { ...r, items };
-      }),
-    });
+    void persistItemPatch((current) => ({ rooms: withRoomQuantity(current.rooms, roomName, itemId, qty) }));
   };
 
   /** 수량 1에서 더 줄이면 바로 지우지 않고 삭제 확인창을 띄웁니다 */
@@ -2553,40 +2577,33 @@ export function Step6() {
    */
   const toggleDisposalRef = useRef<(roomName: string, itemId: string, undo?: boolean) => Promise<void>>(async () => {});
   /** 두 번 누르기 판정 — 350ms 안에 같은 카드를 다시 누르면 폐기 전환, 아니면 한 번 누르기 실행 */
-  const tapTimer = useRef<{ id: string; t: ReturnType<typeof setTimeout> } | null>(null);
+  const tapTimer = useRef<{ key: string; at: number; t: ReturnType<typeof setTimeout>; single: () => void } | null>(null);
+  useEffect(() => () => { if (tapTimer.current) clearTimeout(tapTimer.current.t); }, []);
   const cardTap = (roomName: string, itemId: string, single: () => void) => {
+    if (itemWriteLock.current) return;
     const key = `${roomName}:${itemId}`;
-    if (tapTimer.current?.id === key) {
-      clearTimeout(tapTimer.current.t);
+    const previous = tapTimer.current;
+    if (previous && isSameCardDoubleTap(previous, key, Date.now())) {
+      clearTimeout(previous.t);
       tapTimer.current = null;
       void toggleDisposalRef.current(roomName, itemId);
       return;
     }
-    if (tapTimer.current) { clearTimeout(tapTimer.current.t); tapTimer.current = null; }
-    tapTimer.current = { id: key, t: setTimeout(() => { tapTimer.current = null; single(); }, 350) };
+    if (previous) { clearTimeout(previous.t); tapTimer.current = null; previous.single(); }
+    tapTimer.current = { key, at: Date.now(), single, t: setTimeout(() => { tapTimer.current = null; single(); }, CARD_DOUBLE_TAP_MS) };
   };
   const toggleDisposal = async (roomName: string, itemId: string, undo = false) => {
-    if (disposalBusy) return;
-    const target = draft.rooms.find((r) => r.name === roomName);
+    if (itemWriteLock.current) return;
+    const target = draftRef.current.rooms.find((r) => r.name === roomName);
     if (!target || !(target.items[itemId] > 0)) {
       toast.error("먼저 품목을 담은 뒤 폐기물로 바꿀 수 있습니다.");
       return;
     }
     const next = !target.disposal?.[itemId];
-    const rooms = draft.rooms.map((r) => {
-      if (r.name !== roomName) return r;
-      const disposal = { ...(r.disposal ?? {}) };
-      if (next) disposal[itemId] = true;
-      else delete disposal[itemId];
-      return { ...r, disposal };
-    });
     setDisposalBusy(true);
     try {
-      const res = await saveEstimateDraft({
-        data: { estimateId: draft.id, payload: JSON.stringify({ ...draft, rooms }), revision: nextRevision() },
-      });
-      if (!res.ok) throw new Error(res.error || "save failed");
-      updateDraft({ rooms });
+      const saved = await persistItemPatch((current) => ({ rooms: withRoomDisposal(current.rooms, roomName, itemId, next) }));
+      if (!saved) return;
       tap("success");
       if (next) {
         toast.success("폐기물로 변경했습니다", {
@@ -2644,8 +2661,12 @@ export function Step6() {
    * 담을 공간을 아직 고르지 않았으면 품목 이름에 어울리는 공간으로 자동 배정합니다.
    */
   const setQty = (itemId: string, qty: number, itemName?: string) => {
+    if (room) {
+      setQtyInRoom(room.name, itemId, qty);
+      return;
+    }
     let rooms = draft.rooms;
-    let target = room;
+    let target: Room | undefined = room;
     if (!target) {
       if (qty <= 0) return;
       const name =
@@ -3213,7 +3234,7 @@ export function Step6() {
   }, []);
 
   const frequent = useMemo(() => {
-    const ids = favIds && favIds.length > 0 ? favIds : frequentItemIds(estimates, 8);
+    const ids = favIds ?? frequentItemIds(estimates, 8);
     return ids
       .map((id) => catalog.find((c) => c.id === id))
       .filter((i): i is (typeof catalog)[number] => !!i);
@@ -3221,7 +3242,7 @@ export function Step6() {
 
   const openFavEdit = () => {
     tap("soft");
-    setFavDraft(favIds && favIds.length > 0 ? favIds : frequent.map((i) => i.id));
+    setFavDraft(favIds ?? frequent.map((i) => i.id));
     setFavQuery("");
     setFavEditOpen(true);
   };
@@ -3286,6 +3307,34 @@ export function Step6() {
     setFavIds(next);
     setItemMenu(null);
     toast.success(included ? "자주 담는 품목에서 해제했습니다" : "자주 담는 품목에 등록했습니다");
+  };
+
+  const saveManualItem = async (input: ManualItemInput) => {
+    if (!room) throw new Error("공간을 먼저 선택해 주세요.");
+    if (itemWriteLock.current) throw new Error("품목 저장이 끝난 뒤 다시 시도해 주세요.");
+    const exact = catalog.find((item) => normItemName(item.name) === normItemName(input.name));
+    const result: IconResult = exact ? { ok: true, itemId: exact.id, name: exact.name } : await createManualItem({ data: { ...input, room: room.name } });
+    if (!result.ok || !result.itemId) throw new Error(result.error || "품목 등록에 실패했습니다.");
+    const itemId = result.itemId;
+    if (result.iconUrl) registerCustomIcons([{ id: itemId, icon: result.iconUrl }]);
+    const saved = await persistItemPatch((current) => ({
+      rooms: withRoomQuantity(current.rooms, room.name, itemId, current.rooms.find((r) => r.name === room.name)?.items[itemId] || 1),
+      ...(!exact && result.iconUrl ? { customItems: [...(current.customItems || []).filter((item) => item.id !== itemId), {
+        id: itemId, name: result.name || input.name, cat: result.cat || input.cat, extra: result.volume ?? input.volume, icon: result.iconUrl, subgroup: result.subgroup, active: true,
+      }] } : {}),
+    }));
+    if (!saved) throw new Error("품목은 등록됐지만 방 선택을 저장하지 못했습니다. 다시 시도해 주세요.");
+    await refreshCompanyItems().catch(() => {});
+    if (input.favorite) {
+      const next = [...new Set([...(favIds ?? frequent.map((item) => item.id)), itemId])];
+      const favoriteResult = await saveFavoriteItems({ data: { itemIds: next } }).catch(() => ({ ok: false }));
+      if (!favoriteResult.ok) throw new Error("품목은 등록·선택됐지만 자주 담는 품목 저장에 실패했습니다. 다시 시도해 주세요.");
+      setFavIds(next);
+    }
+    setListTab(cat5For(result.cat || input.cat));
+    setListQuery("");
+    setManualOpen(false);
+    toast.success(result.reused || exact ? "기존 품목을 이 방에 선택했습니다" : "품목을 등록하고 이 방에 선택했습니다");
   };
 
   return (
@@ -3488,6 +3537,7 @@ export function Step6() {
             </header>
             <RoomPickedStrip
               items={picked} disposal={room.disposal} collapsed={pickedCollapsed}
+              onView={() => openList("picked")} busy={itemWriteBusy}
               onToggle={() => setPickedCollapsed((value) => !value)}
               onRemove={(item) => setConfirmRemove({ id: item.id, name: item.name, room: room.name })}
               onMenu={setItemMenu}
@@ -3505,6 +3555,7 @@ export function Step6() {
                         tap("soft");
                         setTab(c);
                         setQ("");
+                         openList("category", c);
                       }}
                       className="jp-category-tab shrink-0 rounded-2xl px-4 py-2.5 text-[14px] font-black whitespace-nowrap transition-all active:translate-y-[2px]"
                     >
@@ -3524,7 +3575,7 @@ export function Step6() {
                 </div>
 
               <div className="flex justify-end">
-                <Button variant="ghost" size="sm" onClick={openIconGen} className="text-auth-primary"><Plus /> 목록에 없는 품목 추가</Button>
+                <Button variant="ghost" size="sm" onClick={() => { openList("category"); setManualOpen(true); }} className="text-auth-primary"><Plus /> 목록에 없는 품목 추가</Button>
               </div>
             </div>
             <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pt-3 pb-8 space-y-4 [-webkit-overflow-scrolling:touch]" data-room-item-list {...tabSwipe}>
@@ -3535,12 +3586,10 @@ export function Step6() {
                       자주 담는 품목
 
                     </div>
-                    <button
-                      onClick={openFavEdit}
-                      className="shrink-0 rounded-xl border border-[#E5E7EB] bg-white px-2.5 py-1.5 text-[12px] font-black text-[#25282D] shadow-[0_2px_0_#F7F8F5] active:translate-y-[1px] active:shadow-none"
-                    >
-                      편집
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={openFavEdit} className="font-bold">편집</Button>
+                      <Button variant="ghost" size="sm" onClick={() => openList("favorites")} className="font-bold">더보기 <ChevronRight className="size-4" /></Button>
+                    </div>
                   </div>
                   <div className="flex gap-2 overflow-x-auto py-2">
                     {frequent.map((it) => {
@@ -3718,6 +3767,20 @@ export function Step6() {
                 <span className="inline-flex items-center gap-2"><Check className="w-5 h-5" /> 이 공간 완료</span>
               </PrimaryButton>
             </footer>
+
+            {listMode && <ItemListLayer
+              mode={listMode} roomName={room.name} catalog={catalog} favorites={frequent} picked={picked}
+              quantities={room.items} disposal={room.disposal} cats={visibleCats} tab={listTab} query={listQuery} busy={itemWriteBusy}
+              onTab={setListTab} onQuery={setListQuery} onClose={() => { if (!itemWriteLock.current) setListMode(null); }}
+              onAdd={() => setManualOpen(true)} onEdit={openFavEdit} onMenu={setItemMenu}
+              onTap={(item) => cardTap(room.name, item.id, () => {
+                const currentQty = draftRef.current.rooms.find((r) => r.name === room.name)?.items[item.id] || 0;
+                setQtyInRoom(room.name, item.id, currentQty + 1);
+              })}
+              onQuantity={(item, qty) => qty <= 0 ? setConfirmRemove({ id: item.id, name: item.name, room: room.name }) : setQtyInRoom(room.name, item.id, qty)}
+              onRemove={(item) => setConfirmRemove({ id: item.id, name: item.name, room: room.name })}
+            />}
+            {manualOpen && <ManualItemForm category={listTab} onClose={() => setManualOpen(false)} onSave={saveManualItem} />}
 
             {/* 품목 만들기 · 고치기 */}
             {/* 3D 아이콘 만들기 — 확인 후 실제로 그림을 만듭니다 */}
@@ -4356,12 +4419,8 @@ export function Step6() {
 
       {/* 자주 담는 품목 편집 */}
       {favEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div
-            className="absolute inset-0 bg-[#25282D]/45"
-            onClick={() => !favSaving && setFavEditOpen(false)}
-          />
-          <div className="relative flex h-[86dvh] w-full max-w-md flex-col rounded-t-3xl bg-white shadow-[0_-14px_40px_rgba(7,81,216,0.28)]">
+        <FullScreenItemFrame level="form" title="자주 담는 품목 편집" onClose={() => { if (!favSaving) setFavEditOpen(false); }}>
+          <div className="flex min-h-0 flex-1 flex-col bg-card">
             <div className="border-b border-[#F7F8F5] px-4 py-3">
               <div className="text-[17px] font-black text-[#25282D]">자주 담는 품목 편집</div>
               <div className="mt-0.5 text-[12px] font-bold text-[#6B7280]">
@@ -4472,7 +4531,7 @@ export function Step6() {
               </button>
             </div>
           </div>
-        </div>
+        </FullScreenItemFrame>
       )}
     </MobileShell>
   );
