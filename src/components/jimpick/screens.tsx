@@ -5,6 +5,8 @@ import { workerSmsHref, type WorkerContact } from "@/lib/worker-contact";
 import { RoomPickedStrip } from "./RoomPickedStrip";
 import { ItemListLayer, FullScreenItemFrame, type ItemListMode } from "./ItemListLayer";
 import { ManualItemForm, type ManualItemInput } from "./ManualItemForm";
+import { FavoriteItemGrid } from "./FavoriteItemGrid";
+import { pickerItemLabel } from "@/lib/picker-item-label";
 import { createManualItem } from "@/lib/manual-item.functions";
 import { CARD_DOUBLE_TAP_MS, isSameCardDoubleTap, withRoomQuantity, withRoomDisposal } from "@/lib/room-item-state";
 import { calcDeposit, calcBalance } from "@/lib/deposit-rule";
@@ -3778,11 +3780,15 @@ export function Step6() {
               quantities={room.items} disposal={room.disposal} cats={visibleCats} tab={listTab} query={listQuery} busy={itemWriteBusy}
               onTab={setListTab} onQuery={setListQuery} onClose={() => { if (!itemWriteLock.current) setListMode(null); }}
               onAdd={() => setManualOpen(true)} onEdit={openFavEdit} onMenu={setItemMenu}
-              onTap={(item) => cardTap(room.name, item.id, () => {
+              onTap={(item) => {
+                const currentQty = draftRef.current.rooms.find((r) => r.name === room.name)?.items[item.id] || 0;
+                setQtyInRoom(room.name, item.id, currentQty + 1);
+              }}
+              onImageTap={(item) => cardTap(room.name, item.id, () => {
                 const currentQty = draftRef.current.rooms.find((r) => r.name === room.name)?.items[item.id] || 0;
                 setQtyInRoom(room.name, item.id, currentQty + 1);
               })}
-              onQuantity={(item, qty) => qty <= 0 ? setConfirmRemove({ id: item.id, name: item.name, room: room.name }) : setQtyInRoom(room.name, item.id, qty)}
+              onQuantity={(item, qty) => setQtyInRoom(room.name, item.id, Math.max(0, qty))}
               onRemove={(item) => setConfirmRemove({ id: item.id, name: item.name, room: room.name })}
             />}
             {manualOpen && <ManualItemForm category={listTab} onClose={() => setManualOpen(false)} onSave={saveManualItem} />}
@@ -4442,48 +4448,7 @@ export function Step6() {
                     아래에서 품목을 골라 추가해 주세요
                   </div>
                 ) : (
-                  <div className="mt-2 space-y-1.5">
-                    {favDraft.map((id, i) => {
-                      const it = catalog.find((c) => c.id === id);
-                      return (
-                        <div
-                          key={id}
-                          className="flex items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-2 py-1.5"
-                        >
-                          <span className="w-5 text-center text-[11px] font-black text-[#94A3B8]">
-                            {i + 1}
-                          </span>
-                          <ItemArt id={id} name={it?.name || id} size={26} />
-                          <span className="flex-1 truncate text-[13px] font-extrabold text-[#25282D]">
-                            {it?.name || id}
-                          </span>
-                          <button
-                            onClick={() => moveFav(id, -1)}
-                            disabled={i === 0}
-                            aria-label="위로"
-                            className="h-8 w-8 rounded-lg border border-[#E5E7EB] text-[#25282D] disabled:opacity-30"
-                          >
-                            ↑
-                          </button>
-                          <button
-                            onClick={() => moveFav(id, 1)}
-                            disabled={i === favDraft.length - 1}
-                            aria-label="아래로"
-                            className="h-8 w-8 rounded-lg border border-[#E5E7EB] text-[#25282D] disabled:opacity-30"
-                          >
-                            ↓
-                          </button>
-                          <button
-                            onClick={() => toggleFav(id)}
-                            aria-label={`${it?.name || id} 삭제`}
-                            className="h-8 w-8 rounded-lg border border-[#FBD5D5] text-[#D95C5C]"
-                          >
-                            <X className="mx-auto h-4 w-4" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <div className="mt-2"><FavoriteItemGrid ids={favDraft} busy={favSaving} label={(id) => pickerItemLabel(id, catalog.find((c) => c.id === id)?.name, itemNameById(id))} onChange={setFavDraft} onRemove={toggleFav} /></div>
                 )}
               </div>
 
