@@ -82,15 +82,15 @@ export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highli
   onTap: () => void; onQuantity: (qty: number) => void; onMenu: () => void; onRemove: () => void; categoryMode?: boolean; onImageTap?: () => void;
 }) {
   const label = pickerItemLabel(item.id, item.name);
-  return <div data-picker-card={item.id} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-lg border px-1.5 pb-1.5 pt-2 transition-shadow ${selectedMode || qty > 0 ? "h-40" : "h-28"} ${qty > 0 ? "jp-item-card-selected ring-1 ring-auth-primary" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""}`}>
+  return <div data-picker-card={item.id} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-lg border px-1.5 pb-1.5 pt-2 transition-shadow ${selectedMode || qty > 0 ? "h-40" : "h-32"} ${qty > 0 ? "jp-item-card-selected ring-1 ring-auth-primary" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""}`}>
     <Button variant="ghost" size="icon" disabled={busy} className="absolute left-1 top-1 z-10 size-7 rounded-full border border-border bg-card" onClick={onMenu} aria-label={`${label} 관리`}><MoreHorizontal className="size-4" /></Button>
     {selectedMode ? <Button variant="ghost" size="icon" disabled={busy} className="absolute right-1 top-1 z-10 size-7 text-destructive" onClick={onRemove} aria-label={`${label} 삭제`}><X className="size-4" /></Button> : qty > 0 && <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-auth-primary text-auth-primary-foreground"><Check className="size-3.5" /></span>}
     <Button variant="ghost" disabled={busy} className="h-auto min-h-0 w-full flex-1 touch-manipulation select-none flex-col gap-1 whitespace-normal px-0 py-0.5" onClick={onTap} aria-label={`${label} 선택`}>
-      <span className="relative inline-flex" onClick={onImageTap ? (event) => { event.stopPropagation(); onImageTap(); } : undefined}>
+      <span className="relative inline-flex shrink-0" onClick={onImageTap ? (event) => { event.stopPropagation(); onImageTap(); } : undefined}>
         <span className={disposed ? "opacity-60" : ""}><ItemArt id={item.id} name={label} size={56} /></span>
         {disposed && <DisposalX />}
       </span>
-      <span className="line-clamp-2 h-10 w-full break-words text-center text-sm font-black leading-5" title={label}>{label}</span>
+      <span className="line-clamp-2 h-10 w-full shrink-0 break-all text-center text-[13px] font-black leading-5" title={label}>{label}</span>
     </Button>
     {qty > 0 ? <div className="mt-1 flex w-full items-center justify-between gap-1">
       <Button variant="outline" size="icon" disabled={busy} className="size-7 shrink-0 rounded-full" onClick={() => onQuantity(qty - 1)} aria-label={`${label} 감소`}><Minus className="size-3.5" /></Button>
