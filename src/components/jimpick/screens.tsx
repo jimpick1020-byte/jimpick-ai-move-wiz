@@ -3554,8 +3554,6 @@ export function Step6() {
                       data-selected={!q && c === tab}
                       onClick={() => {
                         tap("soft");
-                        setTab(c);
-                        setQ("");
                          openList("category", c);
                       }}
                       className="jp-category-tab shrink-0 rounded-2xl px-4 py-2.5 text-[14px] font-black whitespace-nowrap transition-all active:translate-y-[2px]"
@@ -3696,6 +3694,7 @@ export function Step6() {
                                   <div className="w-full flex items-center justify-between gap-1">
                                     <button
                                       onClick={() => decQty(it.id, it.name, qty)}
+                                      disabled={itemWriteBusy}
                                       className="w-7 h-7 rounded-xl bg-white border border-[#E5E7EB] text-[#25282D] font-black shadow-[0_2px_0_#E5E7EB]"
                                       aria-label={`${it.name} 감소`}
                                     >
@@ -3706,6 +3705,7 @@ export function Step6() {
                                     </span>
                                     <button
                                       onClick={() => setQty(it.id, qty + 1)}
+                                      disabled={itemWriteBusy}
                                       className="w-7 h-7 rounded-xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white font-black shadow-[0_2px_0_#285C99]"
                                       aria-label={`${it.name} 증가`}
                                     >
