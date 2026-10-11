@@ -26,3 +26,11 @@ export function withRoomDisposal(rooms: Room[], roomName: string, id: string, di
     return { ...room, disposal };
   });
 }
+
+/**
+ * 선택 품목 화면은 분류와 무관하게 담는 순서 그대로 보여 줍니다.
+ * 저장된 열쇠 순서(먼저 담은 품목이 앞)를 지키고, 수량이 0인 품목은 빼서 돌려줍니다.
+ */
+export function pickedIdsInInputOrder(items: Record<string, number>): string[] {
+  return Object.entries(items).filter(([, qty]) => qty > 0).map(([id]) => id);
+}

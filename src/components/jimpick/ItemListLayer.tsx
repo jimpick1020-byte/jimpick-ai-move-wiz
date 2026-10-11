@@ -110,7 +110,7 @@ export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites,
   const source = mode === "category" ? catalog : mode === "favorites" ? favorites : picked;
   const shown = source.filter((item) => matchesQuery(query, item.name, item.sub, item.group, displayGroupOf(item.name, item.group)) && (mode !== "category" || item.cat5 === tab));
   const groups: { label: string; items: PickerItem[] }[] = [];
-  for (const item of shown) {
+  if (mode !== "picked") for (const item of shown) {
     const label = displayGroupOf(item.name, item.group);
     const hit = groups.find((g) => g.label === label);
     if (hit) hit.items.push(item); else groups.push({ label, items: [item] });
@@ -122,6 +122,7 @@ export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites,
   }, [highlightId, tab]);
   const kinds = Object.values(quantities).filter((qty) => qty > 0).length;
   const count = Object.values(quantities).reduce((sum, qty) => sum + qty, 0);
+  const card = (item: PickerItem) => <ItemPickerCard key={item.id} item={item} highlight={highlightId === item.id} qty={quantities[item.id] || 0} disposed={!!disposal?.[item.id]} busy={busy} selectedMode={mode === "picked"} categoryMode={mode === "category"} onTap={() => onTap(item)} onImageTap={onImageTap ? () => onImageTap(item) : undefined} onQuantity={(qty) => onQuantity(item, qty)} onMenu={() => onMenu(item.id)} onRemove={() => onRemove(item)} />;
   return <FullScreenItemFrame title={title} onClose={onClose} footer={<><p className="mb-2 text-sm font-bold">선택 {kinds}종 · {count}개{busy ? " · 저장 중…" : ""}</p><PrimaryButton disabled={busy} onClick={onClose}>{mode === "picked" ? "변경 완료" : "선택 완료"}</PrimaryButton></>}>
     <div className="shrink-0 space-y-2 border-b border-border px-4 py-2">
       {mode === "category" && <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1">{cats.map((cat) => <Button key={cat} variant="ghost" data-category={cat} data-selected={tab === cat} className="jp-category-tab shrink-0 rounded-2xl font-black" onClick={() => onTab(cat)}>{cat}</Button>)}</div>}
@@ -133,10 +134,12 @@ export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites,
       {mode === "category" && <div className="flex justify-end"><button type="button" onClick={onAdd} className="text-sm font-bold text-auth-primary">+ 목록에 없는 품목 추가</button></div>}
     </div>
     <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pb-24 pt-3 [-webkit-overflow-scrolling:touch]" data-expanded-item-list>
-      <div className="space-y-3">{groups.map((g) => <section key={g.label} data-item-group={g.label}>
-        <span className="mb-1.5 inline-block rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-muted-foreground">{g.label}</span>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">{g.items.map((item) => <ItemPickerCard key={item.id} item={item} highlight={highlightId === item.id} qty={quantities[item.id] || 0} disposed={!!disposal?.[item.id]} busy={busy} selectedMode={mode === "picked"} categoryMode={mode === "category"} onTap={() => onTap(item)} onImageTap={onImageTap ? () => onImageTap(item) : undefined} onQuantity={(qty) => onQuantity(item, qty)} onMenu={() => onMenu(item.id)} onRemove={() => onRemove(item)} />)}</div>
-      </section>)}</div>
+      {mode === "picked"
+        ? <div className="grid grid-cols-3 gap-2 sm:gap-3" data-picked-order>{shown.map((item) => card(item))}</div>
+        : <div className="space-y-3">{groups.map((g) => <section key={g.label} data-item-group={g.label}>
+          <span className="mb-1.5 inline-block rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-muted-foreground">{g.label}</span>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">{g.items.map((item) => card(item))}</div>
+        </section>)}</div>}
       {shown.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">{query ? "검색 결과가 없습니다" : "등록된 품목이 없습니다"}</p>}
     </div>
   </FullScreenItemFrame>;

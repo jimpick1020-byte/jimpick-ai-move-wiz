@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import { strict as assert } from "node:assert";
-import { isSameCardDoubleTap, withRoomDisposal, withRoomQuantity } from "./room-item-state";
+import { isSameCardDoubleTap, pickedIdsInInputOrder, withRoomDisposal, withRoomQuantity } from "./room-item-state";
 import type { Room } from "./jimpick";
 
 const rooms: Room[] = [{ id: "a", name: "안방", items: { bed: 2, desk: 1 }, disposal: { bed: true } }, { id: "b", name: "거실", items: { bed: 1 } }];
@@ -29,5 +29,10 @@ describe("shared room item rules", () => {
     assert.equal(withRoomDisposal(rooms, "안방", "bed", false)[0].disposal?.bed, undefined);
     assert.equal(withRoomDisposal(rooms, "안방", "bed", false)[0].items.bed, 2);
     assert.equal(withRoomDisposal(rooms, "안방", "missing", true)[0], rooms[0]);
+  });
+  it("picked items keep the order they were added in, ignoring category rank, and drop zero quantities", () => {
+    assert.deepEqual(pickedIdsInInputOrder({ sofa: 1, bed: 2, fridge: 1, box: 0 }), ["sofa", "bed", "fridge"]);
+    assert.deepEqual(pickedIdsInInputOrder({ bed: 2, desk: 1 }), ["bed", "desk"]);
+    assert.deepEqual(pickedIdsInInputOrder({}), []);
   });
 });
