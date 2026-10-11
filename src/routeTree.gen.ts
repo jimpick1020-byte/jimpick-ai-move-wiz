@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ApiItemImagePreviewRouteImport } from './routes/api/item-image-preview'
 import { Route as BillingCallbackRouteImport } from './routes/billing.callback'
 import { Route as ShareIdRouteImport } from './routes/share.$id'
 import { Route as StaffEstimateTokenRouteImport } from './routes/staff.estimate.$token'
@@ -28,6 +29,11 @@ const IndexRoute = IndexRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiItemImagePreviewRoute = ApiItemImagePreviewRouteImport.update({
+  id: '/api/item-image-preview',
+  path: '/api/item-image-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BillingCallbackRoute = BillingCallbackRouteImport.update({
@@ -77,6 +83,7 @@ const ApiPublicItemIconFileRoute = ApiPublicItemIconFileRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/api/item-image-preview': typeof ApiItemImagePreviewRoute
   '/billing/callback': typeof BillingCallbackRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/api/item-image-preview': typeof ApiItemImagePreviewRoute
   '/billing/callback': typeof BillingCallbackRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/api/item-image-preview': typeof ApiItemImagePreviewRoute
   '/billing/callback': typeof BillingCallbackRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/reset-password'
+    | '/api/item-image-preview'
     | '/billing/callback'
     | '/share/$id'
     | '/staff/estimate/$token'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/reset-password'
+    | '/api/item-image-preview'
     | '/billing/callback'
     | '/share/$id'
     | '/staff/estimate/$token'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/reset-password'
+    | '/api/item-image-preview'
     | '/billing/callback'
     | '/share/$id'
     | '/staff/estimate/$token'
@@ -153,6 +165,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiItemImagePreviewRoute: typeof ApiItemImagePreviewRoute
   BillingCallbackRoute: typeof BillingCallbackRoute
   ShareIdRoute: typeof ShareIdRoute
   StaffEstimateTokenRoute: typeof StaffEstimateTokenRoute
@@ -177,6 +190,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/item-image-preview': {
+      id: '/api/item-image-preview'
+      path: '/api/item-image-preview'
+      fullPath: '/api/item-image-preview'
+      preLoaderRoute: typeof ApiItemImagePreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/billing/callback': {
@@ -241,6 +261,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiItemImagePreviewRoute: ApiItemImagePreviewRoute,
   BillingCallbackRoute: BillingCallbackRoute,
   ShareIdRoute: ShareIdRoute,
   StaffEstimateTokenRoute: StaffEstimateTokenRoute,
