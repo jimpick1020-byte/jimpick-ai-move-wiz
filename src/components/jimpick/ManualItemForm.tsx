@@ -4,9 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { streamImage } from "@/lib/stream-image";
 import { Button } from "@/components/ui/button";
 import { shrinkPhoto } from "@/lib/photo-shrink";
-import { classifyItem, ITEM_MAIN_CATS, ITEM_KEYWORD_RULES, type ItemMainCat } from "@/lib/item-classify";
+import { splitItemNames, classifyItem, ITEM_MAIN_CATS, ITEM_KEYWORD_RULES, type ItemMainCat } from "@/lib/item-classify";
 import { FullScreenItemFrame } from "./ItemListLayer";
-import { Field, PrimaryButton, TextInput } from "./ui";
+import { Field, PrimaryButton } from "./ui";
 import boxImage from "@/assets/item-box.png";
 
 export interface ManualItemInput {
@@ -14,12 +14,6 @@ export interface ManualItemInput {
   group: string; rooms: string[]; keywords: string[];
 }
 const ROOM_OPTIONS = ["안방", "작은방", "서재", "거실", "부엌", "베란다", "세탁실", "입구", "창고", "기타"];
-
-/** 쉼표·줄바꿈으로 나눈 품목 이름 (중복 제거) */
-export function splitItemNames(text: string): string[] {
-  const seen = new Set<string>();
-  return text.split(/[,，、\n]+/).map((n) => n.trim()).filter((n) => { const k = n.replace(/\s+/g, ""); if (!k || seen.has(k)) return false; seen.add(k); return true; });
-}
 
 export function ManualItemForm({ category, onClose, onSave }: { category: string; onClose: () => void; onSave: (inputs: ManualItemInput[]) => Promise<void> }) {
   const [name, setName] = useState("");
