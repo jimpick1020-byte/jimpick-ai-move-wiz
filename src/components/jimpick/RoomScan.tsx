@@ -864,7 +864,7 @@ function RoomReview({
           }}
         />
       ))}
-      {groups.low > 0 && <p className="mt-2 text-[12px] text-[#9AA1AC]">신뢰도 65% 미만 {groups.low}개는 추가하지 않았습니다.</p>}
+      {groups.low > 0 && <p className="mt-2 text-[12px] text-[#9AA1AC]">미확인(신뢰도 50% 미만) {groups.low}개는 추가하지 않았습니다.</p>}
       {rows.length === 0 && <p className="text-[13px] text-[#6B7280]">분석이 끝난 사진이 없습니다.</p>}
     </div>
   );
