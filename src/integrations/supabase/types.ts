@@ -1074,6 +1074,54 @@ export type Database = {
         }
         Relationships: []
       }
+      scan_feedback: {
+        Row: {
+          action: string
+          box: Json | null
+          confidence: number | null
+          created_at: string
+          detected_item_id: string | null
+          detected_name: string
+          final_item_id: string | null
+          final_name: string | null
+          final_qty: number | null
+          id: string
+          room: string | null
+          scan_id: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          box?: Json | null
+          confidence?: number | null
+          created_at?: string
+          detected_item_id?: string | null
+          detected_name: string
+          final_item_id?: string | null
+          final_name?: string | null
+          final_qty?: number | null
+          id?: string
+          room?: string | null
+          scan_id?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          box?: Json | null
+          confidence?: number | null
+          created_at?: string
+          detected_item_id?: string | null
+          detected_name?: string
+          final_item_id?: string | null
+          final_name?: string | null
+          final_qty?: number | null
+          id?: string
+          room?: string | null
+          scan_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       service_fix_notices: {
         Row: {
           created_at: string

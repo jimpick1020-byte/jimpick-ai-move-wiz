@@ -1,3 +1,4 @@
+import { isBacklit } from "./scan-rules";
 type AnyCanvas = OffscreenCanvas | HTMLCanvasElement;
 
 export interface PreparedPhoto {
@@ -64,6 +65,7 @@ export async function prepPhotoCore(
   if (mean < 0.16) quality = { ok: false, reason: "사진이 너무 어둡습니다. 불을 켜고 다시 찍어 주세요." };
   else if (mean > 0.94) quality = { ok: false, reason: "사진이 너무 밝습니다. 다시 찍어 주세요." };
   else if (variance < 0.0012) quality = { ok: false, reason: "사진이 흔들렸습니다. 멈춘 뒤 다시 찍어 주세요." };
+  else if (isBacklit(gray)) quality = { ok: false, reason: "역광입니다. 창문을 등지고 다시 찍어 주세요." };
 
   // 8x8 평균 해시
   const cells: number[] = [];

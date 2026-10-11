@@ -26,3 +26,4 @@
 - Auth persistence preserves existing durable sessions during refresh; Google sets persistence before OAuth so reopening cannot downgrade stored tokens to tab-only storage.
 - JimpickProvider owns the sole app auth subscription, waits for validated startup recovery, and cancels/clears private query caches before explicit sign-out; this avoids login flashes and duplicate sign-outs.
 - New company items are auto-classified offline by keyword rules in src/lib/item-classify.ts (no AI calls); group/rooms/keywords are stored in existing item_icons (subcategory_group + metadata) to avoid schema changes.
+- Photo item recognition is two-stage: a cheap low-detail detect pass, then only ambiguous boxes are cropped (jpeg-js) and verified at high detail; thresholds live in src/lib/scan-rules.ts and user corrections go to scan_feedback as prompt hints, keeping credit use low.

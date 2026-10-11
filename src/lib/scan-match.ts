@@ -55,5 +55,4 @@ export function matchCatalog(name: string, catalog: CatalogEntry[]): CatalogEntr
   return best;
 }
 
-export const AUTO_CONF = 0.9;
-export const CHECK_CONF = 0.7;
+export { AUTO_CONF, CHECK_CONF } from "./scan-rules";
