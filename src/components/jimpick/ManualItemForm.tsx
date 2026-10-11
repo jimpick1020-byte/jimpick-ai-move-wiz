@@ -95,7 +95,20 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
         <Button disabled={!previewReady || generating || busy} onClick={async () => {
           if (lock.current) return;
           lock.current = true; setBusy(true);
-          try { const blob = await (await fetch(preview)).blob(); setPhoto(await shrinkPhoto(new File([blob], "generated.png", { type: "image/png" }))); setPreview(""); setPreviewReady(false); setGenerationError(""); }
+          try {
+            const image = new Image();
+            image.src = preview;
+            await image.decode();
+            const canvas = document.createElement("canvas");
+            const scale = Math.min(1, 768 / Math.max(image.width, image.height));
+            canvas.width = Math.round(image.width * scale); canvas.height = Math.round(image.height * scale);
+            const context = canvas.getContext("2d");
+            if (!context) throw new Error("이미지 준비 실패");
+            context.fillStyle = "#ffffff"; context.fillRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            setPhoto(canvas.toDataURL("image/jpeg", 0.9));
+            setPreview(""); setPreviewReady(false); setGenerationError("");
+          }
           catch { setGenerationError("이미지를 준비하지 못했습니다. 다시 시도해 주세요."); }
           finally { lock.current = false; setBusy(false); }
         }}>이 이미지 사용</Button>
