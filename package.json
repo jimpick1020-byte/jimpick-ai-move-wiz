@@ -59,6 +59,7 @@
     "embla-carousel-react": "^8.6.0",
     "eventsource-parser": "^4.1.1",
     "input-otp": "^1.4.2",
+    "jpeg-js": "^0.4.4",
     "korean-lunar-calendar": "^0.4.0",
     "lucide-react": "^0.575.0",
     "react": "^19.2.0",
