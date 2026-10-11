@@ -132,7 +132,14 @@
   --auth-focus: oklch(0.552 0.204 257 / 18%);
   --auth-shadow: 0 20px 45px -28px oklch(0.36 0.12 257 / 35%);
   --auth-button-shadow: 0 8px 18px -10px oklch(0.38 0.18 257 / 55%);
+  --item-card-fill: linear-gradient(to bottom, var(--card), var(--auth-soft));
+  --item-card-selected-fill: linear-gradient(to bottom, var(--background), oklch(0.92 0.035 257));
+  --item-card-shadow: 0 4px 0 var(--background), inset 0 1px 0 var(--card);
+  --item-card-selected-shadow: 0 5px 0 var(--border), inset 0 1px 0 var(--card);
 }
+
+.jp-item-card { background: var(--item-card-fill); border-color: var(--border); box-shadow: var(--item-card-shadow); }
+.jp-item-card-selected { background: var(--item-card-selected-fill); border-color: var(--auth-primary); box-shadow: var(--item-card-selected-shadow); }
 
 .dark {
   --worker-male: oklch(0.76 0.13 250);
