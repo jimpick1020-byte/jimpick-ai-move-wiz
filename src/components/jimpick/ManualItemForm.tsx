@@ -9,7 +9,7 @@ import boxImage from "@/assets/item-box.png";
 export interface ManualItemInput { name: string; cat: "가구" | "가전" | "주방" | "생활용품" | "운동·레저"; volume: number; photo: string; favorite: boolean }
 export function ManualItemForm({ category, onClose, onSave }: { category: string; onClose: () => void; onSave: (input: ManualItemInput) => Promise<void> }) {
   const [name, setName] = useState("");
-  const [cat, setCat] = useState<ManualItemInput["cat"]>(["가구", "가전", "주방", "생활용품", "운동·레저"].includes(category) ? category as ManualItemInput["cat"] : "가구");
+  const [cat, setCat] = useState<ManualItemInput["cat"]>(category === "운동·레저용품" ? "운동·레저" : ["가구", "가전", "주방", "생활용품", "운동·레저"].includes(category) ? category as ManualItemInput["cat"] : "가구");
   const [volume, setVolume] = useState("0");
   const [photo, setPhoto] = useState("");
   const [favorite, setFavorite] = useState(false);

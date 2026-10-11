@@ -2450,7 +2450,7 @@ export function Step6() {
           id: c.id,
           name: c.name,
           cat: c.cat,
-          cat5: cat5For(c.cat, c.cat),
+          cat5: c.cat === "운동·레저" ? "운동·레저용품" : cat5For(c.cat, c.cat),
           sub: c.subgroup || itemSubgroup(c.name, c.cat),
           emoji: "📦",
           extra: c.extra,
@@ -3312,6 +3312,7 @@ export function Step6() {
   const saveManualItem = async (input: ManualItemInput) => {
     if (!room) throw new Error("공간을 먼저 선택해 주세요.");
     if (itemWriteLock.current) throw new Error("품목 저장이 끝난 뒤 다시 시도해 주세요.");
+    if (input.favorite && (favIds ?? frequent.map((item) => item.id)).length >= FAVORITE_LIMIT) throw new Error(`자주 담는 품목은 최대 ${FAVORITE_LIMIT}개까지 등록할 수 있습니다.`);
     const exact = catalog.find((item) => normItemName(item.name) === normItemName(input.name));
     const result: IconResult = exact ? { ok: true, itemId: exact.id, name: exact.name } : await createManualItem({ data: { ...input, room: room.name } });
     if (!result.ok || !result.itemId) throw new Error(result.error || "품목 등록에 실패했습니다.");
@@ -3331,7 +3332,7 @@ export function Step6() {
       if (!favoriteResult.ok) throw new Error("품목은 등록·선택됐지만 자주 담는 품목 저장에 실패했습니다. 다시 시도해 주세요.");
       setFavIds(next);
     }
-    setListTab(cat5For(result.cat || input.cat));
+    setListTab((result.cat || input.cat) === "운동·레저" ? "운동·레저용품" : cat5For(result.cat || input.cat));
     setListQuery("");
     setManualOpen(false);
     toast.success(result.reused || exact ? "기존 품목을 이 방에 선택했습니다" : "품목을 등록하고 이 방에 선택했습니다");
@@ -3597,10 +3598,8 @@ export function Step6() {
                       return (
                         <button
                           key={it.id}
-                          onClick={() => {
-                            setQty(it.id, qty + 1, it.name);
-                            tap("success");
-                          }}
+                           disabled={itemWriteBusy}
+                           onClick={() => cardTap(room.name, it.id, () => setQty(it.id, qty + 1, it.name))}
                           className="relative flex w-20 shrink-0 flex-col items-center gap-1 rounded-lg border px-1 pb-1.5 pt-2 transition-transform active:translate-y-[2px]"
                           style={{
                             borderColor: qty > 0 ? "#3578C8" : "#E5E7EB",
@@ -3671,6 +3670,7 @@ export function Step6() {
                                   ⋯
                                 </button>
                                 <button
+                                  disabled={itemWriteBusy}
                                   onClick={() => {
                                     tap("soft");
                                     cardTap(room.name, it.id, () => setQty(it.id, qty + 1));
@@ -3763,7 +3763,7 @@ export function Step6() {
 
             </div>
             <footer className="shrink-0 border-t border-border bg-card px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]" data-room-picker-footer>
-              <PrimaryButton onClick={() => setOpenRoom(null)}>
+               <PrimaryButton disabled={itemWriteBusy} onClick={() => setOpenRoom(null)}>
                 <span className="inline-flex items-center gap-2"><Check className="w-5 h-5" /> 이 공간 완료</span>
               </PrimaryButton>
             </footer>
