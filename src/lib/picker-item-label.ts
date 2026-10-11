@@ -7,5 +7,5 @@ export function pickerItemLabel(id: string, name?: string, recovered?: string): 
     if (ALIASES[key]) return ALIASES[key];
     if (/[가-힣]/.test(value) && !/^ci_ai_/i.test(value)) return value;
   }
-  return /^ci_ai_/i.test(id) ? "박스" : "품목명 확인 필요";
+  return "품목명 확인 필요";
 }

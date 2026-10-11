@@ -3263,20 +3263,11 @@ export function Step6() {
     tap("soft");
   };
 
-  const moveFav = (id: string, dir: -1 | 1) => {
-    setFavDraft((prev) => {
-      const i = prev.indexOf(id);
-      const j = i + dir;
-      if (i < 0 || j < 0 || j >= prev.length) return prev;
-      const next = [...prev];
-      [next[i], next[j]] = [next[j], next[i]];
-      return next;
-    });
-    tap("soft");
-  };
+  const favSaveLock = useRef(false);
 
   const saveFav = async () => {
-    if (favSaving) return;
+    if (favSaveLock.current) return;
+    favSaveLock.current = true;
     setFavSaving(true);
     try {
       const r = await saveFavoriteItems({ data: { itemIds: favDraft } });
@@ -3291,6 +3282,7 @@ export function Step6() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "자주 담는 품목을 저장하지 못했습니다");
     } finally {
+      favSaveLock.current = false;
       setFavSaving(false);
     }
   };
