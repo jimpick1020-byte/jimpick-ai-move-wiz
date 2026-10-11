@@ -71,7 +71,6 @@ import {
   guessCategory,
   won,
   roomSummary,
-  calcTruckLoad,
   frequentItemIds,
   formatMoveDateTime,
   storageDays,
@@ -209,7 +208,6 @@ import {
 import charC from "@/assets/jimpick-char-c.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
-import { TruckGauge } from "./TruckGauge";
 import { JimpickCharacter } from "./JimpickCharacter";
 
 import {
@@ -3202,19 +3200,6 @@ export function Step6() {
   const picked = room ? pickedOf(room) : [];
   const totalKinds = draft.rooms.reduce((a, r) => a + roomSummary(r.items).kinds, 0);
 
-   /** 담긴 짐이 선택된 차량에 들어가는지 (차량 선택은 다음 5단계) */
-  const load = useMemo(() => calcTruckLoad(draft), [draft]);
-
-  /** 게이지에서 「5톤 1대로 바꾸기」를 눌렀을 때 */
-  const applyTrucks = (need: { truck1t: number; truck5t: number }) => {
-    updateDraft({ truck1t: need.truck1t, truck5t: need.truck5t });
-    tap("success");
-    toast.success("차량을 바꿨습니다", {
-      description:
-        `${need.truck5t ? `5톤 ${need.truck5t}대 ` : ""}${need.truck1t ? `1톤 ${need.truck1t}대` : ""}`.trim(),
-    });
-  };
-
   /**
    * 자주 담는 품목 —
    * 사장님이 직접 등록한 목록이 있으면 그것을, 없으면 지난 견적 이력에서 뽑습니다.
@@ -3305,7 +3290,7 @@ export function Step6() {
     toast.success(included ? "자주 담는 품목에서 해제했습니다" : "자주 담는 품목에 등록했습니다");
   };
 
-  const saveManualItem = async (input: ManualItemInput) => {
+  const saveOneManualItem = async (input: ManualItemInput) => {
     if (!room) throw new Error("공간을 먼저 선택해 주세요.");
     if (itemWriteLock.current) throw new Error("품목 저장이 끝난 뒤 다시 시도해 주세요.");
     if (input.favorite && (favIds ?? frequent.map((item) => item.id)).length >= FAVORITE_LIMIT) throw new Error(`자주 담는 품목은 최대 ${FAVORITE_LIMIT}개까지 등록할 수 있습니다.`);
@@ -3328,13 +3313,28 @@ export function Step6() {
       if (!favoriteResult.ok) throw new Error("품목은 등록·선택됐지만 자주 담는 품목 저장에 실패했습니다. 다시 시도해 주세요.");
       setFavIds(next);
     }
-    setListTab((result.cat || input.cat) === "운동·레저" ? "운동·레저용품" : cat5For(result.cat || input.cat));
+    return { itemId, cat: result.cat || input.cat, reused: !!(result.reused || exact) };
+  };
+
+  /** 쉼표·줄바꿈으로 여러 품목을 넣어도 하나씩 차례로 저장합니다. */
+  const saveManualItem = async (inputs: ManualItemInput[]) => {
+    const done: { itemId: string; cat: string; reused: boolean }[] = [];
+    for (const input of inputs) {
+      try { done.push(await saveOneManualItem(input)); }
+      catch (e) {
+        const msg = e instanceof Error ? e.message : "품목 등록에 실패했습니다.";
+        throw new Error(done.length ? `${done.length}개 저장 후 「${input.name}」에서 멈췄습니다: ${msg}` : msg);
+      }
+    }
+    const last = done[done.length - 1];
+    if (!last) return;
+    setListTab(last.cat === "운동·레저" ? "운동·레저용품" : cat5For(last.cat));
     setListQuery("");
     setManualOpen(false);
     setListMode("category");
-    setNewItemId(itemId);
-    setTimeout(() => setNewItemId((id) => (id === itemId ? null : id)), 2000);
-    toast.success(result.reused || exact ? "기존 품목을 이 방에 선택했습니다" : "품목을 등록하고 이 방에 선택했습니다");
+    setNewItemId(last.itemId);
+    setTimeout(() => setNewItemId((id) => (id === last.itemId ? null : id)), 2000);
+    toast.success(done.length > 1 ? `품목 ${done.length}개를 등록하고 이 방에 선택했습니다` : last.reused ? "기존 품목을 이 방에 선택했습니다" : "품목을 등록하고 이 방에 선택했습니다");
   };
 
   return (
@@ -3364,12 +3364,6 @@ export function Step6() {
             : `${size} · 평수를 고르고 방을 추가·삭제하세요`}
         </p>
 
-        {/* 트럭 적재 게이지 — 담을수록 차오릅니다 */}
-        {load.status !== "empty" && (
-          <div className="mt-3">
-            <TruckGauge load={load} onFixTrucks={applyTrucks} />
-          </div>
-        )}
       </div>
 
       {/* 평수 선택 — 예전처럼 한 줄을 좌우로 밀어서 봅니다 */}
@@ -4123,9 +4117,8 @@ export function Step6() {
                         const c = (draft.customItems || []).find((x) => x.id === itemMenu);
                         const nm = it?.name || itemNameById(itemMenu) || "품목";
                         const group = c?.subgroup || it?.sub || itemSubgroup(nm, c?.cat || "기타");
-                        const vol = c?.extra ?? it?.extra ?? 0;
                         toast.success(
-                          `${nm} · ${group}${vol ? ` · 기본 부피 ${vol}루베` : ""}${
+                          `${nm} · ${group}${
                             room && itemMenu in room.items ? ` · ${room.name} ${room.items[itemMenu]}개` : ""
                           }`,
                         );

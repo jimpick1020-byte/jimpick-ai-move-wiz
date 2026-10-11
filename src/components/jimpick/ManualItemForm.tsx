@@ -4,9 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { streamImage } from "@/lib/stream-image";
 import { Button } from "@/components/ui/button";
 import { shrinkPhoto } from "@/lib/photo-shrink";
-import { classifyItem, ITEM_MAIN_CATS, ITEM_KEYWORD_RULES, type ItemMainCat } from "@/lib/item-classify";
+import { splitItemNames, classifyItem, ITEM_MAIN_CATS, ITEM_KEYWORD_RULES, type ItemMainCat } from "@/lib/item-classify";
 import { FullScreenItemFrame } from "./ItemListLayer";
-import { Field, PrimaryButton, TextInput } from "./ui";
+import { Field, PrimaryButton } from "./ui";
 import boxImage from "@/assets/item-box.png";
 
 export interface ManualItemInput {
@@ -15,13 +15,12 @@ export interface ManualItemInput {
 }
 const ROOM_OPTIONS = ["안방", "작은방", "서재", "거실", "부엌", "베란다", "세탁실", "입구", "창고", "기타"];
 
-export function ManualItemForm({ category, onClose, onSave }: { category: string; onClose: () => void; onSave: (input: ManualItemInput) => Promise<void> }) {
+export function ManualItemForm({ category, onClose, onSave }: { category: string; onClose: () => void; onSave: (inputs: ManualItemInput[]) => Promise<void> }) {
   const [name, setName] = useState("");
   const [editing, setEditing] = useState(false);
   const [cat, setCat] = useState<ItemMainCat | "">("");
   const [group, setGroup] = useState("");
   const [rooms, setRooms] = useState<string[] | null>(null);
-  const [volume, setVolume] = useState("0");
   const [photo, setPhoto] = useState("");
   const [preview, setPreview] = useState("");
   const [previewReady, setPreviewReady] = useState(false);
@@ -34,7 +33,11 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
   const upload = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
   const lock = useRef(false);
-  const auto = useMemo(() => classifyItem(name, category), [name, category]);
+  const names = useMemo(() => splitItemNames(name), [name]);
+  const multi = names.length > 1;
+  const auto = useMemo(() => classifyItem(names[0] || "", category), [names, category]);
+  const autos = useMemo(() => names.map((n) => ({ name: n, c: classifyItem(n, category) })), [names, category]);
+  const multiNeedsCat = multi && autos.some((a) => !a.c.cat) && !cat;
   // 수정하지 않은 항목은 자동 분류 값을 그대로 씁니다.
   const finalCat = (editing && cat) || (auto.confident ? auto.cat : cat || null);
   const finalGroup = (editing && group.trim()) || (finalCat && finalCat === auto.cat ? auto.group : "기타");
@@ -61,7 +64,7 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
     finally { setBusy(false); lock.current = false; }
   };
   const save = async () => {
-    if (lock.current || !finalCat) return;
+    if (lock.current || (!multi && !finalCat)) return;
     lock.current = true; setBusy(true); setError("");
     try {
       let image = photo;
@@ -71,26 +74,42 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
         if (!response.ok) throw new Error("기본 이미지를 불러오지 못했습니다.");
         image = await shrinkPhoto(new File([await response.blob()], "item.png", { type: "image/png" }));
       }
-      await onSave({ name: name.trim(), cat: finalCat, volume: Number(volume), photo: image, favorite, group: finalGroup, rooms: finalRooms, keywords: auto.keywords });
+      if (multi) {
+        await onSave(autos.map(({ name: n, c }) => ({ name: n, cat: (c.cat || cat) as ItemMainCat, volume: 0, photo: image, favorite: false, group: c.cat ? c.group : "기타", rooms: c.rooms, keywords: c.keywords })));
+      } else if (finalCat) {
+        await onSave([{ name: names[0], cat: finalCat, volume: 0, photo: image, favorite, group: finalGroup, rooms: finalRooms, keywords: auto.keywords }]);
+      }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "저장하지 못했습니다."); }
     finally { lock.current = false; setBusy(false); }
   };
-  const invalid = busy || generating || !!preview || (generationTried && !photo) || name.trim().length < 2 || !finalCat || !Number.isFinite(Number(volume)) || Number(volume) < 0 || Number(volume) > 5;
+  const invalid = busy || generating || !!preview || (generationTried && !photo) || names.length === 0 || names.some((n) => n.length < 2 || n.length > 24) || (multi ? multiNeedsCat || names.length > 20 : !finalCat);
   const startEdit = () => { setEditing(true); setCat(finalCat || ""); setGroup(finalGroup); setRooms(finalRooms); };
 
   return <FullScreenItemFrame level="form" title="품목 직접 등록" onClose={() => { if (!busy && !generating) onClose(); }} footer={
     <div className="grid grid-cols-2 gap-2">
-      <Button variant="outline" className="h-12 font-bold" disabled={busy || generating || editing} onClick={startEdit}>분류 수정</Button>
-      <PrimaryButton disabled={invalid} onClick={() => void save()}>{busy ? "저장 중…" : "이대로 저장"}</PrimaryButton>
+      <Button variant="outline" className="h-12 font-bold" disabled={busy || generating || editing || multi} onClick={startEdit}>분류 수정</Button>
+      <PrimaryButton disabled={invalid} onClick={() => void save()}>{busy ? "저장 중…" : multi ? `${names.length}개 저장` : "이대로 저장"}</PrimaryButton>
     </div>}>
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
-      <Field label="품목 이름"><TextInput value={name} maxLength={24} disabled={busy || generating} onChange={(e) => setName(e.target.value)} placeholder="품목 이름" /></Field>
-      <div className="flex items-center gap-3"><img src={preview || photo || boxImage} alt="등록할 품목" className="size-24 shrink-0 rounded-lg object-contain" /><div className="flex min-w-0 flex-wrap gap-2">
+      <Field label="품목 이름"><textarea value={name} maxLength={400} rows={2} disabled={busy || generating} onChange={(e) => setName(e.target.value)} placeholder="여러 개는 쉼표나 줄바꿈으로 나눠 주세요" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-base" /></Field>
+      {multi && <section className="space-y-2" data-multi-items>
+        <p className="text-sm font-black">품목 {names.length}개로 나눠 저장합니다</p>
+        <div className="grid grid-cols-2 gap-2">{autos.map(({ name: n, c }) => <div key={n} className="rounded-xl border border-border bg-muted p-3 text-sm">
+          <img src={boxImage} alt="" className="mx-auto size-12 object-contain" />
+          <p className="mt-1 font-black">{n}</p>
+          <p>{c.cat || cat || "카테고리 선택 필요"} · {c.cat ? c.group : "기타"}</p>
+          <p className="text-muted-foreground">{c.rooms.length ? c.rooms.join("·") : "공간 지정 없음"}</p>
+          {n.length > 24 && <p className="font-bold text-destructive">24자 이하로 줄여 주세요</p>}
+        </div>)}</div>
+        {multiNeedsCat && <p role="status" className="font-bold text-destructive">자동 분류가 안 된 품목이 있어요. 아래에서 카테고리를 골라 주세요.</p>}
+        <p className="text-xs text-muted-foreground">여러 개를 한 번에 등록하면 기본 이미지로 저장됩니다. 사진은 품목별로 나중에 하나씩 등록해 주세요.</p>
+      </section>}
+      {!multi && <div className="flex items-center gap-3"><img src={preview || photo || boxImage} alt="등록할 품목" className="size-24 shrink-0 rounded-lg object-contain" /><div className="flex min-w-0 flex-wrap gap-2">
         <Button variant="outline" disabled={busy || generating} onClick={() => upload.current?.click()}><ImagePlus className="size-4" /> 이미지 등록</Button>
         <Button variant="outline" disabled={busy || generating} onClick={() => camera.current?.click()}><Camera className="size-4" /> 촬영</Button>
         <Button variant="outline" disabled={busy || generating} onClick={() => void generate()}><Sparkles className="size-4" /> {generating ? "이미지 생성 중…" : "이미지 생성"}</Button>
-      </div></div>
-      {preview && <div className="flex flex-wrap gap-2" data-generated-preview>
+      </div></div>}
+      {!multi && preview && <div className="flex flex-wrap gap-2" data-generated-preview>
         <Button variant="outline" disabled={generating || busy} onClick={() => void generate()}>다시 생성</Button>
         <Button disabled={!previewReady || generating || busy} onClick={async () => {
           if (lock.current) return;
@@ -117,7 +136,7 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
       <input ref={upload} type="file" accept="image/*" hidden onChange={(e) => { void readPhoto(e.target.files?.[0]); e.target.value = ""; }} />
       <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { void readPhoto(e.target.files?.[0]); e.target.value = ""; }} />
 
-      {name.trim().length >= 2 && <section className="space-y-1 rounded-xl border border-border bg-muted p-3 text-sm" data-auto-class>
+      {!multi && names[0]?.length >= 2 && <section className="space-y-1 rounded-xl border border-border bg-muted p-3 text-sm" data-auto-class>
         <p className="font-black">자동 분류</p>
         {needsChoice && <p role="status" className="font-bold text-destructive">자동으로 분류하기 어려운 품목입니다. 카테고리를 선택해 주세요.</p>}
         <p>- 카테고리: <b>{finalCat || "선택 필요"}</b></p>
@@ -125,7 +144,7 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
         <p>- 추천 공간: <b>{finalRooms.length ? finalRooms.join("·") : "지정 없음"}</b></p>
       </section>}
 
-      {(editing || needsChoice || !auto.confident) && <Field label="대분류"><select value={cat} disabled={busy} onChange={(e) => { setCat(e.target.value as ItemMainCat); setGroup("기타"); }} className="h-11 w-full rounded-lg border border-input bg-card px-3 text-base">
+      {(multiNeedsCat || (!multi && (editing || needsChoice || !auto.confident))) && <Field label="대분류"><select value={cat} disabled={busy} onChange={(e) => { setCat(e.target.value as ItemMainCat); setGroup("기타"); }} className="h-11 w-full rounded-lg border border-input bg-card px-3 text-base">
         <option value="" disabled>카테고리 선택</option>{ITEM_MAIN_CATS.map((value) => <option key={value}>{value}</option>)}</select></Field>}
       {editing && <>
         <Field label="품목 그룹"><select value={group} disabled={busy || !finalCat} onChange={(e) => setGroup(e.target.value)} className="h-11 w-full rounded-lg border border-input bg-card px-3 text-base">{[...new Set([group, ...groupOptions])].filter(Boolean).map((g) => <option key={g}>{g}</option>)}</select></Field>
@@ -133,7 +152,6 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
           const on = finalRooms.includes(r);
           return <Button key={r} type="button" size="sm" variant={on ? "default" : "outline"} disabled={busy} aria-pressed={on} onClick={() => setRooms(on ? finalRooms.filter((x) => x !== r) : [...finalRooms, r])}>{r}</Button>;
         })}</div></fieldset>
-        <Field label="기본 적재량 (루베)"><TextInput type="number" inputMode="decimal" min="0" max="5" step="0.1" value={volume} disabled={busy} onChange={(e) => setVolume(e.target.value)} /></Field>
         <label className="flex min-h-11 items-center gap-2 text-sm font-bold"><input type="checkbox" disabled={busy} checked={favorite} onChange={(e) => setFavorite(e.target.checked)} className="size-5 accent-auth-primary" /> 자주 담는 품목 등록</label>
       </>}
       {error && <p role="alert" className="text-sm font-bold text-destructive">{error}</p>}

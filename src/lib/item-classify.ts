@@ -87,3 +87,9 @@ export function displayGroupOf(name: string, saved?: string): string {
   const c = classifyItem(name);
   return c.confident ? c.group : saved || "기타";
 }
+
+/** 쉼표·줄바꿈으로 나눈 품목 이름 (중복 제거) */
+export function splitItemNames(text: string): string[] {
+  const seen = new Set<string>();
+  return text.split(/[,，、\n]+/).map((n) => n.trim()).filter((n) => { const k = n.replace(/\s+/g, ""); if (!k || seen.has(k)) return false; seen.add(k); return true; });
+}

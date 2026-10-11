@@ -1219,27 +1219,6 @@ export function itemNameById(id: string): string | undefined {
   return _nameById.get(id);
 }
 
-export interface TruckLoad {
-  /** 담긴 짐 전체 부피 (루베) */
-  volume: number;
-  /** 5단계에서 고른 차량이 실을 수 있는 부피 */
-  capacity: number;
-  /** 적재율 0~ (100 이 꽉 참) */
-  percent: number;
-  /** 고른 차량으로 부족한 부피 */
-  shortage: number;
-  /**
-   * empty  담긴 짐 없음
-   * none   짐은 있는데 차량을 아직 안 고름
-   * ok     여유 있음 (85% 이하)
-   * tight  거의 꽉 참 (85~100%)
-   * over   넘침 — 차량을 늘려야 함
-   */
-  status: "empty" | "none" | "ok" | "tight" | "over";
-  /** 이 짐을 실으려면 최소 몇 대가 필요한지 */
-  need: { truck1t: number; truck5t: number };
-}
-
 /** 필요한 차량 조합을 가장 적은 대수로 계산 */
 export function suggestTrucks(volume: number): { truck1t: number; truck5t: number } {
   if (volume <= 0) return { truck1t: 0, truck5t: 0 };
@@ -1253,39 +1232,6 @@ export function suggestTrucks(volume: number): { truck1t: number; truck5t: numbe
     truck1t = 0;
   }
   return { truck1t, truck5t };
-}
-
-/**
- * 담긴 짐이 고른 차량에 들어가는지 계산합니다.
-  * 4단계 품목 적재량 게이지가 이 값 하나로 움직입니다.
- */
-export function calcTruckLoad(e: Estimate): TruckLoad {
-  const custom = new Map((e.customItems ?? []).map((c) => [c.id, c.cat]));
-  let volume = 0;
-  for (const room of e.rooms ?? []) {
-    for (const [id, qty] of Object.entries(room.items ?? {})) {
-      if (!qty || qty <= 0) continue;
-      // 폐기물로 표시한 품목은 이사 차량에 싣지 않으므로 적재량에서 뺍니다
-      if (room.disposal?.[id]) continue;
-      const cat = ITEM_CATALOG.find((i) => i.id === id)?.cat ?? custom.get(id);
-      volume += volumeOf(id, cat) * qty;
-    }
-  }
-  volume = Math.round(volume * 100) / 100;
-
-  const capacity =
-    (e.truck1t || 0) * TRUCK_CAPACITY.truck1t + (e.truck5t || 0) * TRUCK_CAPACITY.truck5t;
-  const percent = capacity > 0 ? Math.round((volume / capacity) * 100) : 0;
-  const shortage = Math.max(0, Math.round((volume - capacity) * 100) / 100);
-
-  let status: TruckLoad["status"];
-  if (volume <= 0) status = "empty";
-  else if (capacity <= 0) status = "none";
-  else if (percent > 100) status = "over";
-  else if (percent >= 85) status = "tight";
-  else status = "ok";
-
-  return { volume, capacity, percent, shortage, status, need: suggestTrucks(volume) };
 }
 
 // ============ 자주 담는 품목 ============
