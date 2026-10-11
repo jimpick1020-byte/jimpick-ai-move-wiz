@@ -13,6 +13,7 @@
 - Reservation stages come from `reservation-status.ts`: customer consent is a request, confirmed deposit is confirmation, and full payment is completion; this prevents consent from falsely appearing as payment confirmation.
 - The company subscription price has one source of truth in `PLANS` at KRW 30,000 monthly; Toss charges and renewal displays must read that value to prevent price drift.
 - The Step6 room picker keeps its base list mounted behind history-backed ItemListLayer views and RoomPickedStrip; all read draft rooms and disposal maps and use one locked immediate-save path, preserving scroll and preventing divergent selections.
+- Favorite-card selection behavior is isolated by ItemListLayer mode and uses the existing quantity-save callback; this prevents changes to category and picked views or separate selection state.
 - Manual company items reuse item_icons and the existing stable image route through an authenticated owner-scoped insert before narrow storage upload; this preserves catalog IDs and avoids duplicate item tables.
 - Worker contacts are stored in company-owned profiles and changed through locked security-invoker RPCs; assignment stores contact IDs in draft JSON so management and sending read one contact source.
 - Worker work-category grouping uses shared helpers with the existing JSON gender encoding (male for male work, female for kitchen work); legacy female contacts map to kitchen and unspecified contacts fall back to their role without rewriting stored records, preserving IDs and RPC compatibility.
