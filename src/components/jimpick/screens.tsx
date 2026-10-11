@@ -8,7 +8,7 @@ import { ManualItemForm, type ManualItemInput } from "./ManualItemForm";
 import { FavoriteItemGrid } from "./FavoriteItemGrid";
 import { pickerItemLabel } from "@/lib/picker-item-label";
 import { createManualItem } from "@/lib/manual-item.functions";
-import { CARD_DOUBLE_TAP_MS, isSameCardDoubleTap, withRoomQuantity, withRoomDisposal } from "@/lib/room-item-state";
+import { CARD_DOUBLE_TAP_MS, isSameCardDoubleTap, pickedIdsInInputOrder, withRoomQuantity, withRoomDisposal } from "@/lib/room-item-state";
 import { calcDeposit, calcBalance } from "@/lib/deposit-rule";
 import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate, seoulMonthKey } from "@/lib/estimate-sort";
 import { publicUrl } from "@/lib/app-url";
@@ -3198,6 +3198,11 @@ export function Step6() {
       }),
     );
   const picked = room ? pickedOf(room) : [];
+  /** 선택 품목 화면은 분류 정렬 없이, 담은 순서 그대로 한 줄에 3개씩 보여 줍니다. */
+  const pickedInOrder = room ? pickedIdsInInputOrder(room.items).map((id) => {
+    const c = catalog.find((x) => x.id === id);
+    return { id, name: c?.name || itemNameById(id) || id };
+  }) : [];
   const totalKinds = draft.rooms.reduce((a, r) => a + roomSummary(r.items).kinds, 0);
 
   /**
@@ -3762,7 +3767,7 @@ export function Step6() {
             </footer>
 
             {listMode && <ItemListLayer
-              highlightId={newItemId} mode={listMode} roomName={room.name} catalog={catalog} favorites={frequent} picked={picked}
+              highlightId={newItemId} mode={listMode} roomName={room.name} catalog={catalog} favorites={frequent} picked={pickedInOrder}
               quantities={room.items} disposal={room.disposal} cats={visibleCats} tab={listTab} query={listQuery} busy={itemWriteBusy}
               onTab={setListTab} onQuery={setListQuery} onClose={() => { if (!itemWriteLock.current) setListMode(null); }}
               onAdd={() => setManualOpen(true)} onEdit={openFavEdit} onMenu={setItemMenu}
