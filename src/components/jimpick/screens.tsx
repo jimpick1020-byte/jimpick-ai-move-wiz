@@ -2309,6 +2309,7 @@ export function Step6() {
   const [listTab, setListTab] = useState<string>(CATS5[0]);
   const [listQuery, setListQuery] = useState("");
   const [manualOpen, setManualOpen] = useState(false);
+  const [newItemId, setNewItemId] = useState<string | null>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const itemWriteLock = useRef(false);
@@ -2452,6 +2453,7 @@ export function Step6() {
           cat: c.cat,
           cat5: c.cat === "운동·레저" ? "운동·레저용품" : cat5For(c.cat, c.cat),
           sub: c.subgroup || itemSubgroup(c.name, c.cat),
+          group: c.subgroup,
           emoji: "📦",
           extra: c.extra,
         })),
@@ -3335,6 +3337,9 @@ export function Step6() {
     setListTab((result.cat || input.cat) === "운동·레저" ? "운동·레저용품" : cat5For(result.cat || input.cat));
     setListQuery("");
     setManualOpen(false);
+    setListMode("category");
+    setNewItemId(itemId);
+    setTimeout(() => setNewItemId((id) => (id === itemId ? null : id)), 2000);
     toast.success(result.reused || exact ? "기존 품목을 이 방에 선택했습니다" : "품목을 등록하고 이 방에 선택했습니다");
   };
 
@@ -3769,7 +3774,7 @@ export function Step6() {
             </footer>
 
             {listMode && <ItemListLayer
-              mode={listMode} roomName={room.name} catalog={catalog} favorites={frequent} picked={picked}
+              highlightId={newItemId} mode={listMode} roomName={room.name} catalog={catalog} favorites={frequent} picked={picked}
               quantities={room.items} disposal={room.disposal} cats={visibleCats} tab={listTab} query={listQuery} busy={itemWriteBusy}
               onTab={setListTab} onQuery={setListQuery} onClose={() => { if (!itemWriteLock.current) setListMode(null); }}
               onAdd={() => setManualOpen(true)} onEdit={openFavEdit} onMenu={setItemMenu}

@@ -3,11 +3,12 @@ import { Check, MoreHorizontal, Minus, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ItemArt } from "@/lib/jimpick-art";
 import { matchesQuery } from "@/lib/item-search";
+import { displayGroupOf } from "@/lib/item-classify";
 import { DisposalX } from "./EstimateSheet";
 import { PrimaryButton, TextInput } from "./ui";
 
 export type ItemListMode = "category" | "favorites" | "picked";
-export interface PickerItem { id: string; name: string; cat5?: string; sub?: string }
+export interface PickerItem { id: string; name: string; cat5?: string; sub?: string; group?: string }
 
 /** A same-page history entry; closing never navigates to another app screen. */
 export function FullScreenItemFrame({ title, onClose, children, footer, level = "list" }: {
@@ -75,37 +76,49 @@ export function FullScreenItemFrame({ title, onClose, children, footer, level = 
   </div>;
 }
 
-export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, onTap, onQuantity, onMenu, onRemove }: {
-  item: PickerItem; qty: number; disposed: boolean; busy: boolean; selectedMode: boolean;
+export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highlight, onTap, onQuantity, onMenu, onRemove }: {
+  item: PickerItem; qty: number; disposed: boolean; busy: boolean; selectedMode: boolean; highlight?: boolean;
   onTap: () => void; onQuantity: (qty: number) => void; onMenu: () => void; onRemove: () => void;
 }) {
-  return <div data-picker-card={item.id} className={`jp-item-card relative flex min-w-0 flex-col items-center gap-1 rounded-2xl border p-2 ${qty > 0 ? "jp-item-card-selected" : ""}`}>
-    <Button variant="ghost" size="icon" disabled={busy} className="absolute left-1 top-1 z-10 size-7 rounded-full border border-border bg-card" onClick={onMenu} aria-label={`${item.name} 관리`}><MoreHorizontal className="size-4" /></Button>
-    {selectedMode ? <Button variant="ghost" size="icon" disabled={busy} className="absolute right-1 top-1 z-10 size-7 text-destructive" onClick={onRemove} aria-label={`${item.name} 삭제`}><X className="size-4" /></Button> : qty > 0 && <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-auth-primary text-auth-primary-foreground"><Check className="size-3.5" /></span>}
-    <Button variant="ghost" disabled={busy} className="mt-5 h-auto w-full touch-manipulation select-none flex-col gap-2 whitespace-normal px-0 py-1" onClick={onTap} aria-label={`${item.name} (두 번 누르면 폐기물 전환)`}>
+  const label = item.name?.trim() || "품목명 미등록";
+  return <div data-picker-card={item.id} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-2xl border px-1.5 pb-1.5 pt-1 transition-shadow ${qty > 0 ? "jp-item-card-selected" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""}`}>
+    <Button variant="ghost" size="icon" disabled={busy} className="absolute left-1 top-1 z-10 size-7 rounded-full border border-border bg-card" onClick={onMenu} aria-label={`${label} 관리`}><MoreHorizontal className="size-4" /></Button>
+    {selectedMode ? <Button variant="ghost" size="icon" disabled={busy} className="absolute right-1 top-1 z-10 size-7 text-destructive" onClick={onRemove} aria-label={`${label} 삭제`}><X className="size-4" /></Button> : qty > 0 && <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-auth-primary text-auth-primary-foreground"><Check className="size-3.5" /></span>}
+    <Button variant="ghost" disabled={busy} className="h-auto w-full touch-manipulation select-none flex-col gap-1 whitespace-normal px-0 py-0.5" onClick={onTap} aria-label={`${label} (두 번 누르면 폐기물 전환)`}>
       <span className="relative inline-flex">
-        <span className={disposed ? "opacity-60" : ""}><ItemArt id={item.id} name={item.name} size={70} /></span>
+        <span className={disposed ? "opacity-60" : ""}><ItemArt id={item.id} name={label} size={56} /></span>
         {disposed && <><DisposalX /><span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-destructive px-1.5 py-px text-[10px] font-black text-destructive-foreground">폐기물</span></>}
       </span>
-      <span className="flex min-h-10 w-full items-center justify-center break-words text-center text-[15px] font-black leading-tight" title={item.name}>{item.name}</span>
+      <span className={`line-clamp-2 w-full break-keep text-center text-[14px] font-black leading-tight ${qty > 0 ? "" : "pr-6"}`} title={label}>{label}</span>
     </Button>
-    {qty > 0 ? <div className="mt-auto flex w-full items-center justify-between gap-1">
-      <Button variant="outline" size="icon" disabled={busy} className="size-8 shrink-0 rounded-xl" onClick={() => onQuantity(qty - 1)} aria-label={`${item.name} 감소`}><Minus className="size-4" /></Button>
+    {qty > 0 ? <div className="mt-1 flex w-full items-center justify-between gap-1">
+      <Button variant="outline" size="icon" disabled={busy} className="size-7 shrink-0 rounded-full" onClick={() => onQuantity(qty - 1)} aria-label={`${label} 감소`}><Minus className="size-3.5" /></Button>
       <span className="text-sm font-black tabular-nums" data-item-quantity>{qty}</span>
-      <Button size="icon" disabled={busy} className="size-8 shrink-0 rounded-xl bg-auth-primary text-auth-primary-foreground" onClick={() => onQuantity(qty + 1)} aria-label={`${item.name} 증가`}><Plus className="size-4" /></Button>
-    </div> : <Button variant="outline" disabled={busy} className="mt-auto h-8 w-full" onClick={() => onQuantity(1)} aria-label={`${item.name} 선택`}><Plus className="size-4" /></Button>}
+      <Button size="icon" disabled={busy} className="size-7 shrink-0 rounded-full bg-auth-primary text-auth-primary-foreground" onClick={() => onQuantity(qty + 1)} aria-label={`${label} 증가`}><Plus className="size-3.5" /></Button>
+    </div> : <Button size="icon" disabled={busy} className="absolute bottom-1.5 right-1.5 z-10 size-7 rounded-full bg-auth-primary text-auth-primary-foreground" onClick={() => onQuantity(1)} aria-label={`${label} 선택`}><Plus className="size-4" /></Button>}
   </div>;
 }
 
-export function ItemListLayer({ mode, roomName, catalog, favorites, picked, quantities, disposal, cats, tab, query, busy, onTab, onQuery, onClose, onAdd, onEdit, onTap, onQuantity, onMenu, onRemove }: {
-  mode: ItemListMode; roomName: string; catalog: PickerItem[]; favorites: PickerItem[]; picked: PickerItem[];
+export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites, picked, quantities, disposal, cats, tab, query, busy, onTab, onQuery, onClose, onAdd, onEdit, onTap, onQuantity, onMenu, onRemove }: {
+  highlightId?: string | null; mode: ItemListMode; roomName: string; catalog: PickerItem[]; favorites: PickerItem[]; picked: PickerItem[];
   quantities: Record<string, number>; disposal?: Record<string, boolean>; cats: readonly string[]; tab: string; query: string; busy: boolean;
   onTab: (tab: string) => void; onQuery: (query: string) => void; onClose: () => void; onAdd: () => void; onEdit: () => void;
   onTap: (item: PickerItem) => void; onQuantity: (item: PickerItem, qty: number) => void; onMenu: (id: string) => void; onRemove: (item: PickerItem) => void;
 }) {
   const title = mode === "category" ? "카테고리 품목" : mode === "favorites" ? "자주 담는 품목" : `${roomName} 선택 품목`;
   const source = mode === "category" ? catalog : mode === "favorites" ? favorites : picked;
-  const shown = source.filter((item) => matchesQuery(query, item.name, item.sub) && (mode !== "category" || item.cat5 === tab));
+  const shown = source.filter((item) => matchesQuery(query, item.name, item.sub, item.group, displayGroupOf(item.name, item.group)) && (mode !== "category" || item.cat5 === tab));
+  const groups: { label: string; items: PickerItem[] }[] = [];
+  for (const item of shown) {
+    const label = displayGroupOf(item.name, item.group);
+    const hit = groups.find((g) => g.label === label);
+    if (hit) hit.items.push(item); else groups.push({ label, items: [item] });
+  }
+  useEffect(() => {
+    if (!highlightId) return;
+    const t = setTimeout(() => document.querySelector(`[data-picker-card="${CSS.escape(highlightId)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 60);
+    return () => clearTimeout(t);
+  }, [highlightId, tab]);
   const kinds = Object.values(quantities).filter((qty) => qty > 0).length;
   const count = Object.values(quantities).reduce((sum, qty) => sum + qty, 0);
   return <FullScreenItemFrame title={title} onClose={onClose} footer={<><p className="mb-2 text-sm font-bold">선택 {kinds}종 · {count}개{busy ? " · 저장 중…" : ""}</p><PrimaryButton disabled={busy} onClick={onClose}>{mode === "picked" ? "변경 완료" : "선택 완료"}</PrimaryButton></>}>
@@ -116,10 +129,13 @@ export function ItemListLayer({ mode, roomName, catalog, favorites, picked, quan
         <div className="relative min-w-0"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><TextInput value={query} onChange={(event) => onQuery(event.target.value)} placeholder="품목명을 검색하세요" className="pl-9" /></div>
         {mode === "favorites" && <Button variant="outline" onClick={onEdit} className="h-11 shrink-0 font-bold">편집</Button>}
       </div>
-      {mode === "category" && <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2"><p className="min-w-0 text-xs text-muted-foreground">목록에 없는 품목을 직접 등록</p><Button variant="ghost" onClick={onAdd} className="shrink-0 text-auth-primary"><Plus className="size-4" /> 품목 추가</Button></div>}
+      {mode === "category" && <div className="flex justify-end"><button type="button" onClick={onAdd} className="text-sm font-bold text-auth-primary">+ 목록에 없는 품목 추가</button></div>}
     </div>
-    <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pb-8 pt-3 [-webkit-overflow-scrolling:touch]" data-expanded-item-list>
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">{shown.map((item) => <ItemPickerCard key={item.id} item={item} qty={quantities[item.id] || 0} disposed={!!disposal?.[item.id]} busy={busy} selectedMode={mode === "picked"} onTap={() => onTap(item)} onQuantity={(qty) => onQuantity(item, qty)} onMenu={() => onMenu(item.id)} onRemove={() => onRemove(item)} />)}</div>
+    <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pb-24 pt-3 [-webkit-overflow-scrolling:touch]" data-expanded-item-list>
+      <div className="space-y-3">{groups.map((g) => <section key={g.label} data-item-group={g.label}>
+        <span className="mb-1.5 inline-block rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-muted-foreground">{g.label}</span>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">{g.items.map((item) => <ItemPickerCard key={item.id} item={item} highlight={highlightId === item.id} qty={quantities[item.id] || 0} disposed={!!disposal?.[item.id]} busy={busy} selectedMode={mode === "picked"} onTap={() => onTap(item)} onQuantity={(qty) => onQuantity(item, qty)} onMenu={() => onMenu(item.id)} onRemove={() => onRemove(item)} />)}</div>
+      </section>)}</div>
       {shown.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">{query ? "검색 결과가 없습니다" : "등록된 품목이 없습니다"}</p>}
     </div>
   </FullScreenItemFrame>;
