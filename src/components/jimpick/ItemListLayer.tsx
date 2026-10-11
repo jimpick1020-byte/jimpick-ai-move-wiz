@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ItemArt } from "@/lib/jimpick-art";
 import { matchesQuery } from "@/lib/item-search";
 import { displayGroupOf } from "@/lib/item-classify";
+import { pickerItemLabel } from "@/lib/picker-item-label";
 import { DisposalX } from "./EstimateSheet";
 import { PrimaryButton, TextInput } from "./ui";
 
@@ -78,7 +79,7 @@ export function FullScreenItemFrame({ title, onClose, children, footer, level = 
 
 export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highlight, onTap, onQuantity, onMenu, onRemove }: {
   item: PickerItem; qty: number; disposed: boolean; busy: boolean; selectedMode: boolean; highlight?: boolean;
-  onTap: () => void; onQuantity: (qty: number) => void; onMenu: () => void; onRemove: () => void;
+  onTap: () => void; onQuantity: (qty: number) => void; onMenu: () => void; onRemove: () => void; categoryMode?: boolean; onImageTap?: () => void;
 }) {
   const label = item.name?.trim() || "품목명 미등록";
   return <div data-picker-card={item.id} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-2xl border px-1.5 pb-1.5 pt-1 transition-shadow ${qty > 0 ? "jp-item-card-selected" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""}`}>
