@@ -2305,7 +2305,7 @@ export function Step6() {
     return () => clearTimeout(timer);
   }, [q]);
   const [pickedCollapsed, setPickedCollapsed] = useState(false);
-  const [listMode, setListMode] = useState<ItemListMode | null>(null);
+  const [listMode, setListMode] = useState<Exclude<ItemListMode, "category"> | null>(null);
   const [listTab, setListTab] = useState<string>(CATS5[0]);
   const [listQuery, setListQuery] = useState("");
   const [manualOpen, setManualOpen] = useState(false);
@@ -2314,7 +2314,7 @@ export function Step6() {
   draftRef.current = draft;
   const itemWriteLock = useRef(false);
   const [itemWriteBusy, setItemWriteBusy] = useState(false);
-  const openList = (mode: ItemListMode, category = tab) => {
+  const openList = (mode: Exclude<ItemListMode, "category">, category = tab) => {
     setListTab(category);
     setListQuery(q);
     setListMode(mode);
@@ -3333,10 +3333,10 @@ export function Step6() {
     }
     const last = done[done.length - 1];
     if (!last) return;
-    setListTab(last.cat === "운동·레저" ? "운동·레저용품" : cat5For(last.cat));
-    setListQuery("");
+    setTab(last.cat === "운동·레저" ? "운동·레저용품" : cat5For(last.cat));
+    setQ("");
     setManualOpen(false);
-    setListMode("category");
+    setListMode(null);
     setNewItemId(last.itemId);
     setTimeout(() => setNewItemId((id) => (id === last.itemId ? null : id)), 2000);
     toast.success(done.length > 1 ? `품목 ${done.length}개를 등록하고 이 방에 선택했습니다` : last.reused ? "기존 품목을 이 방에 선택했습니다" : "품목을 등록하고 이 방에 선택했습니다");
@@ -3552,7 +3552,8 @@ export function Step6() {
                       data-selected={!q && c === tab}
                       onClick={() => {
                         tap("soft");
-                         openList("category", c);
+                         setTab(c);
+                         setQ("");
                       }}
                       className="jp-category-tab shrink-0 rounded-2xl px-4 py-2.5 text-[14px] font-black whitespace-nowrap transition-all active:translate-y-[2px]"
                     >
@@ -3572,7 +3573,7 @@ export function Step6() {
                 </div>
 
               <div className="flex justify-end">
-                <Button variant="ghost" size="sm" onClick={() => { openList("category"); setManualOpen(true); }} className="text-auth-primary"><Plus /> 목록에 없는 품목 추가</Button>
+                <Button variant="ghost" size="sm" onClick={() => { setListTab(tab); setManualOpen(true); }} className="text-auth-primary"><Plus /> 목록에 없는 품목 추가</Button>
               </div>
             </div>
             <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pt-3 pb-8 space-y-4 [-webkit-overflow-scrolling:touch]" data-room-item-list {...tabSwipe}>
