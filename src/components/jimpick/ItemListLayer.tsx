@@ -77,34 +77,34 @@ export function FullScreenItemFrame({ title, onClose, children, footer, level = 
   </div>;
 }
 
-export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highlight, onTap, onQuantity, onMenu, onRemove }: {
+export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highlight, onTap, onQuantity, onMenu, onRemove, categoryMode, onImageTap }: {
   item: PickerItem; qty: number; disposed: boolean; busy: boolean; selectedMode: boolean; highlight?: boolean;
   onTap: () => void; onQuantity: (qty: number) => void; onMenu: () => void; onRemove: () => void; categoryMode?: boolean; onImageTap?: () => void;
 }) {
-  const label = item.name?.trim() || "품목명 미등록";
-  return <div data-picker-card={item.id} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-2xl border px-1.5 pb-1.5 pt-1 transition-shadow ${qty > 0 ? "jp-item-card-selected" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""}`}>
+  const label = pickerItemLabel(item.id, item.name);
+  return <div data-picker-card={item.id} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-lg border px-1.5 pb-1.5 pt-2 transition-shadow ${selectedMode || qty > 0 ? "h-40" : "h-28"} ${qty > 0 ? "jp-item-card-selected ring-1 ring-auth-primary" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""}`}>
     <Button variant="ghost" size="icon" disabled={busy} className="absolute left-1 top-1 z-10 size-7 rounded-full border border-border bg-card" onClick={onMenu} aria-label={`${label} 관리`}><MoreHorizontal className="size-4" /></Button>
     {selectedMode ? <Button variant="ghost" size="icon" disabled={busy} className="absolute right-1 top-1 z-10 size-7 text-destructive" onClick={onRemove} aria-label={`${label} 삭제`}><X className="size-4" /></Button> : qty > 0 && <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-auth-primary text-auth-primary-foreground"><Check className="size-3.5" /></span>}
-    <Button variant="ghost" disabled={busy} className="h-auto w-full touch-manipulation select-none flex-col gap-1 whitespace-normal px-0 py-0.5" onClick={onTap} aria-label={`${label} (두 번 누르면 폐기물 전환)`}>
-      <span className="relative inline-flex">
+    <Button variant="ghost" disabled={busy} className="h-auto min-h-0 w-full flex-1 touch-manipulation select-none flex-col gap-1 whitespace-normal px-0 py-0.5" onClick={onTap} aria-label={`${label} 선택`}>
+      <span className="relative inline-flex" onClick={onImageTap ? (event) => { event.stopPropagation(); onImageTap(); } : undefined}>
         <span className={disposed ? "opacity-60" : ""}><ItemArt id={item.id} name={label} size={56} /></span>
-        {disposed && <><DisposalX /><span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-destructive px-1.5 py-px text-[10px] font-black text-destructive-foreground">폐기물</span></>}
+        {disposed && <DisposalX />}
       </span>
-      <span className={`line-clamp-2 w-full break-keep text-center text-[14px] font-black leading-tight ${qty > 0 ? "" : "pr-6"}`} title={label}>{label}</span>
+      <span className="line-clamp-2 h-10 w-full break-words text-center text-sm font-black leading-5" title={label}>{label}</span>
     </Button>
     {qty > 0 ? <div className="mt-1 flex w-full items-center justify-between gap-1">
       <Button variant="outline" size="icon" disabled={busy} className="size-7 shrink-0 rounded-full" onClick={() => onQuantity(qty - 1)} aria-label={`${label} 감소`}><Minus className="size-3.5" /></Button>
       <span className="text-sm font-black tabular-nums" data-item-quantity>{qty}</span>
       <Button size="icon" disabled={busy} className="size-7 shrink-0 rounded-full bg-auth-primary text-auth-primary-foreground" onClick={() => onQuantity(qty + 1)} aria-label={`${label} 증가`}><Plus className="size-3.5" /></Button>
-    </div> : <Button size="icon" disabled={busy} className="absolute bottom-1.5 right-1.5 z-10 size-7 rounded-full bg-auth-primary text-auth-primary-foreground" onClick={() => onQuantity(1)} aria-label={`${label} 선택`}><Plus className="size-4" /></Button>}
+    </div> : !categoryMode && <Button size="icon" disabled={busy} className="absolute bottom-1.5 right-1.5 z-10 size-7 rounded-full bg-auth-primary text-auth-primary-foreground" onClick={() => onQuantity(1)} aria-label={`${label} 추가`}><Plus className="size-4" /></Button>}
   </div>;
 }
 
-export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites, picked, quantities, disposal, cats, tab, query, busy, onTab, onQuery, onClose, onAdd, onEdit, onTap, onQuantity, onMenu, onRemove }: {
+export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites, picked, quantities, disposal, cats, tab, query, busy, onTab, onQuery, onClose, onAdd, onEdit, onTap, onImageTap, onQuantity, onMenu, onRemove }: {
   highlightId?: string | null; mode: ItemListMode; roomName: string; catalog: PickerItem[]; favorites: PickerItem[]; picked: PickerItem[];
   quantities: Record<string, number>; disposal?: Record<string, boolean>; cats: readonly string[]; tab: string; query: string; busy: boolean;
   onTab: (tab: string) => void; onQuery: (query: string) => void; onClose: () => void; onAdd: () => void; onEdit: () => void;
-  onTap: (item: PickerItem) => void; onQuantity: (item: PickerItem, qty: number) => void; onMenu: (id: string) => void; onRemove: (item: PickerItem) => void;
+  onTap: (item: PickerItem) => void; onImageTap?: (item: PickerItem) => void; onQuantity: (item: PickerItem, qty: number) => void; onMenu: (id: string) => void; onRemove: (item: PickerItem) => void;
 }) {
   const title = mode === "category" ? "카테고리 품목" : mode === "favorites" ? "자주 담는 품목" : `${roomName} 선택 품목`;
   const source = mode === "category" ? catalog : mode === "favorites" ? favorites : picked;
@@ -135,7 +135,7 @@ export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites,
     <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pb-24 pt-3 [-webkit-overflow-scrolling:touch]" data-expanded-item-list>
       <div className="space-y-3">{groups.map((g) => <section key={g.label} data-item-group={g.label}>
         <span className="mb-1.5 inline-block rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-muted-foreground">{g.label}</span>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">{g.items.map((item) => <ItemPickerCard key={item.id} item={item} highlight={highlightId === item.id} qty={quantities[item.id] || 0} disposed={!!disposal?.[item.id]} busy={busy} selectedMode={mode === "picked"} onTap={() => onTap(item)} onQuantity={(qty) => onQuantity(item, qty)} onMenu={() => onMenu(item.id)} onRemove={() => onRemove(item)} />)}</div>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">{g.items.map((item) => <ItemPickerCard key={item.id} item={item} highlight={highlightId === item.id} qty={quantities[item.id] || 0} disposed={!!disposal?.[item.id]} busy={busy} selectedMode={mode === "picked"} categoryMode={mode === "category"} onTap={() => onTap(item)} onImageTap={onImageTap ? () => onImageTap(item) : undefined} onQuantity={(qty) => onQuantity(item, qty)} onMenu={() => onMenu(item.id)} onRemove={() => onRemove(item)} />)}</div>
       </section>)}</div>
       {shown.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">{query ? "검색 결과가 없습니다" : "등록된 품목이 없습니다"}</p>}
     </div>
