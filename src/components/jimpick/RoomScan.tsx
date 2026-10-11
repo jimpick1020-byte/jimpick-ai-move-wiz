@@ -8,6 +8,7 @@ import { registerCustomIcons } from "@/lib/jimpick-icon3d";
 import { MobileShell, TopBar, PrimaryButton, BottomButtonBar } from "./ui";
 import { tap } from "@/lib/feedback";
 import { analyzeRoomScan, saveCroppedItem, type ScanDetection } from "@/lib/room-scan.functions";
+import { dedupedAddQty } from "@/lib/scan-rules";
 import { preparePhoto, hashDistance } from "@/lib/photo-prep-core";
 import { buildCatalog, matchCatalog, normScanName, AUTO_CONF, CHECK_CONF, type CatalogEntry } from "@/lib/scan-match";
 
@@ -56,12 +57,40 @@ async function dataUrlToBlob(u: string): Promise<Blob> {
   return (await fetch(u)).blob();
 }
 
+/** 사용자가 확인·거절·직접 저장한 결과를 기록해 다음 인식에 참고합니다 (실패해도 화면 흐름은 막지 않습니다) */
+async function recordFeedback(
+  r: ScanRow,
+  idxs: number[],
+  action: "confirm" | "reject" | "saved",
+  final: { id: string; name: string | null; qty: number } | null,
+) {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return;
+  const rows = idxs
+    .map((i) => r.result?.items?.[i])
+    .filter((d): d is ScanDetection => !!d)
+    .map((d) => ({
+      user_id: u.user!.id,
+      scan_id: r.id,
+      room: r.room,
+      detected_name: d.name,
+      detected_item_id: d.item_id ?? null,
+      confidence: d.confidence,
+      action: action === "confirm" && final && d.item_id && final.id !== d.item_id ? "corrected" : action,
+      final_item_id: final?.id ?? null,
+      final_name: final?.name ?? null,
+      final_qty: final?.qty ?? null,
+      box: d.box ? JSON.parse(JSON.stringify(d.box)) : null,
+    }));
+  if (rows.length) await supabase.from("scan_feedback").insert(rows);
+}
+
 function classify(det: ScanDetection, catalog: CatalogEntry[]): { kind: "low" | "auto" | "check" | "candidate"; match: CatalogEntry | null } {
-  const match = matchCatalog(det.name, catalog);
+  const match = (det.item_id ? catalog.find((c) => c.id === det.item_id) : null) ?? matchCatalog(det.name, catalog);
   // 모델이 신뢰도를 주지 않았으면 90%로 간주하지 않고 확인 필요로 둡니다
   if (det.confidence == null) return { kind: match ? "check" : "candidate", match } as const;
   if (det.confidence < CHECK_CONF) return { kind: "low" as const, match };
-  // 실제 신뢰도 90% 이상 + 기존 품목과 일치하면 자동 등록
+  // 실제 신뢰도 80% 이상 + 기존 품목과 일치하면 자동 등록
   if (match && det.confidence >= AUTO_CONF) return { kind: "auto" as const, match };
   if (match) return { kind: "check" as const, match };
   return { kind: "candidate" as const, match: null };
@@ -177,6 +206,8 @@ export function RoomScanScreen() {
   loadRef.current = load;
   const namesRef = useRef(knownNames);
   namesRef.current = knownNames;
+  const catalogRef = useRef(catalog.slice(0, 600).map((c) => ({ id: c.id.slice(0, 60), name: c.name.slice(0, 30) })));
+  catalogRef.current = catalog.slice(0, 600).map((c) => ({ id: c.id.slice(0, 60), name: c.name.slice(0, 30) }));
 
   const pump = useCallback(() => {
     const limit = concurrencyLimit();
@@ -185,7 +216,7 @@ export function RoomScanScreen() {
       if (running.current.has(id)) continue;
       running.current.add(id);
       setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status: "analyzing", updated_at: new Date().toISOString() } : r)));
-      const run = () => analyze({ data: { scanId: id, knownNames: namesRef.current } });
+      const run = () => analyze({ data: { scanId: id, knownNames: namesRef.current, catalog: catalogRef.current } });
       void run()
         .then((res) => {
           // 실패한 사진만 한 번 더 시도합니다
@@ -238,7 +269,7 @@ export function RoomScanScreen() {
     return () => window.clearInterval(t);
   }, [rows, load]);
 
-  // ── 신뢰도 90% 이상 품목 자동 선택 (한 사진당 1회) ──────
+  // ── 신뢰도 80% 이상 품목 자동 선택 (한 사진당 1회, 여러 사진 중복은 최대 수량만) ──────
   const applying = useRef(new Set<string>());
   useEffect(() => {
     const todo = rows.filter((r) => r.status === "done" && !r.applied_at && !applying.current.has(r.id));
@@ -248,8 +279,20 @@ export function RoomScanScreen() {
       const adds: Record<string, number> = {};
       (r.result?.items ?? []).forEach((det) => {
         const c = classify(det, catalog);
-        if (c.kind === "auto" && c.match) adds[c.match.id] = (adds[c.match.id] ?? 0) + det.qty;
+        if (c.kind === "auto" && c.match) adds[c.match.id] = Math.max(adds[c.match.id] ?? 0, det.qty);
       });
+      // 같은 방의 이미 반영된 다른 사진에 같은 품목이 있으면 그 수량만큼 빼고 더합니다 (중복 제거)
+      for (const id of Object.keys(adds)) {
+        let prevMax = 0;
+        for (const o of rows)
+          if (o.id !== r.id && o.room === r.room && (o.applied_at || applying.current.has(o.id)))
+            (o.result?.items ?? []).forEach((det) => {
+              const c = classify(det, catalog);
+              if (c.kind === "auto" && c.match?.id === id) prevMax = Math.max(prevMax, det.qty);
+            });
+        adds[id] = dedupedAddQty(adds[id], prevMax);
+        if (!adds[id]) delete adds[id];
+      }
       patchDraft((d) => {
         let rooms = d.rooms;
         if (!rooms.some((x) => x.name === r.room))
@@ -618,7 +661,7 @@ export function RoomScanScreen() {
           ))}
         </div>
         <p className="mx-4 mt-2 text-[11px] text-[#9AA1AC]">
-          신뢰도 90% 이상은 자동 선택, 65~89%는 확인 필요, 65% 미만은 추가하지 않습니다. 인식 결과는 반드시 확인해 주세요.
+          신뢰도 80% 이상은 자동 선택, 50~79%는 확인 필요, 50% 미만은 미확인으로 두고 추가하지 않습니다. 애매한 품목만 고화질로 한 번 더 확인합니다. 인식 결과는 반드시 확인해 주세요.
         </p>
         <button onClick={() => setScreen("step6")} className="mx-4 mt-3 w-[calc(100%-2rem)] rounded-xl border border-[#E5E7EB] bg-white py-3 text-[14px] font-bold text-[#25282D]">
           직접 선택으로 품목 고르기·수정
@@ -644,6 +687,7 @@ export function RoomScanScreen() {
           onDecide={async (r, idxs, decision, add) => {
             const decisions = { ...(r.result?.decisions ?? {}) };
             idxs.forEach((i) => (decisions[String(i)] = decision));
+            void recordFeedback(r, idxs, decision === "rejected" ? "reject" : "confirm", add ? { id: add.id, name: catalog.find((c) => c.id === add.id)?.name ?? null, qty: add.qty } : null);
             if (add)
               patchDraft((d) => {
                 let rooms = d.rooms;
@@ -675,6 +719,7 @@ export function RoomScanScreen() {
             });
             const decisions = { ...(r.result?.decisions ?? {}) };
             idxs.forEach((i) => (decisions[String(i)] = "saved"));
+            void recordFeedback(r, idxs, "saved", { id: itemId, name: res.name || name, qty });
             await supabase.from("room_scans").update({ result: JSON.parse(JSON.stringify({ ...(r.result ?? {}), decisions })) }).eq("id", r.id);
             void refreshCompanyItems().catch(() => {});
             await load();
@@ -747,18 +792,18 @@ function RoomReview({
         if (c.kind === "low") low++;
         else if (c.kind === "auto" && c.match) {
           const g = auto.get(c.match.id) ?? { name: c.match.name, qty: 0 };
-          g.qty += det.qty;
+          g.qty = Math.max(g.qty, det.qty);
           auto.set(c.match.id, g);
         } else if (!decided && c.kind === "check" && c.match) {
           const g = check.get(c.match.id) ?? { entry: c.match, qty: 0, conf: 0, refs: [] };
-          g.qty += det.qty;
+          g.qty = Math.max(g.qty, det.qty);
           g.conf = Math.max(g.conf, det.confidence ?? 0);
           g.refs.push({ r, i });
           check.set(c.match.id, g);
         } else if (!decided && c.kind === "candidate") {
           const k = normScanName(det.name);
           const g = cand.get(k) ?? { name: det.name, qty: 0, conf: 0, refs: [] };
-          g.qty += det.qty;
+          g.qty = Math.max(g.qty, det.qty);
           g.conf = Math.max(g.conf, det.confidence ?? 0);
           g.refs.push({ r, i, det });
           cand.set(k, g);
@@ -786,7 +831,7 @@ function RoomReview({
       <h3 className="mb-2 text-[16px] font-black">{room}</h3>
       {groups.auto.length > 0 && (
         <div className="mb-2">
-          <p className="mb-1 text-[12px] font-bold text-[#1E7B3E]">자동 선택됨 (신뢰도 90% 이상)</p>
+          <p className="mb-1 text-[12px] font-bold text-[#1E7B3E]">자동 선택됨 (신뢰도 80% 이상)</p>
           <div className="flex flex-wrap gap-1.5">
             {groups.auto.map((g) => (
               <span key={g.name} className="rounded-full bg-[#E7F6EC] px-2.5 py-1 text-[13px] font-bold text-[#1E7B3E]">{g.name} ×{g.qty}</span>
