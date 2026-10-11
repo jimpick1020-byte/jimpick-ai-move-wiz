@@ -409,6 +409,9 @@ async function cropBoxes(
   boxes: Array<{ x: number; y: number; w: number; h: number }>,
 ): Promise<Uint8Array[]> {
   try {
+    // 서버 환경에 Buffer 가 없으면 인코더가 쓰는 최소 기능만 채웁니다
+    const g = globalThis as unknown as { Buffer?: unknown };
+    if (typeof g.Buffer === "undefined") g.Buffer = { from: (a: ArrayLike<number>) => Uint8Array.from(a) };
     const jpegJs = await import("jpeg-js");
     const img = jpegJs.decode(jpeg, { useTArray: true, formatAsRGBA: true, maxMemoryUsageInMB: 256 });
     return boxes.map((b) => {
