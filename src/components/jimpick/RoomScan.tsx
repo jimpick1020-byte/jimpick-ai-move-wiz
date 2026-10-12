@@ -279,7 +279,8 @@ export function RoomScanScreen() {
     for (const r of todo) {
       applying.current.add(r.id);
       const adds: Record<string, number> = {};
-      (r.result?.items ?? []).forEach((det) => {
+      (r.result?.items ?? []).forEach((det, i) => {
+        if (r.result?.decisions?.[String(i)] === "removed") return;
         const c = classify(det, catalog);
         if (c.kind === "auto" && c.match) adds[c.match.id] = Math.max(adds[c.match.id] ?? 0, det.qty);
       });
