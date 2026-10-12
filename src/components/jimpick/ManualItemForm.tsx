@@ -104,10 +104,11 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
     if (lock.current || (!multi && !finalCat)) return;
     lock.current = true; setBusy(true); setError("");
     try {
-      let image = photo;
-      let source: "ai" | "upload" | "default" = photo ? (photoIsAi.current ? "ai" : "upload") : "default";
-      // 생성이 끝난 이미지를 보고 '이대로 저장'을 누르면 그 이미지를 씁니다.
-      if (!image && preview && previewReady) { image = await previewToJpeg(preview); source = "ai"; }
+      // 화면에 보이는 것이 곧 저장되는 것: 완성된 AI 미리보기가 있으면 그것을 먼저 씁니다.
+      let image = "";
+      let source: "ai" | "upload" | "default" = "default";
+      if (preview && previewReady) { image = await previewToJpeg(preview); source = "ai"; }
+      else if (photo) { image = photo; source = photoIsAi.current ? "ai" : "upload"; }
       if (generationTried && !image) throw new Error("이미지 생성이 끝난 뒤 저장해 주세요.");
       if (!image) {
         const response = await fetch(boxImage);
