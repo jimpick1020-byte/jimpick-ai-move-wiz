@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CustomItem } from "./jimpick";
 import { fetchCompanyCustomItems } from "./custom-item-repository";
+import { registerCustomIcons } from "./jimpick-icon3d";
 
 const cacheKey = (userId: string) => `jimpick_company_items_v2:${userId}`;
 
@@ -34,6 +35,8 @@ export function usePersistentItemCatalog(enabled: boolean, userId: string) {
     try {
       const fresh = await fetchCompanyCustomItems();
       if (request === requestRef.current) {
+        // 업체 품목의 저장된 이미지를 카드 그림으로 연결합니다(새 견적·재실행·다른 휴대폰에서도).
+        registerCustomIcons(fresh);
         setItems(fresh);
         setError(null);
         writeCache(userId, fresh);
@@ -54,7 +57,9 @@ export function usePersistentItemCatalog(enabled: boolean, userId: string) {
       setError(null);
       return;
     }
-    setItems(readCache(userId));
+    const cached = readCache(userId);
+    registerCustomIcons(cached);
+    setItems(cached);
     void refresh().catch(() => {});
   }, [enabled, userId, refresh]);
 
