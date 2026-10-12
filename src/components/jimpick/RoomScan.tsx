@@ -144,14 +144,17 @@ export function RoomScanScreen() {
   const catalog = useMemo(() => buildCatalog(companyItems), [companyItems]);
   const knownNames = useMemo(() => [...new Set(catalog.map((c) => c.name))].slice(0, 600), [catalog]);
 
+  // 전체 삭제할 때마다 올립니다. 이전 세션에서 시작된 분석 응답은 화면에 반영하지 않습니다.
+  const scanSession = useRef(0);
   // ── 저장된 기록 불러오기 ──────────────────────────────
   const load = useCallback(async () => {
+    const session = scanSession.current;
     const { data, error } = await supabase
       .from("room_scans")
       .select("id, room, photo_path, photo_hash, status, error_message, result, applied_at, updated_at, created_at")
       .eq("estimate_id", estimateId)
       .order("created_at", { ascending: true });
-    if (error) return;
+    if (error || session !== scanSession.current) return;
     const list = (data ?? []) as unknown as ScanRow[];
     setRows(list);
     const missing = list.filter((r) => !urls[r.id]);
@@ -211,11 +214,13 @@ export function RoomScanScreen() {
       const id = queue.current.shift()!;
       if (running.current.has(id)) continue;
       running.current.add(id);
+      const session = scanSession.current;
       setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status: "analyzing", updated_at: new Date().toISOString() } : r)));
       const run = () => analyze({ data: { scanId: id, knownNames: namesRef.current, catalog: catalogRef.current } });
       void run()
         .then((res) => {
           // 실패한 사진만 한 번 더 시도합니다
+          if (session !== scanSession.current) return res;
           if (!res.ok && !retried.current.has(id)) {
             retried.current.add(id);
             return run();
@@ -223,6 +228,7 @@ export function RoomScanScreen() {
           return res;
         })
         .catch(async () => {
+          if (session !== scanSession.current) return;
           if (!retried.current.has(id)) {
             retried.current.add(id);
             try { await run(); return; } catch { /* 아래에서 실패 기록 */ }
@@ -231,6 +237,7 @@ export function RoomScanScreen() {
         })
         .finally(() => {
           running.current.delete(id);
+          if (session !== scanSession.current) return;
           void loadRef.current();
           pump();
         });
@@ -411,6 +418,64 @@ export function RoomScanScreen() {
   const nextRoom = () => {
     const i = roomNames.indexOf(room);
     setRoom(roomNames[(i + 1) % roomNames.length]);
+  };
+
+  // ── 이 견적의 AI 촬영 자료 전체 삭제 ──
+  const clearAll = async () => {
+    if (!window.confirm("이 견적의 AI 촬영 사진과 인식 결과를 모두 삭제할까요? 직접 담은 품목은 그대로 남습니다.")) return;
+    const { data: delRows, error } = await supabase
+      .from("room_scans")
+      .delete()
+      .eq("estimate_id", estimateId)
+      .select("id, room, photo_path, result, applied_at");
+    if (error) {
+      toast.error(`삭제하지 못했습니다: ${error.message}`);
+      return;
+    }
+    // 삭제 성공 후에만: 진행 중 분석 무효화, 대기열·상태 초기화
+    scanSession.current++;
+    queue.current = [];
+    running.current.clear();
+    retried.current.clear();
+    applying.current.clear();
+    const deleted = (delRows ?? []) as unknown as ScanRow[];
+    // 자동으로 담겼던 수량만 방별로 덜어냅니다(같은 방 여러 사진은 최대 수량 기준, 직접 담은 수량은 유지)
+    const sub: Record<string, Record<string, number>> = {};
+    for (const r of deleted) {
+      if (!r.applied_at) continue;
+      (r.result?.items ?? []).forEach((det, i) => {
+        if (r.result?.decisions?.[String(i)] === "removed") return;
+        const c = classify(det, catalog);
+        if (c.kind !== "auto" || !c.match) return;
+        const m = (sub[r.room] ??= {});
+        m[c.match.id] = Math.max(m[c.match.id] ?? 0, det.qty);
+      });
+    }
+    if (Object.keys(sub).length)
+      patchDraft((d) => ({
+        rooms: d.rooms.map((x) => {
+          const m = sub[x.name];
+          if (!m) return x;
+          const items = { ...x.items };
+          for (const [id, q] of Object.entries(m)) {
+            const left = (items[id] ?? 0) - q;
+            if (left > 0) items[id] = left; else delete items[id];
+          }
+          return { ...x, items };
+        }),
+      }));
+    setRows([]);
+    setUrls({});
+    setLocal([]);
+    try { localStorage.removeItem(pendingKey); } catch { /* 없음 */ }
+    setReviewOpen(false);
+    const paths = deleted.map((r) => r.photo_path).filter(Boolean);
+    if (paths.length) {
+      const rm = await supabase.storage.from(BUCKET).remove(paths);
+      if (rm.error) toast.error(`인식 기록은 삭제했지만 사진 파일 정리에 실패했습니다: ${rm.error.message}`);
+    }
+    await load();
+    toast.success(`AI 촬영 자료 ${deleted.length}건을 삭제했습니다.`);
   };
 
   // ── 상태 표시 ────────────────────────────────────────
@@ -656,6 +721,7 @@ export function RoomScanScreen() {
           urls={urls}
           catalog={catalog}
           onClose={() => setReviewOpen(false)}
+          onClearAll={clearAll}
           onDecide={async (r, idxs, decision, add) => {
             const decisions = { ...(r.result?.decisions ?? {}) };
             idxs.forEach((i) => (decisions[String(i)] = decision));
@@ -733,10 +799,12 @@ function ReviewSheet({
   urls,
   catalog,
   onClose,
+  onClearAll,
   onDecide,
   onSaveCandidate,
   onRemove,
 }: {
+  onClearAll: () => Promise<void>;
   rows: ScanRow[];
   urls: Record<string, string>;
   catalog: CatalogEntry[];
@@ -751,6 +819,10 @@ function ReviewSheet({
       <div className="max-h-[88dvh] w-full max-w-md overflow-auto rounded-t-3xl bg-[#F7F8F5] p-4 pb-8" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-[18px] font-black">인식 결과 확인</h2>
+          <div className="flex-1" />
+          {rows.length > 0 && (
+            <button onClick={() => void onClearAll()} className="mr-2 rounded-lg border border-[#E5E7EB] px-2 py-1 text-[12px] font-bold text-[#C62828]">전체 삭제</button>
+          )}
           <button onClick={onClose} aria-label="닫기"><XCircle className="h-7 w-7 text-[#9AA1AC]" /></button>
         </div>
         {rooms.length === 0 && <p className="text-center text-[14px] text-[#6B7280]">분석된 사진이 없습니다.</p>}
@@ -825,11 +897,6 @@ function RoomReview({
     });
     window.setTimeout(() => { if (!undone) void onRemove(g.refs, g.id, g.qty); }, 5000);
   };
-  const removeAll = async () => {
-    if (!window.confirm(`${room}의 인식 품목을 모두 삭제할까요? 사진은 그대로 남습니다.`)) return;
-    for (const g of groups.auto) if (!hidden.has(g.id)) await onRemove(g.refs, g.id, g.qty);
-    for (const g of groups.check) await decideGroup(g.refs, "skipped");
-  };
 
   const decideGroup = async (refs: { r: ScanRow; i: number }[], d: Decision, add?: { id: string; qty: number }) => {
     const byRow = new Map<string, { r: ScanRow; idxs: number[] }>();
@@ -849,9 +916,6 @@ function RoomReview({
     <div className="mb-4 rounded-2xl border border-[#E5E7EB] bg-white p-3">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-[16px] font-black">{room}</h3>
-        {(groups.auto.some((g) => !hidden.has(g.id)) || groups.check.length > 0) && (
-          <button onClick={removeAll} className="rounded-lg border border-[#E5E7EB] px-2 py-1 text-[12px] font-bold text-[#C62828]">전체 삭제</button>
-        )}
       </div>
       {groups.auto.length > 0 && (
         <div className="mb-2">

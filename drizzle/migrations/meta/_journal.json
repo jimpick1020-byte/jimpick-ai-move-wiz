@@ -43,6 +43,13 @@
       "when": 1791759027491,
       "tag": "0005_scan_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791790509925,
+      "tag": "0006_room_scans_storage_delete",
+      "breakpoints": true
     }
   ]
 }

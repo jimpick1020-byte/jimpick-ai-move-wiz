@@ -1,0 +1,1 @@
+CREATE POLICY "room-scans own delete" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'room-scans' AND (storage.foldername(name))[1] = (auth.uid())::text);
