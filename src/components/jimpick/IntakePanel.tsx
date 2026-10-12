@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, Settings2, Plus } from "lucide-react";
 import { useApp, type Estimate } from "@/lib/jimpick";
 import { formatTel } from "@/lib/format-input";
-import { icon3dFor } from "@/lib/jimpick-icon3d";
+import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
   listIntakeRequests, loadIntakeDraft, markIntakeSeen, saveIntakeItemSetting, sendIntakeSms,
@@ -349,7 +349,7 @@ export function IntakeItemsManager({ onClose }: { onClose: () => void }) {
         {items?.map((it) => (
           <div key={it.id} className={`rounded-2xl border p-3 space-y-2 ${it.visible ? "border-[#E5E7EB]" : "border-dashed border-[#D1D5DB] opacity-70"}`}>
             <div className="flex items-center gap-3">
-              <img src={it.icon ?? icon3dFor(it.id, it.name)} alt={it.name} className="h-12 w-12 object-contain" />
+              <Icon3D src={it.icon ?? icon3dFor(it.id, it.name)} alt={it.name} size={48} />
               <input defaultValue={it.name} disabled={it.kind === "base"}
                 onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== it.name) void save(it, { name: v }); }}
                 className="flex-1 rounded-lg border border-[#E5E7EB] px-2 py-2 font-bold disabled:bg-[#F7F8F5]" />

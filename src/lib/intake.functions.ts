@@ -248,7 +248,7 @@ async function itemsFor(sb: any, companyId: string, onlyVisible: boolean): Promi
   const settings = ((prof?.intake_item_settings ?? {}) as Record<string, BaseSetting>);
   const base: IntakeItem[] = INTAKE_BASE_ITEMS.map((b, i) => {
     const s = settings[b.id] ?? {};
-    return { id: b.id, name: b.name, rooms: s.rooms?.length ? s.rooms : b.rooms, visible: s.visible ?? true,
+    return { id: b.id, name: b.name, icon: b.img, rooms: s.rooms?.length ? s.rooms : b.rooms, visible: s.visible ?? true,
       disposalAllowed: s.disposal ?? true, sort: s.sort ?? i, kind: "base" };
   });
   const mine: IntakeItem[] = ((icons ?? []) as any[]).map((r) => ({
