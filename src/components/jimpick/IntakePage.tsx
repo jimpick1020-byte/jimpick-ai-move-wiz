@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { MoreVertical, Search, X } from "lucide-react";
 import { openIntake, saveIntakeProgress, submitIntake, type IntakeOpen } from "@/lib/intake.functions";
 import { searchAddress, type KakaoPlace } from "@/lib/kakao.functions";
-import { icon3dFor } from "@/lib/jimpick-icon3d";
+import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import { formatTel } from "@/lib/format-input";
 import { INTAKE_ROOMS, setQty, tapOnce, tapTwice, type IntakeForm } from "@/lib/intake";
 
@@ -231,7 +231,7 @@ function ItemsStep({ form, items, setForm }: { form: IntakeForm; items: Item[]; 
       <div key={it.id} className={`relative rounded-2xl border-2 p-2 text-center transition ${p ? (p.disposal ? "border-[#EF4444] bg-[#FEE2E2]/70" : "border-[#2563EB] bg-[#EFF6FF]") : "border-[#E5E7EB]"}`}>
         <button type="button" onClick={() => press(it)} className="block w-full select-none" style={{ touchAction: "manipulation" }} aria-pressed={!!p}>
           <span className="relative mx-auto block h-16 w-16">
-            <img src={it.icon ?? icon3dFor(it.id, it.name)} alt="" className={`h-16 w-16 object-contain ${p?.disposal ? "opacity-50" : ""}`} />
+            <Icon3D src={it.icon ?? icon3dFor(it.id, it.name)} alt={it.name} size={64} className={p?.disposal ? "opacity-50" : ""} />
             {p?.disposal && <X className="absolute inset-0 m-auto h-14 w-14 text-[#DC2626]" strokeWidth={3.5} />}
           </span>
           <span className="mt-1 block text-[15px] font-bold leading-tight">{it.name}</span>
