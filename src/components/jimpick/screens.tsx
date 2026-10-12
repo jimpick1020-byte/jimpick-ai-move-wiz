@@ -117,6 +117,7 @@ import {
 import { getSizePresets } from "@/lib/size-presets.functions";
 
 import { toast } from "sonner";
+import { IntakeRequestButton, IntakeInbox, IntakeNotifier, IntakeStatusChip, findIntakeFor, useIntakeRequests } from "./IntakePanel";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
@@ -1286,6 +1287,15 @@ export function Step1() {
     <MobileShell className="jp-estimate-flow jp-tone-1">
       <TopBar title="1단계. 고객 정보 입력" onBack={() => setScreen("home")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
+        {!draft.intakeRequestId && <IntakeRequestButton label="고객 사전정보 요청" name={draft.customerName} phone={draft.phone} wide />}
+        {draft.intakeRequestId && (
+          <div className="rounded-2xl bg-[#EFF6FF] p-3 text-sm text-[#1E3A8A] space-y-0.5">
+            <div className="font-black">고객 사전정보로 채운 견적 초안입니다. 모든 칸을 고칠 수 있습니다.</div>
+            <div>출발지 층수: {draft.intakeFromFloor ?? "방문 확인 예정"} · 도착지 층수: {draft.intakeToFloor ?? "방문 확인 예정"}</div>
+            <div>엘리베이터·사다리차: 방문 후 결정 · 폐기물 처리비: 방문 후 확인</div>
+            {draft.intakeNote && <div className="whitespace-pre-line text-[#374151]">{draft.intakeNote}</div>}
+          </div>
+        )}
         <Field label="고객명" labelClassName="text-[#2DD4BF]">
           <TextInput
             placeholder="홍길동"
@@ -6842,6 +6852,7 @@ export function History() {
 // ============ Customers ============
 export function Customers() {
   const { estimates: allEstimates, setScreen, loadEstimate } = useApp();
+  const intakeRows = useIntakeRequests();
   const [q, setQ] = useState("");
   const [custOpen, setCustOpen] = useState<Record<string, boolean>>({});
   /** 자동 정리·삭제된 견적은 고객 관리에서도 숨깁니다 (자료는 서버에 보존) */
@@ -6932,6 +6943,7 @@ export function Customers() {
     <MobileShell>
       <TopBar title="고객 관리" onBack={() => setScreen("home")} />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
+        <IntakeInbox />
         <TextInput placeholder="고객 검색" value={q} onChange={(e) => setQ(e.target.value)} />
         {list.length === 0 && (
           <div className="text-center text-[#6B7280] py-16">고객 정보가 없습니다.</div>
@@ -7015,7 +7027,9 @@ export function Customers() {
                   >
                     <MessageSquare className="w-4 h-4 text-[#25282D]" />
                   </a>
+                  <IntakeRequestButton name={c.name} phone={c.phone} sourceEstimateId={c.id} />
                 </div>
+                {(() => { const ir = findIntakeFor(intakeRows, c.ids, c.phone); return ir ? <div className="mt-1"><IntakeStatusChip row={ir} /></div> : null; })()}
               </div>
             </div>
           </Card>
