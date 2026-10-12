@@ -10,6 +10,7 @@ import { tap } from "@/lib/feedback";
 import { analyzeRoomScan, saveCroppedItem, type ScanDetection } from "@/lib/room-scan.functions";
 import { dedupedAddQty } from "@/lib/scan-rules";
 import { ScanOutline } from "./ScanOutline";
+import { LiveObjectCamera } from "./LiveObjectCamera";
 import { preparePhoto, hashDistance } from "@/lib/photo-prep-core";
 import { buildCatalog, matchCatalog, normScanName, AUTO_CONF, CHECK_CONF, type CatalogEntry } from "@/lib/scan-match";
 
@@ -337,7 +338,7 @@ export function RoomScanScreen() {
     [uid, estimateId, load, enqueue],
   );
 
-  const handleFiles = async (files: FileList | null, targetRoom: string, force = false) => {
+  const handleFiles = async (files: FileList | File[] | null, targetRoom: string, force = false) => {
     if (!files?.length) return;
     for (const file of Array.from(files)) {
       const job: LocalJob = { localId: crypto.randomUUID(), room: targetRoom, status: "uploading" };
@@ -395,8 +396,10 @@ export function RoomScanScreen() {
   const openCamera = () => {
     captureRoom.current = room;
     tap("click");
-    launch(fileRef.current, "카메라");
+    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) setLiveOpen(true);
+    else launch(fileRef.current, "카메라");
   };
+  const [liveOpen, setLiveOpen] = useState(false);
   const openPicker = () => {
     captureRoom.current = room;
     launch(pickRef.current, "앨범");
@@ -487,6 +490,18 @@ export function RoomScanScreen() {
   return (
     <MobileShell className="jp-estimate-flow jp-tone-4">
       <TopBar title="4단계. AI 연속촬영" onBack={() => setScreen("step3")} />
+      {liveOpen && (
+        <LiveObjectCamera
+          room={captureRoom.current}
+          onClose={() => setLiveOpen(false)}
+          onFallback={() => { setLiveOpen(false); launch(fileRef.current, "카메라"); }}
+          onCapture={(file, name) => {
+            tap("click");
+            void handleFiles([file], captureRoom.current);
+            toast.success(name ? `${name} 사진을 등록했어요. 분석 결과에서 확인할 수 있어요.` : "사진을 등록했어요.");
+          }}
+        />
+      )}
       <input
         ref={fileRef}
         type="file"
