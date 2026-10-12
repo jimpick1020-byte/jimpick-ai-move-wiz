@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { scanOutputSchema, SCAN_GEOMETRY_PROMPT, normalizeContour, normalizeShelfLines, shelfTierCount, scanCropBounds, mapCropPoint, type ScanPoint, type ShelfLine } from "./scan-geometry";
 
 const SCAN_BUCKET = "room-scans";
 const ICON_BUCKET = "item-icons";
@@ -18,6 +19,12 @@ export interface ScanDetection {
   room?: string;
   /** 1 = 1차 위치 찾기, 2 = 애매해서 고화질 2차 확인 */
   stage?: 1 | 2;
+  /** 原本 사진 기준 0~1000 실제 외곽선 (구 기록에는 없을 수 있음) */
+  contour?: ScanPoint[] | null;
+  shelf_lines?: ShelfLine[] | null;
+  shelves_complete?: boolean | null;
+  shelf_confidence?: number | null;
+  shelf_count?: number | null;
 }
 
 const LARGE_RE = /냉장고|김치|세탁기|건조기|tv|티비|텔레비|모니터|에어컨|스타일러|침대|매트리스|장롱|옷장|붙박이|소파|쇼파|식탁|책상|책장|진열장|장식장|서랍장|화장대|거실장|수납장|안마의자|세라젬|피아노|캣타워|워시타워|냉동고|와인셀러/i;
@@ -30,7 +37,7 @@ const VERIFY_MODEL = "openai/gpt-6-astra";
 const MODEL_ID = `${DETECT_MODEL}+${VERIFY_MODEL}`;
 const MAX_VERIFY = 6;
 /** 분석 규칙이 바뀌면 올려서 예전 결과를 재사용하지 않게 합니다 */
-const RULES_VERSION = "scan-v4-2stage";
+const RULES_VERSION = "scan-v5-contour-shelves";
 
 /** 품목명 동의어 → 최종 그룹명. 방 이름과 무관하게 이름만으로 정합니다. */
 const GROUP_RULES: Array<[RegExp, string]> = [
@@ -46,21 +53,7 @@ export function groupItemName(name: string): string {
   return n;
 }
 
-const outputSchema = z.object({
-  photo_ok: z.boolean(),
-  photo_problem: z.string().nullable(),
-  items: z.array(
-    z.object({
-      name: z.string(),
-      qty: z.number(),
-      confidence: z.number().nullable(),
-      item_id: z.string().nullable(),
-      box: z
-        .object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() })
-        .nullable(),
-    }),
-  ),
-});
+const outputSchema = scanOutputSchema;
 
 /**
  * 촬영 기록 한 건을 서버 AI로 분석합니다.
@@ -171,6 +164,7 @@ export const analyzeRoomScan = createServerFn({ method: "POST" })
 - box는 해당 물건 영역 [x,y,w,h] (사진 가로·세로를 각각 1000으로 본 정수). 모르면 null.
 - 벽, 바닥, 문, 창문, 조명 스위치, 붙박이 설비, 사람은 제외합니다.
 - 사진이 너무 어둡거나 흔들려서 판단이 어렵다면 photo_ok=false, photo_problem에 이유를 한국어로 적습니다.
+${SCAN_GEOMETRY_PROMPT}
 기존 품목(ID:이름): ${catalogText}${hints}`;
 
     try {
@@ -211,10 +205,11 @@ export const analyzeRoomScan = createServerFn({ method: "POST" })
       const { needsSecondPass } = await import("@/lib/scan-rules");
       const ambiguous = raw
         .map((it, i) => ({ it, i }))
-        .filter(({ it }) => it.box && needsSecondPass({ confidence: it.confidence, item_id: it.item_id && catalogIds.has(it.item_id) ? it.item_id : null }))
+        .filter(({ it }) => it.box && (needsSecondPass({ confidence: it.confidence, item_id: it.item_id && catalogIds.has(it.item_id) ? it.item_id : null }) ||
+          !normalizeContour(it.contour) || (/책장/.test(it.name) && shelfTierCount(it.name, it.shelf_lines, it.shelves_complete, it.shelf_confidence) == null)))
         .slice(0, MAX_VERIFY);
       if (ambiguous.length) {
-        const crops = await cropBoxes(bytes, ambiguous.map(({ it }) => it.box!));
+        const crops = await cropBoxes(bytes, ambiguous.flatMap(({ it }) => it.box ? [it.box] : []));
         const parts: Array<{ type: "text"; text: string } | { type: "image"; image: Uint8Array; mediaType: string; providerOptions: { openai: { imageDetail: string } } }> = [
           {
             type: "text",
@@ -222,12 +217,13 @@ export const analyzeRoomScan = createServerFn({ method: "POST" })
 각 조각마다 아래 기존 품목 목록에서 가장 맞는 품목을 고르세요. 맞는 품목이 없으면 item_id=null, 짧은 한국어 name.
 대형 가구·가전이 아니거나 무엇인지 모르겠으면 confidence를 0.3 이하로 줍니다. 확신도는 실제 확신만큼만 주세요.
 items 배열은 조각 순서와 같은 길이로, box는 null, qty는 1차 값 그대로 답하세요. photo_ok=true.
+${SCAN_GEOMETRY_PROMPT}
 기존 품목(ID:이름): ${catalogText}${hints}`,
           },
         ];
         ambiguous.forEach(({ it }, k) => {
           parts.push({ type: "text", text: `조각 ${k + 1}: 1차 추정 「${it.name}」, 수량 ${it.qty}` });
-          parts.push({ type: "image", image: crops[k] ?? bytes, mediaType: "image/jpeg", providerOptions: { openai: { imageDetail: "high" } } });
+          parts.push({ type: "image", image: crops[k]?.bytes ?? bytes, mediaType: "image/jpeg", providerOptions: { openai: { imageDetail: "high" } } });
         });
         try {
           const v = streamText({
@@ -241,7 +237,15 @@ items 배열은 조각 순서와 같은 길이로, box는 null, qty는 1차 값 
           ambiguous.forEach(({ i }, k) => {
             const r2 = vo?.items?.[k];
             if (!r2) return;
-            raw[i] = { ...raw[i], name: r2.name || raw[i].name, item_id: r2.item_id, confidence: r2.confidence, stage: 2 };
+            const crop = crops[k];
+            const toPhoto = (p: ScanPoint) => crop ? mapCropPoint(p, crop.bounds, crop.width, crop.height) : p;
+            const contour = normalizeContour(r2.contour);
+            raw[i] = {
+              ...raw[i], name: r2.name || raw[i].name, item_id: r2.item_id, confidence: r2.confidence, stage: 2,
+              contour: contour ? contour.map(toPhoto) : raw[i].contour,
+              shelf_lines: r2.shelf_lines?.map((l) => ({ start: toPhoto(l.start), end: toPhoto(l.end) })) ?? null,
+              shelves_complete: r2.shelves_complete, shelf_confidence: r2.shelf_confidence,
+            };
           });
         } catch (e) {
           // 2차 확인이 실패해도 1차 결과는 그대로 둡니다 (확인 필요로 표시됨)
@@ -255,6 +259,11 @@ items 배열은 조각 순서와 같은 길이로, box는 null, qty는 1차 값 
           item_id: it.item_id && catalogIds.has(it.item_id) ? it.item_id : null,
           room: row.room,
           stage: it.stage,
+          contour: normalizeContour(it.contour),
+          shelf_lines: it.shelf_lines == null ? null : normalizeShelfLines(it.shelf_lines),
+          shelves_complete: it.shelves_complete,
+          shelf_confidence: it.shelf_confidence,
+          shelf_count: shelfTierCount(it.name, it.shelf_lines, it.shelves_complete, it.shelf_confidence),
           qty: Math.max(1, Math.min(30, Math.round(Number(it.qty) || 1))),
           // 모델이 신뢰도를 주지 않으면 null 로 두고 화면에서 "확인 필요"로 처리합니다
           confidence: typeof it.confidence === "number" && Number.isFinite(it.confidence) ? Math.max(0, Math.min(1, it.confidence)) : null,
@@ -407,7 +416,7 @@ export const saveCroppedItem = createServerFn({ method: "POST" })
 async function cropBoxes(
   jpeg: Uint8Array,
   boxes: Array<{ x: number; y: number; w: number; h: number }>,
-): Promise<Uint8Array[]> {
+): Promise<Array<{ bytes: Uint8Array; bounds: { x: number; y: number; w: number; h: number }; width: number; height: number }>> {
   try {
     // 서버 환경에 Buffer 가 없으면 인코더가 쓰는 최소 기능만 채웁니다
     const g = globalThis as unknown as { Buffer?: unknown };
@@ -415,20 +424,14 @@ async function cropBoxes(
     const jpegJs = await import("jpeg-js");
     const img = jpegJs.decode(jpeg, { useTArray: true, formatAsRGBA: true, maxMemoryUsageInMB: 256 });
     return boxes.map((b) => {
-      const padX = b.w * 0.15;
-      const padY = b.h * 0.15;
-      const x0 = Math.max(0, Math.floor(((b.x - padX) / 1000) * img.width));
-      const y0 = Math.max(0, Math.floor(((b.y - padY) / 1000) * img.height));
-      const x1 = Math.min(img.width, Math.ceil(((b.x + b.w + padX) / 1000) * img.width));
-      const y1 = Math.min(img.height, Math.ceil(((b.y + b.h + padY) / 1000) * img.height));
-      const w = Math.max(1, x1 - x0);
-      const h = Math.max(1, y1 - y0);
+      const bounds = scanCropBounds(b, img.width, img.height);
+      const { x: x0, y: y0, w, h } = bounds;
       const out = new Uint8Array(w * h * 4);
       for (let y = 0; y < h; y++) {
         const src = ((y0 + y) * img.width + x0) * 4;
         out.set(img.data.subarray(src, src + w * 4), y * w * 4);
       }
-      return new Uint8Array(jpegJs.encode({ data: out, width: w, height: h }, 88).data);
+      return { bytes: new Uint8Array(jpegJs.encode({ data: out, width: w, height: h }, 88).data), bounds, width: img.width, height: img.height };
     });
   } catch (e) {
     console.error("[cropBoxes]", e);

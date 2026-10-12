@@ -9,6 +9,7 @@ import { MobileShell, TopBar, PrimaryButton, BottomButtonBar } from "./ui";
 import { tap } from "@/lib/feedback";
 import { analyzeRoomScan, saveCroppedItem, type ScanDetection } from "@/lib/room-scan.functions";
 import { dedupedAddQty } from "@/lib/scan-rules";
+import { ScanOutline } from "./ScanOutline";
 import { preparePhoto, hashDistance } from "@/lib/photo-prep-core";
 import { buildCatalog, matchCatalog, normScanName, AUTO_CONF, CHECK_CONF, type CatalogEntry } from "@/lib/scan-match";
 
@@ -538,27 +539,13 @@ export function RoomScanScreen() {
         <div className="mx-4 mt-1 overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
           <div className="relative aspect-[4/3] bg-[#EEF2F7]">
             {latestUrl ? (
-              <img src={latestUrl} alt={`${room} 사진`} className="h-full w-full object-cover" />
+              <ScanOutline url={latestUrl} room={room} items={latest?.result?.items ?? []} />
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-2 text-[#6B7280]">
                 <Camera className="h-10 w-10" />
                 <p className="text-[14px] font-bold">{room} 사진을 찍어 주세요</p>
               </div>
             )}
-            {latest && latestUrl &&
-              (latest.result?.items ?? []).map((det, i) =>
-                det.box && (det.confidence ?? 1) >= CHECK_CONF ? (
-                  <div
-                    key={i}
-                    className={`absolute border-2 rounded-md ${det.confidence != null && det.confidence >= AUTO_CONF ? "border-[#2E9E57]" : "border-[#F2A516]"}`}
-                    style={{ left: `${det.box.x / 10}%`, top: `${det.box.y / 10}%`, width: `${det.box.w / 10}%`, height: `${det.box.h / 10}%` }}
-                  >
-                    <span className="absolute -top-5 left-0 whitespace-nowrap rounded bg-black/70 px-1 text-[11px] font-bold text-white">
-                      {det.name} {det.confidence == null ? "신뢰도 없음" : `${Math.round(det.confidence * 100)}%`}
-                    </span>
-                  </div>
-                ) : null,
-              )}
           </div>
           <div className="grid grid-cols-2 gap-2 p-3">
             <button onClick={openCamera} className="flex items-center justify-center gap-2 rounded-xl bg-[#2A6FD6] py-3 text-[15px] font-black text-white">
