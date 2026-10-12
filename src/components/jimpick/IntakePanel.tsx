@@ -449,3 +449,23 @@ function AddIntakeItem({ onClose, onDone, sortBase }: { onClose: () => void; onD
     </div>
   );
 }
+
+/** 견적 내역 위쪽 — 고객이 입력을 마친 사전정보 견적 초안 */
+export function IntakeSubmittedList() {
+  const rows = useIntakeRequests().filter((r) => r.status === "submitted" || r.status === "confirmed").slice(0, 10);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const open = rows.find((r) => r.id === openId);
+  if (!rows.length) return null;
+  return (
+    <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] p-3 space-y-2">
+      <div className="text-sm font-black text-[#1E3A8A]">고객 사전정보 견적 초안</div>
+      {rows.map((r) => (
+        <button key={r.id} type="button" onClick={() => setOpenId(r.id)} className="w-full flex items-center justify-between rounded-xl bg-white px-3 py-2 text-left">
+          <span className="text-sm font-bold">{r.customer_name} <span className="text-xs text-[#6B7280]">{r.submission && "moveDate" in r.submission ? r.submission.moveDate : ""}</span></span>
+          <IntakeStatusChip row={r} />
+        </button>
+      ))}
+      {open && <IntakeRequestSheet name={open.customer_name} phone={open.customer_phone} requestId={open.id} onClose={() => setOpenId(null)} />}
+    </div>
+  );
+}

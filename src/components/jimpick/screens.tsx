@@ -117,7 +117,7 @@ import {
 import { getSizePresets } from "@/lib/size-presets.functions";
 
 import { toast } from "sonner";
-import { IntakeRequestButton, IntakeInbox, IntakeNotifier, IntakeStatusChip, findIntakeFor, useIntakeRequests } from "./IntakePanel";
+import { IntakeRequestButton, IntakeInbox, IntakeSubmittedList, IntakeNotifier, IntakeStatusChip, findIntakeFor, useIntakeRequests } from "./IntakePanel";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
@@ -6494,6 +6494,7 @@ export function History() {
     <MobileShell>
       <TopBar title="견적 내역" onBack={() => setScreen("home")} />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
+        <IntakeSubmittedList />
         <TextInput
           placeholder="고객명·연락처·날짜 검색"
           value={q}
