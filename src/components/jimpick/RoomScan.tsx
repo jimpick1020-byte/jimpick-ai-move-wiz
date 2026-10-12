@@ -606,7 +606,7 @@ export function RoomScanScreen() {
                     )}
                     {j.status === "retake" && (
                       <div className="flex flex-col gap-1">
-                        <button onClick={() => { captureRoom.current = j.room; setLocal((l) => l.filter((x) => x.localId !== j.localId)); fileRef.current?.click(); }} className="rounded-lg bg-[#2A6FD6] px-2 py-1 text-[12px] font-bold text-white">재촬영</button>
+                        <button onClick={() => { captureRoom.current = j.room; setLocal((l) => l.filter((x) => x.localId !== j.localId)); if ("mediaDevices" in navigator) setLiveOpen(true); else fileRef.current?.click(); }} className="rounded-lg bg-[#2A6FD6] px-2 py-1 text-[12px] font-bold text-white">재촬영</button>
                         {j.dataUrl && j.hash && <button onClick={() => void retryLocal(j)} className="rounded-lg border px-2 py-1 text-[12px] font-bold">그대로 분석</button>}
                       </div>
                     )}
