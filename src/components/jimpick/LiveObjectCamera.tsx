@@ -1,10 +1,7 @@
 // 실시간 물건 윤곽 카메라: 휴대폰 안에서만 인식(크레딧 없음). 촬영은 사용자가 버튼을 눌렀을 때만.
 import { useEffect, useRef, useState } from "react";
 import { Camera, X } from "lucide-react";
-
-const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm";
-const DET_MODEL = "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite";
-const SEG_MODEL = "https://storage.googleapis.com/mediapipe-models/interactive_segmenter/magic_touch/float32/1/magic_touch.tflite";
+import { loadVisionModels, traceContour, drawerTiers, fgAt, type Pt } from "@/lib/live-vision";
 
 const KO: Record<string, string> = {
   bed: "침대", couch: "소파", chair: "의자", "dining table": "식탁", tv: "TV", refrigerator: "냉장고",
@@ -14,7 +11,6 @@ const KO: Record<string, string> = {
 };
 const IGNORE = new Set(["person", "cat", "dog", "cell phone", "remote", "mouse", "cup", "fork", "knife", "spoon"]);
 
-type Pt = { x: number; y: number };
 interface Live { label: string; score: number; contour: Pt[]; stable: boolean }
 
 export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
@@ -36,6 +32,7 @@ export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
     let stream: MediaStream | null = null;
     let raf = 0;
     const history: { label: string; box: number[] }[] = [];
+    const gctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
     (async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } }, audio: false });
@@ -49,14 +46,14 @@ export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
       setStatus("물건 인식 준비 중…");
       let detector: any, segmenter: any;
       try {
-        const mp = await import("@mediapipe/tasks-vision");
-        const fs = await mp.FilesetResolver.forVisionTasks(WASM);
-        detector = await mp.ObjectDetector.createFromOptions(fs, { baseOptions: { modelAssetPath: DET_MODEL, delegate: "GPU" }, runningMode: "VIDEO", scoreThreshold: 0.4, maxResults: 5 });
-        segmenter = await mp.InteractiveSegmenter.createFromOptions(fs, { baseOptions: { modelAssetPath: SEG_MODEL }, outputCategoryMask: true, outputConfidenceMasks: false } as any);
-      } catch {
-        setStatus("실시간 인식을 불러오지 못했습니다. 촬영은 그대로 할 수 있어요.");
+        ({ detector, segmenter } = await loadVisionModels());
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[LiveObjectCamera] 모델 초기화 실패:", e);
+        setStatus(`실시간 인식을 불러오지 못했습니다: ${msg.slice(0, 120)}`);
         return;
       }
+      if (stop) return;
       setStatus("");
       let last = 0;
       const loop = () => {
@@ -72,22 +69,44 @@ export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
           .map((d: any) => ({ d, c: d.categories?.[0] }))
           .filter((x: any) => x.c && !IGNORE.has(x.c.categoryName))
           .sort((a: any, b: any) => b.d.boundingBox.width * b.d.boundingBox.height - a.d.boundingBox.width * a.d.boundingBox.height)[0];
-        if (!best) { history.length = 0; update(null); return; }
-        const bb = best.d.boundingBox;
-        const box = [bb.originX / vw, bb.originY / vh, (bb.originX + bb.width) / vw, (bb.originY + bb.height) / vh];
-        const edge = box[0] < 0.02 || box[1] < 0.02 || box[2] > 0.98 || box[3] > 0.98;
-        const label = KO[best.c.categoryName] ?? best.c.categoryName;
+        // 감지된 물건이 없으면 화면 가운데(사용자가 겨눈 곳)를 분석합니다.
+        let box = [0.5, 0.5, 0.5, 0.5];
+        if (best) { const bb = best.d.boundingBox; box = [bb.originX / vw, bb.originY / vh, (bb.originX + bb.width) / vw, (bb.originY + bb.height) / vh]; }
+        const kp = { x: (box[0] + box[2]) / 2, y: (box[1] + box[3]) / 2 };
         let contour: Pt[] = [];
+        let tiers: number | null = null;
         try {
-          const res = segmenter.segment(v, { keypoint: { x: (box[0] + box[2]) / 2, y: (box[1] + box[3]) / 2 } });
+          const res = segmenter.segment(v, { keypoint: kp });
           const mask = res.categoryMask;
-          if (mask) { contour = traceContour(mask.getAsUint8Array(), mask.width, mask.height); mask.close(); }
-        } catch { /* 윤곽 실패 시 안정 아님 */ }
+          if (mask) {
+            const mw = mask.width, mh = mask.height, md = mask.getAsUint8Array();
+            const fg = fgAt(md, mw, mh, kp.x, kp.y);
+            contour = traceContour(md, mw, mh, fg);
+            if (!best || contour.length) {
+              gctx.canvas.width = mw; gctx.canvas.height = mh;
+              gctx.drawImage(v, 0, 0, mw, mh);
+              const px = gctx.getImageData(0, 0, mw, mh).data, gray = new Uint8Array(mw * mh);
+              for (let i = 0; i < gray.length; i++) gray[i] = (px[i * 4] * 3 + px[i * 4 + 1] * 6 + px[i * 4 + 2]) / 10;
+              tiers = drawerTiers(gray, md, mw, mh, fg)?.tiers ?? null;
+            }
+            if (!best && contour.length) {
+              const xs = contour.map((p) => p.x), ys = contour.map((p) => p.y);
+              box = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+            }
+            mask.close();
+          }
+        } catch (e) { console.error("[LiveObjectCamera] 윤곽 분석 실패:", e); }
+        const coco = best ? KO[best.c.categoryName] ?? best.c.categoryName : null;
+        const label = tiers && tiers >= 2 && (!coco || coco === "식탁" || coco === "벤치") ? `${tiers}단 서랍장` : coco;
+        if (!label || contour.length < 8) { history.length = 0; update(contour.length >= 8 ? { label: "", score: 0, contour, stable: false } : null); return; }
+        const edge = box[0] < 0.02 || box[1] < 0.02 || box[2] > 0.98 || box[3] > 0.98;
         history.push({ label, box });
         if (history.length > 3) history.shift();
-        const stable = !edge && contour.length >= 8 && best.c.score >= 0.55 && history.length === 3 &&
-          history.every((h) => h.label === label && iou(h.box, box) > 0.6);
-        update({ label, score: best.c.score, contour, stable });
+        const agree = history.length === 3 && history.every((h) => h.label === label && iou(h.box, box) > 0.6);
+        // 서랍장 확신도: 3프레임 연속 같은 단수일 때만 표시(가짜 수치 없음)
+        const score = best && coco === label ? best.c.score : agree ? 0.6 : 0.4;
+        const stable = !edge && score >= 0.55 && agree;
+        update({ label, score, contour, stable });
       };
       loop();
     })();
@@ -126,7 +145,7 @@ export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { if (live && !edited) setName(live.label); }, [live?.label, edited]);
+  useEffect(() => { if (live?.label && !edited) setName(live.label); }, [live?.label, edited]);
 
   const lowConf = live && live.score < 0.7;
   const shoot = () => {
@@ -161,7 +180,7 @@ export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
         )}
       </div>
       <div className="space-y-3 bg-black px-4 py-4">
-        {live && (
+        {live?.label && (
           <label className="flex items-center gap-2 text-white">
             <span className="shrink-0 text-[13px] font-bold">{lowConf ? "품목명 확인" : "품목명"}</span>
             <input value={name} onChange={(e) => { setName(e.target.value); setEdited(true); }}
@@ -186,27 +205,3 @@ function iou(a: number[], b: number[]) {
   return u > 0 ? i / u : 0;
 }
 
-/** 마스크(물건=0 또는 1) 중심에서 48방향으로 가장 먼 경계점을 찾아 윤곽선을 만듭니다. */
-export function traceContour(m: Uint8Array, w: number, h: number): Pt[] {
-  let sx = 0, sy = 0, n = 0;
-  // magic_touch 마스크: 선택 영역 값이 0이 아닌 쪽이 적은 쪽을 물건으로 봄
-  let ones = 0;
-  for (let i = 0; i < m.length; i++) if (m[i]) ones++;
-  const fg = ones <= m.length / 2 ? 1 : 0;
-  const isFg = (x: number, y: number) => (m[y * w + x] ? 1 : 0) === fg;
-  for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2) if (isFg(x, y)) { sx += x; sy += y; n++; }
-  if (n < 50) return [];
-  const cx = sx / n, cy = sy / n, R = Math.hypot(w, h);
-  const pts: Pt[] = [];
-  for (let k = 0; k < 48; k++) {
-    const a = (k / 48) * Math.PI * 2, dx = Math.cos(a), dy = Math.sin(a);
-    let far = -1;
-    for (let r = 0; r < R; r += 2) {
-      const x = Math.round(cx + dx * r), y = Math.round(cy + dy * r);
-      if (x < 0 || y < 0 || x >= w || y >= h) break;
-      if (isFg(x, y)) far = r;
-    }
-    if (far > 0) pts.push({ x: (cx + dx * far) / w, y: (cy + dy * far) / h });
-  }
-  return pts;
-}
