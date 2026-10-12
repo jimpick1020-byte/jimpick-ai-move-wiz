@@ -40,7 +40,7 @@ export const createManualItem = createServerFn({ method: "POST" })
       id, user_id: context.userId, created_by: context.userId, item_id: itemId, name, norm_name: norm,
       normalized_name: norm, display_name: name, requested_name: name, original_name: name,
       cat: data.cat, category_group: data.cat, subcategory_group: subgroup, room: data.room,
-      default_volume: data.volume, status: "pending", active: true, source: "company", is_generated: false,
+      default_volume: data.volume, status: "pending", active: true, source: "company", is_generated: data.photoSource === "ai",
       from_photo: true, metadata: { manual: true, created_method: data.photoSource ?? "upload", custom_item: true, item_group: subgroup, recommended_rooms: data.rooms ?? [], search_keywords: data.keywords ?? [], is_favorite: !!data.favorite, classifier: "keyword-v1" },
     }).select("id").single();
     if (inserted.error) return { ok: false, error: inserted.error.code === "23505" ? "같은 품목을 저장 중입니다. 잠시 후 다시 확인해 주세요." : "품목을 저장하지 못했습니다." };
