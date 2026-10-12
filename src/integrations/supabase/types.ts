@@ -610,6 +610,96 @@ export type Database = {
         }
         Relationships: []
       }
+      intake_requests: {
+        Row: {
+          cancelled_at: string | null
+          company_id: string
+          confirmed_at: string | null
+          consent_at: string | null
+          created_at: string
+          created_by: string
+          customer_name: string
+          customer_phone: string
+          draft: Json
+          editing_started_at: string | null
+          estimate_id: string
+          expires_at: string
+          first_opened_at: string | null
+          first_submitted_at: string | null
+          id: string
+          last_opened_at: string | null
+          last_send_error: string | null
+          last_send_method: string | null
+          last_sent_at: string | null
+          last_submitted_at: string | null
+          owner_seen_at: string | null
+          source_estimate_id: string | null
+          status: string
+          submission: Json
+          submit_count: number
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          company_id: string
+          confirmed_at?: string | null
+          consent_at?: string | null
+          created_at?: string
+          created_by: string
+          customer_name: string
+          customer_phone: string
+          draft?: Json
+          editing_started_at?: string | null
+          estimate_id: string
+          expires_at: string
+          first_opened_at?: string | null
+          first_submitted_at?: string | null
+          id?: string
+          last_opened_at?: string | null
+          last_send_error?: string | null
+          last_send_method?: string | null
+          last_sent_at?: string | null
+          last_submitted_at?: string | null
+          owner_seen_at?: string | null
+          source_estimate_id?: string | null
+          status?: string
+          submission?: Json
+          submit_count?: number
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          company_id?: string
+          confirmed_at?: string | null
+          consent_at?: string | null
+          created_at?: string
+          created_by?: string
+          customer_name?: string
+          customer_phone?: string
+          draft?: Json
+          editing_started_at?: string | null
+          estimate_id?: string
+          expires_at?: string
+          first_opened_at?: string | null
+          first_submitted_at?: string | null
+          id?: string
+          last_opened_at?: string | null
+          last_send_error?: string | null
+          last_send_method?: string | null
+          last_sent_at?: string | null
+          last_submitted_at?: string | null
+          owner_seen_at?: string | null
+          source_estimate_id?: string | null
+          status?: string
+          submission?: Json
+          submit_count?: number
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       item_icons: {
         Row: {
           active: boolean
@@ -625,6 +715,10 @@ export type Database = {
           id: string
           image_path: string | null
           image_url: string | null
+          intake_disposal_allowed: boolean
+          intake_rooms: string[]
+          intake_sort: number
+          intake_visible: boolean
           is_generated: boolean
           item_id: string
           metadata: Json
@@ -658,6 +752,10 @@ export type Database = {
           id?: string
           image_path?: string | null
           image_url?: string | null
+          intake_disposal_allowed?: boolean
+          intake_rooms?: string[]
+          intake_sort?: number
+          intake_visible?: boolean
           is_generated?: boolean
           item_id: string
           metadata?: Json
@@ -691,6 +789,10 @@ export type Database = {
           id?: string
           image_path?: string | null
           image_url?: string | null
+          intake_disposal_allowed?: boolean
+          intake_rooms?: string[]
+          intake_sort?: number
+          intake_visible?: boolean
           is_generated?: boolean
           item_id?: string
           metadata?: Json
@@ -924,6 +1026,7 @@ export type Database = {
           created_at: string
           favorite_item_ids: string[]
           id: string
+          intake_item_settings: Json
           marketing_accepted: boolean | null
           marketing_accepted_at: string | null
           owner_name: string | null
@@ -947,6 +1050,7 @@ export type Database = {
           created_at?: string
           favorite_item_ids?: string[]
           id: string
+          intake_item_settings?: Json
           marketing_accepted?: boolean | null
           marketing_accepted_at?: string | null
           owner_name?: string | null
@@ -970,6 +1074,7 @@ export type Database = {
           created_at?: string
           favorite_item_ids?: string[]
           id?: string
+          intake_item_settings?: Json
           marketing_accepted?: boolean | null
           marketing_accepted_at?: string | null
           owner_name?: string | null
