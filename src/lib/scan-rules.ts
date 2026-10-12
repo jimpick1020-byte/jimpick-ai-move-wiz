@@ -1,7 +1,7 @@
 /** 사진 품목 인식 판정 규칙 (화면·서버·테스트 공통) */
 
-/** 80% 이상: 자동 등록 */
-export const AUTO_CONF = 0.8;
+/** 90% 이상: 자동 등록 (미만은 조용히 제외) */
+export const AUTO_CONF = 0.9;
 /** 50~79%: 사용자 확인, 50% 미만: 미확인 */
 export const CHECK_CONF = 0.5;
 
