@@ -9,9 +9,8 @@ import { MobileShell, TopBar, PrimaryButton, BottomButtonBar } from "./ui";
 import { tap } from "@/lib/feedback";
 import { analyzeRoomScan, saveCroppedItem, type ScanDetection } from "@/lib/room-scan.functions";
 import { dedupedAddQty } from "@/lib/scan-rules";
-import { ScanOutline } from "./ScanOutline";
 import { preparePhoto, hashDistance } from "@/lib/photo-prep-core";
-import { buildCatalog, matchCatalog, normScanName, AUTO_CONF, CHECK_CONF, type CatalogEntry } from "@/lib/scan-match";
+import { buildCatalog, matchCatalog, normScanName, AUTO_CONF, type CatalogEntry } from "@/lib/scan-match";
 
 const BUCKET = "room-scans";
 const STALE_MS = 4 * 60 * 1000;
