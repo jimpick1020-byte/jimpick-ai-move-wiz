@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ApiItemImagePreviewRouteImport } from './routes/api/item-image-preview'
 import { Route as BillingCallbackRouteImport } from './routes/billing.callback'
+import { Route as IntakeTokenRouteImport } from './routes/intake.$token'
 import { Route as ShareIdRouteImport } from './routes/share.$id'
 import { Route as StaffEstimateTokenRouteImport } from './routes/staff.estimate.$token'
 import { Route as ApiPublicHooksCheckMoveReminderResultsRouteImport } from './routes/api/public/hooks/check-move-reminder-results'
@@ -39,6 +40,11 @@ const ApiItemImagePreviewRoute = ApiItemImagePreviewRouteImport.update({
 const BillingCallbackRoute = BillingCallbackRouteImport.update({
   id: '/billing/callback',
   path: '/billing/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IntakeTokenRoute = IntakeTokenRouteImport.update({
+  id: '/intake/$token',
+  path: '/intake/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ShareIdRoute = ShareIdRouteImport.update({
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/api/item-image-preview': typeof ApiItemImagePreviewRoute
   '/billing/callback': typeof BillingCallbackRoute
+  '/intake/$token': typeof IntakeTokenRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
   '/api/public/hooks/check-move-reminder-results': typeof ApiPublicHooksCheckMoveReminderResultsRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/api/item-image-preview': typeof ApiItemImagePreviewRoute
   '/billing/callback': typeof BillingCallbackRoute
+  '/intake/$token': typeof IntakeTokenRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
   '/api/public/hooks/check-move-reminder-results': typeof ApiPublicHooksCheckMoveReminderResultsRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/api/item-image-preview': typeof ApiItemImagePreviewRoute
   '/billing/callback': typeof BillingCallbackRoute
+  '/intake/$token': typeof IntakeTokenRoute
   '/share/$id': typeof ShareIdRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
   '/api/public/hooks/check-move-reminder-results': typeof ApiPublicHooksCheckMoveReminderResultsRoute
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/api/item-image-preview'
     | '/billing/callback'
+    | '/intake/$token'
     | '/share/$id'
     | '/staff/estimate/$token'
     | '/api/public/hooks/check-move-reminder-results'
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/api/item-image-preview'
     | '/billing/callback'
+    | '/intake/$token'
     | '/share/$id'
     | '/staff/estimate/$token'
     | '/api/public/hooks/check-move-reminder-results'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/api/item-image-preview'
     | '/billing/callback'
+    | '/intake/$token'
     | '/share/$id'
     | '/staff/estimate/$token'
     | '/api/public/hooks/check-move-reminder-results'
@@ -167,6 +179,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiItemImagePreviewRoute: typeof ApiItemImagePreviewRoute
   BillingCallbackRoute: typeof BillingCallbackRoute
+  IntakeTokenRoute: typeof IntakeTokenRoute
   ShareIdRoute: typeof ShareIdRoute
   StaffEstimateTokenRoute: typeof StaffEstimateTokenRoute
   ApiPublicHooksCheckMoveReminderResultsRoute: typeof ApiPublicHooksCheckMoveReminderResultsRoute
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       path: '/billing/callback'
       fullPath: '/billing/callback'
       preLoaderRoute: typeof BillingCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/intake/$token': {
+      id: '/intake/$token'
+      path: '/intake/$token'
+      fullPath: '/intake/$token'
+      preLoaderRoute: typeof IntakeTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/share/$id': {
@@ -263,6 +283,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ApiItemImagePreviewRoute: ApiItemImagePreviewRoute,
   BillingCallbackRoute: BillingCallbackRoute,
+  IntakeTokenRoute: IntakeTokenRoute,
   ShareIdRoute: ShareIdRoute,
   StaffEstimateTokenRoute: StaffEstimateTokenRoute,
   ApiPublicHooksCheckMoveReminderResultsRoute:

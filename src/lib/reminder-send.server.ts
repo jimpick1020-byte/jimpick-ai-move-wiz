@@ -75,7 +75,7 @@ interface SendOutcome {
   code?: number;
 }
 
-async function sendViaAligo(v: {
+export async function sendViaAligo(v: {
   to: string;
   text: string;
   title: string;
@@ -165,7 +165,7 @@ interface Creds {
   proxySecret?: string;
 }
 
-function readCreds(): Creds | null {
+export function readCreds(): Creds | null {
   const aligoUserId = String(process.env["ALIGO_USER_ID"] ?? "").trim();
   const apiKey = String(process.env["ALIGO_API_KEY"] ?? "").trim();
   if (!aligoUserId || !apiKey) return null;
