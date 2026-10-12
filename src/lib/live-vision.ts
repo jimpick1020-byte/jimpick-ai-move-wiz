@@ -45,9 +45,13 @@ export function maskForeground(m: Uint8Array): number {
   return ones <= m.length / 2 ? 1 : 0;
 }
 
+/** 사용자가 겨눈 지점(0~1)의 마스크 값을 물건 값으로 씁니다. */
+export function fgAt(m: Uint8Array, w: number, h: number, px: number, py: number): number {
+  return m[Math.min(h - 1, Math.round(py * h)) * w + Math.min(w - 1, Math.round(px * w))] ? 1 : 0;
+}
+
 /** 마스크 중심에서 48방향으로 가장 먼 경계점을 찾아 윤곽선을 만듭니다. */
-export function traceContour(m: Uint8Array, w: number, h: number): Pt[] {
-  const fg = maskForeground(m);
+export function traceContour(m: Uint8Array, w: number, h: number, fg = maskForeground(m)): Pt[] {
   const isFg = (x: number, y: number) => (m[y * w + x] ? 1 : 0) === fg;
   let sx = 0, sy = 0, n = 0;
   for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2) if (isFg(x, y)) { sx += x; sy += y; n++; }
@@ -71,8 +75,7 @@ export function traceContour(m: Uint8Array, w: number, h: number): Pt[] {
  * 서랍장 단수: 물건 영역 안에서 폭의 60% 이상을 가로지르는 가로 경계선(서랍 사이 틈)을 셉니다.
  * 위·아래 바깥 테두리는 빼고, 간격이 고르지 않으면 null(추측하지 않음).
  */
-export function drawerTiers(gray: Uint8Array, m: Uint8Array, w: number, h: number): { tiers: number; lines: number[] } | null {
-  const fg = maskForeground(m);
+export function drawerTiers(gray: Uint8Array, m: Uint8Array, w: number, h: number, fg = maskForeground(m)): { tiers: number; lines: number[] } | null {
   let top = h, bot = -1;
   const left = new Int32Array(h).fill(w), right = new Int32Array(h).fill(-1);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {

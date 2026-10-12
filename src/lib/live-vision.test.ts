@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { drawerTiers, traceContour } from "./live-vision";
 
 function dresser(lineYs: number[]) {
-  const w = 100, h = 120;
+  const w = 200, h = 200;
   const m = new Uint8Array(w * h), g = new Uint8Array(w * h).fill(60);
   for (let y = 10; y <= 110; y++) for (let x = 20; x <= 80; x++) { m[y * w + x] = 1; g[y * w + x] = 200; }
   for (const ly of lineYs) for (let x = 20; x <= 80; x++) g[ly * w + x] = 40;
