@@ -242,7 +242,8 @@ ${SCAN_GEOMETRY_PROMPT}
             const contour = normalizeContour(r2.contour);
             raw[i] = {
               ...raw[i], name: r2.name || raw[i].name, item_id: r2.item_id, confidence: r2.confidence, stage: 2,
-              contour: contour ? contour.map(toPhoto) : raw[i].contour,
+              // 정밀 확인에서 외곽을 알 수 없으면 부정확한 1차 윤곽을 재사용하지 않습니다.
+              contour: contour ? contour.map(toPhoto) : null,
               shelf_lines: r2.shelf_lines?.map((l) => ({ start: toPhoto(l.start), end: toPhoto(l.end) })) ?? null,
               shelves_complete: r2.shelves_complete, shelf_confidence: r2.shelf_confidence,
             };
