@@ -4,28 +4,28 @@
  */
 
 /** 고객 링크에 기본으로 보이는 큰 가구·가전 (기존 품목 목록의 id를 그대로 씁니다) */
-export const INTAKE_BASE_ITEMS: { id: string; name: string; rooms: string[] }[] = [
+export const INTAKE_BASE_ITEMS: { id: string; name: string; rooms: string[]; img?: string }[] = [
   { id: "bed-01", name: "침대", rooms: ["안방", "작은방"] },
-  { id: "wardrobe-01", name: "장롱", rooms: ["안방", "작은방"] },
-  { id: "chest-of-drawers-01", name: "서랍장", rooms: ["안방", "작은방"] },
-  { id: "dressing-table-01", name: "화장대", rooms: ["안방", "작은방"] },
-  { id: "desk-01", name: "책상", rooms: ["작은방", "거실"] },
-  { id: "bookshelf-01", name: "책장", rooms: ["작은방", "거실"] },
+  { id: "wardrobe-01", img: "/assets/items-3d/furniture/wardrobe.webp", name: "장롱", rooms: ["안방", "작은방"] },
+  { id: "chest-of-drawers-01", img: "/assets/items-3d/furniture/chest-of-drawers.webp", name: "서랍장", rooms: ["안방", "작은방"] },
+  { id: "dressing-table-01", img: "/assets/items-3d/furniture/dressing-table.webp", name: "화장대", rooms: ["안방", "작은방"] },
+  { id: "desk-01", img: "/assets/items-3d/furniture/desk.webp", name: "책상", rooms: ["작은방", "거실"] },
+  { id: "bookshelf-01", img: "/assets/items-3d/furniture/bookshelf.webp", name: "책장", rooms: ["작은방", "거실"] },
   { id: "sofa-01", name: "소파", rooms: ["거실"] },
   { id: "living-room-cabinet-01", name: "거실장", rooms: ["거실"] },
   { id: "dining-table-01", name: "식탁", rooms: ["부엌", "거실"] },
-  { id: "refrigerator-01", name: "냉장고", rooms: ["부엌"] },
-  { id: "kimchi-refrigerator-01", name: "김치냉장고", rooms: ["부엌", "베란다"] },
-  { id: "washing-machine-01", name: "세탁기", rooms: ["베란다"] },
-  { id: "clothes-dryer-01", name: "건조기", rooms: ["베란다"] },
-  { id: "clothes-styler-01", name: "스타일러", rooms: ["안방"] },
-  { id: "television-01", name: "TV", rooms: ["거실", "안방"] },
-  { id: "air-conditioner-01", name: "에어컨", rooms: ["거실", "안방", "작은방"] },
-  { id: "water-purifier-01", name: "정수기", rooms: ["부엌"] },
-  { id: "microwave-oven-01", name: "전자레인지", rooms: ["부엌"] },
-  { id: "dishwasher-01", name: "식기세척기", rooms: ["부엌"] },
-  { id: "massage-chair-01", name: "안마의자", rooms: ["거실"] },
-  { id: "digital-piano-01", name: "디지털피아노", rooms: ["거실", "작은방"] },
+  { id: "refrigerator-01", img: "/assets/items-3d/appliances/side-by-side-refrigerator.webp", name: "냉장고", rooms: ["부엌"] },
+  { id: "kimchi-refrigerator-01", img: "/assets/items-3d/appliances/kimchi-refrigerator.webp", name: "김치냉장고", rooms: ["부엌", "베란다"] },
+  { id: "washing-machine-01", img: "/assets/items-3d/appliances/drum-washing-machine.webp", name: "세탁기", rooms: ["베란다"] },
+  { id: "clothes-dryer-01", img: "/assets/items-3d/appliances/clothes-dryer.webp", name: "건조기", rooms: ["베란다"] },
+  { id: "clothes-styler-01", img: "/assets/items-3d/appliances/styler.webp", name: "스타일러", rooms: ["안방"] },
+  { id: "television-01", img: "/assets/items-3d/appliances/television.webp", name: "TV", rooms: ["거실", "안방"] },
+  { id: "air-conditioner-01", img: "/assets/items-3d/appliances/tower-air-conditioner.webp", name: "에어컨", rooms: ["거실", "안방", "작은방"] },
+  { id: "water-purifier-01", img: "/assets/items-3d/appliances/water-purifier.webp", name: "정수기", rooms: ["부엌"] },
+  { id: "microwave-oven-01", img: "/assets/items-3d/appliances/microwave.webp", name: "전자레인지", rooms: ["부엌"] },
+  { id: "dishwasher-01", img: "/assets/items-3d/appliances/dishwasher.webp", name: "식기세척기", rooms: ["부엌"] },
+  { id: "massage-chair-01", img: "/assets/items-3d/furniture/massage-chair.webp", name: "안마의자", rooms: ["거실"] },
+  { id: "digital-piano-01", img: "/assets/items-3d/special/digital-piano.webp", name: "디지털피아노", rooms: ["거실", "작은방"] },
 ];
 
 export const INTAKE_ROOMS = ["거실", "안방", "작은방", "부엌", "베란다", "기타"] as const;
