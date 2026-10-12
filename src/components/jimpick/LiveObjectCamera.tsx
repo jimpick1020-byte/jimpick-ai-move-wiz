@@ -1,17 +1,11 @@
 // 실시간 물건 윤곽 카메라: 휴대폰 안에서만 인식(크레딧 없음). 촬영은 사용자가 버튼을 눌렀을 때만.
+// 큰 가구·가전만 분석하고, 윤곽선·안내 문구·촬영 결과는 같은 detection ID의 최신 결과 하나만 씁니다.
 import { useEffect, useRef, useState } from "react";
 import { Camera, X } from "lucide-react";
 import { loadVisionModels, traceContour, drawerTiers, fgAt, type Pt } from "@/lib/live-vision";
+import { BIG_ITEMS, bigItemLabel, MIN_AREA, ANALYZE_MS, sameTrack, type Box } from "@/lib/live-track";
 
-const KO: Record<string, string> = {
-  bed: "침대", couch: "소파", chair: "의자", "dining table": "식탁", tv: "TV", refrigerator: "냉장고",
-  oven: "오븐", microwave: "전자레인지", sink: "싱크대", toilet: "변기", laptop: "노트북", "potted plant": "화분",
-  clock: "시계", vase: "꽃병", suitcase: "여행가방", bicycle: "자전거", book: "책", bench: "벤치",
-  toaster: "토스터", keyboard: "키보드", bottle: "병", backpack: "가방", "teddy bear": "인형", bowl: "그릇",
-};
-const IGNORE = new Set(["person", "cat", "dog", "cell phone", "remote", "mouse", "cup", "fork", "knife", "spoon"]);
-
-interface Live { label: string; score: number; contour: Pt[]; stable: boolean }
+interface Live { id: number; label: string; choices: string[]; score: number; contour: Pt[]; stable: boolean; box: Box }
 
 export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
   room: string;
@@ -23,98 +17,21 @@ export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [live, setLive] = useState<Live | null>(null);
   const [status, setStatus] = useState("카메라 준비 중…");
-  const [name, setName] = useState("");
-  const [edited, setEdited] = useState(false);
+  // 사용자가 고른 이름은 그 detection ID에만 묶입니다(다른 물건으로 넘어가면 사라짐).
+  const [chosen, setChosen] = useState<{ id: number; name: string } | null>(null);
   const liveRef = useRef<Live | null>(null);
+  const sessionRef = useRef(0); // 촬영할 때마다 증가 → 이전 분석 결과 폐기
+  const resetRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let stop = false;
     let stream: MediaStream | null = null;
-    let raf = 0;
-    const history: { label: string; box: number[] }[] = [];
+    let timer = 0;
+    let nextId = 1;
+    let reqId = 0;
+    let track: { id: number; label: string; box: Box; contour: Pt[]; at: number; hits: number; tiers: number | null } | null = null;
     const gctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
-    (async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } }, audio: false });
-        const v = videoRef.current!;
-        v.srcObject = stream;
-        await v.play();
-      } catch {
-        if (!stop) onFallback();
-        return;
-      }
-      setStatus("물건 인식 준비 중…");
-      let detector: any, segmenter: any;
-      try {
-        ({ detector, segmenter } = await loadVisionModels());
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        console.error("[LiveObjectCamera] 모델 초기화 실패:", e);
-        setStatus(`실시간 인식을 불러오지 못했습니다: ${msg.slice(0, 120)}`);
-        return;
-      }
-      if (stop) return;
-      setStatus("");
-      let last = 0;
-      const loop = () => {
-        if (stop) return;
-        raf = requestAnimationFrame(loop);
-        const v = videoRef.current;
-        const now = performance.now();
-        if (!v || v.readyState < 2 || now - last < 350) return;
-        last = now;
-        const vw = v.videoWidth, vh = v.videoHeight;
-        const det = detector.detectForVideo(v, now);
-        const best = (det.detections ?? [])
-          .map((d: any) => ({ d, c: d.categories?.[0] }))
-          .filter((x: any) => x.c && !IGNORE.has(x.c.categoryName))
-          .sort((a: any, b: any) => b.d.boundingBox.width * b.d.boundingBox.height - a.d.boundingBox.width * a.d.boundingBox.height)[0];
-        // 감지된 물건이 없으면 화면 가운데(사용자가 겨눈 곳)를 분석합니다.
-        let box = [0.5, 0.5, 0.5, 0.5];
-        if (best) { const bb = best.d.boundingBox; box = [bb.originX / vw, bb.originY / vh, (bb.originX + bb.width) / vw, (bb.originY + bb.height) / vh]; }
-        const kp = { x: (box[0] + box[2]) / 2, y: (box[1] + box[3]) / 2 };
-        let contour: Pt[] = [];
-        let tiers: number | null = null;
-        try {
-          const res = segmenter.segment(v, { keypoint: kp });
-          const mask = res.categoryMask;
-          if (mask) {
-            const mw = mask.width, mh = mask.height, md = mask.getAsUint8Array();
-            const fg = fgAt(md, mw, mh, kp.x, kp.y);
-            contour = traceContour(md, mw, mh, fg);
-            if (!best || contour.length) {
-              gctx.canvas.width = mw; gctx.canvas.height = mh;
-              gctx.drawImage(v, 0, 0, mw, mh);
-              const px = gctx.getImageData(0, 0, mw, mh).data, gray = new Uint8Array(mw * mh);
-              for (let i = 0; i < gray.length; i++) gray[i] = (px[i * 4] * 3 + px[i * 4 + 1] * 6 + px[i * 4 + 2]) / 10;
-              tiers = drawerTiers(gray, md, mw, mh, fg)?.tiers ?? null;
-            }
-            if (!best && contour.length) {
-              const xs = contour.map((p) => p.x), ys = contour.map((p) => p.y);
-              box = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
-            }
-            mask.close();
-          }
-        } catch (e) { console.error("[LiveObjectCamera] 윤곽 분석 실패:", e); }
-        const coco = best ? KO[best.c.categoryName] ?? best.c.categoryName : null;
-        const label = tiers && tiers >= 2 && (!coco || coco === "식탁" || coco === "벤치") ? `${tiers}단 서랍장` : coco;
-        if (!label || contour.length < 8) { history.length = 0; update(contour.length >= 8 ? { label: "", score: 0, contour, stable: false } : null); return; }
-        const edge = box[0] < 0.02 || box[1] < 0.02 || box[2] > 0.98 || box[3] > 0.98;
-        history.push({ label, box });
-        if (history.length > 3) history.shift();
-        const agree = history.length === 3 && history.every((h) => h.label === label && iou(h.box, box) > 0.6);
-        // 서랍장 확신도: 3프레임 연속 같은 단수일 때만 표시(가짜 수치 없음)
-        const score = best && coco === label ? best.c.score : agree ? 0.6 : 0.4;
-        const stable = !edge && score >= 0.55 && agree;
-        update({ label, score, contour, stable });
-      };
-      loop();
-    })();
-    const update = (l: Live | null) => {
-      liveRef.current = l;
-      setLive(l);
-      draw(l);
-    };
+
     const draw = (l: Live | null) => {
       const c = canvasRef.current, v = videoRef.current;
       if (!c || !v) return;
@@ -123,7 +40,6 @@ export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
       const g = c.getContext("2d")!;
       g.clearRect(0, 0, c.width, c.height);
       if (!l || l.contour.length < 3) return;
-      // object-cover 좌표 변환
       const s = Math.max(rect.width / v.videoWidth, rect.height / v.videoHeight);
       const ox = (rect.width - v.videoWidth * s) / 2, oy = (rect.height - v.videoHeight * s) / 2;
       g.beginPath();
@@ -137,25 +53,125 @@ export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
       g.fillStyle = "rgba(34,197,94,0.12)";
       g.fill(); g.stroke();
     };
+    const update = (l: Live | null) => { liveRef.current = l; setLive(l); draw(l); };
+    resetRef.current = () => { track = null; update(null); };
+
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } }, audio: false });
+        const v = videoRef.current!;
+        v.srcObject = stream;
+        await v.play();
+      } catch {
+        if (!stop) onFallback();
+        return;
+      }
+      setStatus("물건 인식 준비 중…");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let detector: any, segmenter: any;
+      try {
+        ({ detector, segmenter } = await loadVisionModels());
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[LiveObjectCamera] 모델 초기화 실패:", e);
+        setStatus(`실시간 인식을 불러오지 못했습니다: ${msg.slice(0, 120)}`);
+        return;
+      }
+      if (stop) return;
+      setStatus("");
+
+      const tick = () => {
+        if (stop) return;
+        const v = videoRef.current;
+        if (!v || v.readyState < 2) return;
+        const my = ++reqId, session = sessionRef.current;
+        const vw = v.videoWidth, vh = v.videoHeight, now = performance.now();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const dets = (detector.detectForVideo(v, now).detections ?? []) as any[];
+        // 1) 큰 가구·가전 후보만, 2) 화면 면적 기준 이하인 후보는 윤곽 분석 전에 버립니다.
+        const cands = dets
+          .map((d) => {
+            const c = d.categories?.[0], bb = d.boundingBox;
+            const box: Box = [bb.originX / vw, bb.originY / vh, (bb.originX + bb.width) / vw, (bb.originY + bb.height) / vh];
+            return { cls: c?.categoryName as string, score: (c?.score ?? 0) as number, box, area: (box[2] - box[0]) * (box[3] - box[1]) };
+          })
+          .filter((x) => x.cls && BIG_ITEMS.has(x.cls) && x.area >= MIN_AREA)
+          .sort((a, b) => b.area - a.area);
+        const best = cands[0];
+        // 감지 후보가 없으면 화면 가운데(사용자가 겨눈 큰 물건, 예: 서랍장)를 분석합니다.
+        const box: Box = best ? best.box : [0.5, 0.5, 0.5, 0.5];
+        const kp = { x: (box[0] + box[2]) / 2, y: (box[1] + box[3]) / 2 };
+        const cls = best?.cls ?? "_center";
+        const same = !!track && sameTrack(track.label, track.box, cls, box);
+        let contour: Pt[] = [];
+        let tiers: number | null = null;
+        // 같은 물건이고 거의 안 움직였으면 이전 윤곽을 재사용합니다.
+        if (same && track && best && now - track.at < 1500 && sameTrack(track.label, track.box, cls, box, 0.9)) {
+          contour = track.contour; tiers = track.tiers;
+        } else {
+          try {
+            const res = segmenter.segment(v, { keypoint: kp });
+            const mask = res.categoryMask;
+            if (mask) {
+              const mw = mask.width, mh = mask.height, md = mask.getAsUint8Array();
+              const fg = fgAt(md, mw, mh, kp.x, kp.y);
+              contour = traceContour(md, mw, mh, fg);
+              if (contour.length) {
+                gctx.canvas.width = mw; gctx.canvas.height = mh;
+                gctx.drawImage(v, 0, 0, mw, mh);
+                const px = gctx.getImageData(0, 0, mw, mh).data, gray = new Uint8Array(mw * mh);
+                for (let i = 0; i < gray.length; i++) gray[i] = (px[i * 4] * 3 + px[i * 4 + 1] * 6 + px[i * 4 + 2]) / 10;
+                tiers = drawerTiers(gray, md, mw, mh, fg)?.tiers ?? null;
+              }
+              mask.close();
+            }
+          } catch (e) { console.error("[LiveObjectCamera] 윤곽 분석 실패:", e); }
+        }
+        // 늦게 끝난 분석(새 촬영 세션 또는 더 새로운 요청 이후)은 버립니다.
+        if (stop || my !== reqId || session !== sessionRef.current) return;
+        let cbox = box;
+        if (contour.length) {
+          const xs = contour.map((p) => p.x), ys = contour.map((p) => p.y);
+          cbox = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+        }
+        // 가운데 분석인데 윤곽이 작으면(소품) 제외
+        if (!best && (cbox[2] - cbox[0]) * (cbox[3] - cbox[1]) < MIN_AREA) contour = [];
+        if (contour.length < 8) { track = null; update(null); return; }
+        const id = same && track ? track.id : nextId++;
+        const hits = same && track ? track.hits + 1 : 1;
+        track = { id, label: cls, box, contour, at: now, hits, tiers };
+        const named = bigItemLabel(cls, best?.score ?? 0, tiers);
+        const edge = cbox[0] < 0.02 || cbox[1] < 0.02 || cbox[2] > 0.98 || cbox[3] > 0.98;
+        const stable = !edge && hits >= 3 && !!named.label;
+        update({ id, label: named.label, choices: named.choices, score: named.score, contour, stable, box });
+      };
+      timer = window.setInterval(tick, ANALYZE_MS);
+    })();
     return () => {
       stop = true;
-      cancelAnimationFrame(raf);
+      window.clearInterval(timer);
       stream?.getTracks().forEach((t) => t.stop());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { if (live?.label && !edited) setName(live.label); }, [live?.label, edited]);
+  const name = live ? (chosen?.id === live.id ? chosen.name : live.label) : "";
+  const needsPick = !!live && !name;
 
-  const lowConf = live && live.score < 0.7;
   const shoot = () => {
     const v = videoRef.current;
     if (!v || v.readyState < 2) return;
+    // 누른 순간의 같은 detection 결과 하나만 사용
+    const snapName = name;
     const c = document.createElement("canvas");
     c.width = v.videoWidth; c.height = v.videoHeight;
     c.getContext("2d")!.drawImage(v, 0, 0);
+    // 새 촬영 세션: 이전 라벨·선택·신뢰도 초기화, 진행 중 분석 폐기
+    sessionRef.current++;
+    setChosen(null);
+    resetRef.current();
     c.toBlob((b) => {
-      if (b) onCapture(new File([b], `live-${Date.now()}.jpg`, { type: "image/jpeg" }), name.trim());
+      if (b) onCapture(new File([b], `live-${Date.now()}.jpg`, { type: "image/jpeg" }), snapName);
     }, "image/jpeg", 0.92);
   };
 
@@ -168,9 +184,9 @@ export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
       <div className="relative flex-1 overflow-hidden">
         <video ref={videoRef} playsInline muted className="absolute inset-0 h-full w-full object-cover" />
         <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
-        {live?.stable && (
-          <div className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-[rgb(34,197,94)] px-3 py-1 text-[14px] font-black text-white">
-            {name || live.label} {Math.round(live.score * 100)}%
+        {live && (
+          <div className={`absolute left-1/2 top-4 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1 text-[14px] font-black text-white ${name ? "bg-[rgb(34,197,94)]" : "bg-[#D97706]"}`}>
+            {name ? `${name}${live.score && chosen?.id !== live.id ? ` ${Math.round(live.score * 100)}%` : ""}` : "품목 확인 필요"}
           </div>
         )}
         {(status || !live?.stable) && (
@@ -180,12 +196,13 @@ export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
         )}
       </div>
       <div className="space-y-3 bg-black px-4 py-4">
-        {live?.label && (
-          <label className="flex items-center gap-2 text-white">
-            <span className="shrink-0 text-[13px] font-bold">{lowConf ? "품목명 확인" : "품목명"}</span>
-            <input value={name} onChange={(e) => { setName(e.target.value); setEdited(true); }}
-              className="flex-1 rounded-lg bg-white/15 px-3 py-2 text-[15px] font-bold text-white outline-none" aria-label="품목명 수정" />
-          </label>
+        {live && (needsPick || live.choices.length > 1) && (
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {(live.choices.length ? live.choices : [...BIG_LIST]).map((n) => (
+              <button key={n} onClick={() => setChosen({ id: live.id, name: n })}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-[13px] font-bold ${name === n ? "bg-[rgb(34,197,94)] text-white" : "bg-white/15 text-white"}`}>{n}</button>
+            ))}
+          </div>
         )}
         <div className="flex items-center justify-center">
           <button onClick={shoot} aria-label="촬영"
@@ -198,10 +215,4 @@ export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
   );
 }
 
-function iou(a: number[], b: number[]) {
-  const x = Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0]));
-  const y = Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1]));
-  const i = x * y, u = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - i;
-  return u > 0 ? i / u : 0;
-}
-
+const BIG_LIST = ["침대", "책상", "식탁", "소파", "책장", "서랍장", "장롱", "화장대", "거실장", "냉장고", "김치냉장고", "세탁기", "건조기", "스타일러", "TV", "에어컨", "정수기", "전자레인지", "식기세척기", "안마의자", "디지털피아노"];

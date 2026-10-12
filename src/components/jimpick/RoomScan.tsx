@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Camera, CheckCircle2, AlertTriangle, Loader2, RotateCcw, XCircle, Clock, Upload, ChevronRight } from "lucide-react";
+import { Camera, CheckCircle2, AlertTriangle, Loader2, RotateCcw, XCircle, X, Clock, Upload, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp, guessCategory } from "@/lib/jimpick";
@@ -18,7 +18,7 @@ const BUCKET = "room-scans";
 const STALE_MS = 4 * 60 * 1000;
 const DEFAULT_ROOMS = ["안방", "작은방", "입구방", "거실", "부엌", "베란다"];
 
-type Decision = "added" | "skipped" | "saved";
+type Decision = "added" | "skipped" | "saved" | "removed";
 interface ScanRow {
   id: string;
   room: string;
@@ -279,7 +279,8 @@ export function RoomScanScreen() {
     for (const r of todo) {
       applying.current.add(r.id);
       const adds: Record<string, number> = {};
-      (r.result?.items ?? []).forEach((det) => {
+      (r.result?.items ?? []).forEach((det, i) => {
+        if (r.result?.decisions?.[String(i)] === "removed") return;
         const c = classify(det, catalog);
         if (c.kind === "auto" && c.match) adds[c.match.id] = Math.max(adds[c.match.id] ?? 0, det.qty);
       });
@@ -699,6 +700,30 @@ export function RoomScanScreen() {
             await supabase.from("room_scans").update({ result: JSON.parse(JSON.stringify({ ...(r.result ?? {}), decisions })) }).eq("id", r.id);
             await load();
           }}
+          onRemove={async (refs, itemId, qty) => {
+            // 이번 인식 결과에서만 빼고, 자동으로 담겼던 수량만큼 그 방에서 덜어냅니다. 사진·다른 품목은 그대로.
+            const room = refs[0]?.r.room;
+            const byRow = new Map<string, { r: ScanRow; idxs: number[] }>();
+            refs.forEach(({ r, i }) => { const e = byRow.get(r.id) ?? { r, idxs: [] }; e.idxs.push(i); byRow.set(r.id, e); });
+            const applied = refs.some(({ r }) => r.applied_at);
+            if (applied && room)
+              patchDraft((d) => ({
+                rooms: d.rooms.map((x) => {
+                  if (x.name !== room || !x.items[itemId]) return x;
+                  const items = { ...x.items };
+                  const left = (items[itemId] ?? 0) - qty;
+                  if (left > 0) items[itemId] = left; else delete items[itemId];
+                  return { ...x, items };
+                }),
+              }));
+            for (const { r, idxs } of byRow.values()) {
+              const decisions = { ...(r.result?.decisions ?? {}) };
+              idxs.forEach((i) => (decisions[String(i)] = "removed"));
+              await supabase.from("room_scans").update({ result: JSON.parse(JSON.stringify({ ...(r.result ?? {}), decisions })) }).eq("id", r.id);
+              void recordFeedback(r, idxs, "reject", null);
+            }
+            await load();
+          }}
           onSaveCandidate={async (r, idxs, name, qty, image) => {
             const cat = guessCategory(name);
             const res = await saveCrop({ data: { name, cat, room: r.room, image } });
@@ -741,6 +766,7 @@ function ReviewSheet({
   onClose,
   onDecide,
   onSaveCandidate,
+  onRemove,
 }: {
   rows: ScanRow[];
   urls: Record<string, string>;
@@ -748,6 +774,7 @@ function ReviewSheet({
   onClose: () => void;
   onDecide: (r: ScanRow, idxs: number[], d: Decision, add?: { id: string; qty: number }) => Promise<void>;
   onSaveCandidate: (r: ScanRow, idxs: number[], name: string, qty: number, image: string) => Promise<boolean>;
+  onRemove: (refs: { r: ScanRow; i: number }[], itemId: string, qty: number) => Promise<void>;
 }) {
   const rooms = [...new Set(rows.map((r) => r.room))];
   return (
@@ -759,7 +786,7 @@ function ReviewSheet({
         </div>
         {rooms.length === 0 && <p className="text-center text-[14px] text-[#6B7280]">분석된 사진이 없습니다.</p>}
         {rooms.map((room) => (
-          <RoomReview key={room} room={room} rows={rows.filter((r) => r.room === room && r.status === "done")} urls={urls} catalog={catalog} onDecide={onDecide} onSaveCandidate={onSaveCandidate} />
+          <RoomReview key={room} room={room} rows={rows.filter((r) => r.room === room && r.status === "done")} urls={urls} catalog={catalog} onDecide={onDecide} onSaveCandidate={onSaveCandidate} onRemove={onRemove} />
         ))}
       </div>
     </div>
@@ -773,6 +800,7 @@ function RoomReview({
   catalog,
   onDecide,
   onSaveCandidate,
+  onRemove,
 }: {
   room: string;
   rows: ScanRow[];
@@ -780,10 +808,11 @@ function RoomReview({
   catalog: CatalogEntry[];
   onDecide: (r: ScanRow, idxs: number[], d: Decision, add?: { id: string; qty: number }) => Promise<void>;
   onSaveCandidate: (r: ScanRow, idxs: number[], name: string, qty: number, image: string) => Promise<boolean>;
+  onRemove: (refs: { r: ScanRow; i: number }[], itemId: string, qty: number) => Promise<void>;
 }) {
   // 같은 방 여러 사진의 결과를 병합: 같은 품목은 한 줄로, 수량은 합산
   const groups = useMemo(() => {
-    const auto = new Map<string, { name: string; qty: number }>();
+    const auto = new Map<string, { id: string; name: string; qty: number; refs: { r: ScanRow; i: number }[] }>();
     const check = new Map<string, { entry: CatalogEntry; qty: number; conf: number; refs: { r: ScanRow; i: number }[] }>();
     const cand = new Map<string, { name: string; qty: number; conf: number; refs: { r: ScanRow; i: number; det: ScanDetection }[] }>();
     let low = 0;
@@ -792,9 +821,11 @@ function RoomReview({
         const c = classify(det, catalog);
         const decided = r.result?.decisions?.[String(i)];
         if (c.kind === "low") low++;
+        else if (decided === "removed") return;
         else if (c.kind === "auto" && c.match) {
-          const g = auto.get(c.match.id) ?? { name: c.match.name, qty: 0 };
+          const g = auto.get(c.match.id) ?? { id: c.match.id, name: c.match.name, qty: 0, refs: [] as { r: ScanRow; i: number }[] };
           g.qty = Math.max(g.qty, det.qty);
+          g.refs.push({ r, i });
           auto.set(c.match.id, g);
         } else if (!decided && c.kind === "check" && c.match) {
           const g = check.get(c.match.id) ?? { entry: c.match, qty: 0, conf: 0, refs: [] };
@@ -814,6 +845,23 @@ function RoomReview({
     return { auto: [...auto.values()], check: [...check.values()], cand: [...cand.values()], low };
   }, [rows, catalog]);
 
+  // X 삭제: 5초 동안 되돌리기를 보여 주고, 그 뒤에만 실제로 반영합니다.
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const removeOne = (g: { id: string; name: string; qty: number; refs: { r: ScanRow; i: number }[] }) => {
+    setHidden((h) => new Set(h).add(g.id));
+    let undone = false;
+    toast(`${g.name}을(를) 삭제했어요`, {
+      duration: 5000,
+      action: { label: "되돌리기", onClick: () => { undone = true; setHidden((h) => { const n = new Set(h); n.delete(g.id); return n; }); } },
+    });
+    window.setTimeout(() => { if (!undone) void onRemove(g.refs, g.id, g.qty); }, 5000);
+  };
+  const removeAll = async () => {
+    if (!window.confirm(`${room}의 인식 품목을 모두 삭제할까요? 사진은 그대로 남습니다.`)) return;
+    for (const g of groups.auto) if (!hidden.has(g.id)) await onRemove(g.refs, g.id, g.qty);
+    for (const g of groups.check) await decideGroup(g.refs, "skipped");
+  };
+
   const decideGroup = async (refs: { r: ScanRow; i: number }[], d: Decision, add?: { id: string; qty: number }) => {
     const byRow = new Map<string, { r: ScanRow; idxs: number[] }>();
     refs.forEach(({ r, i }) => {
@@ -830,13 +878,23 @@ function RoomReview({
 
   return (
     <div className="mb-4 rounded-2xl border border-[#E5E7EB] bg-white p-3">
-      <h3 className="mb-2 text-[16px] font-black">{room}</h3>
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-[16px] font-black">{room}</h3>
+        {(groups.auto.some((g) => !hidden.has(g.id)) || groups.check.length > 0) && (
+          <button onClick={removeAll} className="rounded-lg border border-[#E5E7EB] px-2 py-1 text-[12px] font-bold text-[#C62828]">전체 삭제</button>
+        )}
+      </div>
       {groups.auto.length > 0 && (
         <div className="mb-2">
           <p className="mb-1 text-[12px] font-bold text-[#1E7B3E]">자동 선택됨 (신뢰도 80% 이상)</p>
           <div className="flex flex-wrap gap-1.5">
-            {groups.auto.map((g) => (
-              <span key={g.name} className="rounded-full bg-[#E7F6EC] px-2.5 py-1 text-[13px] font-bold text-[#1E7B3E]">{g.name} ×{g.qty}</span>
+            {groups.auto.filter((g) => !hidden.has(g.id)).map((g) => (
+              <span key={g.id} className="inline-flex items-center gap-1 rounded-full bg-[#E7F6EC] py-1 pl-2.5 pr-1 text-[13px] font-bold text-[#1E7B3E]">
+                {g.name} ×{g.qty}
+                <button aria-label={`${g.name} 삭제`} onClick={() => removeOne(g)} className="flex h-5 w-5 items-center justify-center rounded-full text-[#1E7B3E] hover:bg-[#CDEBD7]">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </span>
             ))}
           </div>
         </div>
