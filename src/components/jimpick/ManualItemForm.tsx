@@ -11,7 +11,7 @@ import boxImage from "@/assets/item-box.png";
 
 export interface ManualItemInput {
   name: string; cat: ItemMainCat; volume: number; photo: string; favorite: boolean;
-  group: string; rooms: string[]; keywords: string[];
+  group: string; rooms: string[]; keywords: string[]; photoSource?: "ai" | "upload" | "default";
 }
 const ROOM_OPTIONS = ["안방", "작은방", "서재", "거실", "부엌", "베란다", "세탁실", "입구", "창고", "기타"];
 
@@ -50,6 +50,7 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
   const upload = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
   const lock = useRef(false);
+  const photoIsAi = useRef(false);
   const names = useMemo(() => splitItemNames(name), [name]);
   const multi = names.length > 1;
   const auto = useMemo(() => classifyItem(names[0] || "", category), [names, category]);
@@ -96,7 +97,7 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
   const readPhoto = async (file?: File) => {
     if (!file || lock.current) return;
     setError(""); setBusy(true); lock.current = true;
-    try { setPhoto(await shrinkPhoto(file)); setPreview(""); setPreviewReady(false); setGenerationError(""); } catch { setError("사진을 불러오지 못했습니다. 다시 선택해 주세요."); }
+    try { setPhoto(await shrinkPhoto(file)); photoIsAi.current = false; setPreview(""); setPreviewReady(false); setGenerationError(""); } catch { setError("사진을 불러오지 못했습니다. 다시 선택해 주세요."); }
     finally { setBusy(false); lock.current = false; }
   };
   const save = async () => {
@@ -104,8 +105,9 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
     lock.current = true; setBusy(true); setError("");
     try {
       let image = photo;
+      let source: "ai" | "upload" | "default" = photo ? (photoIsAi.current ? "ai" : "upload") : "default";
       // 생성이 끝난 이미지를 보고 '이대로 저장'을 누르면 그 이미지를 씁니다.
-      if (!image && preview && previewReady) image = await previewToJpeg(preview);
+      if (!image && preview && previewReady) { image = await previewToJpeg(preview); source = "ai"; }
       if (generationTried && !image) throw new Error("이미지 생성이 끝난 뒤 저장해 주세요.");
       if (!image) {
         const response = await fetch(boxImage);
@@ -113,9 +115,9 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
         image = await shrinkPhoto(new File([await response.blob()], "item.png", { type: "image/png" }));
       }
       if (multi) {
-        await onSave(autos.map(({ name: n, c }) => ({ name: n, cat: (c.cat || cat) as ItemMainCat, volume: 0, photo: multiImages[n] || image, favorite: false, group: c.cat ? c.group : "기타", rooms: c.rooms, keywords: c.keywords })));
+        await onSave(autos.map(({ name: n, c }) => ({ name: n, cat: (c.cat || cat) as ItemMainCat, volume: 0, photo: multiImages[n] || image, photoSource: multiImages[n] ? "ai" : source, favorite: false, group: c.cat ? c.group : "기타", rooms: c.rooms, keywords: c.keywords })));
       } else if (finalCat) {
-        await onSave([{ name: names[0], cat: finalCat, volume: 0, photo: image, favorite, group: finalGroup, rooms: finalRooms, keywords: auto.keywords }]);
+        await onSave([{ name: names[0], cat: finalCat, volume: 0, photo: image, photoSource: source, favorite, group: finalGroup, rooms: finalRooms, keywords: auto.keywords }]);
       }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "저장하지 못했습니다."); }
     finally { lock.current = false; setBusy(false); }
@@ -165,7 +167,7 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
             if (!context) throw new Error("이미지 준비 실패");
             context.fillStyle = "#ffffff"; context.fillRect(0, 0, canvas.width, canvas.height);
             context.drawImage(image, 0, 0, canvas.width, canvas.height);
-            setPhoto(canvas.toDataURL("image/jpeg", 0.9));
+            setPhoto(canvas.toDataURL("image/jpeg", 0.9)); photoIsAi.current = true;
             setPreview(""); setPreviewReady(false); setGenerationError("");
           }
           catch { setGenerationError("이미지를 준비하지 못했습니다. 다시 시도해 주세요."); }

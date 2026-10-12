@@ -12,6 +12,7 @@ const schema = z.object({
   rooms: z.array(z.string().min(1).max(10)).max(10).optional(),
   keywords: z.array(z.string().min(1).max(30)).max(12).optional(),
   favorite: z.boolean().optional(),
+  photoSource: z.enum(["ai", "upload", "default"]).optional(),
 });
 
 /** Reuses company-owned item_icons; photos are stored without AI generation. */
@@ -40,7 +41,7 @@ export const createManualItem = createServerFn({ method: "POST" })
       normalized_name: norm, display_name: name, requested_name: name, original_name: name,
       cat: data.cat, category_group: data.cat, subcategory_group: subgroup, room: data.room,
       default_volume: data.volume, status: "pending", active: true, source: "company", is_generated: false,
-      from_photo: true, metadata: { manual: true, custom_item: true, item_group: subgroup, recommended_rooms: data.rooms ?? [], search_keywords: data.keywords ?? [], is_favorite: !!data.favorite, classifier: "keyword-v1" },
+      from_photo: true, metadata: { manual: true, created_method: data.photoSource ?? "upload", custom_item: true, item_group: subgroup, recommended_rooms: data.rooms ?? [], search_keywords: data.keywords ?? [], is_favorite: !!data.favorite, classifier: "keyword-v1" },
     }).select("id").single();
     if (inserted.error) return { ok: false, error: inserted.error.code === "23505" ? "같은 품목을 저장 중입니다. 잠시 후 다시 확인해 주세요." : "품목을 저장하지 못했습니다." };
     const path = `${context.userId}/${id}.${isPng ? "png" : "jpg"}`;
@@ -51,6 +52,8 @@ export const createManualItem = createServerFn({ method: "POST" })
     const done = upload.error ? null : await context.supabase.from("item_icons").update({ status: "ready", image_path: path, storage_path: path, image_url: iconUrl })
       .eq("id", id).eq("user_id", context.userId).select("id").single();
     if (upload.error || !done || done.error) {
+      // 한쪽만 남지 않도록: 올라간 파일은 지우고 품목 행은 실패·비활성으로 둡니다.
+      if (!upload.error) await supabaseAdmin.storage.from("item-icons").remove([path]);
       await context.supabase.from("item_icons").update({ status: "failed", active: false }).eq("id", id).eq("user_id", context.userId);
       return { ok: false, error: "이미지 저장에 실패했습니다. 품목은 선택되지 않았습니다." };
     }
