@@ -637,6 +637,7 @@ export type Database = {
           status: string
           submission: Json
           submit_count: number
+          token_enc: string | null
           token_hash: string
           updated_at: string
         }
@@ -666,6 +667,7 @@ export type Database = {
           status?: string
           submission?: Json
           submit_count?: number
+          token_enc?: string | null
           token_hash: string
           updated_at?: string
         }
@@ -695,6 +697,7 @@ export type Database = {
           status?: string
           submission?: Json
           submit_count?: number
+          token_enc?: string | null
           token_hash?: string
           updated_at?: string
         }
