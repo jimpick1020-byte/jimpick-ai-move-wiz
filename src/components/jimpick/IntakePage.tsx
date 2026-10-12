@@ -101,14 +101,15 @@ export function IntakePage({ token }: { token: string }) {
             <Big label="이름"><input className={inp} value={form.customerName} onChange={(e) => up({ customerName: e.target.value })} placeholder="홍길동" /></Big>
             <Big label="휴대전화 번호"><input className={inp} inputMode="tel" value={form.phone} onChange={(e) => up({ phone: formatTel(e.target.value) })} placeholder="010-0000-0000" /></Big>
             <Big label="이사 날짜"><input className={inp} type="date" value={form.moveDate} onChange={(e) => up({ moveDate: e.target.value })} /></Big>
-            <Big label="희망 시간">
+            <div>
+              <div className="mb-2 text-lg font-bold text-[#25282D]">희망 시간</div>
               <div className="grid grid-cols-3 gap-2">
                 {TIMES.map((t) => (
                   <button key={t} type="button" onClick={() => up({ moveTime: t })}
                     className={`rounded-xl py-3 text-base font-bold ${form.moveTime === t ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5]"}`}>{t}</button>
                 ))}
               </div>
-            </Big>
+            </div>
           </>
         )}
         {step === 2 && (
