@@ -993,6 +993,7 @@ export function HomeScreen() {
           </div>
         )}
 
+        <IntakeNotifier />
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: "견적 내역", icon: ClipboardList, s: "history" as const },

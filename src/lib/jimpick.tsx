@@ -195,6 +195,15 @@ export interface Estimate {
   shareTokenVersion?: number;
   /** 수정·발송 이력 */
   sheetHistory?: SheetHistoryEntry[];
+  /** 고객 사전정보 링크로 만든 초안이면 그 요청 id */
+  intakeRequestId?: string;
+  /** 고객 상세주소에서 확실히 찾은 층수 또는 「방문 확인 예정」 (참고용) */
+  intakeFromFloor?: string;
+  intakeToFloor?: string;
+  /** 고객이 고른 방별 품목·폐기물 요약 */
+  intakeNote?: string;
+  intakeSiteDecision?: string;
+  intakeDisposalFee?: string;
 }
 
 /** 확정 당시의 견적서 내용 (단가가 바뀌어도 이 값이 유지됩니다) */
