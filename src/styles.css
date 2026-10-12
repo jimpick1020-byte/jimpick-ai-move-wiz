@@ -78,6 +78,10 @@
 }
 
 :root {
+  --scan-outline-auto: oklch(0.62 0.15 150);
+  --scan-outline-check: oklch(0.75 0.16 75);
+  --scan-label-fill: oklch(1 0 0);
+  --scan-label-stroke: oklch(0.2 0 0 / 85%);
   --worker-male: oklch(0.55 0.21 257);
   --worker-male-soft: oklch(0.96 0.025 250);
   --worker-female: oklch(0.64 0.19 22);
@@ -139,6 +143,9 @@
 }
 
 .jp-item-card { background: var(--item-card-fill); border-color: var(--border); box-shadow: var(--item-card-shadow); }
+.jp-scan-outline-auto { color: var(--scan-outline-auto); }
+.jp-scan-outline-check { color: var(--scan-outline-check); }
+.jp-scan-outline-label { fill: var(--scan-label-fill); stroke: var(--scan-label-stroke); font-weight: 700; }
 .jp-item-card-selected { background: var(--item-card-selected-fill); border-color: var(--auth-primary); box-shadow: var(--item-card-selected-shadow); }
 
 .dark {
