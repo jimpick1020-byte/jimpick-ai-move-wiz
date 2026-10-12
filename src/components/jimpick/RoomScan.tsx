@@ -396,7 +396,7 @@ export function RoomScanScreen() {
   const openCamera = () => {
     captureRoom.current = room;
     tap("click");
-    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) setLiveOpen(true);
+    if (typeof navigator !== "undefined" && "mediaDevices" in navigator) setLiveOpen(true);
     else launch(fileRef.current, "카메라");
   };
   const [liveOpen, setLiveOpen] = useState(false);

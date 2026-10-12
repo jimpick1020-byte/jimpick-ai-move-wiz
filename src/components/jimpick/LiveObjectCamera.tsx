@@ -52,7 +52,7 @@ export function LiveObjectCamera({ room, onCapture, onClose, onFallback }: {
         const mp = await import("@mediapipe/tasks-vision");
         const fs = await mp.FilesetResolver.forVisionTasks(WASM);
         detector = await mp.ObjectDetector.createFromOptions(fs, { baseOptions: { modelAssetPath: DET_MODEL, delegate: "GPU" }, runningMode: "VIDEO", scoreThreshold: 0.4, maxResults: 5 });
-        segmenter = await mp.InteractiveSegmenter.createFromOptions(fs, { baseOptions: { modelAssetPath: SEG_MODEL }, outputCategoryMask: true, outputConfidenceMasks: false });
+        segmenter = await mp.InteractiveSegmenter.createFromOptions(fs, { baseOptions: { modelAssetPath: SEG_MODEL }, outputCategoryMask: true, outputConfidenceMasks: false } as any);
       } catch {
         setStatus("실시간 인식을 불러오지 못했습니다. 촬영은 그대로 할 수 있어요.");
         return;
