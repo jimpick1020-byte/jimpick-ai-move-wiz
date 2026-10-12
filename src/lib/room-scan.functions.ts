@@ -297,7 +297,8 @@ ${SCAN_GEOMETRY_PROMPT}
           }
           return acc;
         }, []);
-      const needRetake = out?.photo_ok === false;
+      // 사진 품질 문제로 재촬영을 요구하지 않습니다(결과는 그대로 저장, 90% 미만은 화면에서 조용히 제외).
+      const needRetake = false;
       const { error: saveErr } = await sb
         .from("room_scans")
         .update({

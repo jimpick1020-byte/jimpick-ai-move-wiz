@@ -3,12 +3,13 @@ import { strict as assert } from "node:assert";
 import { confidenceTier, dedupedAddQty, isBacklit, needsSecondPass } from "./scan-rules";
 
 describe("사진 인식 판정", () => {
-  it("80% 이상은 자동 등록", () => {
-    assert.equal(confidenceTier(0.8), "auto");
+  it("90% 이상만 자동 등록", () => {
+    assert.equal(confidenceTier(0.9), "auto");
+    assert.equal(confidenceTier(0.89), "check");
   });
   it("50~79%는 사용자 확인", () => {
     assert.equal(confidenceTier(0.5), "check");
-    assert.equal(confidenceTier(0.79), "check");
+    assert.equal(confidenceTier(0.85), "check");
   });
   it("50% 미만은 미확인", () => {
     assert.equal(confidenceTier(0.49), "unknown");

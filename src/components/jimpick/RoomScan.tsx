@@ -9,10 +9,8 @@ import { MobileShell, TopBar, PrimaryButton, BottomButtonBar } from "./ui";
 import { tap } from "@/lib/feedback";
 import { analyzeRoomScan, saveCroppedItem, type ScanDetection } from "@/lib/room-scan.functions";
 import { dedupedAddQty } from "@/lib/scan-rules";
-import { ScanOutline } from "./ScanOutline";
-import { LiveObjectCamera } from "./LiveObjectCamera";
 import { preparePhoto, hashDistance } from "@/lib/photo-prep-core";
-import { buildCatalog, matchCatalog, normScanName, AUTO_CONF, CHECK_CONF, type CatalogEntry } from "@/lib/scan-match";
+import { buildCatalog, matchCatalog, normScanName, AUTO_CONF, type CatalogEntry } from "@/lib/scan-match";
 
 const BUCKET = "room-scans";
 const STALE_MS = 4 * 60 * 1000;
@@ -89,13 +87,9 @@ async function recordFeedback(
 
 function classify(det: ScanDetection, catalog: CatalogEntry[]): { kind: "low" | "auto" | "check" | "candidate"; match: CatalogEntry | null } {
   const match = (det.item_id ? catalog.find((c) => c.id === det.item_id) : null) ?? matchCatalog(det.name, catalog);
-  // 모델이 신뢰도를 주지 않았으면 90%로 간주하지 않고 확인 필요로 둡니다
-  if (det.confidence == null) return { kind: match ? "check" : "candidate", match } as const;
-  if (det.confidence < CHECK_CONF) return { kind: "low" as const, match };
-  // 실제 신뢰도 80% 이상 + 기존 품목과 일치하면 자동 등록
-  if (match && det.confidence >= AUTO_CONF) return { kind: "auto" as const, match };
-  if (match) return { kind: "check" as const, match };
-  return { kind: "candidate" as const, match: null };
+  // 실제 신뢰도 90% 이상 + 기존 품목과 일치할 때만 자동 등록, 나머지는 조용히 제외합니다
+  if (match && det.confidence != null && det.confidence >= AUTO_CONF) return { kind: "auto" as const, match };
+  return { kind: "low" as const, match };
 }
 
 async function cropFromUrl(url: string, box: ScanDetection["box"]): Promise<string> {
@@ -352,11 +346,6 @@ export function RoomScanScreen() {
           toast.info(`${targetRoom}: 이미 찍은 사진과 같은 장면이라 건너뛰었습니다.`);
           continue;
         }
-        if (!prep.quality.ok && !force) {
-          const dataUrl = await blobToDataUrl(prep.blob);
-          setLocal((l) => l.map((j) => (j.localId === job.localId ? { ...j, status: "retake", reason: prep.quality.reason, dataUrl, hash: prep.hash } : j)));
-          continue;
-        }
         try {
           await uploadJob(job, prep.blob, prep.hash);
         } catch (e) {
@@ -397,10 +386,9 @@ export function RoomScanScreen() {
   const openCamera = () => {
     captureRoom.current = room;
     tap("click");
-    if (typeof navigator !== "undefined" && "mediaDevices" in navigator) setLiveOpen(true);
-    else launch(fileRef.current, "카메라");
+    // 일반 카메라로 먼저 촬영하고, 찍은 사진만 한 번 분석합니다(촬영 전 분석·윤곽 표시 없음).
+    launch(fileRef.current, "카메라");
   };
-  const [liveOpen, setLiveOpen] = useState(false);
   const openPicker = () => {
     captureRoom.current = room;
     launch(pickRef.current, "앨범");
@@ -439,13 +427,11 @@ export function RoomScanScreen() {
         return { label: "시간 초과", tone: "red", pct: 75 };
       return { label: "분석 중", tone: "blue", pct: 75 };
     }
-    if (r.status === "retake") return { label: "확인 필요", tone: "amber", pct: 100 };
+    if (r.status === "retake") return { label: "완료", tone: "green", pct: 100 };
     if (r.status === "failed") return { label: "실패", tone: "red", pct: 100 };
     if (r.status === "done") {
-      if (reviewPending(r)) return { label: "확인 필요", tone: "amber", pct: 100 };
       const kinds = (r.result?.items ?? []).map((d) => classify(d, catalog).kind);
       if (kinds.includes("auto")) return { label: "자동 등록", tone: "green", pct: 100 };
-      if (kinds.length && kinds.every((k) => k === "low")) return { label: "재촬영 필요(신뢰도 낮음)", tone: "amber", pct: 100 };
       return { label: "완료", tone: "green", pct: 100 };
     }
     return { label: r.status, tone: "gray", pct: 0 };
@@ -454,7 +440,7 @@ export function RoomScanScreen() {
     j.status === "uploading"
       ? { label: "업로드 중", tone: "blue", pct: 25 }
       : j.status === "retake"
-        ? { label: "확인 필요", tone: "amber", pct: 100 }
+        ? { label: "실패", tone: "red", pct: 100 }
         : { label: "실패", tone: "red", pct: 100 };
 
   const toneCls: Record<View["tone"], string> = {
@@ -491,18 +477,6 @@ export function RoomScanScreen() {
   return (
     <MobileShell className="jp-estimate-flow jp-tone-4">
       <TopBar title="4단계. AI 연속촬영" onBack={() => setScreen("step3")} />
-      {liveOpen && (
-        <LiveObjectCamera
-          room={captureRoom.current}
-          onClose={() => setLiveOpen(false)}
-          onFallback={() => { setLiveOpen(false); launch(fileRef.current, "카메라"); }}
-          onCapture={(file, name) => {
-            tap("click");
-            void handleFiles([file], captureRoom.current);
-            toast.success(name ? `${name} 사진을 등록했어요. 분석 결과에서 확인할 수 있어요.` : "사진을 등록했어요.");
-          }}
-        />
-      )}
       <input
         ref={fileRef}
         type="file"
@@ -555,7 +529,7 @@ export function RoomScanScreen() {
         <div className="mx-4 mt-1 overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
           <div className="relative aspect-[4/3] bg-[#EEF2F7]">
             {latestUrl ? (
-              <ScanOutline url={latestUrl} room={room} items={latest?.result?.items ?? []} />
+              <img src={latestUrl} alt={`${room} 사진`} className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-2 text-[#6B7280]">
                 <Camera className="h-10 w-10" />
@@ -575,9 +549,6 @@ export function RoomScanScreen() {
             사진 선택 (앨범에서 고르기)
           </button>
           <p className="px-3 pb-3 text-[12px] text-[#6B7280]">분석을 기다리지 않고 다음 방을 계속 찍을 수 있습니다. 카메라가 열리지 않으면 휴대폰 설정 → 애플리케이션 → 브라우저 → 권한에서 카메라를 허용하거나 "사진 선택"을 눌러 주세요.</p>
-          {latest && latest.status === "done" && (latest.result?.items ?? []).length === 0 && (
-            <p className="mx-3 mb-3 rounded-lg bg-[#F1F2F4] px-3 py-2 text-[13px] font-bold text-[#5B6270]">인식된 대형 품목 없음</p>
-          )}
         </div>
 
         {/* 방별 진행 */}
@@ -607,8 +578,7 @@ export function RoomScanScreen() {
                     )}
                     {j.status === "retake" && (
                       <div className="flex flex-col gap-1">
-                        <button onClick={() => { captureRoom.current = j.room; setLocal((l) => l.filter((x) => x.localId !== j.localId)); if ("mediaDevices" in navigator) setLiveOpen(true); else fileRef.current?.click(); }} className="rounded-lg bg-[#2A6FD6] px-2 py-1 text-[12px] font-bold text-white">재촬영</button>
-                        {j.dataUrl && j.hash && <button onClick={() => void retryLocal(j)} className="rounded-lg border px-2 py-1 text-[12px] font-bold">그대로 분석</button>}
+                                                {j.dataUrl && j.hash && <button onClick={() => void retryLocal(j)} className="rounded-lg border px-2 py-1 text-[12px] font-bold">그대로 분석</button>}
                       </div>
                     )}
                     {j.status === "uploading" && <Loader2 className="h-5 w-5 animate-spin text-[#2A6FD6]" />}
@@ -619,8 +589,8 @@ export function RoomScanScreen() {
             })}
             {[...rows].reverse().map((r) => {
               const v = rowView(r);
-              const n = (r.result?.items ?? []).filter((d) => d.confidence == null || d.confidence >= CHECK_CONF).length;
-              const canRetry = v.label === "실패" || v.label === "시간 초과" || r.status === "retake";
+              const n = (r.result?.items ?? []).filter((d, i) => classify(d, catalog).kind === "auto" && r.result?.decisions?.[String(i)] !== "removed").length;
+              const canRetry = v.label === "실패" || v.label === "시간 초과";
               return (
                 <div key={r.id} className="rounded-xl border border-[#E5E7EB] bg-white p-3">
                   <div className="flex items-center gap-3">
@@ -631,7 +601,7 @@ export function RoomScanScreen() {
                         <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold ${toneCls[v.tone]}`}>{v.label}</span>
                       </div>
                       <p className="mt-0.5 text-[12px] text-[#6B7280]">
-                        {r.status === "done" ? `품목 ${n}종 인식` : r.error_message || (v.label === "시간 초과" ? "분석 시간이 초과되었습니다." : "")}
+                        {r.status === "done" || r.status === "retake" ? `품목 ${n}종 등록` : r.error_message || (v.label === "시간 초과" ? "분석 시간이 초과되었습니다." : "")}
                       </p>
                     </div>
                     {v.label === "분석 중" && <Loader2 className="h-5 w-5 animate-spin text-[#2A6FD6]" />}
@@ -651,11 +621,10 @@ export function RoomScanScreen() {
         </div>
 
         {/* 요약 */}
-        <div className="mx-4 mt-4 grid grid-cols-3 gap-2">
+        <div className="mx-4 mt-4 grid grid-cols-2 gap-2">
           {[
             ["촬영", summary.shots, "text-[#2A6FD6]"],
             ["인식 대형", summary.recognized, "text-[#2E9E57]"],
-            ["확인 필요", summary.check, "text-[#B26A00]"],
           ].map(([l, v, c]) => (
             <div key={String(l)} className="rounded-xl border border-[#E5E7EB] bg-white p-3 text-center">
               <div className={`text-[22px] font-black ${c}`}>{v}</div>
@@ -664,7 +633,7 @@ export function RoomScanScreen() {
           ))}
         </div>
         <p className="mx-4 mt-2 text-[11px] text-[#9AA1AC]">
-          신뢰도 80% 이상은 자동 선택, 50~79%는 확인 필요, 50% 미만은 미확인으로 두고 추가하지 않습니다. 애매한 품목만 고화질로 한 번 더 확인합니다. 인식 결과는 반드시 확인해 주세요.
+          신뢰도 90% 이상인 품목만 자동으로 담깁니다. 나머지 품목은 다음 단계에서 직접 추가해 주세요.
         </p>
         <button onClick={() => setScreen("step6")} className="mx-4 mt-3 w-[calc(100%-2rem)] rounded-xl border border-[#E5E7EB] bg-white py-3 text-[14px] font-bold text-[#25282D]">
           직접 선택으로 품목 고르기·수정
@@ -673,7 +642,7 @@ export function RoomScanScreen() {
       <BottomButtonBar>
         <div className="flex gap-2">
           <button onClick={() => setReviewOpen(true)} className="flex-1 rounded-2xl border-2 border-[#2A6FD6] bg-white py-3.5 text-[16px] font-black text-[#2A6FD6]">
-            인식 결과 확인{summary.check > 0 ? ` (${summary.check})` : ""}
+            인식 결과 확인
           </button>
           <div className="flex-1">
             <PrimaryButton onClick={() => setScreen("step6")}>다음</PrimaryButton>
@@ -886,7 +855,7 @@ function RoomReview({
       </div>
       {groups.auto.length > 0 && (
         <div className="mb-2">
-          <p className="mb-1 text-[12px] font-bold text-[#1E7B3E]">자동 선택됨 (신뢰도 80% 이상)</p>
+          <p className="mb-1 text-[12px] font-bold text-[#1E7B3E]">자동 선택됨 (신뢰도 90% 이상)</p>
           <div className="flex flex-wrap gap-1.5">
             {groups.auto.filter((g) => !hidden.has(g.id)).map((g) => (
               <span key={g.id} className="inline-flex items-center gap-1 rounded-full bg-[#E7F6EC] py-1 pl-2.5 pr-1 text-[13px] font-bold text-[#1E7B3E]">
@@ -924,7 +893,6 @@ function RoomReview({
           }}
         />
       ))}
-      {groups.low > 0 && <p className="mt-2 text-[12px] text-[#9AA1AC]">미확인(신뢰도 50% 미만) {groups.low}개는 추가하지 않았습니다.</p>}
       {rows.length === 0 && <p className="text-[13px] text-[#6B7280]">분석이 끝난 사진이 없습니다.</p>}
     </div>
   );
