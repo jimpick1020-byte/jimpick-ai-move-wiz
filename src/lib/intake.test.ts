@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { emptyIntakeForm, intakeStatusLabel, mergeIntakeIntoDraft, setQty, strictFloor, tapOnce, tapTwice } from "./intake";
 
 describe("고객 링크 층수 (명확한 층만)", () => {
