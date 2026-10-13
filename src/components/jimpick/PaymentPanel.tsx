@@ -5,7 +5,7 @@
  * 예약금은 「예약금 입금」 칸에서 확인한 금액을 그대로 보여 줍니다.
  * 「결제완료」는 실제 확인된 금액이 총액과 맞을 때만, 확인창을 거쳐 저장됩니다.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { paymentReview } from "@/lib/payment-review";
 import { toast } from "sonner";
 import {
@@ -36,6 +36,10 @@ export function PaymentPanel({
   const [note, setNote] = useState(row.paymentNote ?? "");
   const [busy, setBusy] = useState(false);
   const [askComplete, setAskComplete] = useState(false);
+  useEffect(() => {
+    setStatus(normalizePaymentStatus(row.paymentStatus));
+    setAskComplete(false);
+  }, [estimateId, row.paymentStatus]);
   // 화면 입력값이 아니라 서버에 저장된 실제 금액으로만 판단합니다.
   const deposit = row.depositPaid;
   const balanceNum = row.balancePaid;

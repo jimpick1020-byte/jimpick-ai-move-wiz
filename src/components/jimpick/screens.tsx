@@ -745,8 +745,12 @@ export function HomeScreen() {
       load();
     };
     document.addEventListener("visibilitychange", onVisible);
+    const paymentRefresh = window.setInterval(() => {
+      if (document.visibilityState === "visible") load();
+    }, 15000);
     return () => {
       alive = false;
+      window.clearInterval(paymentRefresh);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("jimpick:payment-updated", load);
     };
@@ -6848,7 +6852,7 @@ export function History() {
                         {ts.row && (
                           <PaymentPanel
                             estimateId={e.id}
-                            total={e.total}
+                            total={ts.row.total}
                             row={ts.row}
                             onSaved={loadTerms}
                           />

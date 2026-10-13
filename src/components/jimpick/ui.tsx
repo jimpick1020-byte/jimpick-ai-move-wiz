@@ -463,14 +463,16 @@ export function Card({
   selected,
   onClick,
   className = "",
+  ...attributes
 }: {
   children: ReactNode;
   selected?: boolean;
   onClick?: () => void;
   className?: string;
-}) {
+} & Omit<React.ComponentPropsWithoutRef<"div">, "children" | "onClick" | "className">) {
   return (
     <div
+      {...attributes}
       onClick={
         onClick
           ? () => {
