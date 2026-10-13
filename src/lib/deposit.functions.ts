@@ -16,6 +16,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { parseDepositSms, isSameName, normalizeName } from "./deposit-parse";
+import { receiptPaymentKind } from "./payment-review";
 
 export interface DepositRow {
   id: string;
@@ -278,6 +279,7 @@ export const registerDeposit = createServerFn({ method: "POST" })
         depositorName: z.string().max(60).optional(),
         amount: z.number().int().min(0).max(1_000_000_000).optional(),
         depositedAt: z.string().max(40).optional(),
+        paymentKind: z.enum(["deposit", "balance"]).optional(),
       })
       .parse(d),
   )
@@ -304,7 +306,7 @@ export const registerDeposit = createServerFn({ method: "POST" })
 
     const customerName = String(terms.customer_name ?? "");
     const matched = isSameName(depositorName, customerName);
-    const paymentKind = Number(terms.deposit_paid ?? 0) > 0 ? "balance" : "deposit";
+    const paymentKind = receiptPaymentKind(Number(terms.deposit_paid ?? 0), data.paymentKind);
     const dedupeKey = [
       data.estimateId,
       amount,
@@ -341,7 +343,7 @@ export const registerDeposit = createServerFn({ method: "POST" })
         return { ok: false, duplicated: true, error: "이미 기록된 입금 문자입니다." };
       }
       console.error("[registerDeposit]", insErr.message);
-      return { ok: false, error: "입금 기록을 저장하지 못했습니다." };
+      return { ok: false, error: `입금 기록을 저장하지 못했습니다: ${insErr.message}` };
     }
 
     if (created) {
