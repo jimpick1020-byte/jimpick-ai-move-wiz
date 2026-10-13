@@ -6,6 +6,11 @@ export interface PaymentEvidence {
   paymentKind?: string;
 }
 
+/** Explicit kind prevents a balance arriving before deposit confirmation being misclassified. */
+export function receiptPaymentKind(depositPaid: number, requested?: "deposit" | "balance") {
+  return requested ?? (depositPaid > 0 ? "balance" : "deposit");
+}
+
 /** Customer claims are not bank receipts, even when an old claim was confirmed. */
 export function actualReceipt(record: PaymentEvidence): boolean {
   return record.amount > 0 && ["sms_paste", "manual"].includes(record.source) && ["pending_review", "confirmed"].includes(record.status);

@@ -15,6 +15,7 @@ import {
   type DepositRow,
 } from "@/lib/deposit.functions";
 import { parseDepositSms } from "@/lib/deposit-parse";
+import { Button } from "@/components/ui/button";
 
 const won = (n: number) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
 
@@ -22,16 +23,20 @@ export function DepositPanel({
   estimateId,
   customerName,
   total,
+  depositPaid = 0,
 }: {
   estimateId: string;
   customerName: string;
   total: number;
+  depositPaid?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [rows, setRows] = useState<DepositRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [working, setWorking] = useState<string | null>(null);
+  const [selectedKind, setSelectedKind] = useState<"deposit" | "balance" | null>(null);
+  const paymentKind = selectedKind ?? (depositPaid > 0 ? "balance" : "deposit");
 
   const load = () => {
     listDeposits({ data: { estimateId } })
@@ -51,9 +56,11 @@ export function DepositPanel({
       listDeposits({ data: { estimateId } }).then((r) => { if (alive && r.ok) setRows(r.rows); }).catch(() => {});
     };
     window.addEventListener("jimpick:payment-updated", refresh);
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 15000);
     return () => {
       alive = false;
       window.removeEventListener("jimpick:payment-updated", refresh);
+      window.clearInterval(timer);
     };
   }, [estimateId]);
 
@@ -65,7 +72,7 @@ export function DepositPanel({
     if (busy || !text.trim()) return;
     setBusy(true);
     try {
-      const r = await registerDeposit({ data: { estimateId, text } });
+      const r = await registerDeposit({ data: { estimateId, text, paymentKind } });
       if (!r.ok) {
         toast.error("입금 기록 실패", { description: r.error ?? "다시 시도해 주세요" });
       } else if (r.needsReview) {
@@ -81,6 +88,8 @@ export function DepositPanel({
         });
         setText("");
       }
+    } catch (error) {
+      toast.error("입금 기록 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요" });
     } finally {
       setBusy(false);
       load();
@@ -149,6 +158,13 @@ export function DepositPanel({
 
       {open && (
         <div className="mt-2 space-y-2">
+          <div role="group" aria-label="입금 종류" className="grid grid-cols-2 gap-2">
+            {(["deposit", "balance"] as const).map((kind) => (
+              <Button key={kind} variant={paymentKind === kind ? "staff" : "outline"} aria-pressed={paymentKind === kind} onClick={() => setSelectedKind(kind)} disabled={busy}>
+                {kind === "deposit" ? "예약금" : "잔금"}
+              </Button>
+            ))}
+          </div>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}

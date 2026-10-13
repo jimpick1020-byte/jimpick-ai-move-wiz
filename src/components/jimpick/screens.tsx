@@ -6352,7 +6352,7 @@ export function History() {
       .then((r) => {
         if (r.ok) setTermsRows(r.rows);
       })
-      .catch(() => {});
+      .catch((error) => toast.error("입금 상태를 불러오지 못했습니다", { description: error instanceof Error ? error.message : "다시 확인해 주세요" }));
   };
 
   useEffect(() => {
@@ -6389,6 +6389,9 @@ export function History() {
       })
       .catch(() => {});
     window.addEventListener("jimpick:payment-updated", load);
+    const paymentRefresh = window.setInterval(() => {
+      if (document.visibilityState === "visible") load();
+    }, 15000);
     // 화면으로 돌아올 때마다 서버에서 자동 정리된 견적을 다시 확인해 카드를 바로 숨깁니다.
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
@@ -6405,6 +6408,7 @@ export function History() {
       alive = false;
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("jimpick:payment-updated", load);
+      window.clearInterval(paymentRefresh);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -6848,7 +6852,7 @@ export function History() {
                             );
                           })()}
                         {ts.row && <DepositClaimBox row={ts.row} onSaved={loadTerms} />}
-                        {ts.row && <DepositPanel estimateId={e.id} customerName={e.customerName} total={ts.row.total} />}
+                        {ts.row && <DepositPanel estimateId={e.id} customerName={e.customerName} total={ts.row.total} depositPaid={ts.row.depositPaid} />}
                         {ts.row && (
                           <PaymentPanel
                             estimateId={e.id}
