@@ -495,7 +495,7 @@ export const submitIntake = createServerFn({ method: "POST" })
     const snapshots = (base.customItems as any[] | undefined) ?? [];
     const {data:storedIcons}=await sb.from("item_icons").select("id,item_id,image_path,storage_path").in("item_id",Array.from(pickedIds)).or(`customer_only.eq.true,user_id.eq.${row.company_id}`).eq("active",true);
     merged.customItems = [...snapshots.filter(i => !pickedIds.has(i.id)), ...company.filter(i => pickedIds.has(i.id)).map(i => ({
-      id:i.id,name:i.name,cat:i.group,extra:0.5,active:true,icon:(storedIcons ?? []).find(r=>r.item_id===i.id) ? `/api/public/item-icon/${(storedIcons ?? []).find(r=>r.item_id===i.id)?.id}.png` : i.icon
+      id:i.id,name:i.name,cat:i.group,extra:0.5,active:true,icon:(storedIcons ?? []).find(r=>r.item_id===i.id && (r.image_path || r.storage_path)) ? `/api/public/item-icon/${(storedIcons ?? []).find(r=>r.item_id===i.id)?.id}.png` : i.icon
     }))];
     merged.intakeNote = intakeSummary(form, nameOf).join("\n");
     merged.intakeDisposalFee = "방문 후 확인";

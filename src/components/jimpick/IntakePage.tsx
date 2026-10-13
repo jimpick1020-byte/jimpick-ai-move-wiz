@@ -71,6 +71,12 @@ export function IntakePage({ token }: { token: string }) {
     if (!done || returnAttempt.current) return;
     const h = window.setTimeout(() => {
       returnAttempt.current = true;
+      // A fresh browser tab may have only its initial blank entry, not the SMS app.
+      // Keep an in-document return target in that case so the fallback is not unloaded.
+      const navigation = (window as Window & { navigation?: { canGoBack: boolean } }).navigation;
+      if (navigation?.canGoBack === false || window.history.length <= 1) {
+        window.history.pushState(window.history.state, "", window.location.href);
+      }
       window.history.back();
       window.setTimeout(() => setReturnReady(true), 800);
     }, 1500);
