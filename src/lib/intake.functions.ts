@@ -14,7 +14,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { formatTel } from "./format-input";
 import {
   INTAKE_BASE_ITEMS, INTAKE_ROOMS, INTAKE_SIZES, intakeItemName, intakeSmsText, mergeIntakeIntoDraft, intakeSummary,
-  type IntakeForm, type IntakeRooms, customerItemLabel, isLargeCustomerItem,
+  type IntakeForm, type IntakeRooms, customerItemLabel, isLargeCustomerItem, customerCatalogRoleAllowed,
 } from "./intake";
 
 const ADMIN_SENDER = "01075662542";
@@ -270,7 +270,7 @@ export interface IntakeItem {
 /** Platform roles are verified through the authenticated client's role rows before privileged access. */
 async function catalogAllowed(context: { supabase: any; userId: string }): Promise<boolean> {
   const { data, error } = await context.supabase.from("user_roles").select("role").eq("user_id", context.userId).in("role", ["admin", "super_admin"]);
-  return !error && !!data?.length;
+  return !error && customerCatalogRoleAllowed((data ?? []).map((r: {role:string}) => r.role));
 }
 export const canManageIntakeItems = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth])
   .handler(async ({ context }) => ({ allowed: await catalogAllowed(context) }));
@@ -282,8 +282,8 @@ async function itemsFor(sb: any, companyId: string, onlyVisible: boolean): Promi
   if (error) throw new Error("품목 그림을 불러오지 못했습니다.");
   const rows = (icons ?? []) as any[];
   const overrides = new Map(rows.filter(r => r.customer_key).map(r => [r.customer_key, r]));
-  const base: IntakeItem[] = INTAKE_BASE_ITEMS.filter(b => !overrides.has(b.id)).map((b, i) => ({
-    id:b.id,name:b.name,icon:b.img,rooms:b.rooms,visible:true,disposalAllowed:true,sort:i*10,kind:"base",group:b.group,family:b.kind,sizes:b.sizes,size:""
+  const base: IntakeItem[] = INTAKE_BASE_ITEMS.filter(b => !overrides.has(b.id)).map((b) => ({
+    id:b.id,name:b.name,icon:b.img,rooms:b.rooms,visible:true,disposalAllowed:true,sort:INTAKE_BASE_ITEMS.indexOf(b)*10,kind:"base",group:b.group,family:b.kind,sizes:b.sizes,size:""
   }));
   const custom: IntakeItem[] = await Promise.all(rows.filter(r => r.customer_only || r.customer_visible === true).filter(r => !r.customer_deleted_at).map(async r => {
     const original = INTAKE_BASE_ITEMS.find(b => b.id === r.customer_key);

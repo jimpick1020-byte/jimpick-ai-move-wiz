@@ -33,6 +33,17 @@ export function IntakePage({ token }: { token: string }) {
   const [returnReady, setReturnReady] = useState(false);
   const returnAttempt = useRef(false);
 
+  // Renew private image links before expiry without replacing the customer's unsaved form.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== "visible" || done || closed) return;
+      openIntake({ data: { token } }).then(r => { if (r.ok) setData(r); }).catch(() => {});
+    };
+    const id = window.setInterval(refresh, 10 * 60_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { window.clearInterval(id); document.removeEventListener("visibilitychange", refresh); };
+  }, [token, done, closed]);
+
   useEffect(() => {
     openIntake({ data: { token } })
       .then((r) => {

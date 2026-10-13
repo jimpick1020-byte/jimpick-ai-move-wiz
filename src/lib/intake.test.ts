@@ -56,9 +56,15 @@ describe("링크 상태", () => {
   });
 });
 
-import { fitsSize, intakeItemName, intakeSmsText, INTAKE_BASE_ITEMS, customerItemLabel, isLargeCustomerItem } from "./intake";
+import { fitsSize, intakeItemName, intakeSmsText, INTAKE_BASE_ITEMS, customerItemLabel, isLargeCustomerItem, customerCatalogRoleAllowed } from "./intake";
 
 describe("고객 품목 제한", () => {
+  it("플랫폼 관리자만 관리하고 일반 업체와 구독자는 차단", () => {
+    assert.equal(customerCatalogRoleAllowed(["admin"]), true);
+    assert.equal(customerCatalogRoleAllowed(["super_admin"]), true);
+    assert.equal(customerCatalogRoleAllowed(["user", "subscriber"]), false);
+    assert.equal(customerCatalogRoleAllowed([]), false);
+  });
   it("큰 가구만 포함하고 잔짐은 제외", () => {
     assert.equal(isLargeCustomerItem("책장"), true);
     assert.equal(isLargeCustomerItem("디지털 피아노"), true);
