@@ -1754,6 +1754,10 @@ export type Database = {
         Args: { _count?: number; _key: string; _user_id: string }
         Returns: Json
       }
+      save_customer_catalog_order: {
+        Args: { ids: string[] }
+        Returns: undefined
+      }
       save_worker_contact: { Args: { _contact: Json }; Returns: Json }
       sms_free_limit: { Args: never; Returns: number }
       sms_quota: { Args: { _user_id?: string }; Returns: Json }

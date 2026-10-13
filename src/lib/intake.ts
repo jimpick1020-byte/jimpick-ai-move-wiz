@@ -89,6 +89,21 @@ export function intakeItemName(id: string): string | undefined {
   return INTAKE_BASE_ITEMS.find((b) => b.id === id)?.name ?? INTAKE_LEGACY_NAMES[id];
 }
 
+export function customerItemLabel(...values: (string | null | undefined)[]): string {
+  const aliases: Record<string, string> = { "bookself-01": "책장", "bookshelf-01": "책장", "digital-piano-01": "디지털 피아노", "sofa-01": "소파" };
+  for (const value of values) {
+    if (!value) continue;
+    if (/[가-힣]/.test(value) && !/\.(png|jpe?g|webp)$/i.test(value)) return value;
+    const name = aliases[value.replace(/\.(png|jpe?g|webp)$/i, "")] ?? intakeItemName(value);
+    if (name) return name;
+  }
+  return "품목명 확인 필요";
+}
+
+export function isLargeCustomerItem(name: string): boolean {
+  return /침대|장롱|옷장|서랍장|수납장|화장대|책상|책장|소파|거실장|식탁|테이블|냉장고|냉동고|세탁기|건조기|스타일러|TV|티비|텔레비|에어컨|정수기|전자레인지|식기세척기|안마의자|피아노/i.test(name);
+}
+
 /** 평수에 맞는 추천인지 */
 export function fitsSize(sizes: [number, number] | undefined, size: string | undefined): boolean {
   const i = INTAKE_SIZES.indexOf((size ?? "") as (typeof INTAKE_SIZES)[number]);
