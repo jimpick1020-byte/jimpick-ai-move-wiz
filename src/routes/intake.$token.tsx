@@ -11,6 +11,7 @@ export const Route = createFileRoute("/intake/$token")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex, nofollow" },
+      { name: "color-scheme", content: "light only" },
     ],
   }),
   component: IntakeRoute,

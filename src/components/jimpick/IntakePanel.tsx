@@ -292,7 +292,8 @@ function useIntakeDraftSync(rows: IntakeRow[]) {
   const { upsertServerEstimates, loggedIn } = useApp();
   const key = rows.filter((r) => r.status === "submitted" || r.status === "confirmed").map((r) => `${r.id}:${r.last_submitted_at}`).join("|");
   useEffect(() => {
-    if (!loggedIn || !key || key === lastSyncKey) return;
+    if (!loggedIn) { lastSyncKey = ""; return; }
+    if (!key || key === lastSyncKey) return;
     lastSyncKey = key;
     listIntakeDrafts().then((r) => {
       if (!r.ok) { lastSyncKey = ""; return; }

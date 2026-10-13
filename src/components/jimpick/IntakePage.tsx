@@ -28,6 +28,7 @@ export function IntakePage({ token }: { token: string }) {
   const [err, setErr] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [left, setLeft] = useState(false);
 
   useEffect(() => {
     openIntake({ data: { token } })
@@ -54,10 +55,20 @@ export function IntakePage({ token }: { token: string }) {
   if (!data) return <Shell><div className="py-24 text-center text-xl">불러오는 중…</div></Shell>;
   if (!data.ok) return <Shell><Message text={data.error ?? "링크를 열 수 없습니다."} /></Shell>;
   if (closed) return <Shell company={data.companyName}><Message text={CLOSED} sub={`문의: ${data.contact}`} /></Shell>;
+  // 닫기: 입력 내용은 그대로 두고 안전한 종료 화면만 보여 줍니다(브라우저를 강제로 닫지 않음).
+  if (done && left) return (
+    <Shell company={data.companyName}>
+      <Message text="입력이 완료되었습니다." sub={`이 화면은 닫으셔도 됩니다. 문의: ${data.contact}`} />
+      <button type="button" onClick={() => setLeft(false)} className="mx-5 mt-6 w-[calc(100%-40px)] rounded-2xl bg-[#EEF1F5] py-4 text-lg font-bold text-[#25282D]">입력 내용 다시 보기</button>
+    </Shell>
+  );
   if (done) return (
     <Shell company={data.companyName}>
       <Message text={DONE} sub={`문의: ${data.contact}`} />
-      <button type="button" onClick={() => { setDone(false); setStep(1); }} className="mx-5 mt-6 w-[calc(100%-40px)] rounded-2xl bg-[#EEF1F5] py-4 text-lg font-bold">입력 내용 수정하기</button>
+      <div className="mx-5 mt-6 flex gap-3">
+        <button type="button" onClick={() => { setDone(false); setStep(1); }} className="flex-1 rounded-2xl bg-[#EEF1F5] py-4 text-lg font-bold text-[#25282D]">입력 내용 수정하기</button>
+        <button type="button" onClick={() => { setLeft(true); window.scrollTo(0, 0); }} className="flex-1 rounded-2xl bg-[#2563EB] py-4 text-lg font-black text-white">닫기</button>
+      </div>
     </Shell>
   );
   if (!form) return null;
@@ -81,8 +92,9 @@ export function IntakePage({ token }: { token: string }) {
       if (r.ok) setDone(true);
       else if (r.closed) setClosed(true);
       else setErr(r.error ?? "저장하지 못했습니다. 다시 눌러 주세요.");
-    } catch {
-      setErr("인터넷 연결을 확인하고 다시 눌러 주세요.");
+    } catch (e) {
+      console.error("[intake submit]", e);
+      setErr("저장하지 못했습니다. 다시 눌러 주세요.");
     } finally { setBusy(false); }
   };
 
@@ -110,7 +122,7 @@ export function IntakePage({ token }: { token: string }) {
         )}
         {step === 2 && (
           <>
-            <AddressField label="나가는 주소" value={form.fromAddress} jibun={form.fromJibun} zip={form.fromZip}
+            <AddressField label="나가는 주소" value={form.fromAddress} jibun={form.fromJibun} zip={form.fromZip} lockWhenPicked
               onPick={(p) => up({ fromAddress: p.roadAddress || p.address, fromJibun: p.jibunAddress ?? p.address, fromZip: p.zipCode ?? "", fromX: p.x, fromY: p.y })} />
             <Big label="나가는 상세주소"><input className={inp} value={form.fromDetail} onChange={(e) => up({ fromDetail: e.target.value })} placeholder="예) 101동 502호 / 3층" /></Big>
             <AddressField label="들어가는 주소" value={form.toAddress} jibun={form.toJibun} zip={form.toZip}
@@ -134,12 +146,13 @@ export function IntakePage({ token }: { token: string }) {
   );
 }
 
-const inp = "w-full rounded-2xl border-2 border-[#E5E7EB] px-4 py-4 text-lg outline-none focus:border-[#2563EB]";
+const inp = "w-full rounded-2xl border-2 border-[#E5E7EB] bg-white text-[#25282D] px-4 py-4 text-lg outline-none focus:border-[#2563EB]";
 
 function Shell({ children, company }: { children: React.ReactNode; company?: string }) {
   return (
-    <div className="min-h-screen bg-white">
-      <div className="mx-auto max-w-md">
+    // 휴대폰 「어두운 모드」가 켜져도 흰 바탕·검은 글씨로 보이게 밝은 화면으로 고정합니다.
+    <div className="min-h-screen bg-white text-[#25282D]" style={{ colorScheme: "light" }}>
+      <div className="mx-auto max-w-md bg-white">
         <header className="border-b px-5 py-4 text-lg font-black text-[#25282D]">{company ? `${company} · 이사 사전정보` : "이사 사전정보"}</header>
         {children}
       </div>
@@ -183,7 +196,7 @@ function TimeSelect({ value, onChange }: { value: string; onChange: (t: string) 
 }
 
 /** 카카오 주소검색 — 입력하면 잠시 뒤 결과가 자동으로 나옵니다. 도로명·지번·우편번호를 저장합니다. */
-function AddressField({ label, value, jibun, zip, onPick }: { label: string; value: string; jibun?: string; zip?: string; onPick: (p: KakaoPlace) => void }) {
+function AddressField({ label, value, jibun, zip, onPick, lockWhenPicked = false }: { label: string; value: string; jibun?: string; zip?: string; onPick: (p: KakaoPlace) => void; lockWhenPicked?: boolean }) {
   const [q, setQ] = useState("");
   const [list, setList] = useState<KakaoPlace[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -226,11 +239,11 @@ function AddressField({ label, value, jibun, zip, onPick }: { label: string; val
           {zip && <div className="text-sm">우편번호 {zip}</div>}
         </div>
       )}
-      <div className="relative">
+      {!(lockWhenPicked && value) && <div className="relative">
         <input className={inp + " pr-12"} value={q} onChange={(e) => setQ(e.target.value)}
           placeholder={value ? "다른 주소 검색" : "도로명·건물명·동 이름 입력"} aria-label={`${label} 검색`} />
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#6B7280]">{busy ? "…" : <Search className="h-6 w-6" />}</span>
-      </div>
+      </div>}
       {list && (
         <div className="mt-2 max-h-72 overflow-auto rounded-2xl border">
           {list.length === 0 && <div className="p-4 text-base text-[#6B7280]">검색 결과가 없습니다. 다른 이름으로 찾아 주세요.</div>}
