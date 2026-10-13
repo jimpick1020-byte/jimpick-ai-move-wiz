@@ -297,7 +297,8 @@ async function itemsFor(sb: any, companyId: string, onlyVisible: boolean): Promi
     const original = INTAKE_BASE_ITEMS.find(b => b.id === r.customer_key);
     const label = customerItemLabel(r.customer_name, r.display_name, r.name, r.item_id);
     const name = r.customer_size && !label.includes(r.customer_size) ? `${label} ${r.customer_size}` : label;
-    const path = r.image_path || r.storage_path;
+    const source = original && rows.find(s => !s.customer_only && (s.item_id === original.id || (original.id === "bookshelf-01" && s.item_id === "bookself-01")));
+    const path = r.image_path || r.storage_path || source?.image_path || source?.storage_path;
     let icon = original?.img;
     if (path) {
       const signed = await sb.storage.from("item-icons").createSignedUrl(path, 900);
@@ -501,9 +502,10 @@ export const submitIntake = createServerFn({ method: "POST" })
     const merged = mergeIntakeIntoDraft(base, form, prevRooms, { intakeRequestId: row.id });
     const pickedIds = new Set(Object.values(form.rooms).flatMap(p => Object.keys(p)));
     const snapshots = (base.customItems as any[] | undefined) ?? [];
-    const {data:storedIcons}=await sb.from("item_icons").select("id,item_id,image_path,storage_path").in("item_id",Array.from(pickedIds)).or(`customer_only.eq.true,user_id.eq.${row.company_id}`).eq("active",true);
+    const {data:storedIcons}=await sb.from("item_icons").select("id,item_id,image_path,storage_path").in("item_id",[...Array.from(pickedIds), ...(pickedIds.has("bookshelf-01") ? ["bookself-01"] : [])]).or(`customer_only.eq.true,user_id.eq.${row.company_id}`).eq("active",true);
+    const pictureFor = (id:string) => (storedIcons ?? []).find(r => (r.item_id===id || (id==="bookshelf-01" && r.item_id==="bookself-01")) && (r.image_path || r.storage_path));
     merged.customItems = [...snapshots.filter(i => !pickedIds.has(i.id)), ...company.filter(i => pickedIds.has(i.id)).map(i => ({
-      id:i.id,name:i.name,cat:i.group,extra:0.5,active:true,icon:(storedIcons ?? []).find(r=>r.item_id===i.id && (r.image_path || r.storage_path)) ? `/api/public/item-icon/${(storedIcons ?? []).find(r=>r.item_id===i.id)?.id}.png` : i.icon
+      id:i.id,name:i.name,cat:i.group,extra:0.5,active:true,icon:pictureFor(i.id) ? `/api/public/item-icon/${pictureFor(i.id)?.id}.png` : (INTAKE_BASE_ITEMS.find(b=>b.id===i.id || b.id===i.family)?.img ?? i.icon)
     }))];
     merged.intakeNote = intakeSummary(form, nameOf).join("\n");
     merged.intakeDisposalFee = "방문 후 확인";
