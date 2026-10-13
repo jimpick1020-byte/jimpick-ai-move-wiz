@@ -1,6 +1,6 @@
 import { DepositPanel } from "./DepositPanel";
 import { StaffSendScreen } from "./StaffSendScreen";
-import { paymentReview } from "@/lib/payment-review";
+import { paymentReview, PAYMENT_REVIEW_BORDER } from "@/lib/payment-review";
 import { retireUnconvertedIntakeDrafts } from "@/lib/intake.functions";
 import { isWaitingHistoryTarget } from "@/lib/history-focus";
 import { WorkerContacts } from "./WorkerContacts";
@@ -6654,7 +6654,7 @@ export function History() {
           return (
             <div key={e.id} data-history-estimate-id={e.id} data-waiting-selected={waitingSelected}
               ref={(node) => { if (node) historyCards.current.set(e.id, node); else historyCards.current.delete(e.id); }}>
-            <Card className={review ? `jp-payment-review-card jp-payment-review-${review.kind}` : ""} data-payment-review={review?.kind}>
+            <Card borderOverride={review ? PAYMENT_REVIEW_BORDER[review.kind] : undefined} data-payment-review={review?.kind}>
               {(() => {
                 const open = !!openCard[e.id];
                 return (

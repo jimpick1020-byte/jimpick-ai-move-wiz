@@ -206,9 +206,6 @@
   border: 4px solid var(--history-waiting-border);
   scroll-margin-block: 1rem;
 }
-.jp-payment-review-card { border: 4px solid var(--payment-review-tone); }
-.jp-payment-review-deposit { --payment-review-tone: oklch(0.76 0.19 52); }
-.jp-payment-review-balance { --payment-review-tone: oklch(0.65 0.25 27); }
 
 .jp-worker-gender {
   --worker-tone: var(--muted-foreground);

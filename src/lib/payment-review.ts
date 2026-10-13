@@ -11,9 +11,9 @@ export function receiptPaymentKind(depositPaid: number, requested?: "deposit" | 
   return requested ?? (depositPaid > 0 ? "balance" : "deposit");
 }
 
-/** Customer claims are not bank receipts, even when an old claim was confirmed. */
+/** Customer "입금했습니다" claims are the real DB payment records customers create; they count until the owner confirms or rejects. */
 export function actualReceipt(record: PaymentEvidence): boolean {
-  return record.amount > 0 && ["sms_paste", "manual"].includes(record.source) && ["pending_review", "confirmed"].includes(record.status);
+  return record.amount > 0 && ["sms_paste", "manual", "customer_claim"].includes(record.source) && ["pending_review", "confirmed"].includes(record.status);
 }
 
 export function paymentReview(records: PaymentEvidence[], paymentStatus: string, depositPaid: number, _balancePaid: number, total: number) {
@@ -27,3 +27,8 @@ export function paymentReview(records: PaymentEvidence[], paymentStatus: string,
   const pending = real.filter((r) => r.status === "pending_review" && r.paymentKind !== "balance");
   return pending.length ? { kind: "deposit" as const, names: [...new Set(pending.map((r) => r.depositorName).filter(Boolean))] } : null;
 }
+/** Fixed full classes so Tailwind always generates them (no dynamic class names). */
+export const PAYMENT_REVIEW_BORDER = {
+  deposit: "border-4 border-orange-400",
+  balance: "border-4 border-red-500",
+} as const;
