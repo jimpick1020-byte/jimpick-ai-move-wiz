@@ -1753,17 +1753,6 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
-      list_auto_archived_estimates: {
-        Args: never
-        Returns: {
-          archived_at: string
-          company_name: string
-          customer_name: string
-          estimate_id: string
-          move_date: string
-          user_id: string
-        }[]
-      }
       list_worker_contacts: { Args: never; Returns: Json }
       mark_reminder_viewed: { Args: { _token: string }; Returns: Json }
       owner_confirm_contract: {
@@ -1785,10 +1774,6 @@ export type Database = {
       }
       reserve_free_sms: {
         Args: { _count?: number; _key: string; _user_id: string }
-        Returns: Json
-      }
-      restore_auto_archived_estimate: {
-        Args: { _estimate_id: string; _user_id: string }
         Returns: Json
       }
       save_customer_catalog_order: {
