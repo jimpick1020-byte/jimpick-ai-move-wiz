@@ -4,6 +4,10 @@ export interface KakaoPlace {
   name: string;
   x: number; // lng
   y: number; // lat
+  /** 지번주소 (있을 때) */
+  jibunAddress?: string;
+  /** 우편번호(5자리) — 주소 검색 결과에만 있습니다 */
+  zipCode?: string;
 }
 
 /** 카카오 API 오류를 사용자에게 보여줄 문구로 변환 */

@@ -51,3 +51,25 @@ describe("링크 상태", () => {
     assert.equal(intakeStatusLabel({ status: "sent", expires_at: "2000-01-01" }), "링크 만료");
   });
 });
+
+import { fitsSize, intakeItemName, intakeSmsText, INTAKE_BASE_ITEMS } from "./intake";
+
+describe("평수 추천과 품목", () => {
+  it("5평 이하에는 킹 침대를 추천하지 않고, 30~40평에는 추천", () => {
+    const king = INTAKE_BASE_ITEMS.find((b) => b.id === "king-bed-01")!;
+    assert.equal(fitsSize(king.sizes, "5평 이하"), false);
+    assert.equal(fitsSize(king.sizes, "30~40평"), true);
+    assert.equal(fitsSize(king.sizes, ""), true);
+  });
+  it("침대 8종·소파 6종·TV 6종", () => {
+    const n = (k: string) => INTAKE_BASE_ITEMS.filter((b) => b.kind === k).length;
+    assert.equal(n("침대"), 8); assert.equal(n("소파"), 6); assert.equal(n("TV"), 6);
+  });
+  it("예전 품목 이름도 표시", () => assert.equal(intakeItemName("bed-01"), "침대"));
+});
+
+describe("문자 문구", () => {
+  it("이름 없이 보내면 「고객님」으로 시작", () => {
+    assert.match(intakeSmsText({ customerName: "", link: "x", contact: "y" }), /\n\n고객님, 방문견적/);
+  });
+});

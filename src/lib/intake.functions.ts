@@ -13,7 +13,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { formatTel } from "./format-input";
 import {
-  INTAKE_BASE_ITEMS, INTAKE_ROOMS, intakeSmsText, mergeIntakeIntoDraft, intakeSummary,
+  INTAKE_BASE_ITEMS, INTAKE_ROOMS, INTAKE_SIZES, intakeItemName, intakeSmsText, mergeIntakeIntoDraft, intakeSummary,
   type IntakeForm, type IntakeRooms,
 } from "./intake";
 
@@ -62,6 +62,11 @@ const formSchema = z.object({
   fromY: z.number().nullable().optional(),
   toX: z.number().nullable().optional(),
   toY: z.number().nullable().optional(),
+  fromJibun: z.string().max(200).optional(),
+  fromZip: z.string().max(10).optional(),
+  toJibun: z.string().max(200).optional(),
+  toZip: z.string().max(10).optional(),
+  fromSize: z.union([z.enum(INTAKE_SIZES), z.literal("")]).optional(),
   rooms: z.record(z.enum(INTAKE_ROOMS), z.record(z.string().min(1).max(60), pickSchema)),
 });
 
@@ -84,7 +89,7 @@ export const listIntakeRequests = createServerFn({ method: "POST" })
 export const createIntakeRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ name: z.string().trim().min(1).max(30), phone: phoneSchema, sourceEstimateId: z.string().max(80).optional() }).parse(d),
+    z.object({ name: z.string().trim().max(30).optional(), phone: phoneSchema, sourceEstimateId: z.string().max(80).optional() }).parse(d),
   )
   .handler(async ({ data, context }): Promise<{ ok: boolean; row?: IntakeRow; link?: string; error?: string }> => {
     const { makeIntakeToken, hashIntakeToken, encryptToken, intakeLink } = await import("./intake.server");
@@ -105,7 +110,7 @@ export const createIntakeRequest = createServerFn({ method: "POST" })
     const estimateId = `est_intake_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
     const { data: row, error } = await context.supabase.from("intake_requests").insert({
       company_id: context.userId, created_by: context.userId, source_estimate_id: data.sourceEstimateId ?? null,
-      estimate_id: estimateId, customer_name: data.name, customer_phone: formatTel(data.phone),
+      estimate_id: estimateId, customer_name: data.name ?? "", customer_phone: formatTel(data.phone),
       token_hash: await hashIntakeToken(token), token_enc: await encryptToken(token),
       expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
     }).select(OWNER_COLS).single();
@@ -236,8 +241,15 @@ export interface IntakeItem {
   sort: number;
   kind: "base" | "company";
   cat?: string;
+  /** 가구 / 가전 */
+  group: "가구" | "가전";
+  /** 묶음 이름 (침대·소파·TV …) */
+  family?: string;
+  /** 추천 평수 범위 */
+  sizes?: [number, number];
 }
-type BaseSetting = { visible?: boolean; disposal?: boolean; rooms?: string[]; sort?: number };
+/** removed: 사장님이 고객 링크에서 삭제한 카드 (품목·그림 자체는 지우지 않음) */
+type BaseSetting = { visible?: boolean; disposal?: boolean; rooms?: string[]; sort?: number; removed?: boolean };
 
 async function itemsFor(sb: any, companyId: string, onlyVisible: boolean): Promise<IntakeItem[]> {
   const [{ data: prof }, { data: icons }] = await Promise.all([
@@ -246,17 +258,19 @@ async function itemsFor(sb: any, companyId: string, onlyVisible: boolean): Promi
       .eq("user_id", companyId).eq("active", true).eq("status", "ready").not("storage_path", "is", null),
   ]);
   const settings = ((prof?.intake_item_settings ?? {}) as Record<string, BaseSetting>);
-  const base: IntakeItem[] = INTAKE_BASE_ITEMS.map((b, i) => {
+  const base: (IntakeItem & { removed: boolean })[] = INTAKE_BASE_ITEMS.map((b, i) => {
     const s = settings[b.id] ?? {};
     return { id: b.id, name: b.name, icon: b.img, rooms: s.rooms?.length ? s.rooms : b.rooms, visible: s.visible ?? true,
-      disposalAllowed: s.disposal ?? true, sort: s.sort ?? i, kind: "base" };
+      disposalAllowed: s.disposal ?? true, sort: s.sort ?? i, kind: "base" as const, group: b.group, family: b.kind, sizes: b.sizes,
+      removed: !!s.removed };
   });
-  const mine: IntakeItem[] = ((icons ?? []) as any[]).map((r) => ({
+  const mine: (IntakeItem & { removed: boolean })[] = ((icons ?? []) as any[]).map((r) => ({
     id: r.item_id, name: r.display_name, icon: `/api/public/item-icon/${r.id}.png`, rooms: r.intake_rooms ?? [],
     visible: !!r.intake_visible, disposalAllowed: r.intake_disposal_allowed !== false, sort: Number(r.intake_sort ?? 1000),
-    kind: "company", cat: r.category_group,
+    kind: "company" as const, cat: r.category_group, group: (r.category_group === "가전" ? "가전" : "가구") as "가구" | "가전",
+    removed: !!settings[r.item_id]?.removed,
   }));
-  const all = [...base, ...mine].sort((a, b) => a.sort - b.sort);
+  const all = [...base, ...mine].filter((x) => !x.removed).map(({ removed: _r, ...x }) => x).sort((a, b) => a.sort - b.sort);
   return onlyVisible ? all.filter((x) => x.visible) : all;
 }
 
@@ -290,6 +304,54 @@ export const saveIntakeItemSetting = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** 길게 눌러 끌어 바꾼 순서를 한 번에 저장 */
+export const saveIntakeOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    order: z.array(z.object({ id: z.string().min(1).max(60), kind: z.enum(["base", "company"]) })).max(300),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: prof, error: pe } = await context.supabase.from("profiles").select("intake_item_settings").eq("id", context.userId).maybeSingle();
+    if (pe) return { ok: false, error: "순서를 저장하지 못했습니다." };
+    const cur = (prof?.intake_item_settings ?? {}) as Record<string, BaseSetting>;
+    const all = await itemsFor(context.supabase, context.userId, false);
+    for (const [i, o] of data.order.entries()) {
+      if (o.kind !== "base") continue;
+      const b = all.find((x) => x.id === o.id && x.kind === "base");
+      if (!b) continue;
+      cur[o.id] = { ...(cur[o.id] ?? {}), visible: b.visible, disposal: b.disposalAllowed, rooms: b.rooms, sort: i * 10 };
+    }
+    const { error } = await context.supabase.from("profiles").update({ intake_item_settings: cur as never }).eq("id", context.userId);
+    if (error) return { ok: false, error: "순서를 저장하지 못했습니다." };
+    for (const [i, o] of data.order.entries()) {
+      if (o.kind !== "company") continue;
+      const r = await context.supabase.from("item_icons").update({ intake_sort: i * 10 })
+        .eq("user_id", context.userId).eq("item_id", o.id).eq("active", true);
+      if (r.error) return { ok: false, error: "순서를 저장하지 못했습니다." };
+    }
+    return { ok: true };
+  });
+
+/**
+ * 고객 링크에서 카드 삭제. 업체 품목과 그림 파일은 견적·견적서에서 계속 쓰이므로 지우지 않고,
+ * 이 업체의 고객 링크 목록에서만 빠지도록 기록합니다.
+ */
+export const removeIntakeItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().min(1).max(60), kind: z.enum(["base", "company"]) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: prof, error: pe } = await context.supabase.from("profiles").select("intake_item_settings").eq("id", context.userId).maybeSingle();
+    if (pe) return { ok: false, error: "삭제하지 못했습니다." };
+    const cur = (prof?.intake_item_settings ?? {}) as Record<string, BaseSetting>;
+    cur[data.id] = { ...(cur[data.id] ?? {}), removed: true };
+    const { error } = await context.supabase.from("profiles").update({ intake_item_settings: cur as never }).eq("id", context.userId);
+    if (error) return { ok: false, error: "삭제하지 못했습니다." };
+    if (data.kind === "company") {
+      await context.supabase.from("item_icons").update({ intake_visible: false }).eq("user_id", context.userId).eq("item_id", data.id);
+    }
+    return { ok: true };
+  });
+
 // ───────────────────────── 고객용 ─────────────────────────
 
 export interface IntakeOpen {
@@ -300,7 +362,7 @@ export interface IntakeOpen {
   companyName?: string;
   contact?: string;
   form?: IntakeForm;
-  items?: { id: string; name: string; icon?: string; rooms: string[]; disposalAllowed: boolean }[];
+  items?: { id: string; name: string; icon?: string; rooms: string[]; disposalAllowed: boolean; group: "가구" | "가전"; family?: string; sizes?: [number, number] }[];
 }
 
 const tokenSchema = z.string().regex(/^[0-9a-f]{64}$/);
@@ -338,13 +400,16 @@ export const openIntake = createServerFn({ method: "POST" })
     }).eq("id", row.id);
     const saved = (row.draft && Object.keys(row.draft).length ? row.draft : row.submission) as Partial<IntakeForm>;
     const form: IntakeForm = {
-      customerName: saved.customerName ?? row.customer_name, phone: saved.phone ?? row.customer_phone,
+      // 이름은 고객이 1단계에서 직접 입력합니다(업체가 저장한 이름을 미리 채우지 않음).
+      customerName: saved.customerName ?? "", phone: saved.phone ?? row.customer_phone,
       moveDate: saved.moveDate ?? "", moveTime: saved.moveTime ?? "", fromAddress: saved.fromAddress ?? "",
       fromDetail: saved.fromDetail ?? "", toAddress: saved.toAddress ?? "", toDetail: saved.toDetail ?? "",
       fromX: saved.fromX ?? null, fromY: saved.fromY ?? null, toX: saved.toX ?? null, toY: saved.toY ?? null,
+      fromJibun: saved.fromJibun ?? "", fromZip: saved.fromZip ?? "", toJibun: saved.toJibun ?? "", toZip: saved.toZip ?? "",
+      fromSize: saved.fromSize ?? "",
       rooms: (saved.rooms ?? {}) as IntakeRooms,
     };
-    const items = (await itemsFor(sb, row.company_id, true)).map(({ id, name, icon, rooms, disposalAllowed }) => ({ id, name, icon, rooms, disposalAllowed }));
+    const items = (await itemsFor(sb, row.company_id, true)).map(({ id, name, icon, rooms, disposalAllowed, group, family, sizes }) => ({ id, name, icon, rooms, disposalAllowed, group, family, sizes }));
     return { ok: true, state: row.status === "submitted" ? "submitted" : "open", companyName, contact, form, items };
   });
 
@@ -381,7 +446,8 @@ export const submitIntake = createServerFn({ method: "POST" })
       .eq("user_id", row.company_id).eq("estimate_id", row.estimate_id).maybeSingle();
     const prevRooms = (row.submission?.rooms ?? null) as IntakeRooms | null;
     const base = (draftRow?.payload as Record<string, unknown> | null) ?? baseEstimate(row.estimate_id);
-    const nameOf = (id: string) => INTAKE_BASE_ITEMS.find((b) => b.id === id)?.name ?? id;
+    const company = await itemsFor(sb, row.company_id, false);
+    const nameOf = (id: string) => intakeItemName(id) ?? company.find((c) => c.id === id)?.name ?? id;
     const merged = mergeIntakeIntoDraft(base, form, prevRooms, { intakeRequestId: row.id });
     merged.intakeNote = intakeSummary(form, nameOf).join("\n");
     merged.intakeDisposalFee = "방문 후 확인";
@@ -399,7 +465,7 @@ export const submitIntake = createServerFn({ method: "POST" })
     }
     const now = new Date().toISOString();
     const { error } = await sb.from("intake_requests").update({
-      submission: form as never, draft: form as never, status: "submitted", consent_at: now,
+      submission: form as never, draft: form as never, status: "submitted", customer_name: form.customerName, consent_at: now,
       first_submitted_at: row.first_submitted_at ?? now, last_submitted_at: now,
       submit_count: Number(row.submit_count ?? 0) + 1, owner_seen_at: null,
       editing_started_at: row.editing_started_at ?? now,
