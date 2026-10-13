@@ -282,8 +282,16 @@ async function itemsFor(sb: any, companyId: string, onlyVisible: boolean): Promi
   if (error) throw new Error("품목 그림을 불러오지 못했습니다.");
   const rows = (icons ?? []) as any[];
   const overrides = new Map(rows.filter(r => r.customer_key).map(r => [r.customer_key, r]));
-  const base: IntakeItem[] = INTAKE_BASE_ITEMS.filter(b => !overrides.has(b.id)).map((b) => ({
-    id:b.id,name:b.name,icon:b.img,rooms:b.rooms,visible:true,disposalAllowed:true,sort:INTAKE_BASE_ITEMS.indexOf(b)*10,kind:"base",group:b.group,family:b.kind,sizes:b.sizes,size:""
+  const base: IntakeItem[] = await Promise.all(INTAKE_BASE_ITEMS.filter(b => !overrides.has(b.id)).map(async (b) => {
+    const source = rows.find(r => !r.customer_only && (r.item_id === b.id || (b.id === "bookshelf-01" && r.item_id === "bookself-01")));
+    const path = source?.image_path || source?.storage_path;
+    let icon = b.img;
+    if (path) {
+      const signed = await sb.storage.from("item-icons").createSignedUrl(path, 900);
+      if (signed.error || !signed.data?.signedUrl) throw new Error("품목 그림을 불러오지 못했습니다.");
+      icon = signed.data.signedUrl;
+    }
+    return {id:b.id,name:b.name,icon,rooms:b.rooms,visible:true,disposalAllowed:true,sort:INTAKE_BASE_ITEMS.indexOf(b)*10,kind:"base" as const,group:b.group,family:b.kind,sizes:b.sizes,size:""};
   }));
   const custom: IntakeItem[] = await Promise.all(rows.filter(r => r.customer_only || r.customer_visible === true).filter(r => !r.customer_deleted_at).map(async r => {
     const original = INTAKE_BASE_ITEMS.find(b => b.id === r.customer_key);
