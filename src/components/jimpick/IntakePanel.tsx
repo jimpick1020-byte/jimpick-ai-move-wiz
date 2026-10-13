@@ -381,7 +381,8 @@ export function IntakeItemsManager({ onClose }: { onClose: () => void }) {
       if (!l) return l;
       const from = l.findIndex((x) => x.id === d.id), to = l.findIndex((x) => x.id === over);
       if (from < 0 || to < 0) return l;
-      const c = [...l]; const [m] = c.splice(from, 1); c.splice(to, 0, m);
+       const c = [...l]; const [m] = c.splice(from, 1); c.splice(to, 0, m);
+       itemsRef.current = c;
       return c;
     });
   };
@@ -402,6 +403,12 @@ export function IntakeItemsManager({ onClose }: { onClose: () => void }) {
     if (r.ok) { setItems((l) => l?.filter((x) => x.id !== it.id) ?? l); toast.success("고객 링크에서 삭제했습니다."); }
     else toast.error(r.error ?? "삭제하지 못했습니다.");
   };
+  useEffect(() => {
+    const release = () => { if (drag.current.id) void onUp(); };
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+    return () => { window.removeEventListener("pointerup", release); window.removeEventListener("pointercancel", release); };
+  });
   return (
     <div className="fixed inset-0 z-[80] bg-white overflow-auto" onClick={(e) => e.stopPropagation()}>
       <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-4 py-3">
