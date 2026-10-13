@@ -14,7 +14,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { formatTel } from "./format-input";
 import {
   INTAKE_BASE_ITEMS, INTAKE_ROOMS, INTAKE_SIZES, intakeItemName, intakeSmsText, mergeIntakeIntoDraft, intakeSummary,
-  type IntakeForm, type IntakeRooms,
+  type IntakeForm, type IntakeRooms, customerItemLabel, isLargeCustomerItem,
 } from "./intake";
 
 const ADMIN_SENDER = "01075662542";
@@ -257,6 +257,7 @@ export interface IntakeItem {
   visible: boolean;
   disposalAllowed: boolean;
   sort: number;
+  size?: string;
   kind: "base" | "company";
   cat?: string;
   /** 가구 / 가전 */
@@ -266,109 +267,131 @@ export interface IntakeItem {
   /** 추천 평수 범위 */
   sizes?: [number, number];
 }
-/** removed: 사장님이 고객 링크에서 삭제한 카드 (품목·그림 자체는 지우지 않음) */
-type BaseSetting = { visible?: boolean; disposal?: boolean; rooms?: string[]; sort?: number; removed?: boolean };
+/** Platform roles are verified through the authenticated client's role rows before privileged access. */
+async function catalogAllowed(context: { supabase: any; userId: string }): Promise<boolean> {
+  const { data, error } = await context.supabase.from("user_roles").select("role").eq("user_id", context.userId).in("role", ["admin", "super_admin"]);
+  return !error && !!data?.length;
+}
+export const canManageIntakeItems = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => ({ allowed: await catalogAllowed(context) }));
 
 async function itemsFor(sb: any, companyId: string, onlyVisible: boolean): Promise<IntakeItem[]> {
-  const [{ data: prof }, { data: icons }] = await Promise.all([
-    sb.from("profiles").select("intake_item_settings").eq("id", companyId).maybeSingle(),
-    sb.from("item_icons").select("id, item_id, display_name, category_group, intake_visible, intake_disposal_allowed, intake_rooms, intake_sort")
-      .eq("user_id", companyId).eq("active", true).eq("status", "ready").not("storage_path", "is", null),
-  ]);
-  const settings = ((prof?.intake_item_settings ?? {}) as Record<string, BaseSetting>);
-  const base: (IntakeItem & { removed: boolean })[] = INTAKE_BASE_ITEMS.map((b, i) => {
-    const s = settings[b.id] ?? {};
-    return { id: b.id, name: b.name, icon: b.img, rooms: s.rooms?.length ? s.rooms : b.rooms, visible: s.visible ?? true,
-      disposalAllowed: s.disposal ?? true, sort: s.sort ?? i, kind: "base" as const, group: b.group, family: b.kind, sizes: b.sizes,
-      removed: !!s.removed };
-  });
-  const mine: (IntakeItem & { removed: boolean })[] = ((icons ?? []) as any[]).map((r) => ({
-    id: r.item_id, name: r.display_name, icon: `/api/public/item-icon/${r.id}.png`, rooms: r.intake_rooms ?? [],
-    visible: !!r.intake_visible, disposalAllowed: r.intake_disposal_allowed !== false, sort: Number(r.intake_sort ?? 1000),
-    kind: "company" as const, cat: r.category_group, group: (r.category_group === "가전" ? "가전" : "가구") as "가구" | "가전",
-    removed: !!settings[r.item_id]?.removed,
+  const { data: icons, error } = await sb.from("item_icons")
+    .select("id,item_id,name,display_name,image_path,storage_path,image_url,category_group,customer_key,customer_only,customer_visible,customer_room,customer_order,customer_category,customer_name,customer_size,customer_disposal_allowed,customer_deleted_at")
+    .or(`customer_only.eq.true,user_id.eq.${companyId}`).eq("active", true).eq("status", "ready");
+  if (error) throw new Error("품목 그림을 불러오지 못했습니다.");
+  const rows = (icons ?? []) as any[];
+  const overrides = new Map(rows.filter(r => r.customer_key).map(r => [r.customer_key, r]));
+  const base: IntakeItem[] = INTAKE_BASE_ITEMS.filter(b => !overrides.has(b.id)).map((b, i) => ({
+    id:b.id,name:b.name,icon:b.img,rooms:b.rooms,visible:true,disposalAllowed:true,sort:i*10,kind:"base",group:b.group,family:b.kind,sizes:b.sizes,size:""
   }));
-  const all = [...base, ...mine].filter((x) => !x.removed).map(({ removed: _r, ...x }) => x).sort((a, b) => a.sort - b.sort);
-  return onlyVisible ? all.filter((x) => x.visible) : all;
+  const custom: IntakeItem[] = await Promise.all(rows.filter(r => r.customer_only || r.customer_visible === true).filter(r => !r.customer_deleted_at).map(async r => {
+    const original = INTAKE_BASE_ITEMS.find(b => b.id === r.customer_key);
+    const name = customerItemLabel(r.customer_name, r.display_name, r.name, r.item_id);
+    const path = r.image_path || r.storage_path;
+    let icon = original?.img;
+    if (path) {
+      const signed = await sb.storage.from("item-icons").createSignedUrl(path, 900);
+      if (signed.error || !signed.data?.signedUrl) throw new Error("품목 그림을 불러오지 못했습니다.");
+      icon = signed.data.signedUrl;
+    }
+    return {id:r.item_id,name,icon,rooms:r.customer_room ?? original?.rooms ?? [], visible:r.customer_visible !== false,
+      disposalAllowed:r.customer_disposal_allowed !== false,sort:r.customer_order,kind:"company" as const,
+      group:(r.customer_category === "가전" ? "가전" : "가구") as "가구" | "가전",family:original?.kind,sizes:original?.sizes,size:r.customer_size || ""};
+  }));
+  const all = [...base,...custom].filter(i => isLargeCustomerItem(i.name)).sort((a,b) => a.sort-b.sort);
+  return onlyVisible ? all.filter(i => i.visible) : all;
 }
 
-export const listIntakeItemsOwner = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => ({ ok: true, items: await itemsFor(context.supabase, context.userId, false) }));
-
-export const saveIntakeItemSetting = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({
-    id: z.string().min(1).max(60), kind: z.enum(["base", "company"]),
-    visible: z.boolean(), disposalAllowed: z.boolean(), rooms: z.array(z.enum(INTAKE_ROOMS)).max(6),
-    sort: z.number().int().min(0).max(100000), name: z.string().trim().min(1).max(24).optional(),
-    cat: z.enum(["가구", "가전", "주방", "생활용품", "운동·레저"]).optional(),
-  }).parse(d))
-  .handler(async ({ data, context }) => {
-    if (data.kind === "base") {
-      if (!INTAKE_BASE_ITEMS.some((b) => b.id === data.id)) return { ok: false, error: "품목을 찾지 못했습니다." };
-      const { data: prof } = await context.supabase.from("profiles").select("intake_item_settings").eq("id", context.userId).maybeSingle();
-      const cur = (prof?.intake_item_settings ?? {}) as Record<string, BaseSetting>;
-      cur[data.id] = { visible: data.visible, disposal: data.disposalAllowed, rooms: data.rooms, sort: data.sort };
-      const { error } = await context.supabase.from("profiles").update({ intake_item_settings: cur as never }).eq("id", context.userId);
-      return error ? { ok: false, error: "저장하지 못했습니다." } : { ok: true };
-    }
-    // 이름·분류를 바꿔도 그림 파일 연결(storage_path)은 그대로 둡니다.
-    const { data: row, error } = await context.supabase.from("item_icons").update({
-      intake_visible: data.visible, intake_disposal_allowed: data.disposalAllowed, intake_rooms: data.rooms, intake_sort: data.sort,
-      ...(data.name ? { display_name: data.name } : {}), ...(data.cat ? { category_group: data.cat } : {}),
-    }).eq("user_id", context.userId).eq("item_id", data.id).eq("active", true).select("id").maybeSingle();
-    if (error || !row) return { ok: false, error: "저장하지 못했습니다." };
-    return { ok: true };
+export const listIntakeItemsOwner = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ok:boolean;items:IntakeItem[];error?:string}> => {
+    if (!await catalogAllowed(context)) return {ok:false,items:[],error:"관리자만 고객 품목을 관리할 수 있습니다."};
+    return {ok:true,items:await itemsFor(await admin(), context.userId, false)};
   });
 
-/** 길게 눌러 끌어 바꾼 순서를 한 번에 저장 */
-export const saveIntakeOrder = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({
-    order: z.array(z.object({ id: z.string().min(1).max(60), kind: z.enum(["base", "company"]) })).max(300),
-  }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { data: prof, error: pe } = await context.supabase.from("profiles").select("intake_item_settings").eq("id", context.userId).maybeSingle();
-    if (pe) return { ok: false, error: "순서를 저장하지 못했습니다." };
-    const cur = (prof?.intake_item_settings ?? {}) as Record<string, BaseSetting>;
-    const all = await itemsFor(context.supabase, context.userId, false);
-    for (const [i, o] of data.order.entries()) {
-      if (o.kind !== "base") continue;
-      const b = all.find((x) => x.id === o.id && x.kind === "base");
-      if (!b) continue;
-      cur[o.id] = { ...(cur[o.id] ?? {}), visible: b.visible, disposal: b.disposalAllowed, rooms: b.rooms, sort: i * 10 };
-    }
-    const { error } = await context.supabase.from("profiles").update({ intake_item_settings: cur as never }).eq("id", context.userId);
-    if (error) return { ok: false, error: "순서를 저장하지 못했습니다." };
-    for (const [i, o] of data.order.entries()) {
-      if (o.kind !== "company") continue;
-      const r = await context.supabase.from("item_icons").update({ intake_sort: i * 10 })
-        .eq("user_id", context.userId).eq("item_id", o.id).eq("active", true);
-      if (r.error) return { ok: false, error: "순서를 저장하지 못했습니다." };
-    }
-    return { ok: true };
-  });
+const settingSchema = z.object({id:z.string().min(1).max(60),kind:z.enum(["base","company"]),visible:z.boolean(),disposalAllowed:z.boolean(),
+  rooms:z.array(z.enum(INTAKE_ROOMS)).max(6),sort:z.number().int().min(0).max(100000),name:z.string().trim().min(1).max(24).optional(),
+  cat:z.enum(["가구","가전"]).optional(),size:z.string().max(24).optional(),photo:z.string().max(4000000).optional()});
 
-/**
- * 고객 링크에서 카드 삭제. 업체 품목과 그림 파일은 견적·견적서에서 계속 쓰이므로 지우지 않고,
- * 이 업체의 고객 링크 목록에서만 빠지도록 기록합니다.
- */
-export const removeIntakeItem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ id: z.string().min(1).max(60), kind: z.enum(["base", "company"]) }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { data: prof, error: pe } = await context.supabase.from("profiles").select("intake_item_settings").eq("id", context.userId).maybeSingle();
-    if (pe) return { ok: false, error: "삭제하지 못했습니다." };
-    const cur = (prof?.intake_item_settings ?? {}) as Record<string, BaseSetting>;
-    cur[data.id] = { ...(cur[data.id] ?? {}), removed: true };
-    const { error } = await context.supabase.from("profiles").update({ intake_item_settings: cur as never }).eq("id", context.userId);
-    if (error) return { ok: false, error: "삭제하지 못했습니다." };
-    if (data.kind === "company") {
-      await context.supabase.from("item_icons").update({ intake_visible: false }).eq("user_id", context.userId).eq("item_id", data.id);
-    }
-    return { ok: true };
-  });
+async function catalogRow(sb:any, userId:string, id:string) {
+  const existing = await sb.from("item_icons").select("id,item_id,customer_key,image_path,storage_path").or(`customer_only.eq.true,user_id.eq.${userId}`).eq("item_id",id).eq("active",true).maybeSingle();
+  if (existing.error) throw new Error(existing.error.message);
+  if (existing.data) return existing.data;
+  const b=INTAKE_BASE_ITEMS.find(b=>b.id===id);
+  if (!b) throw new Error("품목을 찾지 못했습니다.");
+  const inserted=await sb.from("item_icons").insert({user_id:userId,created_by:userId,item_id:b.id,name:b.name,display_name:b.name,
+    norm_name:`customer:${b.id}`,normalized_name:`customer:${b.id}`,cat:b.group,category_group:b.group,status:"ready",source:"company",
+    customer_only:true,customer_key:b.id,customer_visible:true,customer_name:b.name,customer_category:b.group,customer_room:b.rooms,
+    customer_order:INTAKE_BASE_ITEMS.indexOf(b)*10,default_volume:b.vol ?? 0.5}).select("id,item_id,customer_key,image_path,storage_path").single();
+  if(inserted.error) throw new Error(inserted.error.message);
+  return inserted.data;
+}
+
+async function uploadCustomerPicture(sb:any,userId:string,photo:string) {
+  if(!/^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(photo)) throw new Error("그림 파일을 확인해 주세요.");
+  const png=photo.startsWith("data:image/png");
+  const bytes=Uint8Array.from(atob(photo.split(",")[1]),c=>c.charCodeAt(0));
+  if(bytes.length<100 || (png ? bytes[0]!==137 || bytes[1]!==80 : bytes[0]!==255 || bytes[1]!==216)) throw new Error("그림 파일을 확인해 주세요.");
+  const path=`${userId}/customer-${crypto.randomUUID()}.${png?"png":"jpg"}`;
+  const uploaded=await sb.storage.from("item-icons").upload(path,bytes,{contentType:png?"image/png":"image/jpeg",upsert:false});
+  if(uploaded.error) throw new Error(uploaded.error.message);
+  return path;
+}
+
+export const saveIntakeItemSetting = createServerFn({method:"POST"}).middleware([requireSupabaseAuth]).inputValidator((d:unknown)=>settingSchema.parse(d))
+ .handler(async({data,context})=>{
+  if(!await catalogAllowed(context)) return {ok:false,error:"관리자만 고객 품목을 관리할 수 있습니다."};
+  const sb=await admin(); let path:string|undefined;
+  try {
+    if(data.name && !isLargeCustomerItem(data.name)) return {ok:false,error:"큰 가구·가전 이름을 입력해 주세요."};
+    const row=await catalogRow(sb,context.userId,data.id);
+    if(data.photo) path=await uploadCustomerPicture(sb,context.userId,data.photo);
+    const {error}=await sb.from("item_icons").update({customer_visible:data.visible,customer_disposal_allowed:data.disposalAllowed,
+      customer_room:data.rooms,customer_order:data.sort,...(data.name?{customer_name:data.name}:{}),...(data.cat?{customer_category:data.cat}:{}),
+      ...(data.size!==undefined?{customer_size:data.size}:{}),...(path?{image_path:path,storage_path:path}: {})}).eq("id",row.id);
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }catch(e){if(path) await sb.storage.from("item-icons").remove([path]);return {ok:false,error:e instanceof Error?e.message:"저장하지 못했습니다."};}
+ });
+
+export const createCustomerIntakeItem = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
+ .inputValidator((d:unknown)=>z.object({name:z.string().trim().min(2).max(24),cat:z.enum(["가구","가전"]),size:z.string().max(24),
+  rooms:z.array(z.enum(INTAKE_ROOMS)).max(6),disposal:z.boolean(),sort:z.number().int().min(0),photo:z.string().max(4000000)}).parse(d))
+ .handler(async({data,context})=>{
+  if(!await catalogAllowed(context)) return {ok:false,error:"관리자만 고객 품목을 관리할 수 있습니다."};
+  if(!isLargeCustomerItem(data.name)) return {ok:false,error:"큰 가구·가전 이름을 입력해 주세요."};
+  const sb=await admin();let path:string|undefined;
+  try {
+    path=await uploadCustomerPicture(sb,context.userId,data.photo);
+    const id=crypto.randomUUID(), itemId=`customer_${id.replace(/-/g,"").slice(0,16)}`;
+    const {error}=await sb.from("item_icons").insert({id,item_id:itemId,user_id:context.userId,created_by:context.userId,name:data.name,
+      display_name:data.name,norm_name:itemId,normalized_name:itemId,cat:data.cat,category_group:data.cat,status:"ready",active:true,
+      source:"company",image_path:path,storage_path:path,customer_only:true,customer_visible:true,customer_name:data.name,
+      customer_room:data.rooms,customer_order:data.sort,customer_size:data.size,customer_category:data.cat,customer_disposal_allowed:data.disposal});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  } catch(e) {if(path) await sb.storage.from("item-icons").remove([path]);return {ok:false,error:e instanceof Error?e.message:"저장하지 못했습니다."};}
+ });
+
+export const saveIntakeOrder = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
+ .inputValidator((d:unknown)=>z.object({order:z.array(z.object({id:z.string().min(1).max(60),kind:z.enum(["base","company"])})).max(300)}).parse(d))
+ .handler(async({data,context})=>{
+  if(!await catalogAllowed(context)) return {ok:false,error:"관리자만 고객 품목을 관리할 수 있습니다."};
+  const sb=await admin();
+  try {const ids=[]; for(const o of data.order) ids.push((await catalogRow(sb,context.userId,o.id)).id);
+    const r=await context.supabase.rpc("save_customer_catalog_order",{ids});
+    return r.error?{ok:false,error:r.error.message}:{ok:true};
+  }catch(e){return {ok:false,error:e instanceof Error?e.message:"순서를 저장하지 못했습니다."};}
+ });
+export const removeIntakeItem = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
+ .inputValidator((d:unknown)=>z.object({id:z.string().min(1).max(60),kind:z.enum(["base","company"])}).parse(d))
+ .handler(async({data,context})=>{
+  if(!await catalogAllowed(context)) return {ok:false,error:"관리자만 고객 품목을 관리할 수 있습니다."};
+  try {const sb=await admin(); const row=await catalogRow(sb,context.userId,data.id);
+    const r=await sb.from("item_icons").update({customer_visible:false,customer_deleted_at:new Date().toISOString()}).eq("id",row.id);
+    return r.error?{ok:false,error:r.error.message}:{ok:true};
+  }catch(e){return {ok:false,error:e instanceof Error?e.message:"삭제하지 못했습니다."};}
+ });
 
 // ───────────────────────── 고객용 ─────────────────────────
 
@@ -467,6 +490,12 @@ export const submitIntake = createServerFn({ method: "POST" })
     const company = await itemsFor(sb, row.company_id, false);
     const nameOf = (id: string) => intakeItemName(id) ?? company.find((c) => c.id === id)?.name ?? id;
     const merged = mergeIntakeIntoDraft(base, form, prevRooms, { intakeRequestId: row.id });
+    const pickedIds = new Set(Object.values(form.rooms).flatMap(p => Object.keys(p)));
+    const snapshots = (base.customItems as any[] | undefined) ?? [];
+    const {data:storedIcons}=await sb.from("item_icons").select("id,item_id,image_path,storage_path").in("item_id",Array.from(pickedIds)).or(`customer_only.eq.true,user_id.eq.${row.company_id}`).eq("active",true);
+    merged.customItems = [...snapshots.filter(i => !pickedIds.has(i.id)), ...company.filter(i => pickedIds.has(i.id)).map(i => ({
+      id:i.id,name:i.name,cat:i.group,extra:0.5,active:true,icon:(storedIcons ?? []).find(r=>r.item_id===i.id) ? `/api/public/item-icon/${(storedIcons ?? []).find(r=>r.item_id===i.id)?.id}.png` : i.icon
+    }))];
     merged.intakeNote = intakeSummary(form, nameOf).join("\n");
     merged.intakeDisposalFee = "방문 후 확인";
     merged.intakeSubmittedAt = new Date().toISOString();
@@ -484,13 +513,14 @@ export const submitIntake = createServerFn({ method: "POST" })
       const { error } = await sb.from("estimate_drafts").update({ payload: merged as never, revision }).eq("id", draftRow.id);
       if (error) { console.error("[submitIntake] draft update", error.code, error.message); return { ok: false, error: FAIL }; }
     }
+    if (draftRow?.deleted_at) return {ok:false,error:FAIL};
     const now = new Date().toISOString();
-    const { error } = await sb.from("intake_requests").update({
+    const { data: submitted, error } = await sb.from("intake_requests").update({
       submission: form as never, draft: form as never, status: "submitted", customer_name: form.customerName, consent_at: now,
       first_submitted_at: row.first_submitted_at ?? now, last_submitted_at: now,
       submit_count: Number(row.submit_count ?? 0) + 1, owner_seen_at: null,
       editing_started_at: row.editing_started_at ?? now,
-    }).eq("id", row.id).neq("status", "confirmed");
-    if (error) { console.error("[submitIntake] request update", error.code, error.message); return { ok: false, error: FAIL }; }
+    }).eq("id", row.id).neq("status", "confirmed").select("id").maybeSingle();
+    if (error || !submitted) { console.error("[submitIntake] request update", error?.code, error?.message); return { ok: false, error: FAIL }; }
     return { ok: true };
   });
