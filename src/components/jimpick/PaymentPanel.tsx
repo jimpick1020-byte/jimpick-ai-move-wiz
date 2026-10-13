@@ -143,7 +143,7 @@ export function PaymentPanel({
           )}
 
           <button
-            onClick={onSaveClick}
+            onClick={save}
             disabled={busy}
             className="w-full rounded-xl bg-[#3578C8] py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
           >
