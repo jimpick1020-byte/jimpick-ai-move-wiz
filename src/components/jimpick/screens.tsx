@@ -295,6 +295,31 @@ function roomPickerKind(name: string, fallback: string) {
   return family.label;
 }
 
+type PayRow = { total?: number | null; depositPaid?: number | null; balancePaid?: number | null; paymentStatus?: string | null } | null | undefined;
+/** 저장된 실제 금액으로 예약금+잔금이 총액을 모두 채웠을 때만 「잔금 입금」입니다 */
+function balanceFullyPaid(row: PayRow, fallbackTotal?: number | null): boolean {
+  if (!row) return false;
+  const st = normalizePaymentStatus(row.paymentStatus);
+  if (st === "completed" || st === "canceled" || st === "refunded") return false;
+  const total = Math.max(0, Number(row.total ?? fallbackTotal ?? 0));
+  const deposit = Math.max(0, Number(row.depositPaid ?? 0));
+  const balance = Math.max(0, Number(row.balancePaid ?? 0));
+  return total > 0 && balance > 0 && deposit + balance >= total;
+}
+/** 예약금 확인 또는 잔금 전액 입금 카드 */
+function payTone(row: PayRow, fallbackTotal?: number | null): boolean {
+  if (!row) return false;
+  const st = normalizePaymentStatus(row.paymentStatus);
+  if (st === "completed" || st === "canceled" || st === "refunded") return false;
+  return Number(row.depositPaid ?? 0) > 0 || balanceFullyPaid(row, fallbackTotal);
+}
+/** 견적 ID로 고정된 색 번호 — 새로고침해도 같은 고객은 같은 색 */
+function payToneIndex(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return (h % 8) + 1;
+}
+
 export function Splash() {
   const { setScreen, loggedIn } = useApp();
   const [typedText, setTypedText] = useState("");
@@ -6637,7 +6662,7 @@ export function History() {
           return (
             <div key={e.id} data-history-estimate-id={e.id} data-waiting-selected={waitingSelected}
               ref={(node) => { if (node) historyCards.current.set(e.id, node); else historyCards.current.delete(e.id); }}>
-            <Card className={waitingSelected || (Number(ts.row?.balancePaid ?? 0) > 0 && normalizePaymentStatus(ts.row?.paymentStatus) !== "completed") ? "jp-waiting-history-card" : ""} data-balance-paid={Number(ts.row?.balancePaid ?? 0) > 0 || undefined}>
+            <Card className={waitingSelected || payTone(ts.row, e.total) ? `jp-waiting-history-card ${payTone(ts.row, e.total) ? `jp-pay-tone-${payToneIndex(e.id)}` : ""}` : ""} data-balance-paid={balanceFullyPaid(ts.row, e.total) || undefined}>
               {(() => {
                 const open = !!openCard[e.id];
                 return (
@@ -6651,7 +6676,7 @@ export function History() {
                         <div>
                           <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
                             <span className="font-bold truncate">{e.customerName || "이름 없음"}</span>
-                            {Number(ts.row?.balancePaid ?? 0) > 0 && normalizePaymentStatus(ts.row?.paymentStatus) !== "completed" && (
+                            {balanceFullyPaid(ts.row, e.total) && (
                               <span className="shrink-0 whitespace-nowrap rounded-full bg-[#E4F4EC] px-2 py-0.5 text-xs font-bold text-[#2F7A5E]">잔금 입금</span>
                             )}
                             {e.intakeRequestId && (
