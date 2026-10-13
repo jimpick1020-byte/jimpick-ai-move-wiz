@@ -1,3 +1,4 @@
+import { DepositPanel } from "./DepositPanel";
 import { StaffSendScreen } from "./StaffSendScreen";
 import { paymentReview } from "@/lib/payment-review";
 import { retireUnconvertedIntakeDrafts } from "@/lib/intake.functions";
@@ -737,11 +738,6 @@ export function HomeScreen() {
       });
     };
     load();
-    retireUnconvertedIntakeDrafts().then((r) => {
-      if (!alive) return;
-      if (!r.ok) { toast.error("사전정보 초안 정리 실패", { description: r.error }); return; }
-      for (const id of r.ids) deleteEstimate(id);
-    }).catch(() => { if (alive) toast.error("사전정보 초안을 정리하지 못했습니다."); });
     window.addEventListener("jimpick:payment-updated", load);
     // 화면으로 돌아올 때마다 서버에서 자동 정리된 견적을 다시 확인해 카드를 바로 숨깁니다.
     const onVisible = () => {
@@ -6371,6 +6367,11 @@ export function History() {
         .catch(() => {});
     };
     load();
+    retireUnconvertedIntakeDrafts().then((r) => {
+      if (!alive) return;
+      if (!r.ok) { toast.error("사전정보 초안 정리 실패", { description: r.error }); return; }
+      for (const id of r.ids) deleteEstimate(id);
+    }).catch(() => { if (alive) toast.error("사전정보 초안을 정리하지 못했습니다."); });
     getManagerNotices()
       .then((r) => {
         if (alive && r.ok) setNoticeRows(r.rows);
@@ -6843,6 +6844,7 @@ export function History() {
                             );
                           })()}
                         {ts.row && <DepositClaimBox row={ts.row} onSaved={loadTerms} />}
+                        {ts.row && <DepositPanel estimateId={e.id} customerName={e.customerName} total={ts.row.total} />}
                         {ts.row && (
                           <PaymentPanel
                             estimateId={e.id}

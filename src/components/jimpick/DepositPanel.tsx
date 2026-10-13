@@ -79,6 +79,7 @@ export function DepositPanel({
     } finally {
       setBusy(false);
       load();
+      window.dispatchEvent(new Event("jimpick:payment-updated"));
     }
   };
 
@@ -97,6 +98,7 @@ export function DepositPanel({
     } finally {
       setWorking(null);
       load();
+      window.dispatchEvent(new Event("jimpick:payment-updated"));
     }
   };
 
@@ -110,6 +112,7 @@ export function DepositPanel({
     } finally {
       setWorking(null);
       load();
+      window.dispatchEvent(new Event("jimpick:payment-updated"));
     }
   };
 
@@ -120,7 +123,7 @@ export function DepositPanel({
         className="flex w-full items-center justify-between text-[12.5px] font-bold text-[#6B7280]"
       >
         <span>
-          예약금 입금{" "}
+          입금 기록{" "}
           {paid > 0 ? (
             <span className="text-[#3E9B78]">{won(paid)} 확인 완료</span>
           ) : (
@@ -178,7 +181,7 @@ export function DepositPanel({
                 <div key={r.id} className="rounded-xl bg-white p-2.5 text-[12.5px]">
                   <div className="flex items-center justify-between">
                     <span className="font-bold">
-                      {r.depositorName || "이름 없음"} · {won(r.amount)}
+                      {r.depositorName || "이름 없음"} · {won(r.amount)}{r.paymentKind === "balance" ? " · 잔금" : " · 예약금"}
                     </span>
                     <span
                       className={
@@ -207,14 +210,14 @@ export function DepositPanel({
                       고객 문자 실패: {r.notifyError}
                     </div>
                   )}
-                  {r.status === "pending_review" && (
+                  {r.status === "pending_review" && r.paymentKind !== "balance" && (
                     <div className="mt-2 flex gap-2">
                       <button
                         onClick={() => void doConfirm(r.id)}
                         disabled={working === r.id}
                         className="flex-1 rounded-xl bg-[#F7F8F5] py-2 font-bold text-[#25282D] disabled:opacity-50"
                       >
-                        {working === r.id ? "처리 중…" : "내 고객 입금 맞음 · 반영"}
+                        {working === r.id ? "처리 중…" : "예약금 확인"}
                       </button>
                       <button
                         onClick={() => void doReject(r.id)}
