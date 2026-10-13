@@ -32,3 +32,5 @@
 
 - Subdirectories have their own `AGENTS.md` (e.g. `src/lib/AGENTS.md` for customer intake); read it before changing files there.
 - Public intake renders the actual Step1/Step2/Step3/Step6 through CustomerFlowProvider and a field adapter, with token-scoped persistence and no company auth store; this prevents separate UI drift or authenticated company operations from public links.
+- Payment review styling uses the shared payment-review receipt predicate, excluding customer declarations; completion uses a locked owner-scoped RPC so UI amounts cannot fabricate balance receipts.
+- History retires only unconverted intake drafts through an owner-scoped locked RPC, leaving request snapshots and formal estimates or receipt-linked drafts intact; tombstones prevent device copies from reappearing.

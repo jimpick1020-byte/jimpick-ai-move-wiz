@@ -431,6 +431,7 @@ export interface TermsStatusRow {
   depositClaimAmount: number;
   /** 고객이 「입금했습니다」를 누른 일시 */
   depositClaimedAt: string | null;
+  paymentReceipts?: import("./payment-review").PaymentEvidence[];
 }
 
 /** 고객 열람 기록 — 어떤 행동을 남길지 */
@@ -533,14 +534,12 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
     const { data: claims } = estimateIds.length
       ? await context.supabase
           .from("deposit_records")
-          .select("id, estimate_id, amount, created_at")
+          .select("id, estimate_id, amount, created_at, source, status, depositor_name, payment_kind")
           .eq("user_id", context.userId)
-          .eq("source", "customer_claim")
-          .eq("status", "pending_review")
           .in("estimate_id", estimateIds)
       : { data: [] as never[] };
     const claimByEstimate = new Map(
-      (claims ?? []).map((c) => [String((c as Record<string, unknown>)["estimate_id"]), c]),
+      (claims ?? []).filter((c) => c.source === "customer_claim" && c.status === "pending_review").map((c) => [String((c as Record<string, unknown>)["estimate_id"]), c]),
     );
 
     return {
@@ -582,6 +581,7 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
           depositClaimId: claim?.id ?? null,
           depositClaimAmount: Number(claim?.amount ?? 0) || 0,
           depositClaimedAt: claim?.created_at ?? null,
+          paymentReceipts: (claims ?? []).filter((c) => c.estimate_id === r["estimate_id"]).map((c) => ({ amount: Number(c.amount ?? 0), status: c.status, source: c.source, depositorName: c.depositor_name ?? "", paymentKind: c.payment_kind })),
         };
       }),
     };

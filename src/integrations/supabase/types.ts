@@ -150,6 +150,7 @@ export type Database = {
           name_matched: boolean
           notified_at: string | null
           notify_error: string | null
+          payment_kind: string
           raw_text: string | null
           review_note: string | null
           sheet_no: string | null
@@ -173,6 +174,7 @@ export type Database = {
           name_matched?: boolean
           notified_at?: string | null
           notify_error?: string | null
+          payment_kind?: string
           raw_text?: string | null
           review_note?: string | null
           sheet_no?: string | null
@@ -196,6 +198,7 @@ export type Database = {
           name_matched?: boolean
           notified_at?: string | null
           notify_error?: string | null
+          payment_kind?: string
           raw_text?: string | null
           review_note?: string | null
           sheet_no?: string | null
@@ -1743,6 +1746,10 @@ export type Database = {
         Args: { _business: string; _phone: string; _user_id: string }
         Returns: Json
       }
+      complete_receipted_estimate: {
+        Args: { _estimate_id: string; _note?: string }
+        Returns: Json
+      }
       confirm_free_sms: {
         Args: { _key: string; _user_id: string }
         Returns: undefined
@@ -1794,6 +1801,7 @@ export type Database = {
         Args: { _count?: number; _key: string; _user_id: string }
         Returns: Json
       }
+      retire_unconverted_intake_drafts: { Args: never; Returns: Json }
       run_unpaid_estimate_cleanup: { Args: never; Returns: number }
       save_customer_catalog_order: {
         Args: { ids: string[] }

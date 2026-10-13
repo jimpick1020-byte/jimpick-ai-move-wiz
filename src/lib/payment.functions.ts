@@ -152,6 +152,11 @@ export const setPaymentState = createServerFn({ method: "POST" })
       data,
       context,
     }): Promise<{ ok: boolean; error?: string; balancePaid?: number; confirmedAt?: string }> => {
+      if (data.status === "completed") {
+        const { data: result, error } = await context.supabase.rpc("complete_receipted_estimate", { _estimate_id: data.estimateId, _note: data.note?.trim() || undefined });
+        if (error) return { ok: false, error: error.message };
+        return result as { ok: boolean; error?: string; balancePaid?: number; confirmedAt?: string };
+      }
       const { data: terms, error: findErr } = await context.supabase
         .from("estimate_terms")
         .select("id, total, deposit_paid, balance_paid, move_date")
@@ -172,27 +177,15 @@ export const setPaymentState = createServerFn({ method: "POST" })
         move_date: string | null;
       };
       // 전액 결제완료로 저장되면 바로 완료 보관함으로 옮깁니다 (예약금 완료는 진행 중 유지)
-      const archiveNow = data.status === "completed";
+      const archiveNow = false;
       const now = new Date().toISOString();
       const balance = data.balancePaid;
-      const total = Number(row.total ?? 0);
-      const deposit = Number(row.deposit_paid ?? 0);
-      const nextBalance = typeof balance === "number" ? balance : Number(row.balance_paid ?? 0);
-
-      // 실제 금액과 맞지 않는 「결제완료」는 저장하지 않습니다.
-      if (data.status === "completed" && total > 0 && deposit + nextBalance < total) {
-        return {
-          ok: false,
-          error: `확인된 금액(${(deposit + nextBalance).toLocaleString("ko-KR")}원)이 총액(${total.toLocaleString("ko-KR")}원)보다 적어 결제완료로 저장할 수 없습니다.`,
-        };
-      }
-
       const patch: Record<string, unknown> = {
         payment_status: data.status,
         payment_note: data.note?.trim() ? data.note.trim() : null,
         payment_confirmed_by: context.userId,
         payment_confirmed_at: now,
-        paid_at: data.status === "completed" ? now : null,
+        paid_at: null,
         // 전액 결제완료 + 이사 완료(이사일 지남)일 때만 완료 보관함으로 옮깁니다
         calendar_archived: archiveNow,
         calendar_archived_at: archiveNow ? now : null,

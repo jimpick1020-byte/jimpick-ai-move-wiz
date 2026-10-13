@@ -28,6 +28,7 @@ export interface DepositRow {
   status: "confirmed" | "pending_review" | "rejected";
   nameMatched: boolean;
   source: string;
+  paymentKind?: string;
   rawText: string | null;
   notifiedAt: string | null;
   notifyError: string | null;
@@ -45,6 +46,7 @@ interface RowDb {
   status: string | null;
   name_matched: boolean | null;
   source: string | null;
+  payment_kind?: string | null;
   raw_text: string | null;
   notified_at: string | null;
   notify_error: string | null;
@@ -64,6 +66,7 @@ function toRow(d: RowDb): DepositRow {
     status: (s === "confirmed" || s === "rejected" ? s : "pending_review") as DepositRow["status"],
     nameMatched: d.name_matched === true,
     source: String(d.source ?? "sms_paste"),
+    paymentKind: d.payment_kind ?? "deposit",
     rawText: d.raw_text,
     notifiedAt: d.notified_at,
     notifyError: d.notify_error,
@@ -72,7 +75,7 @@ function toRow(d: RowDb): DepositRow {
 }
 
 const SELECT =
-  "id,estimate_id,sheet_no,depositor_name,customer_name,amount,deposited_at,status,name_matched,source,raw_text,notified_at,notify_error,created_at";
+  "id,estimate_id,sheet_no,depositor_name,customer_name,amount,deposited_at,status,name_matched,source,raw_text,notified_at,notify_error,created_at,payment_kind";
 
 /** 고객에게 입금 확인 문자를 보냅니다 (문자 열쇠는 발송 서버에만 있습니다) */
 async function notifyCustomer(estimateId: string): Promise<{ ok: boolean; error?: string }> {
@@ -116,6 +119,7 @@ async function recalcAndSave(
     .select("amount")
     .eq("user_id", context.userId)
     .eq("estimate_id", estimateId)
+    .eq("payment_kind", "deposit")
     .eq("status", "confirmed");
   const paid = (data ?? []).reduce(
     (s: number, r: { amount: number | null }) => s + (Number(r.amount) || 0),
@@ -288,7 +292,7 @@ export const registerDeposit = createServerFn({ method: "POST" })
 
     const { data: terms, error: tErr } = await context.supabase
       .from("estimate_terms")
-      .select("id,estimate_id,sheet_no,sheet_version,customer_name,total")
+      .select("id,estimate_id,sheet_no,sheet_version,customer_name,total,deposit_paid")
       .eq("user_id", context.userId)
       .eq("estimate_id", data.estimateId)
       .order("sheet_version", { ascending: false })
@@ -300,6 +304,7 @@ export const registerDeposit = createServerFn({ method: "POST" })
 
     const customerName = String(terms.customer_name ?? "");
     const matched = isSameName(depositorName, customerName);
+    const paymentKind = Number(terms.deposit_paid ?? 0) > 0 ? "balance" : "deposit";
     const dedupeKey = [
       data.estimateId,
       amount,
@@ -319,9 +324,10 @@ export const registerDeposit = createServerFn({ method: "POST" })
       source: data.text ? "sms_paste" : "manual",
       raw_text: (data.text ?? "").slice(0, 2000) || null,
       name_matched: matched,
-      status: matched ? "confirmed" : "pending_review",
-      confirmed_at: matched ? new Date().toISOString() : null,
-      confirmed_by: matched ? context.userId : null,
+      payment_kind: paymentKind,
+      status: "pending_review",
+      confirmed_at: null,
+      confirmed_by: null,
       dedupe_key: dedupeKey,
     };
 
@@ -338,7 +344,7 @@ export const registerDeposit = createServerFn({ method: "POST" })
       return { ok: false, error: "입금 기록을 저장하지 못했습니다." };
     }
 
-    if (!matched) {
+    if (created) {
       return {
         ok: true,
         applied: false,
@@ -381,6 +387,8 @@ export const confirmDeposit = createServerFn({ method: "POST" })
       data,
       context,
     }): Promise<{ ok: boolean; error?: string; paid?: number; smsError?: string }> => {
+      const { data: existing } = await context.supabase.from("deposit_records").select("payment_kind").eq("id", data.id).eq("user_id", context.userId).maybeSingle();
+      if (existing?.payment_kind === "balance") return { ok: false, error: "잔금은 결제완료 버튼으로 확인해 주세요." };
       const { data: row, error } = await context.supabase
         .from("deposit_records")
         .update({

@@ -242,6 +242,15 @@ export const listIntakeDrafts = createServerFn({ method: "POST" })
     return { ok: true, payloads: (rows ?? []).map((r) => JSON.stringify(r.payload)) };
   });
 
+/** Retire only unconverted submitted intake drafts; the locked RPC preserves formal records. */
+export const retireUnconvertedIntakeDrafts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ ok: boolean; ids: string[]; error?: string }> => {
+    const { data, error } = await context.supabase.rpc("retire_unconverted_intake_drafts");
+    if (error) return { ok: false, ids: [], error: error.message };
+    return data as { ok: boolean; ids: string[] };
+  });
+
 /** 고객이 만든 견적 초안 (사장님 화면으로 불러오기) */
 export const loadIntakeDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

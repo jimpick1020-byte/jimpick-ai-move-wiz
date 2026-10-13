@@ -47,8 +47,13 @@ export function DepositPanel({
         if (alive && r.ok) setRows(r.rows);
       })
       .catch(() => {});
+    const refresh = () => {
+      listDeposits({ data: { estimateId } }).then((r) => { if (alive && r.ok) setRows(r.rows); }).catch(() => {});
+    };
+    window.addEventListener("jimpick:payment-updated", refresh);
     return () => {
       alive = false;
+      window.removeEventListener("jimpick:payment-updated", refresh);
     };
   }, [estimateId]);
 
@@ -64,8 +69,8 @@ export function DepositPanel({
       if (!r.ok) {
         toast.error("입금 기록 실패", { description: r.error ?? "다시 시도해 주세요" });
       } else if (r.needsReview) {
-        toast.warning("입금자 이름이 고객 이름과 다릅니다", {
-          description: "금액은 그대로 두었습니다. 직접 확인한 뒤 반영해 주세요.",
+        toast.info("입금 기록을 저장했습니다", {
+          description: "금액은 아직 반영하지 않았습니다. 통장을 확인한 뒤 예약금 확인 또는 결제완료를 눌러 주세요.",
         });
         setText("");
       } else {
@@ -79,6 +84,7 @@ export function DepositPanel({
     } finally {
       setBusy(false);
       load();
+      window.dispatchEvent(new Event("jimpick:payment-updated"));
     }
   };
 
@@ -97,6 +103,7 @@ export function DepositPanel({
     } finally {
       setWorking(null);
       load();
+      window.dispatchEvent(new Event("jimpick:payment-updated"));
     }
   };
 
@@ -110,6 +117,7 @@ export function DepositPanel({
     } finally {
       setWorking(null);
       load();
+      window.dispatchEvent(new Event("jimpick:payment-updated"));
     }
   };
 
@@ -120,7 +128,7 @@ export function DepositPanel({
         className="flex w-full items-center justify-between text-[12.5px] font-bold text-[#6B7280]"
       >
         <span>
-          예약금 입금{" "}
+          입금 기록{" "}
           {paid > 0 ? (
             <span className="text-[#3E9B78]">{won(paid)} 확인 완료</span>
           ) : (
@@ -178,7 +186,7 @@ export function DepositPanel({
                 <div key={r.id} className="rounded-xl bg-white p-2.5 text-[12.5px]">
                   <div className="flex items-center justify-between">
                     <span className="font-bold">
-                      {r.depositorName || "이름 없음"} · {won(r.amount)}
+                      {r.depositorName || "이름 없음"} · {won(r.amount)}{r.paymentKind === "balance" ? " · 잔금" : " · 예약금"}
                     </span>
                     <span
                       className={
@@ -207,14 +215,14 @@ export function DepositPanel({
                       고객 문자 실패: {r.notifyError}
                     </div>
                   )}
-                  {r.status === "pending_review" && (
+                  {r.status === "pending_review" && r.paymentKind !== "balance" && (
                     <div className="mt-2 flex gap-2">
                       <button
                         onClick={() => void doConfirm(r.id)}
                         disabled={working === r.id}
                         className="flex-1 rounded-xl bg-[#F7F8F5] py-2 font-bold text-[#25282D] disabled:opacity-50"
                       >
-                        {working === r.id ? "처리 중…" : "내 고객 입금 맞음 · 반영"}
+                        {working === r.id ? "처리 중…" : "예약금 확인"}
                       </button>
                       <button
                         onClick={() => void doReject(r.id)}

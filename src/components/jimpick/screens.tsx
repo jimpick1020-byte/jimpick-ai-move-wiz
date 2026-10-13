@@ -1,4 +1,7 @@
+import { DepositPanel } from "./DepositPanel";
 import { StaffSendScreen } from "./StaffSendScreen";
+import { paymentReview } from "@/lib/payment-review";
+import { retireUnconvertedIntakeDrafts } from "@/lib/intake.functions";
 import { isWaitingHistoryTarget } from "@/lib/history-focus";
 import { WorkerContacts } from "./WorkerContacts";
 import { workerSmsHref, type WorkerContact } from "@/lib/worker-contact";
@@ -117,7 +120,7 @@ import {
 import { getSizePresets } from "@/lib/size-presets.functions";
 
 import { toast } from "sonner";
-import { IntakeRequestButton, IntakeInbox, IntakeSubmittedList, IntakeNotifier, IntakeStatusChip, findIntakeFor, useIntakeRequests } from "./IntakePanel";
+import { IntakeRequestButton, IntakeInbox, IntakeNotifier, IntakeStatusChip, findIntakeFor, useIntakeRequests } from "./IntakePanel";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
@@ -295,30 +298,6 @@ function roomPickerKind(name: string, fallback: string) {
   return family.label;
 }
 
-type PayRow = { total?: number | null; depositPaid?: number | null; balancePaid?: number | null; paymentStatus?: string | null } | null | undefined;
-/** 저장된 실제 금액으로 예약금+잔금이 총액을 모두 채웠을 때만 「잔금 입금」입니다 */
-function balanceFullyPaid(row: PayRow, fallbackTotal?: number | null): boolean {
-  if (!row) return false;
-  const st = normalizePaymentStatus(row.paymentStatus);
-  if (st === "completed" || st === "canceled" || st === "refunded") return false;
-  const total = Math.max(0, Number(row.total ?? fallbackTotal ?? 0));
-  const deposit = Math.max(0, Number(row.depositPaid ?? 0));
-  const balance = Math.max(0, Number(row.balancePaid ?? 0));
-  return total > 0 && balance > 0 && deposit + balance >= total;
-}
-/** 예약금 확인 또는 잔금 전액 입금 카드 */
-function payTone(row: PayRow, fallbackTotal?: number | null): boolean {
-  if (!row) return false;
-  const st = normalizePaymentStatus(row.paymentStatus);
-  if (st === "completed" || st === "canceled" || st === "refunded") return false;
-  return Number(row.depositPaid ?? 0) > 0 || balanceFullyPaid(row, fallbackTotal);
-}
-/** 견적 ID로 고정된 색 번호 — 새로고침해도 같은 고객은 같은 색 */
-function payToneIndex(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return (h % 8) + 1;
-}
 
 export function Splash() {
   const { setScreen, loggedIn } = useApp();
@@ -6388,6 +6367,11 @@ export function History() {
         .catch(() => {});
     };
     load();
+    retireUnconvertedIntakeDrafts().then((r) => {
+      if (!alive) return;
+      if (!r.ok) { toast.error("사전정보 초안 정리 실패", { description: r.error }); return; }
+      for (const id of r.ids) deleteEstimate(id);
+    }).catch(() => { if (alive) toast.error("사전정보 초안을 정리하지 못했습니다."); });
     getManagerNotices()
       .then((r) => {
         if (alive && r.ok) setNoticeRows(r.rows);
@@ -6555,7 +6539,6 @@ export function History() {
     <MobileShell>
       <TopBar title="견적 내역" onBack={() => setScreen("home")} />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
-        <IntakeSubmittedList />
         <TextInput
           placeholder="고객명·연락처·날짜 검색"
           value={q}
@@ -6654,6 +6637,7 @@ export function History() {
               </button>
               {gOpen && g.items.map((e) => {
           const ts = termsState(e.id);
+          const review = paymentReview(ts.row?.paymentReceipts ?? [], ts.row?.paymentStatus ?? "unpaid", ts.row?.depositPaid ?? 0, ts.row?.balancePaid ?? 0, ts.row?.total ?? e.total);
           const waitingSelected = termsReady && isWaitingHistoryTarget(waitingTargetId, e.id, reservationStageOf({
             paymentStatus: ts.row?.paymentStatus, depositPaid: ts.row?.depositPaid,
             balancePaid: ts.row?.balancePaid, acceptedAt: ts.row?.acceptedAt,
@@ -6662,7 +6646,7 @@ export function History() {
           return (
             <div key={e.id} data-history-estimate-id={e.id} data-waiting-selected={waitingSelected}
               ref={(node) => { if (node) historyCards.current.set(e.id, node); else historyCards.current.delete(e.id); }}>
-            <Card className={waitingSelected || payTone(ts.row, e.total) ? `jp-waiting-history-card ${payTone(ts.row, e.total) ? `jp-pay-tone-${payToneIndex(e.id)}` : ""}` : ""} data-balance-paid={balanceFullyPaid(ts.row, e.total) || undefined}>
+            <Card className={review ? `jp-payment-review-card jp-payment-review-${review.kind}` : ""} data-payment-review={review?.kind}>
               {(() => {
                 const open = !!openCard[e.id];
                 return (
@@ -6676,8 +6660,8 @@ export function History() {
                         <div>
                           <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
                             <span className="font-bold truncate">{e.customerName || "이름 없음"}</span>
-                            {balanceFullyPaid(ts.row, e.total) && (
-                              <span className="shrink-0 whitespace-nowrap rounded-full bg-[#E4F4EC] px-2 py-0.5 text-xs font-bold text-[#2F7A5E]">잔금 입금</span>
+                            {review && (
+                              <span className="shrink-0 whitespace-nowrap text-xs font-bold">{review.kind === "balance" ? "잔금 입금 · 확인 대기" : "예약금 입금 · 확인 대기"}</span>
                             )}
                             {e.intakeRequestId && (
                               <span className="shrink-0 whitespace-nowrap rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-bold text-[#166534]">사전정보 입력 완료</span>
@@ -6689,6 +6673,7 @@ export function History() {
                             )}
                           </div>
                           <div className="text-xs text-[#6B7280]">{formatTel(e.phone)}</div>
+                          {review && <div className="mt-1 text-sm font-bold text-foreground">입금자 {review.names.join(" · ") || "이름 확인 필요"}</div>}
                         </div>
                         {/* 결제상태만 한 개 표시합니다 (독립적인 '완료' 문구는 쓰지 않습니다) */}
                         {(() => {
@@ -6859,6 +6844,7 @@ export function History() {
                             );
                           })()}
                         {ts.row && <DepositClaimBox row={ts.row} onSaved={loadTerms} />}
+                        {ts.row && <DepositPanel estimateId={e.id} customerName={e.customerName} total={ts.row.total} />}
                         {ts.row && (
                           <PaymentPanel
                             estimateId={e.id}
