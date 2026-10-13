@@ -287,7 +287,8 @@ async function itemsFor(sb: any, companyId: string, onlyVisible: boolean): Promi
   }));
   const custom: IntakeItem[] = await Promise.all(rows.filter(r => r.customer_only || r.customer_visible === true).filter(r => !r.customer_deleted_at).map(async r => {
     const original = INTAKE_BASE_ITEMS.find(b => b.id === r.customer_key);
-    const name = customerItemLabel(r.customer_name, r.display_name, r.name, r.item_id);
+    const label = customerItemLabel(r.customer_name, r.display_name, r.name, r.item_id);
+    const name = r.customer_size && !label.includes(r.customer_size) ? `${label} ${r.customer_size}` : label;
     const path = r.image_path || r.storage_path;
     let icon = original?.img;
     if (path) {
