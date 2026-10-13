@@ -735,8 +735,15 @@ export function HomeScreen() {
     };
     load();
     window.addEventListener("jimpick:payment-updated", load);
+    // 화면으로 돌아올 때마다 서버에서 자동 정리된 견적을 다시 확인해 카드를 바로 숨깁니다.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
+      document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("jimpick:payment-updated", load);
     };
   }, []);
@@ -6354,8 +6361,21 @@ export function History() {
       })
       .catch(() => {});
     window.addEventListener("jimpick:payment-updated", load);
+    // 화면으로 돌아올 때마다 서버에서 자동 정리된 견적을 다시 확인해 카드를 바로 숨깁니다.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      listDeletedEstimateIds()
+        .then((r) => {
+          if (!alive || !r?.ok) return;
+          for (const id of r.ids) deleteEstimate(id);
+        })
+        .catch(() => {});
+      load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
+      document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("jimpick:payment-updated", load);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

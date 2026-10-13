@@ -10,6 +10,9 @@ import { MobileShell, TopBar, Card } from "@/components/jimpick/ui";
 import {
   listCompanyAccounts,
   deleteCompanyAccount,
+  listAutoArchivedEstimates,
+  restoreAutoArchivedEstimate,
+  type AutoArchivedEstimate,
   type CompanyAccount,
 } from "@/lib/admin.functions";
 import { toast } from "sonner";
@@ -37,6 +40,55 @@ const day = (v: string | null) =>
 const NEW_SIGNUP_MS = 3 * 24 * 3600_000;
 const isNewSignup = (v: string | null) =>
   v !== null && Date.now() - new Date(v).getTime() < NEW_SIGNUP_MS;
+
+function AutoArchivedSection() {
+  const [rows, setRows] = useState<AutoArchivedEstimate[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = () =>
+    listAutoArchivedEstimates()
+      .then((r) => setRows(r.ok ? r.rows : []))
+      .catch(() => setRows([]));
+  useEffect(() => {
+    void load();
+  }, []);
+  const restore = async (r: AutoArchivedEstimate) => {
+    setBusy(r.estimateId);
+    try {
+      const res = await restoreAutoArchivedEstimate({ data: { userId: r.userId, estimateId: r.estimateId } });
+      if (!res.ok) toast.error(res.error ?? "복원하지 못했습니다.");
+      else {
+        toast.success("견적을 복원했습니다");
+        await load();
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <Card className="space-y-2">
+      <div className="text-sm font-bold text-[#25282D]">자동 정리된 견적</div>
+      <div className="text-xs text-[#6B7280]">이사일까지 예약금이 입금되지 않아 견적 내역에서 숨긴 견적입니다. 자료는 그대로 보관됩니다.</div>
+      {rows === null && <div className="text-xs text-[#6B7280]">불러오는 중…</div>}
+      {rows?.length === 0 && <div className="text-xs text-[#6B7280]">자동 정리된 견적이 없습니다.</div>}
+      {rows?.map((r) => (
+        <div key={r.userId + r.estimateId} className="flex items-center justify-between gap-2 rounded-xl bg-[#F3F4F6] px-2.5 py-2">
+          <div className="min-w-0 text-xs">
+            <div className="truncate font-bold text-[#25282D]">{r.customerName || "고객명 없음"} · {r.moveDate ?? "-"}</div>
+            <div className="truncate text-[#6B7280]">{r.companyName || "업체명 미입력"} · 정리 {day(r.archivedAt)}</div>
+          </div>
+          <button
+            type="button"
+            disabled={busy === r.estimateId}
+            onClick={() => void restore(r)}
+            className="shrink-0 rounded-xl bg-[#2563EB] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+          >
+            {busy === r.estimateId ? "복원 중…" : "복원"}
+          </button>
+        </div>
+      ))}
+    </Card>
+  );
+}
 
 export function AdminAccountsScreen() {
   const { setScreen } = useApp();
@@ -105,6 +157,7 @@ export function AdminAccountsScreen() {
             </div>
           </Card>
         )}
+        <AutoArchivedSection />
         {rows?.length === 0 && (
           <div className="py-10 text-center text-sm text-[#6B7280]">
             등록된 업체 계정이 없습니다.
