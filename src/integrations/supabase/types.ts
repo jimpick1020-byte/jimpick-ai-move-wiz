@@ -377,6 +377,24 @@ export type Database = {
         }
         Relationships: []
       }
+      estimate_purges: {
+        Row: {
+          estimate_id: string
+          purged_at: string
+          user_id: string
+        }
+        Insert: {
+          estimate_id: string
+          purged_at?: string
+          user_id: string
+        }
+        Update: {
+          estimate_id?: string
+          purged_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       estimate_staff_shares: {
         Row: {
           company_id: string
@@ -1776,6 +1794,7 @@ export type Database = {
         Args: { _count?: number; _key: string; _user_id: string }
         Returns: Json
       }
+      run_unpaid_estimate_cleanup: { Args: never; Returns: number }
       save_customer_catalog_order: {
         Args: { ids: string[] }
         Returns: undefined
