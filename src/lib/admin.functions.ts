@@ -264,3 +264,48 @@ export const deleteCompanyAccount = createServerFn({ method: "POST" })
     if (authErr) throw new Error(authErr.message);
     return { ok: true };
   });
+
+export interface AutoArchivedEstimate {
+  userId: string;
+  companyName: string | null;
+  estimateId: string;
+  customerName: string | null;
+  moveDate: string | null;
+  archivedAt: string | null;
+}
+
+/** 자동 정리된 견적(이사일까지 예약금 미입금) — 최고관리자만 (DB 함수가 권한 확인) */
+export const listAutoArchivedEstimates = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ ok: boolean; rows: AutoArchivedEstimate[] }> => {
+    const { data, error } = await context.supabase.rpc("list_auto_archived_estimates");
+    if (error) return { ok: false, rows: [] };
+    return {
+      ok: true,
+      rows: ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+        userId: String(r.user_id),
+        companyName: (r.company_name as string) ?? null,
+        estimateId: String(r.estimate_id),
+        customerName: (r.customer_name as string) ?? null,
+        moveDate: (r.move_date as string) ?? null,
+        archivedAt: (r.archived_at as string) ?? null,
+      })),
+    };
+  });
+
+/** 자동 정리된 견적 복원 — 최고관리자만. 복원한 견적은 다시 자동 정리하지 않습니다 */
+export const restoreAutoArchivedEstimate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ userId: z.string().uuid(), estimateId: z.string().min(1).max(120) }).parse(d),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
+    const { data: res, error } = await context.supabase.rpc("restore_auto_archived_estimate", {
+      _user_id: data.userId,
+      _estimate_id: data.estimateId,
+    });
+    const out = (res ?? {}) as { ok?: boolean; reason?: string };
+    if (error || !out.ok)
+      return { ok: false, error: out.reason === "forbidden" ? "관리자만 복원할 수 있습니다." : "복원하지 못했습니다." };
+    return { ok: true };
+  });
