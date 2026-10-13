@@ -463,8 +463,10 @@ export function Card({
   selected,
   onClick,
   className = "",
+  borderOverride,
   ...attributes
 }: {
+  borderOverride?: string;
   children: ReactNode;
   selected?: boolean;
   onClick?: () => void;
@@ -481,8 +483,10 @@ export function Card({
             }
           : undefined
       }
-      className={`rounded-2xl border p-4 transition-all duration-200 ${
-        selected
+      className={`rounded-2xl p-4 transition-all duration-200 ${borderOverride ?? "border"} ${
+        borderOverride
+          ? "bg-gradient-to-b from-white to-[#F7F8F5]"
+          : selected
           ? "border-[#3578C8] bg-gradient-to-b from-[#F7F8F5] to-[#D7E5F5] shadow-[0_14px_26px_-10px_rgba(40,123,255,0.45),0_3px_0_#E5E7EB,inset_0_1px_0_#FFFFFF] ring-2 ring-[#3578C8]/30"
           : "border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7F8F5] shadow-[0_10px_22px_-8px_rgba(15,23,42,0.18),0_2px_0_#E5E7EB,inset_0_1px_0_#FFFFFF]"
       } ${onClick ? "cursor-pointer active:scale-[0.98] active:shadow-[0_2px_8px_rgba(15,23,42,0.08)]" : ""} ${className}`}
