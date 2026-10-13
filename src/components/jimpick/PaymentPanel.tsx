@@ -43,7 +43,7 @@ export function PaymentPanel({
   const remain = Math.max(0, total - deposit - balanceNum);
   const canComplete = total > 0 && remain === 0;
 
-  const run = async (data: Parameters<typeof setPaymentState>[0]["data"], okMsg: string) => {
+  const run = async (data: { estimateId: string; status: PaymentStatus; note?: string; balancePaid?: number }, okMsg: string) => {
     if (busy) return;
     setBusy(true);
     try {
