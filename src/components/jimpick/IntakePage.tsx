@@ -301,7 +301,7 @@ function ItemsStep({ form, items, setForm }: { form: IntakeForm; items: Item[]; 
       <div key={it.id} className={`relative rounded-2xl border-2 p-2 text-center transition ${p ? (p.disposal ? "border-[#EF4444] bg-[#FEE2E2]/70" : "border-[#2563EB] bg-[#EFF6FF]") : "border-[#E5E7EB]"}`}>
         {p && (
           <button type="button" onClick={() => { setRoomPicks((r) => setQty(r, it.id, 0)); setMenu(null); buzz(); }}
-            className="absolute -left-2 -top-2 z-[5] flex h-7 w-7 items-center justify-center rounded-full bg-[#25282D] text-white shadow" aria-label={`${it.name} 선택 삭제`}>
+            className="absolute -left-2 -top-2 z-[5] flex h-7 w-7 items-center justify-center rounded-full bg-[#6B7280] text-white shadow" aria-label={`${it.name} 선택 삭제`}>
             <X className="h-4 w-4" strokeWidth={3} />
           </button>
         )}
@@ -346,7 +346,7 @@ function ItemsStep({ form, items, setForm }: { form: IntakeForm; items: Item[]; 
             <div className="mt-2 grid grid-cols-2 gap-2">
               {INTAKE_SIZES.map((z) => (
                 <button key={z} type="button" onClick={() => { setForm((s) => (s ? { ...s, fromSize: z } : s)); setSizeOpen(false); }}
-                  className={`rounded-xl py-3 text-base font-bold ${form.fromSize === z ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5]"}`}>{z}</button>
+                  className={`rounded-xl py-3 text-base font-bold ${form.fromSize === z ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5] text-[#25282D]"}`}>{z}</button>
               ))}
             </div>
           </>
@@ -358,14 +358,14 @@ function ItemsStep({ form, items, setForm }: { form: IntakeForm; items: Item[]; 
           const n = Object.values(form.rooms[r] ?? {}).reduce((a, p) => a + p.qty, 0);
           return (
             <button key={r} type="button" onClick={() => { setRoom(r); setMenu(null); }}
-              className={`rounded-xl py-3 text-base font-bold ${room === r ? "bg-[#25282D] text-white" : "bg-[#EEF1F5]"}`}>{r}{n ? ` ${n}` : ""}</button>
+              className={`rounded-xl py-3 text-base font-bold ${room === r ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5] text-[#25282D]"}`}>{r}{n ? ` ${n}` : ""}</button>
           );
         })}
       </div>
       <div className="grid grid-cols-2 gap-2">
         {(["가구", "가전"] as const).map((g) => (
           <button key={g} type="button" onClick={() => { setGroup(g); setMenu(null); }}
-            className={`rounded-xl py-3 text-lg font-black ${group === g && !term ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5]"}`}>{g}</button>
+            className={`rounded-xl py-3 text-lg font-black ${group === g && !term ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5] text-[#25282D]"}`}>{g}</button>
         ))}
       </div>
       <div className="relative">
