@@ -710,6 +710,16 @@ export type Database = {
           category_group: string
           created_at: string
           created_by: string
+          customer_category: string | null
+          customer_deleted_at: string | null
+          customer_disposal_allowed: boolean
+          customer_key: string | null
+          customer_name: string | null
+          customer_only: boolean
+          customer_order: number
+          customer_room: string[]
+          customer_size: string
+          customer_visible: boolean | null
           default_volume: number
           display_name: string
           from_photo: boolean
@@ -747,6 +757,16 @@ export type Database = {
           category_group: string
           created_at?: string
           created_by: string
+          customer_category?: string | null
+          customer_deleted_at?: string | null
+          customer_disposal_allowed?: boolean
+          customer_key?: string | null
+          customer_name?: string | null
+          customer_only?: boolean
+          customer_order?: number
+          customer_room?: string[]
+          customer_size?: string
+          customer_visible?: boolean | null
           default_volume?: number
           display_name: string
           from_photo?: boolean
@@ -784,6 +804,16 @@ export type Database = {
           category_group?: string
           created_at?: string
           created_by?: string
+          customer_category?: string | null
+          customer_deleted_at?: string | null
+          customer_disposal_allowed?: boolean
+          customer_key?: string | null
+          customer_name?: string | null
+          customer_only?: boolean
+          customer_order?: number
+          customer_room?: string[]
+          customer_size?: string
+          customer_visible?: boolean | null
           default_volume?: number
           display_name?: string
           from_photo?: boolean
