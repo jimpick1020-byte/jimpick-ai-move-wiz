@@ -67,6 +67,7 @@ const formSchema = z.object({
   toJibun: z.string().max(200).optional(),
   toZip: z.string().max(10).optional(),
   fromSize: z.union([z.enum(INTAKE_SIZES), z.literal("")]).optional(),
+  spaces: z.array(z.enum(INTAKE_ROOMS)).max(6).optional(),
   rooms: z.record(z.enum(INTAKE_ROOMS), z.record(z.string().min(1).max(60), pickSchema)),
 });
 
@@ -261,7 +262,7 @@ export interface IntakeItem {
   kind: "base" | "company";
   cat?: string;
   /** 가구 / 가전 */
-  group: "가구" | "가전";
+  group: "가구" | "가전" | "주방";
   /** 묶음 이름 (침대·소파·TV …) */
   family?: string;
   /** 추천 평수 범위 */
@@ -307,7 +308,7 @@ async function itemsFor(sb: any, companyId: string, onlyVisible: boolean): Promi
     }
     return {id:r.item_id,name,icon,rooms:r.customer_room ?? original?.rooms ?? [], visible:r.customer_visible !== false,
       disposalAllowed:r.customer_disposal_allowed !== false,sort:r.customer_order,kind:"company" as const,
-      group:(r.customer_category === "가전" ? "가전" : "가구") as "가구" | "가전",family:original?.kind,sizes:original?.sizes,size:r.customer_size || ""};
+      group:(r.customer_category === "가전" || r.customer_category === "주방" ? r.customer_category : "가구") as "가구" | "가전" | "주방",family:original?.kind,sizes:original?.sizes,size:r.customer_size || ""};
   }));
   const all = [...base,...custom].filter(i => isLargeCustomerItem(i.name)).sort((a,b) => a.sort-b.sort);
   return onlyVisible ? all.filter(i => i.visible) : all;
@@ -321,7 +322,7 @@ export const listIntakeItemsOwner = createServerFn({ method: "POST" }).middlewar
 
 const settingSchema = z.object({id:z.string().min(1).max(60),kind:z.enum(["base","company"]),visible:z.boolean(),disposalAllowed:z.boolean(),
   rooms:z.array(z.enum(INTAKE_ROOMS)).max(6),sort:z.number().int().min(0).max(100000),name:z.string().trim().min(1).max(24).optional(),
-  cat:z.enum(["가구","가전"]).optional(),size:z.string().max(24).optional(),photo:z.string().max(4000000).optional()});
+  cat:z.enum(["가구","가전","주방"]).optional(),size:z.string().max(24).optional(),photo:z.string().max(4000000).optional()});
 
 async function catalogRow(sb:any, userId:string, id:string) {
   const existing = await sb.from("item_icons").select("id,item_id,customer_key,image_path,storage_path").or(`customer_only.eq.true,user_id.eq.${userId}`).eq("item_id",id).eq("active",true).maybeSingle();
@@ -365,7 +366,7 @@ export const saveIntakeItemSetting = createServerFn({method:"POST"}).middleware(
  });
 
 export const createCustomerIntakeItem = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
- .inputValidator((d:unknown)=>z.object({name:z.string().trim().min(2).max(24),cat:z.enum(["가구","가전"]),size:z.string().max(24),
+ .inputValidator((d:unknown)=>z.object({name:z.string().trim().min(2).max(24),cat:z.enum(["가구","가전","주방"]),size:z.string().max(24),
   rooms:z.array(z.enum(INTAKE_ROOMS)).max(6),disposal:z.boolean(),sort:z.number().int().min(0),photo:z.string().max(4000000)}).parse(d))
  .handler(async({data,context})=>{
   if(!await catalogAllowed(context)) return {ok:false,error:"관리자만 고객 품목을 관리할 수 있습니다."};
@@ -413,7 +414,7 @@ export interface IntakeOpen {
   companyName?: string;
   contact?: string;
   form?: IntakeForm;
-  items?: { id: string; name: string; icon?: string; rooms: string[]; disposalAllowed: boolean; group: "가구" | "가전"; family?: string; sizes?: [number, number] }[];
+  items?: { id: string; name: string; icon?: string; rooms: string[]; disposalAllowed: boolean; group: "가구" | "가전" | "주방"; family?: string; sizes?: [number, number] }[];
 }
 
 const tokenSchema = z.string().regex(/^[0-9a-f]{64}$/);
@@ -458,6 +459,7 @@ export const openIntake = createServerFn({ method: "POST" })
       fromX: saved.fromX ?? null, fromY: saved.fromY ?? null, toX: saved.toX ?? null, toY: saved.toY ?? null,
       fromJibun: saved.fromJibun ?? "", fromZip: saved.fromZip ?? "", toJibun: saved.toJibun ?? "", toZip: saved.toZip ?? "",
       fromSize: saved.fromSize ?? "",
+      spaces: Array.isArray(saved.spaces) ? saved.spaces : undefined,
       rooms: (saved.rooms ?? {}) as IntakeRooms,
     };
     const items = (await itemsFor(sb, row.company_id, true)).map(({ id, name, icon, rooms, disposalAllowed, group, family, sizes }) => ({ id, name, icon, rooms, disposalAllowed, group, family, sizes }));

@@ -6622,7 +6622,7 @@ export function History() {
           return (
             <div key={e.id} data-history-estimate-id={e.id} data-waiting-selected={waitingSelected}
               ref={(node) => { if (node) historyCards.current.set(e.id, node); else historyCards.current.delete(e.id); }}>
-            <Card className={waitingSelected ? "jp-waiting-history-card" : ""}>
+            <Card className={waitingSelected || (Number(ts.row?.balancePaid ?? 0) > 0 && normalizePaymentStatus(ts.row?.paymentStatus) !== "completed") ? "jp-waiting-history-card" : ""} data-balance-paid={Number(ts.row?.balancePaid ?? 0) > 0 || undefined}>
               {(() => {
                 const open = !!openCard[e.id];
                 return (
@@ -6636,6 +6636,9 @@ export function History() {
                         <div>
                           <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
                             <span className="font-bold truncate">{e.customerName || "이름 없음"}</span>
+                            {Number(ts.row?.balancePaid ?? 0) > 0 && normalizePaymentStatus(ts.row?.paymentStatus) !== "completed" && (
+                              <span className="shrink-0 whitespace-nowrap rounded-full bg-[#E4F4EC] px-2 py-0.5 text-xs font-bold text-[#2F7A5E]">잔금 입금</span>
+                            )}
                             {e.intakeRequestId && (
                               <span className="shrink-0 whitespace-nowrap rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-bold text-[#166534]">사전정보 입력 완료</span>
                             )}

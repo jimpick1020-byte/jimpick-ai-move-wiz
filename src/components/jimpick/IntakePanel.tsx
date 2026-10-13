@@ -438,7 +438,7 @@ export function IntakeItemsManager({ onClose }: { onClose: () => void }) {
               </Button>
             </div>
             <div className="flex gap-2">
-              <select aria-label={`${it.name} 분류`} value={it.group} onChange={e => void save(it, {group:e.target.value as "가구"|"가전"})} className="rounded-lg border px-2 py-2"><option>가구</option><option>가전</option></select>
+              <select aria-label={`${it.name} 분류`} value={it.group} onChange={e => void save(it, {group:e.target.value as "가구"|"가전"|"주방"})} className="rounded-lg border px-2 py-2"><option>가구</option><option>가전</option><option>주방</option></select>
               <input aria-label={`${it.name} 크기`} defaultValue={it.size ?? ""} placeholder="크기 (예: 50~59인치)" onBlur={e => void save(it,{size:e.target.value})} className="min-w-0 flex-1 rounded-lg border px-2 py-2" />
             </div>
             <label className="block text-sm font-bold">그림 변경<input type="file" accept="image/*" className="mt-1 block w-full" onChange={async e => {
@@ -484,7 +484,7 @@ async function toJpeg(file: File): Promise<string> {
 
 function AddIntakeItem({ onClose, onDone, sortBase }: { onClose: () => void; onDone: () => void; sortBase: number }) {
   const [name, setName] = useState("");
-  const [cat, setCat] = useState<"가구" | "가전">("가구");
+  const [cat, setCat] = useState<"가구" | "가전" | "주방">("가구");
   const [rooms, setRooms] = useState<string[]>(["거실"]);
   const [disposal, setDisposal] = useState(true);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -510,7 +510,7 @@ function AddIntakeItem({ onClose, onDone, sortBase }: { onClose: () => void; onD
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="품목 이름 (예: 원목 수납장)"
           className="w-full rounded-xl border border-[#E5E7EB] px-3 py-3" />
         <div className="flex gap-2">
-          {(["가구", "가전"] as const).map((c) => (
+          {(["가구", "가전", "주방"] as const).map((c) => (
             <Button variant="ghost" key={c} type="button" onClick={() => setCat(c)} className={`flex-1 rounded-xl py-2 font-bold ${cat === c ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5]"}`}>{c}</Button>
           ))}
         </div>

@@ -5,7 +5,9 @@
 
 /** 출발지 평수 (추천용) — 0~6 */
 export const INTAKE_SIZES = ["5평 이하", "5~10평", "10~20평", "20~30평", "30~40평", "40~50평", "50평 이상"] as const;
-export type IntakeGroup = "가구" | "가전";
+export type IntakeGroup = "가구" | "가전" | "주방";
+/** 고객 링크 4단계에 보이는 분류 (생활용품·운동·레저 등은 고객 화면에 표시하지 않습니다) */
+export const INTAKE_GROUPS = ["가구", "가전", "주방"] as const;
 
 export interface IntakeBaseItem {
   id: string;
@@ -25,6 +27,8 @@ const f = (id: string, name: string, kind: string, rooms: string[], sizes: [numb
   ({ id, name, group: "가구", kind, rooms, sizes, img, vol });
 const e = (id: string, name: string, kind: string, rooms: string[], sizes: [number, number], img?: string, vol?: number): IntakeBaseItem =>
   ({ id, name, group: "가전", kind, rooms, sizes, img, vol });
+const k = (id: string, name: string, kind: string, rooms: string[], sizes: [number, number], img?: string, vol?: number): IntakeBaseItem =>
+  ({ id, name, group: "주방", kind, rooms, sizes, img, vol });
 const BR = ["안방", "작은방"];
 
 /** 고객 링크 기본 큰 가구·가전 — 기존 품목 id를 쓰고, 없는 것만 intake- 전용 id를 씁니다. 작은 생활용품·잔짐은 넣지 않습니다. */
@@ -72,9 +76,9 @@ export const INTAKE_BASE_ITEMS: IntakeBaseItem[] = [
   // 에어컨·주방
   e("stand-air-conditioner-01", "스탠드 에어컨", "에어컨", ["거실"], [2, 6], "/assets/items-3d/appliances/tower-air-conditioner.webp"),
   e("wall-air-conditioner-01", "벽걸이 에어컨", "에어컨", ["안방", "작은방", "거실"], [0, 6], "/assets/items-3d/appliances/wall-air-conditioner.webp"),
-  e("water-purifier-01", "정수기", "정수기", ["부엌"], [1, 6], "/assets/items-3d/appliances/water-purifier.webp"),
-  e("microwave-oven-01", "전자레인지", "전자레인지", ["부엌"], [0, 6], "/assets/items-3d/appliances/microwave.webp"),
-  e("dishwasher-01", "식기세척기", "식기세척기", ["부엌"], [2, 6], "/assets/items-3d/appliances/dishwasher.webp"),
+  k("water-purifier-01", "정수기", "정수기", ["부엌"], [1, 6], "/assets/items-3d/appliances/water-purifier.webp"),
+  k("microwave-oven-01", "전자레인지", "전자레인지", ["부엌"], [0, 6], "/assets/items-3d/appliances/microwave.webp"),
+  k("dishwasher-01", "식기세척기", "식기세척기", ["부엌"], [2, 6], "/assets/items-3d/appliances/dishwasher.webp"),
 ];
 
 /** 예전 고객 링크(1차)에서 쓰던 품목 — 이미 제출된 자료의 이름 표시용 */
@@ -145,6 +149,8 @@ export interface IntakeForm {
   toZip?: string;
   /** 출발지 평수 (추천용) */
   fromSize?: string;
+  /** 3단계에서 고른 공간 (4단계 방 목록) */
+  spaces?: string[];
   rooms: IntakeRooms;
 }
 

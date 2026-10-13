@@ -1,17 +1,18 @@
 /**
  * 고객 전용 사전정보 입력 화면 (로그인 없음, 관리자 메뉴 없음).
- * 1단계 기본정보 → 2단계 주소 → 3단계 큰 가구·가전 → 확인·동의 → 제출.
+ * 짐픽과 같은 1~4단계: 기본정보 → 주소·층수 → 이사 조건·공간 → 방별 품목 → 확인·동의 → 제출.
  */
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ROOM_IMG } from "@/lib/jimpick-art";
-import { ChevronDown, Check, MoreVertical, Search, X } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
+import { ItemPickerCard } from "./ItemListLayer";
+import { registerCustomIcons } from "@/lib/jimpick-icon3d";
 import { MoveDateCalendar } from "./MoveDateCalendar";
 import { openIntake, saveIntakeProgress, submitIntake, type IntakeOpen } from "@/lib/intake.functions";
 import { searchAddress, type KakaoPlace } from "@/lib/kakao.functions";
-import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import { formatTel } from "@/lib/format-input";
-import { INTAKE_ROOMS, INTAKE_SIZES, fitsSize, setQty, tapOnce, tapTwice, type IntakeForm } from "@/lib/intake";
+import { INTAKE_GROUPS, INTAKE_ROOMS, INTAKE_SIZES, fitsSize, floorText, setQty, strictFloor, tapOnce, tapTwice, type IntakeForm } from "@/lib/intake";
 
 const NOTICE = "방문견적 전에 기본정보와 큰 가구·가전만 간단히 선택해 주세요. 층수, 작업환경, 잔짐과 정확한 견적은 방문 시 자세히 확인해 드립니다.";
 const DONE = "입력이 완료되었습니다.";
@@ -104,7 +105,11 @@ export function IntakePage({ token }: { token: string }) {
       if (!form.customerName.trim()) return setErr("이름을 입력해 주세요.");
       if (!/^01[016789]-?\d{3,4}-?\d{4}$/.test(form.phone)) return setErr("휴대전화 번호를 확인해 주세요.");
     }
-    setStep((s) => Math.min(4, s + 1));
+    if (step === 3) {
+      if (!form.fromSize) return setErr("출발지 평수를 골라 주세요.");
+      if (!(form.spaces ?? []).length) return setErr("짐이 있는 공간을 하나 이상 골라 주세요.");
+    }
+    setStep((s) => Math.min(5, s + 1));
     window.scrollTo(0, 0);
   };
   const submit = async () => {
@@ -127,7 +132,7 @@ export function IntakePage({ token }: { token: string }) {
       <div className="px-5 pt-4">
         <p className="rounded-2xl bg-auth-soft p-4 text-[15px] leading-relaxed text-auth-text">{NOTICE}</p>
         <div className="mt-4 flex gap-2" aria-label="진행 단계">
-          {["기본정보", "주소", "가구·가전"].map((l, i) => (
+          {["기본정보", "주소·층수", "이사 조건·공간", "방별 품목"].map((l, i) => (
             <div key={l} className={`flex-1 rounded-full py-2 text-center text-sm font-bold ${step >= i + 1 ? "bg-auth-primary text-auth-primary-foreground" : "bg-muted text-muted-foreground"}`}>{i + 1}. {l}</div>
           ))}
         </div>
@@ -152,18 +157,24 @@ export function IntakePage({ token }: { token: string }) {
             <AddressField label="들어가는 주소" value={form.toAddress} jibun={form.toJibun} zip={form.toZip} lockWhenPicked
               onPick={(p) => up({ toAddress: p.roadAddress || p.address, toJibun: p.jibunAddress ?? p.address, toZip: p.zipCode ?? "", toX: p.x, toY: p.y })} />
             <Big label="들어가는 상세주소"><input className={inp} value={form.toDetail} onChange={(e) => up({ toDetail: e.target.value })} placeholder="예) 2층" /></Big>
+            <div className="rounded-2xl bg-auth-soft p-4 text-base text-auth-text">
+              <div className="font-bold">층수 (상세주소로 자동 확인)</div>
+              <div className="mt-1">나가는 곳: <b>{floorText(strictFloor(`${form.fromDetail} ${form.fromAddress}`))}</b></div>
+              <div>들어가는 곳: <b>{floorText(strictFloor(`${form.toDetail} ${form.toAddress}`))}</b></div>
+            </div>
           </>
         )}
-        {step === 3 && <ItemsStep form={form} items={data.items ?? []} setForm={setForm} />}
-        {step === 4 && (
+        {step === 3 && <ConditionStep form={form} setForm={setForm} />}
+        {step === 4 && <ItemsStep form={form} items={data.items ?? []} setForm={setForm} />}
+        {step === 5 && (
           <Review form={form} items={data.items ?? []} consent={consent} setConsent={setConsent} setForm={setForm} />
         )}
         {err && <div className="rounded-2xl bg-destructive/10 p-4 text-base font-bold text-destructive">{err}</div>}
       </div>
       <div className="fixed inset-x-0 bottom-0 z-20 mx-auto flex max-w-md gap-3 border-t bg-card p-4">
         {step > 1 && <Button variant="ghost" type="button" onClick={() => setStep((s) => s - 1)} className="flex-1 rounded-2xl bg-muted py-4 text-lg font-bold">이전</Button>}
-        {step < 4
-          ? <Button variant="ghost" type="button" onClick={next} className="flex-[2] rounded-2xl bg-auth-primary py-4 text-lg font-black text-auth-primary-foreground">{step === 3 ? "확인하기" : "다음"}</Button>
+        {step < 5
+          ? <Button variant="ghost" type="button" onClick={next} className="flex-[2] rounded-2xl bg-auth-primary py-4 text-lg font-black text-auth-primary-foreground">{step === 4 ? "확인하기" : "다음"}</Button>
           : <Button variant="ghost" type="button" disabled={busy} onClick={submit} className="flex-[2] rounded-2xl bg-auth-primary py-4 text-lg font-black text-auth-primary-foreground disabled:opacity-60">{busy ? "저장 중…" : err ? "다시 저장" : "기본정보 입력 완료"}</Button>}
       </div>
     </Shell>
@@ -283,114 +294,96 @@ function AddressField({ label, value, jibun, zip, onPick, lockWhenPicked = false
   );
 }
 
+function ConditionStep({ form, setForm }: { form: IntakeForm; setForm: React.Dispatch<React.SetStateAction<IntakeForm | null>> }) {
+  const spaces = form.spaces ?? [];
+  const toggle = (r: string) => setForm((s) => {
+    if (!s) return s;
+    const cur = s.spaces ?? [];
+    return { ...s, spaces: cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r] };
+  });
+  return (
+    <div className="space-y-5">
+      <div>
+        <div className="mb-2 text-lg font-bold text-foreground">출발지 평수</div>
+        <div className="grid grid-cols-2 gap-2">
+          {INTAKE_SIZES.map((z) => (
+            <Button variant="ghost" key={z} type="button" onClick={() => setForm((s) => (s ? { ...s, fromSize: z } : s))}
+              className={`rounded-xl py-3 text-base font-bold ${form.fromSize === z ? "bg-auth-primary text-auth-primary-foreground" : "bg-muted text-foreground"}`}>{z}</Button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="mb-1 text-lg font-bold text-foreground">짐이 있는 공간</div>
+        <p className="mb-2 text-sm text-muted-foreground">해당하는 공간을 모두 눌러 주세요. 다음 단계에서 공간별로 품목을 고릅니다.</p>
+        <div className="grid grid-cols-3 gap-2">
+          {INTAKE_ROOMS.map((r) => {
+            const on = spaces.includes(r);
+            return (
+              <Button variant="ghost" key={r} type="button" aria-pressed={on} onClick={() => toggle(r)}
+                className={`jp-intake-room h-auto flex-col rounded-lg border-2 py-3 text-base font-bold ${on ? "border-auth-primary bg-auth-soft text-auth-text" : "border-border bg-card text-foreground"}`}>
+                <img src={ROOM_IMG[r] || ROOM_IMG["입구방"]} alt="" className="h-16 w-16 object-contain" /><span>{r}</span>
+              </Button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ItemsStep({ form, items, setForm }: { form: IntakeForm; items: Item[]; setForm: React.Dispatch<React.SetStateAction<IntakeForm | null>> }) {
-  const [room, setRoom] = useState<(typeof INTAKE_ROOMS)[number]>("거실");
-  const [menu, setMenu] = useState<string | null>(null);
-  const [group, setGroup] = useState<"가구" | "가전">("가구");
+  const spaces = (form.spaces?.length ? form.spaces : [...INTAKE_ROOMS]) as string[];
+  const [room, setRoom] = useState<string>(spaces[0]);
+  const [group, setGroup] = useState<(typeof INTAKE_GROUPS)[number]>("가구");
   const [q, setQ] = useState("");
-  const [sizeOpen, setSizeOpen] = useState(!form.fromSize);
-  const pending = useRef<{ id: string; t: number } | null>(null);
+  const pending = useRef<{ id: string; t: number; h: number } | null>(null);
+  useEffect(() => { registerCustomIcons(items.map((i) => ({ id: i.id, icon: i.icon }))); }, [items]);
+  useEffect(() => { if (!spaces.includes(room)) setRoom(spaces[0]); }, [spaces, room]);
   const picks = form.rooms[room] ?? {};
   const term = q.replace(/\s+/g, "").toLowerCase();
-  // 검색하면 방·분류와 상관없이 모든 품목에서 찾습니다.
-  const pool = term ? items.filter((i) => i.name.replace(/\s+/g, "").toLowerCase().includes(term) || (i.family ?? "").toLowerCase().includes(term))
-    : items.filter((i) => i.group === group);
-  // 평수·방에 맞는 품목을 먼저 보여 줍니다(추천용 — 나머지도 아래에서 고를 수 있음).
-  const fitRoom = (i: Item) => room === "기타" || !i.rooms.length || i.rooms.includes(room);
-  const shown = term ? pool : pool.filter((i) => fitRoom(i) && fitsSize(i.sizes, form.fromSize));
-  const others = term ? [] : pool.filter((i) => !shown.includes(i));
+  // 고객 화면은 가구·가전·주방만 보여 줍니다.
+  const allowed = items.filter((i) => (INTAKE_GROUPS as readonly string[]).includes(i.group));
+  const pool = term ? allowed.filter((i) => i.name.replace(/\s+/g, "").toLowerCase().includes(term) || (i.family ?? "").toLowerCase().includes(term))
+    : allowed.filter((i) => i.group === group);
+  // 평수·방에 맞는 품목을 앞에 두고 나머지도 모두 고를 수 있게 합니다.
+  const fits = (i: Item) => (room === "기타" || !i.rooms.length || i.rooms.includes(room)) && fitsSize(i.sizes, form.fromSize);
+  const shown = [...pool.filter(fits), ...pool.filter((i) => !fits(i))];
   const setRoomPicks = (f: (r: typeof picks) => typeof picks) =>
     setForm((s) => (s ? { ...s, rooms: { ...s.rooms, [room]: f(s.rooms[room] ?? {}) } } : s));
   const buzz = () => { try { navigator.vibrate?.(25); } catch { /* 진동 없음 */ } };
-
-  // 한 번 누르기와 두 번 누르기가 겹치지 않도록 짧게 기다린 뒤 한 번 누르기로 처리합니다.
+  // 짐픽과 같이: 한 번 누르면 선택/해제, 두 번 빠르게 누르면 폐기물 표시/해제
   const press = (it: Item) => {
     const now = Date.now();
     const p = pending.current;
     if (p && p.id === it.id && now - p.t < DOUBLE_MS) {
-      window.clearTimeout((p as { id: string; t: number; h?: number }).h);
+      window.clearTimeout(p.h);
       pending.current = null;
       setRoomPicks((r) => tapTwice(r, it.id, it.disposalAllowed));
       buzz();
       return;
     }
-    if (p) window.clearTimeout((p as { h?: number }).h);
+    if (p) window.clearTimeout(p.h);
     const h = window.setTimeout(() => { pending.current = null; setRoomPicks((r) => tapOnce(r, it.id)); buzz(); }, DOUBLE_MS);
-    pending.current = Object.assign({ id: it.id, t: now }, { h });
-  };
-
-  const card = (it: Item) => {
-    const p = picks[it.id];
-    return (
-      <div key={it.id} className={`relative rounded-2xl border-2 p-2 text-center transition ${p ? (p.disposal ? "border-destructive bg-destructive/10/70" : "border-auth-primary bg-auth-soft") : "border-border"}`}>
-        {p && (
-          <Button variant="ghost" type="button" onClick={() => { setRoomPicks((r) => setQty(r, it.id, 0)); setMenu(null); buzz(); }}
-            className="absolute -left-2 -top-2 z-[5] flex h-7 w-7 items-center justify-center rounded-full bg-auth-primary text-auth-primary-foreground shadow" aria-label={`${it.name} 선택 삭제`}>
-            <X className="h-4 w-4" strokeWidth={3} />
-          </Button>
-        )}
-        <Button variant="ghost" type="button" onClick={() => press(it)} className="block w-full select-none" style={{ touchAction: "manipulation" }} aria-pressed={!!p} aria-label={it.name}>
-          <span className="relative mx-auto block h-16 w-16">
-            <Icon3D key={it.icon} src={it.icon ?? icon3dFor(it.id, it.name)} alt={it.name} size={64} className={p?.disposal ? "opacity-50" : ""} />
-            {p && !p.disposal && <Check className="absolute right-0 top-0 h-5 w-5 rounded-full bg-auth-primary text-auth-primary-foreground" />}
-             {p?.disposal && <X className="absolute inset-0 m-auto h-14 w-14 text-destructive" strokeWidth={3.5} />}
-          </span>
-          <span className="mt-1 block text-[15px] font-bold leading-tight">{it.name}</span>
-          {p?.disposal && <span className="block text-sm font-black text-destructive">폐기물</span>}
-        </Button>
-        {p && (
-          <>
-            <Button variant="ghost" type="button" onClick={() => setMenu(menu === it.id ? null : it.id)} className="absolute right-1 top-1 p-1" aria-label="메뉴"><MoreVertical className="w-5 h-5" /></Button>
-            {menu === it.id && (
-              <div className="absolute right-1 top-8 z-10 w-36 rounded-xl border bg-card text-left shadow-lg">
-                {it.disposalAllowed && !p.disposal && <Button variant="ghost" type="button" className="block w-full px-3 py-3 text-sm font-bold" onClick={() => { setRoomPicks((r) => tapTwice(r, it.id, true)); setMenu(null); buzz(); }}>폐기물로 변경</Button>}
-                {p.disposal && <Button variant="ghost" type="button" className="block w-full px-3 py-3 text-sm font-bold" onClick={() => { setRoomPicks((r) => tapTwice(r, it.id, true)); setMenu(null); buzz(); }}>일반 이사 품목으로 변경</Button>}
-                <Button variant="ghost" type="button" className="block w-full px-3 py-3 text-sm font-bold text-destructive" onClick={() => { setRoomPicks((r) => setQty(r, it.id, 0)); setMenu(null); buzz(); }}>선택 삭제</Button>
-              </div>
-            )}
-            <div className="mt-2 flex items-center justify-between">
-              <Button variant="ghost" type="button" onClick={() => setRoomPicks((r) => setQty(r, it.id, p.qty - 1))} className="h-9 w-9 rounded-full bg-card text-xl font-black shadow" aria-label="빼기">−</Button>
-              <span className="text-lg font-black">{p.qty}</span>
-              <Button variant="ghost" type="button" onClick={() => setRoomPicks((r) => setQty(r, it.id, p.qty + 1))} className="h-9 w-9 rounded-full bg-card text-xl font-black shadow" aria-label="더하기">+</Button>
-            </div>
-          </>
-        )}
-      </div>
-    );
+    pending.current = { id: it.id, t: now, h };
   };
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border-2 border-border p-3">
-        <Button variant="ghost" type="button" onClick={() => setSizeOpen((o) => !o)} aria-expanded={sizeOpen} className="flex w-full items-center justify-between text-lg font-bold">
-          <span>출발지 평수 {form.fromSize ? <span className="text-auth-primary">· {form.fromSize}</span> : <span className="text-muted-foreground">· 골라 주세요</span>}</span>
-          <ChevronDown className={`h-6 w-6 transition ${sizeOpen ? "rotate-180" : ""}`} />
-        </Button>
-        {sizeOpen && (
-          <>
-            <p className="mt-1 text-sm text-muted-foreground">평수에 맞는 품목을 먼저 보여 드려요. 다른 품목도 모두 고를 수 있습니다.</p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {INTAKE_SIZES.map((z) => (
-                <Button variant="ghost" key={z} type="button" onClick={() => { setForm((s) => (s ? { ...s, fromSize: z } : s)); setSizeOpen(false); }}
-                  className={`rounded-xl py-3 text-base font-bold ${form.fromSize === z ? "bg-auth-primary text-auth-primary-foreground" : "bg-muted text-foreground"}`}>{z}</Button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
       <p className="rounded-2xl bg-destructive/10 p-4 text-[15px] leading-relaxed text-destructive">버릴 물건은 품목 카드를 두 번 빠르게 눌러 주세요. 빨간색 X가 표시되면 폐기물로 선택된 것입니다.</p>
-      <div className="grid grid-cols-3 gap-2">
-        {INTAKE_ROOMS.map((r) => {
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {spaces.map((r) => {
           const n = Object.values(form.rooms[r] ?? {}).reduce((a, p) => a + p.qty, 0);
           return (
-            <Button variant="ghost" key={r} type="button" onClick={() => { setRoom(r); setMenu(null); }}
-              className={`jp-intake-room h-auto flex-col rounded-lg border-2 py-3 text-base font-bold ${room === r ? "border-auth-primary bg-auth-soft text-auth-text" : "border-border bg-card text-foreground"}`}><img src={ROOM_IMG[r] || ROOM_IMG["입구방"]} alt="" className="h-16 w-16 object-contain" /><span>{r}{n ? ` ${n}` : ""}</span></Button>
+            <Button variant="ghost" key={r} type="button" onClick={() => setRoom(r)}
+              className={`jp-intake-room h-auto shrink-0 flex-col rounded-lg border-2 px-3 py-2 text-base font-bold ${room === r ? "border-auth-primary bg-auth-soft text-auth-text" : "border-border bg-card text-foreground"}`}>
+              <img src={ROOM_IMG[r] || ROOM_IMG["입구방"]} alt="" className="h-12 w-12 object-contain" /><span>{r}{n ? ` ${n}` : ""}</span>
+            </Button>
           );
         })}
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        {(["가구", "가전"] as const).map((g) => (
-          <Button variant="ghost" key={g} type="button" onClick={() => { setGroup(g); setMenu(null); }}
-            className={`rounded-xl py-3 text-lg font-black ${group === g && !term ? "bg-auth-primary text-auth-primary-foreground" : "bg-muted text-foreground"}`}>{g}</Button>
+      <div className="grid grid-cols-3 gap-2">
+        {INTAKE_GROUPS.map((g) => (
+          <Button variant="ghost" key={g} type="button" data-category={g} data-selected={group === g && !term} onClick={() => setGroup(g)}
+            className={`jp-category-tab rounded-2xl py-3 text-lg font-black ${group === g && !term ? "bg-auth-primary text-auth-primary-foreground" : "bg-muted text-foreground"}`}>{g}</Button>
         ))}
       </div>
       <div className="relative">
@@ -398,15 +391,20 @@ function ItemsStep({ form, items, setForm }: { form: IntakeForm; items: Item[]; 
         {q ? <Button variant="ghost" type="button" onClick={() => setQ("")} className="absolute right-3 top-1/2 -translate-y-1/2 p-1" aria-label="검색 지우기"><X className="h-6 w-6" /></Button>
           : <Search className="pointer-events-none absolute right-4 top-1/2 h-6 w-6 -translate-y-1/2 text-muted-foreground" />}
       </div>
-      {term && !shown.length && <div className="rounded-2xl bg-auth-soft p-4 text-base text-muted-foreground">찾는 품목이 없습니다. 비슷한 품목을 고르시거나 방문 시 말씀해 주세요.</div>}
-      {!term && form.fromSize && shown.length > 0 && <div className="text-sm font-bold text-muted-foreground">{form.fromSize} {room} 추천 품목</div>}
-      <div className="grid grid-cols-3 gap-3 pt-1">{shown.map(card)}</div>
-      {others.length > 0 && (
-        <details className="rounded-2xl bg-auth-soft p-3">
-          <summary className="text-base font-bold">다른 품목 더 보기</summary>
-          <div className="mt-3 grid grid-cols-3 gap-3 pt-1">{others.map(card)}</div>
-        </details>
-      )}
+      {!shown.length && <div className="rounded-2xl bg-auth-soft p-4 text-base text-muted-foreground">{term ? "찾는 품목이 없습니다. 방문 시 말씀해 주세요." : "이 분류에 등록된 품목이 없습니다."}</div>}
+      <div className="grid grid-cols-3 gap-2 pt-1" data-intake-items>
+        {shown.map((it) => {
+          const p = picks[it.id];
+          return (
+            <ItemPickerCard key={it.id} item={{ id: it.id, name: it.name }} qty={p?.qty ?? 0} disposed={!!p?.disposal} busy={false}
+              selectedMode={false} categoryMode
+              onTap={() => press(it)}
+              onQuantity={(n) => { setRoomPicks((r) => (r[it.id] ? setQty(r, it.id, n) : n > 0 ? setQty(tapOnce(r, it.id), it.id, n) : r)); buzz(); }}
+              onMenu={() => { if (p && (it.disposalAllowed || p.disposal)) { setRoomPicks((r) => tapTwice(r, it.id, true)); buzz(); } }}
+              onRemove={() => setRoomPicks((r) => setQty(r, it.id, 0))} />
+          );
+        })}
+      </div>
     </div>
   );
 }
