@@ -88,6 +88,10 @@ export interface Estimate {
   fromDetail: string;
   toAddress: string;
   toDetail: string;
+  fromJibun?: string;
+  fromZip?: string;
+  toJibun?: string;
+  toZip?: string;
   /** 출발지·도착지 좌표 (경도 x, 위도 y) */
   fromX?: number | null;
   fromY?: number | null;
@@ -1576,7 +1580,13 @@ interface AppState {
   catalogHidden: string[];
 }
 
+export interface CustomerFlow {
+  catalog: { id: string; name: string; cat: string; cat5: string; sub: string; group?: string; emoji: string; extra: number }[];
+  persist: (draft: Estimate) => Promise<void>;
+}
+
 interface Ctx extends AppState {
+  customerFlow?: CustomerFlow;
   authUser: { id: string; email?: string } | null;
   authChecking: boolean;
   retryAuthCheck: () => void;
@@ -1623,6 +1633,24 @@ interface Ctx extends AppState {
 }
 
 const AppCtx = createContext<Ctx | null>(null);
+
+/** Public intake uses the actual estimate screens without mounting company auth/storage. */
+export function CustomerFlowProvider({ children, draft, updateDraft, setScreen, flow }: {
+  children: ReactNode; draft: Estimate; updateDraft: Ctx["updateDraft"]; setScreen: Ctx["setScreen"]; flow: CustomerFlow;
+}) {
+  const value: Ctx = {
+    draft, updateDraft, setScreen, customerFlow: flow, loggedIn: false, savedId: "", screen: "step1",
+    estimates: [], currentRoomId: "", catalogHidden: [], authUser: null, authChecking: false,
+    draftSaveState: "idle", draftSavedAt: null, companyItems: draft.customItems,
+    patchDraft: (make) => updateDraft(make(draft)), refreshCompanyItems: async () => draft.customItems,
+    retryAuthCheck: () => {}, login: () => {}, logout: async () => {}, resetDraft: () => {}, saveDraft: () => {},
+    upsertServerEstimates: () => {}, deleteEstimate: () => {}, loadEstimate: () => {}, applyCustomerName: () => {},
+    openEstimate: () => {}, setResultFrom: () => {}, hideCatalogItem: () => {}, setCurrentRoom: () => {},
+    restoreStepSnapshot: () => false, finishToHome: () => {},
+  };
+  return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
+}
+
 const STORAGE_KEY = "jimpick_v8_state";
 const OAUTH_CONSENT_KEY = "jimpick_pending_oauth_consent";
 /**
