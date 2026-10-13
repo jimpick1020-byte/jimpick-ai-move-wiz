@@ -1,7 +1,6 @@
 import { DepositPanel } from "./DepositPanel";
 import { StaffSendScreen } from "./StaffSendScreen";
 import { paymentReview, PAYMENT_REVIEW_BORDER } from "@/lib/payment-review";
-import { retireUnconvertedIntakeDrafts } from "@/lib/intake.functions";
 import { isWaitingHistoryTarget } from "@/lib/history-focus";
 import { WorkerContacts } from "./WorkerContacts";
 import { workerSmsHref, type WorkerContact } from "@/lib/worker-contact";
@@ -6371,11 +6370,6 @@ export function History() {
         .catch(() => {});
     };
     load();
-    retireUnconvertedIntakeDrafts().then((r) => {
-      if (!alive) return;
-      if (!r.ok) { toast.error("사전정보 초안 정리 실패", { description: r.error }); return; }
-      for (const id of r.ids) deleteEstimate(id);
-    }).catch(() => { if (alive) toast.error("사전정보 초안을 정리하지 못했습니다."); });
     getManagerNotices()
       .then((r) => {
         if (alive && r.ok) setNoticeRows(r.rows);
@@ -6654,7 +6648,7 @@ export function History() {
           return (
             <div key={e.id} data-history-estimate-id={e.id} data-waiting-selected={waitingSelected}
               ref={(node) => { if (node) historyCards.current.set(e.id, node); else historyCards.current.delete(e.id); }}>
-            <Card borderOverride={review ? PAYMENT_REVIEW_BORDER[review.kind] : undefined} data-payment-review={review?.kind}>
+            <Card className={waitingSelected && !review ? "jp-waiting-history-card" : ""} borderOverride={review ? PAYMENT_REVIEW_BORDER[review.kind] : undefined} data-payment-review={review?.kind}>
               {(() => {
                 const open = !!openCard[e.id];
                 return (
