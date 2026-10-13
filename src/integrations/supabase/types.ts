@@ -328,6 +328,9 @@ export type Database = {
       }
       estimate_drafts: {
         Row: {
+          archive_reason: string | null
+          archive_restored_at: string | null
+          archived_at: string | null
           created_at: string
           deleted_at: string | null
           deleted_by: string | null
@@ -341,6 +344,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          archive_reason?: string | null
+          archive_restored_at?: string | null
+          archived_at?: string | null
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -354,6 +360,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          archive_reason?: string | null
+          archive_restored_at?: string | null
+          archived_at?: string | null
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -428,6 +437,9 @@ export type Database = {
       estimate_terms: {
         Row: {
           access_token: string
+          archive_reason: string | null
+          archive_restored_at: string | null
+          archived_at: string | null
           balance_paid: number
           balance_paid_at: string | null
           calendar_archived: boolean
@@ -476,6 +488,9 @@ export type Database = {
         }
         Insert: {
           access_token: string
+          archive_reason?: string | null
+          archive_restored_at?: string | null
+          archived_at?: string | null
           balance_paid?: number
           balance_paid_at?: string | null
           calendar_archived?: boolean
@@ -524,6 +539,9 @@ export type Database = {
         }
         Update: {
           access_token?: string
+          archive_reason?: string | null
+          archive_restored_at?: string | null
+          archived_at?: string | null
           balance_paid?: number
           balance_paid_at?: string | null
           calendar_archived?: boolean
@@ -1723,6 +1741,10 @@ export type Database = {
         Returns: Json
       }
       disable_worker_contact: { Args: { _id: string }; Returns: boolean }
+      estimate_unpaid_notice_due: {
+        Args: { _est: string; _today: string; _user: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1731,6 +1753,17 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
+      list_auto_archived_estimates: {
+        Args: never
+        Returns: {
+          archived_at: string
+          company_name: string
+          customer_name: string
+          estimate_id: string
+          move_date: string
+          user_id: string
+        }[]
+      }
       list_worker_contacts: { Args: never; Returns: Json }
       mark_reminder_viewed: { Args: { _token: string }; Returns: Json }
       owner_confirm_contract: {
@@ -1752,6 +1785,10 @@ export type Database = {
       }
       reserve_free_sms: {
         Args: { _count?: number; _key: string; _user_id: string }
+        Returns: Json
+      }
+      restore_auto_archived_estimate: {
+        Args: { _estimate_id: string; _user_id: string }
         Returns: Json
       }
       save_customer_catalog_order: {

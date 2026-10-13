@@ -85,6 +85,13 @@
       "when": 1791857766185,
       "tag": "0011_protect_customer_only_rows",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791871293673,
+      "tag": "0012_unpaid_estimate_auto_archive",
+      "breakpoints": true
     }
   ]
 }
