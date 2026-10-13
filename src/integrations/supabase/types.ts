@@ -377,6 +377,24 @@ export type Database = {
         }
         Relationships: []
       }
+      estimate_purges: {
+        Row: {
+          estimate_id: string
+          purged_at: string
+          user_id: string
+        }
+        Insert: {
+          estimate_id: string
+          purged_at?: string
+          user_id: string
+        }
+        Update: {
+          estimate_id?: string
+          purged_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       estimate_staff_shares: {
         Row: {
           company_id: string
@@ -1753,17 +1771,6 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
-      list_auto_archived_estimates: {
-        Args: never
-        Returns: {
-          archived_at: string
-          company_name: string
-          customer_name: string
-          estimate_id: string
-          move_date: string
-          user_id: string
-        }[]
-      }
       list_worker_contacts: { Args: never; Returns: Json }
       mark_reminder_viewed: { Args: { _token: string }; Returns: Json }
       owner_confirm_contract: {
@@ -1787,10 +1794,7 @@ export type Database = {
         Args: { _count?: number; _key: string; _user_id: string }
         Returns: Json
       }
-      restore_auto_archived_estimate: {
-        Args: { _estimate_id: string; _user_id: string }
-        Returns: Json
-      }
+      run_unpaid_estimate_cleanup: { Args: never; Returns: number }
       save_customer_catalog_order: {
         Args: { ids: string[] }
         Returns: undefined

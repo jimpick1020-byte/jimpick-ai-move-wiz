@@ -73,7 +73,7 @@ export const deleteEstimateEverywhere = createServerFn({ method: "POST" })
 export const listDeletedEstimateIds = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ ok: boolean; ids: string[] }> => {
-    const [terms, drafts] = await Promise.all([
+    const [terms, drafts, purged] = await Promise.all([
       context.supabase
         .from("estimate_terms")
         .select("estimate_id")
@@ -86,12 +86,20 @@ export const listDeletedEstimateIds = createServerFn({ method: "POST" })
         .eq("user_id", context.userId)
         .not("deleted_at", "is", null)
         .limit(2000),
+      // 이사일까지 예약금이 없어 영구 삭제된 견적번호 (고객정보 없이 번호만 남습니다)
+      context.supabase
+        .from("estimate_purges")
+        .select("estimate_id")
+        .eq("user_id", context.userId)
+        .limit(5000),
     ]);
     if (terms.error) console.error("[listDeletedEstimateIds]", terms.error.message);
     const ids = new Set<string>();
     for (const r of (terms.data ?? []) as { estimate_id?: string }[])
       if (r.estimate_id) ids.add(String(r.estimate_id));
     for (const r of (drafts.data ?? []) as { estimate_id?: string }[])
+      if (r.estimate_id) ids.add(String(r.estimate_id));
+    for (const r of (purged.data ?? []) as { estimate_id?: string }[])
       if (r.estimate_id) ids.add(String(r.estimate_id));
     return { ok: !terms.error, ids: [...ids] };
   });
