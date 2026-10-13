@@ -531,13 +531,17 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
     const estimateIds = Array.from(
       new Set(rows.map((r) => String((r as Record<string, unknown>)["estimate_id"] ?? ""))),
     ).filter(Boolean);
-    const { data: claims } = estimateIds.length
+    const { data: claims, error: receiptError } = estimateIds.length
       ? await context.supabase
           .from("deposit_records")
           .select("id, estimate_id, amount, created_at, source, status, depositor_name, payment_kind")
           .eq("user_id", context.userId)
           .in("estimate_id", estimateIds)
-      : { data: [] as never[] };
+      : { data: [] as never[], error: null };
+    if (receiptError) {
+      console.error("[getTermsStatuses] receipt read failed", receiptError.message);
+      throw new Error("입금기록을 불러오지 못했습니다. 잠시 후 다시 확인해 주세요.");
+    }
     const claimByEstimate = new Map(
       (claims ?? []).filter((c) => c.source === "customer_claim" && c.status === "pending_review").map((c) => [String((c as Record<string, unknown>)["estimate_id"]), c]),
     );

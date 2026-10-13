@@ -9,5 +9,8 @@ describe("actual payment review", () => {
   test("confirmed deposit removes border", () => assert.equal(paymentReview([{ ...receipt, status: "confirmed" }], "deposit_paid", 100000, 0, 1000000), null));
   test("full actual balance waits for completion", () => assert.equal(paymentReview([{ ...receipt, amount: 900000, paymentKind: "balance" }], "deposit_paid", 100000, 0, 1000000)?.kind, "balance"));
   test("short balance is not full balance", () => assert.equal(paymentReview([{ ...receipt, amount: 899999, paymentKind: "balance" }], "deposit_paid", 100000, 0, 1000000), null));
+  test("stored balance cannot make a short receipt full", () => assert.equal(paymentReview([{ ...receipt, amount: 1, paymentKind: "balance" }], "deposit_paid", 100000, 900000, 1000000), null));
+  test("unknown receipt status is not evidence", () => assert.equal(paymentReview([{ ...receipt, status: "failed" }], "unpaid", 0, 0, 1000000), null));
+  test("full balance takes priority over pending deposit", () => assert.deepEqual(paymentReview([receipt, { ...receipt, amount: 900000, paymentKind: "balance" }], "deposit_paid", 100000, 0, 1000000), { kind: "balance", names: ["입금자"] }));
   test("completed removes red border", () => assert.equal(paymentReview([{ ...receipt, amount: 900000, paymentKind: "balance" }], "completed", 100000, 900000, 1000000), null));
 });
