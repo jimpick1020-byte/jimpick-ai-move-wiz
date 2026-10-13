@@ -201,6 +201,7 @@ export interface Estimate {
   /** 고객 상세주소에서 확실히 찾은 층수 또는 「방문 확인 예정」 (참고용) */
   intakeFromFloor?: string;
   intakeFromSize?: string;
+  intakeSubmittedAt?: string;
   intakeToFloor?: string;
   /** 고객이 고른 방별 품목·폐기물 요약 */
   intakeNote?: string;
@@ -1598,6 +1599,8 @@ interface Ctx extends AppState {
   patchDraft: (make: (current: Estimate) => Partial<Estimate>) => void;
   resetDraft: () => void;
   saveDraft: () => void;
+  /** 서버에서 받은 견적(고객 사전정보 초안)을 견적 내역에 넣거나 최신으로 바꿉니다 */
+  upsertServerEstimates: (list: Estimate[]) => void;
   deleteEstimate: (id: string) => void;
   loadEstimate: (id: string) => void;
   /** 그 견적번호의 고객 이름을 최신 이름으로 맞춥니다(작성 중 견적 + 저장된 견적 목록) */
@@ -1974,6 +1977,24 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
             ? s.estimates.map((e) => (e.id === finalized.id ? finalized : e))
             : [finalized, ...s.estimates];
         return { ...s, estimates, draft: finalized };
+      }),
+    upsertServerEstimates: (list) =>
+      setState((s) => {
+        let changed = false;
+        let estimates = s.estimates;
+        for (const e of list) {
+          if (!e?.id) continue;
+          const i = estimates.findIndex((x) => x.id === e.id);
+          if (i < 0) { estimates = [formatDraftPhones(e), ...estimates]; changed = true; continue; }
+          // 고객이 다시 제출한 경우만 바꿉니다(같은 견적 한 건을 갱신, 중복 없음).
+          const cur = estimates[i] as Estimate & { intakeSubmittedAt?: string };
+          const nx = e as Estimate & { intakeSubmittedAt?: string };
+          if (nx.intakeSubmittedAt && nx.intakeSubmittedAt !== cur.intakeSubmittedAt) {
+            estimates = estimates.map((x, j) => (j === i ? formatDraftPhones(e) : x));
+            changed = true;
+          }
+        }
+        return changed ? { ...s, estimates } : s;
       }),
     deleteEstimate: (id) =>
       setState((s) => ({ ...s, estimates: s.estimates.filter((e) => e.id !== id) })),
