@@ -6,6 +6,8 @@
  * 「결제완료」는 실제 확인된 금액이 총액과 맞을 때만, 확인창을 거쳐 저장됩니다.
  */
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { paymentReview } from "@/lib/payment-review";
 import { toast } from "sonner";
 import {
   setPaymentState,
@@ -39,6 +41,7 @@ export function PaymentPanel({
   const deposit = row.depositPaid;
   const balanceNum = row.balancePaid;
   const remain = Math.max(0, total - deposit - balanceNum);
+  const balanceReady = paymentReview(row.paymentReceipts ?? [], row.paymentStatus, deposit, balanceNum, total)?.kind === "balance";
 
   const run = async (data: { estimateId: string; status: PaymentStatus; note?: string; balancePaid?: number }, okMsg: string) => {
     if (busy) return;
@@ -63,7 +66,7 @@ export function PaymentPanel({
   const save = () => void run({ estimateId, status, note }, "결제 상태를 저장했습니다");
   // 사장님이 남은 잔금 전액 입금을 확인했을 때만 결제완료로 저장하고 완료 보관함으로 옮깁니다.
   const complete = () =>
-    void run({ estimateId, status: "completed", note, balancePaid: Math.max(0, total - deposit) }, "잔금 확인 · 완료 보관함으로 옮겼습니다");
+    void run({ estimateId, status: "completed", note }, "잔금 확인 · 완료 보관함으로 옮겼습니다");
 
   return (
     <div className="mt-2 rounded-xl bg-[#F7F8F5] p-2.5">
@@ -94,13 +97,13 @@ export function PaymentPanel({
               return (
                 <button
                   key={s}
-                  onClick={() => (isComplete ? total > 0 && setAskComplete(true) : (setAskComplete(false), setStatus(s)))}
-                  disabled={busy || (isComplete && total <= 0)}
+                   onClick={() => (isComplete ? balanceReady && setAskComplete(true) : (setAskComplete(false), setStatus(s)))}
+                   disabled={busy || (isComplete && !balanceReady)}
                   className={`rounded-xl py-2 text-[12.5px] font-bold disabled:opacity-50 ${
                     active ? "bg-[#3578C8] text-white" : "bg-white text-[#6B7280] ring-1 ring-[#E5E7EB]"
                   }`}
                 >
-                  {isComplete ? "잔금 확인" : PAYMENT_STATUS_LABEL[s]}
+                  {isComplete ? "결제완료" : PAYMENT_STATUS_LABEL[s]}
                 </button>
               );
             })}

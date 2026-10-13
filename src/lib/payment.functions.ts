@@ -152,6 +152,11 @@ export const setPaymentState = createServerFn({ method: "POST" })
       data,
       context,
     }): Promise<{ ok: boolean; error?: string; balancePaid?: number; confirmedAt?: string }> => {
+      if (data.status === "completed") {
+        const { data: result, error } = await context.supabase.rpc("complete_receipted_estimate", { _estimate_id: data.estimateId, _note: data.note?.trim() || null });
+        if (error) return { ok: false, error: error.message };
+        return result as { ok: boolean; error?: string; balancePaid?: number; confirmedAt?: string };
+      }
       const { data: terms, error: findErr } = await context.supabase
         .from("estimate_terms")
         .select("id, total, deposit_paid, balance_paid, move_date")
