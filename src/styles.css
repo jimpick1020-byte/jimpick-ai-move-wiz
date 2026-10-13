@@ -206,6 +206,14 @@
   border: 4px solid var(--history-waiting-border);
   scroll-margin-block: 1rem;
 }
+.jp-pay-tone-1 { --history-waiting-border: oklch(0.5 0.2 260); }
+.jp-pay-tone-2 { --history-waiting-border: oklch(0.55 0.17 150); }
+.jp-pay-tone-3 { --history-waiting-border: oklch(0.6 0.19 40); }
+.jp-pay-tone-4 { --history-waiting-border: oklch(0.5 0.22 300); }
+.jp-pay-tone-5 { --history-waiting-border: oklch(0.55 0.21 20); }
+.jp-pay-tone-6 { --history-waiting-border: oklch(0.6 0.13 200); }
+.jp-pay-tone-7 { --history-waiting-border: oklch(0.65 0.16 85); }
+.jp-pay-tone-8 { --history-waiting-border: oklch(0.55 0.2 340); }
 
 .jp-worker-gender {
   --worker-tone: var(--muted-foreground);
