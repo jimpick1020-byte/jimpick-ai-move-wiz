@@ -47,8 +47,13 @@ export function DepositPanel({
         if (alive && r.ok) setRows(r.rows);
       })
       .catch(() => {});
+    const refresh = () => {
+      listDeposits({ data: { estimateId } }).then((r) => { if (alive && r.ok) setRows(r.rows); }).catch(() => {});
+    };
+    window.addEventListener("jimpick:payment-updated", refresh);
     return () => {
       alive = false;
+      window.removeEventListener("jimpick:payment-updated", refresh);
     };
   }, [estimateId]);
 
@@ -64,8 +69,8 @@ export function DepositPanel({
       if (!r.ok) {
         toast.error("입금 기록 실패", { description: r.error ?? "다시 시도해 주세요" });
       } else if (r.needsReview) {
-        toast.warning("입금자 이름이 고객 이름과 다릅니다", {
-          description: "금액은 그대로 두었습니다. 직접 확인한 뒤 반영해 주세요.",
+        toast.info("입금 기록을 저장했습니다", {
+          description: "금액은 아직 반영하지 않았습니다. 통장을 확인한 뒤 예약금 확인 또는 결제완료를 눌러 주세요.",
         });
         setText("");
       } else {

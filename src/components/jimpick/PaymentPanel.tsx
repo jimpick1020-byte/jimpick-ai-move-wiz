@@ -6,7 +6,6 @@
  * 「결제완료」는 실제 확인된 금액이 총액과 맞을 때만, 확인창을 거쳐 저장됩니다.
  */
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { paymentReview } from "@/lib/payment-review";
 import { toast } from "sonner";
 import {
