@@ -14,7 +14,7 @@ import { formatTel } from "@/lib/format-input";
 import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
-  listIntakeRequests, loadIntakeDraft, markIntakeSeen, removeIntakeItem, saveIntakeItemSetting, saveIntakeOrder, sendIntakeSms,
+  listIntakeDrafts, listIntakeRequests, loadIntakeDraft, markIntakeSeen, removeIntakeItem, saveIntakeItemSetting, saveIntakeOrder, sendIntakeSms,
   type IntakeItem, type IntakeRow,
 } from "@/lib/intake.functions";
 import { createManualItem } from "@/lib/manual-item.functions";
@@ -286,8 +286,25 @@ export function IntakeInbox() {
 }
 
 /** 고객이 제출하면 앱 알림 (앱을 열 때와 화면에 있는 동안 1분마다 확인) */
+/** 고객이 제출한 사전정보 견적 초안을 사장님 「견적 내역」에 넣습니다 (같은 견적 id는 한 건만) */
+let lastSyncKey = "";
+function useIntakeDraftSync(rows: IntakeRow[]) {
+  const { upsertServerEstimates, loggedIn } = useApp();
+  const key = rows.filter((r) => r.status === "submitted" || r.status === "confirmed").map((r) => `${r.id}:${r.last_submitted_at}`).join("|");
+  useEffect(() => {
+    if (!loggedIn) { lastSyncKey = ""; return; }
+    if (!key || key === lastSyncKey) return;
+    lastSyncKey = key;
+    listIntakeDrafts().then((r) => {
+      if (!r.ok) { lastSyncKey = ""; return; }
+      upsertServerEstimates(r.payloads.map((p) => JSON.parse(p) as Estimate));
+    }).catch(() => { lastSyncKey = ""; });
+  }, [key, loggedIn, upsertServerEstimates]);
+}
+
 export function IntakeNotifier() {
   const rows = useIntakeRequests();
+  useIntakeDraftSync(rows);
   const shown = useRef(new Set<string>());
   useEffect(() => {
     const id = window.setInterval(() => void reloadIntakeRequests(), 60_000);
@@ -504,7 +521,9 @@ function AddIntakeItem({ onClose, onDone, sortBase }: { onClose: () => void; onD
 
 /** 견적 내역 위쪽 — 고객이 입력을 마친 사전정보 견적 초안 */
 export function IntakeSubmittedList() {
-  const rows = useIntakeRequests().filter((r) => r.status === "submitted" || r.status === "confirmed").slice(0, 10);
+  const all = useIntakeRequests();
+  useIntakeDraftSync(all);
+  const rows = all.filter((r) => r.status === "submitted" || r.status === "confirmed").slice(0, 10);
   const [openId, setOpenId] = useState<string | null>(null);
   const open = rows.find((r) => r.id === openId);
   if (!rows.length) return null;

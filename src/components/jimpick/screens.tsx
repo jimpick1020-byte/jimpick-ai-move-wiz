@@ -6616,6 +6616,9 @@ export function History() {
                         <div>
                           <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
                             <span className="font-bold truncate">{e.customerName || "이름 없음"}</span>
+                            {e.intakeRequestId && (
+                              <span className="shrink-0 whitespace-nowrap rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-bold text-[#166534]">사전정보 입력 완료</span>
+                            )}
                             {MOVE_TYPE_BADGE[String(e.moveType ?? "").trim()] && (
                               <span className={`shrink-0 whitespace-nowrap text-xs px-2 py-0.5 rounded-full font-bold ${MOVE_TYPE_BADGE[String(e.moveType).trim()]}`}>
                                 {String(e.moveType).trim()}

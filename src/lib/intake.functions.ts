@@ -217,6 +217,24 @@ export const markIntakeSeen = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * 고객이 제출한 사전정보 견적 초안 전체 — 사장님 「견적 내역」 목록에 넣기 위해 씁니다.
+ * (견적 내역은 휴대폰에 저장된 목록이라, 고객이 서버에 만든 초안은 여기서 받아와 합칩니다.)
+ */
+export const listIntakeDrafts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ ok: boolean; payloads: string[]; error?: string }> => {
+    const { data: reqs, error } = await context.supabase.from("intake_requests").select("estimate_id")
+      .eq("company_id", context.userId).in("status", ["submitted", "confirmed"]).limit(300);
+    if (error) return { ok: false, payloads: [], error: "사전정보 견적을 불러오지 못했습니다." };
+    const ids = (reqs ?? []).map((r) => r.estimate_id as string);
+    if (!ids.length) return { ok: true, payloads: [] };
+    const { data: rows, error: e2 } = await context.supabase.from("estimate_drafts").select("payload")
+      .eq("user_id", context.userId).in("estimate_id", ids).is("deleted_at", null);
+    if (e2) return { ok: false, payloads: [], error: "사전정보 견적을 불러오지 못했습니다." };
+    return { ok: true, payloads: (rows ?? []).map((r) => JSON.stringify(r.payload)) };
+  });
+
 /** 고객이 만든 견적 초안 (사장님 화면으로 불러오기) */
 export const loadIntakeDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -451,17 +469,20 @@ export const submitIntake = createServerFn({ method: "POST" })
     const merged = mergeIntakeIntoDraft(base, form, prevRooms, { intakeRequestId: row.id });
     merged.intakeNote = intakeSummary(form, nameOf).join("\n");
     merged.intakeDisposalFee = "방문 후 확인";
+    merged.intakeSubmittedAt = new Date().toISOString();
+    const FAIL = "저장하지 못했습니다. 다시 눌러 주세요.";
     const revision = Math.max(Number(draftRow?.revision ?? 0) + 1, Math.floor(Date.now() / 1000));
     if (!draftRow) {
       const { error } = await sb.from("estimate_drafts").insert({ user_id: row.company_id, estimate_id: row.estimate_id, payload: merged as never, revision });
-      if (error && error.code !== "23505") return { ok: false, error: "저장하지 못했습니다. 잠시 후 다시 눌러 주세요." };
+      if (error && error.code !== "23505") { console.error("[submitIntake] draft insert", error.code, error.message); return { ok: false, error: FAIL }; }
       if (error) {
-        await sb.from("estimate_drafts").update({ payload: merged as never, revision }).eq("user_id", row.company_id).eq("estimate_id", row.estimate_id);
+        const u = await sb.from("estimate_drafts").update({ payload: merged as never, revision }).eq("user_id", row.company_id).eq("estimate_id", row.estimate_id);
+        if (u.error) { console.error("[submitIntake] draft update", u.error.code, u.error.message); return { ok: false, error: FAIL }; }
       }
     } else if (!draftRow.deleted_at) {
       // 사장님이 지운 견적은 되살리지 않습니다.
       const { error } = await sb.from("estimate_drafts").update({ payload: merged as never, revision }).eq("id", draftRow.id);
-      if (error) return { ok: false, error: "저장하지 못했습니다. 잠시 후 다시 눌러 주세요." };
+      if (error) { console.error("[submitIntake] draft update", error.code, error.message); return { ok: false, error: FAIL }; }
     }
     const now = new Date().toISOString();
     const { error } = await sb.from("intake_requests").update({
@@ -470,6 +491,6 @@ export const submitIntake = createServerFn({ method: "POST" })
       submit_count: Number(row.submit_count ?? 0) + 1, owner_seen_at: null,
       editing_started_at: row.editing_started_at ?? now,
     }).eq("id", row.id).neq("status", "confirmed");
-    if (error) return { ok: false, error: "저장하지 못했습니다. 잠시 후 다시 눌러 주세요." };
+    if (error) { console.error("[submitIntake] request update", error.code, error.message); return { ok: false, error: FAIL }; }
     return { ok: true };
   });
