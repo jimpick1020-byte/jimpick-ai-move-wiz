@@ -8,17 +8,22 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, Settings2, Plus } from "lucide-react";
+import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, Settings2, Plus, GripVertical, Trash2 } from "lucide-react";
 import { useApp, type Estimate } from "@/lib/jimpick";
 import { formatTel } from "@/lib/format-input";
 import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
-  listIntakeRequests, loadIntakeDraft, markIntakeSeen, saveIntakeItemSetting, sendIntakeSms,
+  listIntakeRequests, loadIntakeDraft, markIntakeSeen, removeIntakeItem, saveIntakeItemSetting, saveIntakeOrder, sendIntakeSms,
   type IntakeItem, type IntakeRow,
 } from "@/lib/intake.functions";
 import { createManualItem } from "@/lib/manual-item.functions";
-import { INTAKE_BASE_ITEMS, INTAKE_ROOMS, floorText, intakeStatusLabel, strictFloor, type IntakeForm } from "@/lib/intake";
+import { INTAKE_ROOMS, floorText, intakeItemName, intakeStatusLabel, strictFloor, type IntakeForm } from "@/lib/intake";
+
+/** 고객이 아직 이름을 넣기 전에는 전화번호로 구분합니다 */
+export function intakeDisplayName(r: Pick<IntakeRow, "customer_name">): string {
+  return r.customer_name?.trim() || "이름 입력 전";
+}
 
 const STATUS_CLASS: Record<string, string> = {
   "링크 미발송": "bg-[#EEF1F5] text-[#6B7280]",
@@ -90,7 +95,8 @@ export function IntakeRequestButton({ name = "", phone = "", sourceEstimateId, l
 export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, onClose }:
   { name: string; phone: string; sourceEstimateId?: string; requestId?: string; onClose: () => void }) {
   const rows = useIntakeRequests();
-  const [n, setN] = useState(name);
+  // 고객 이름은 업체가 넣지 않고, 고객이 링크 1단계에서 직접 입력합니다.
+  void name;
   const [p, setP] = useState(formatTel(phone));
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -104,7 +110,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
 
   const ensure = async (): Promise<{ id: string; link?: string } | null> => {
     if (row && !closed) return { id: row.id };
-    const r = await createIntakeRequest({ data: { name: n.trim(), phone: p, sourceEstimateId } });
+    const r = await createIntakeRequest({ data: { phone: p, sourceEstimateId } });
     if (!r.ok || !r.row) { setErr(r.error ?? "링크를 만들지 못했습니다."); return null; }
     setRowId(r.row.id);
     await reloadIntakeRequests();
@@ -112,7 +118,6 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
   };
   const run = async (key: string, f: () => Promise<void>) => {
     setErr(null);
-    if (!n.trim()) return setErr("고객 이름을 입력해 주세요.");
     if (!/^01[016789]-?\d{3,4}-?\d{4}$/.test(p)) return setErr("고객 휴대전화 번호를 확인해 주세요.");
     setBusy(key);
     try { await f(); } catch (e) { setErr(e instanceof Error ? e.message : "처리하지 못했습니다."); }
@@ -137,7 +142,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
   });
   const kakao = () => run("kakao", async () => {
     const link = await linkOf("kakao"); if (!link) return;
-    const text = `[JIMPICK 짐픽] ${n.trim()} 고객님, 방문견적 전 기본정보 입력을 부탁드립니다.`;
+    const text = "[JIMPICK 짐픽] 고객님, 방문견적 전 기본정보 입력을 부탁드립니다.";
     if (navigator.share) {
       try { await navigator.share({ title: "짐픽 사전정보 입력", text, url: link }); } catch { /* 사장님이 공유창을 닫음 */ }
     } else {
@@ -169,7 +174,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
 
   const sub = row?.submission as IntakeForm | undefined;
   const hasSub = !!sub && !!sub.customerName;
-  const nameOf = (id: string) => INTAKE_BASE_ITEMS.find((b) => b.id === id)?.name ?? id;
+  const nameOf = (id: string) => intakeItemName(id) ?? id;
   const t = (v: string | null | undefined) => (v ? new Date(v).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "-");
 
   return (
@@ -179,14 +184,11 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
           <h2 className="text-lg font-black text-[#25282D]">고객 사전정보 요청</h2>
           <button type="button" onClick={onClose} aria-label="닫기" className="p-2"><X className="w-5 h-5" /></button>
         </div>
-        <label className="block text-sm font-bold">고객 이름
-          <input value={n} onChange={(e) => setN(e.target.value)} disabled={!!row && !closed}
-            className="mt-1 w-full rounded-xl border border-[#E5E7EB] px-3 py-3 text-base" placeholder="홍길동" />
-        </label>
         <label className="block text-sm font-bold">고객 휴대전화 번호
           <input value={p} inputMode="tel" onChange={(e) => setP(formatTel(e.target.value))} disabled={!!row && !closed}
             className="mt-1 w-full rounded-xl border border-[#E5E7EB] px-3 py-3 text-base" placeholder="010-0000-0000" />
         </label>
+        <p className="text-xs text-[#6B7280]">고객 이름은 문자를 받은 고객이 링크에서 직접 입력합니다.{row?.customer_name ? ` (고객 입력 이름: ${row.customer_name})` : ""}</p>
         <div className="flex items-center gap-2 text-sm font-bold">링크 상태 {row ? <IntakeStatusChip row={row} /> : <span className={`rounded-full px-1.5 py-[1px] text-[10.5px] font-black ${STATUS_CLASS["링크 미발송"]}`}>링크 미발송</span>}</div>
         {row && (
           <div className="text-xs text-[#6B7280] space-y-0.5">
@@ -209,8 +211,9 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
             <div className="font-black">고객 입력 내용</div>
             <div>{sub.customerName} · {sub.phone}</div>
             <div>이사 {sub.moveDate || "-"} {sub.moveTime}</div>
-            <div>출발 {sub.fromAddress} {sub.fromDetail} ({floorText(strictFloor(sub.fromDetail))})</div>
-            <div>도착 {sub.toAddress} {sub.toDetail} ({floorText(strictFloor(sub.toDetail))})</div>
+            {sub.fromSize && <div>출발지 평수(참고) {sub.fromSize}</div>}
+            <div>출발 {sub.fromAddress} {sub.fromDetail} ({floorText(strictFloor(sub.fromDetail))}){sub.fromZip ? ` · 우편 ${sub.fromZip}` : ""}</div>
+            <div>도착 {sub.toAddress} {sub.toDetail} ({floorText(strictFloor(sub.toDetail))}){sub.toZip ? ` · 우편 ${sub.toZip}` : ""}</div>
             <div className="text-[#6B7280]">엘리베이터·사다리차: 방문 후 결정 · 폐기물 처리비: 방문 후 확인</div>
             {Object.entries(sub.rooms ?? {}).map(([room, picks]) => {
               const list = Object.entries(picks);
@@ -270,7 +273,7 @@ export function IntakeInbox() {
           {shown.map((r) => (
             <button key={r.id} type="button" onClick={() => setOpenId(r.id)}
               className="w-full flex items-center justify-between rounded-xl bg-[#F7F8F5] px-3 py-2 text-left">
-              <span className="text-sm font-bold">{r.customer_name} <span className="text-xs text-[#6B7280]">{r.customer_phone}</span></span>
+              <span className="text-sm font-bold">{intakeDisplayName(r)} <span className="text-xs text-[#6B7280]">{r.customer_phone}</span></span>
               <IntakeStatusChip row={r} />
             </button>
           ))}
@@ -295,7 +298,7 @@ export function IntakeNotifier() {
     if (!fresh.length) return;
     for (const r of fresh) {
       shown.current.add(`${r.id}:${r.last_submitted_at}`);
-      toast.success(`${r.customer_name} 고객님이 사전정보 입력을 완료했습니다.`, { duration: 8000 });
+      toast.success(`${r.customer_name || r.customer_phone} 고객님이 사전정보 입력을 완료했습니다.`, { duration: 8000 });
     }
     void markIntakeSeen({ data: { ids: fresh.map((r) => r.id) } });
   }, [rows]);
@@ -323,15 +326,61 @@ export function IntakeItemsManager({ onClose }: { onClose: () => void }) {
     } });
     if (!r.ok) { toast.error(r.error ?? "저장하지 못했습니다."); void load(); }
   };
-  const move = (it: IntakeItem, dir: -1 | 1) => {
-    if (!items) return;
-    const i = items.findIndex((x) => x.id === it.id);
-    const j = i + dir;
-    if (j < 0 || j >= items.length) return;
-    const a = items[i], b = items[j];
-    void save(a, { sort: j * 10 });
-    void save(b, { sort: i * 10 });
-    setItems((l) => { if (!l) return l; const c = [...l]; c[i] = { ...b, sort: i * 10 }; c[j] = { ...a, sort: j * 10 }; return c; });
+  // ── 길게 눌러 끌어서 순서 바꾸기 ──
+  const [dragId, setDragId] = useState<string | null>(null);
+  const drag = useRef<{ id: string | null; timer?: number; x: number; y: number; moved: boolean }>({ id: null, x: 0, y: 0, moved: false });
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  useEffect(() => {
+    // 끌기 중에는 화면이 스크롤되지 않게 막습니다(끌기 전에는 평소처럼 스크롤).
+    const block = (e: TouchEvent) => { if (drag.current.id) e.preventDefault(); };
+    document.addEventListener("touchmove", block, { passive: false });
+    return () => document.removeEventListener("touchmove", block);
+  }, []);
+  const onDown = (e: React.PointerEvent, it: IntakeItem) => {
+    if ((e.target as HTMLElement).closest("input,button,label,select")) return;
+    const d = drag.current;
+    d.x = e.clientX; d.y = e.clientY; d.moved = false;
+    window.clearTimeout(d.timer);
+    d.timer = window.setTimeout(() => {
+      d.id = it.id; setDragId(it.id);
+      try { navigator.vibrate?.(30); } catch { /* 진동 없음 */ }
+    }, 450);
+  };
+  const onMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d.id) {
+      if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 10) window.clearTimeout(d.timer);
+      return;
+    }
+    d.moved = true;
+    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-intake-item]") as HTMLElement | null;
+    const over = el?.dataset.intakeItem;
+    if (!over || over === d.id) return;
+    setItems((l) => {
+      if (!l) return l;
+      const from = l.findIndex((x) => x.id === d.id), to = l.findIndex((x) => x.id === over);
+      if (from < 0 || to < 0) return l;
+      const c = [...l]; const [m] = c.splice(from, 1); c.splice(to, 0, m);
+      return c;
+    });
+  };
+  const onUp = async () => {
+    const d = drag.current;
+    window.clearTimeout(d.timer);
+    const was = d.id; d.id = null; setDragId(null);
+    if (!was || !d.moved) return;
+    const list = itemsRef.current ?? [];
+    setItems(list.map((x, i) => ({ ...x, sort: i * 10 })));
+    const r = await saveIntakeOrder({ data: { order: list.map((x) => ({ id: x.id, kind: x.kind })) } });
+    if (!r.ok) { toast.error(r.error ?? "순서를 저장하지 못했습니다."); void load(); }
+    else toast.success("순서를 저장했습니다.");
+  };
+  const remove = async (it: IntakeItem) => {
+    if (!window.confirm(`「${it.name}」 카드를 고객 링크에서 삭제할까요?\n이미 받은 견적과 품목 그림은 그대로 남습니다.`)) return;
+    const r = await removeIntakeItem({ data: { id: it.id, kind: it.kind } });
+    if (r.ok) { setItems((l) => l?.filter((x) => x.id !== it.id) ?? l); toast.success("고객 링크에서 삭제했습니다."); }
+    else toast.error(r.error ?? "삭제하지 못했습니다.");
   };
   return (
     <div className="fixed inset-0 z-[80] bg-white overflow-auto" onClick={(e) => e.stopPropagation()}>
@@ -340,25 +389,28 @@ export function IntakeItemsManager({ onClose }: { onClose: () => void }) {
         <button type="button" onClick={onClose} className="p-2" aria-label="닫기"><X className="w-5 h-5" /></button>
       </div>
       <div className="p-4 space-y-3 pb-24">
-        <p className="text-sm text-[#6B7280]">고객 사전정보 링크에 보일 큰 가구·가전입니다. 새로 추가한 품목은 그림과 함께 영구 저장되어 이 업체 고객 링크에만 나타납니다.</p>
+        <p className="text-sm text-[#6B7280]">카드를 길게 누른 채 위아래로 끌면 순서가 바뀝니다. 고객 사전정보 링크에 보일 큰 가구·가전입니다. 새로 추가한 품목은 그림과 함께 영구 저장되어 이 업체 고객 링크에만 나타납니다.</p>
         <button type="button" onClick={() => setAdding(true)} className="w-full inline-flex items-center justify-center gap-1 rounded-xl bg-[#2563EB] py-3 font-black text-white">
           <Plus className="w-4 h-4" /> 새 품목 추가
         </button>
         {err && <div className="text-sm font-bold text-[#B91C1C]">{err}</div>}
         {!items && !err && <div className="py-10 text-center text-[#6B7280]">불러오는 중…</div>}
         {items?.map((it) => (
-          <div key={it.id} className={`rounded-2xl border p-3 space-y-2 ${it.visible ? "border-[#E5E7EB]" : "border-dashed border-[#D1D5DB] opacity-70"}`}>
+          <div key={it.id} data-intake-item={it.id}
+            onPointerDown={(e) => onDown(e, it)} onPointerMove={onMove} onPointerUp={() => void onUp()} onPointerCancel={() => void onUp()}
+            onContextMenu={(e) => e.preventDefault()}
+            className={`select-none rounded-2xl border p-3 space-y-2 transition ${dragId === it.id ? "scale-[1.02] border-[#2563EB] bg-[#EFF6FF] shadow-lg" : it.visible ? "border-[#E5E7EB]" : "border-dashed border-[#D1D5DB] opacity-70"}`}>
             <div className="flex items-center gap-3">
+              <GripVertical className="h-5 w-5 shrink-0 text-[#9CA3AF]" aria-hidden />
               <Icon3D src={it.icon ?? icon3dFor(it.id, it.name)} alt={it.name} size={48} />
               <input defaultValue={it.name} disabled={it.kind === "base"}
                 onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== it.name) void save(it, { name: v }); }}
-                className="flex-1 rounded-lg border border-[#E5E7EB] px-2 py-2 font-bold disabled:bg-[#F7F8F5]" />
-              <div className="flex flex-col">
-                <button type="button" onClick={() => move(it, -1)} className="px-2 text-sm" aria-label="위로">▲</button>
-                <button type="button" onClick={() => move(it, 1)} className="px-2 text-sm" aria-label="아래로">▼</button>
-              </div>
+                className="min-w-0 flex-1 rounded-lg border border-[#E5E7EB] px-2 py-2 font-bold disabled:bg-[#F7F8F5]" />
+              <button type="button" onClick={() => void remove(it)} className="rounded-lg bg-[#FEE2E2] p-2 text-[#B91C1C]" aria-label={`${it.name} 삭제`}>
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
-            {it.cat && <div className="text-xs text-[#6B7280]">카테고리: {it.cat}</div>}
+            <div className="text-xs text-[#6B7280]">분류: {it.group}{it.family ? ` · ${it.family}` : ""}{it.cat && it.cat !== it.group ? ` (${it.cat})` : ""}</div>
             <div className="flex flex-wrap gap-1">
               {INTAKE_ROOMS.map((room) => {
                 const on = it.rooms.includes(room);
@@ -461,7 +513,7 @@ export function IntakeSubmittedList() {
       <div className="text-sm font-black text-[#1E3A8A]">고객 사전정보 견적 초안</div>
       {rows.map((r) => (
         <button key={r.id} type="button" onClick={() => setOpenId(r.id)} className="w-full flex items-center justify-between rounded-xl bg-white px-3 py-2 text-left">
-          <span className="text-sm font-bold">{r.customer_name} <span className="text-xs text-[#6B7280]">{r.submission && "moveDate" in r.submission ? r.submission.moveDate : ""}</span></span>
+          <span className="text-sm font-bold">{intakeDisplayName(r)} <span className="text-xs text-[#6B7280]">{r.submission && "moveDate" in r.submission ? r.submission.moveDate : ""}</span></span>
           <IntakeStatusChip row={r} />
         </button>
       ))}

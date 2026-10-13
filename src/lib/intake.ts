@@ -3,30 +3,98 @@
  * (데이터베이스·네트워크 없이 시험할 수 있게 분리했습니다.)
  */
 
-/** 고객 링크에 기본으로 보이는 큰 가구·가전 (기존 품목 목록의 id를 그대로 씁니다) */
-export const INTAKE_BASE_ITEMS: { id: string; name: string; rooms: string[]; img?: string }[] = [
-  { id: "bed-01", name: "침대", rooms: ["안방", "작은방"] },
-  { id: "wardrobe-01", img: "/assets/items-3d/furniture/wardrobe.webp", name: "장롱", rooms: ["안방", "작은방"] },
-  { id: "chest-of-drawers-01", img: "/assets/items-3d/furniture/chest-of-drawers.webp", name: "서랍장", rooms: ["안방", "작은방"] },
-  { id: "dressing-table-01", img: "/assets/items-3d/furniture/dressing-table.webp", name: "화장대", rooms: ["안방", "작은방"] },
-  { id: "desk-01", img: "/assets/items-3d/furniture/desk.webp", name: "책상", rooms: ["작은방", "거실"] },
-  { id: "bookshelf-01", img: "/assets/items-3d/furniture/bookshelf.webp", name: "책장", rooms: ["작은방", "거실"] },
-  { id: "sofa-01", name: "소파", rooms: ["거실"] },
-  { id: "living-room-cabinet-01", name: "거실장", rooms: ["거실"] },
-  { id: "dining-table-01", name: "식탁", rooms: ["부엌", "거실"] },
-  { id: "refrigerator-01", img: "/assets/items-3d/appliances/side-by-side-refrigerator.webp", name: "냉장고", rooms: ["부엌"] },
-  { id: "kimchi-refrigerator-01", img: "/assets/items-3d/appliances/kimchi-refrigerator.webp", name: "김치냉장고", rooms: ["부엌", "베란다"] },
-  { id: "washing-machine-01", img: "/assets/items-3d/appliances/drum-washing-machine.webp", name: "세탁기", rooms: ["베란다"] },
-  { id: "clothes-dryer-01", img: "/assets/items-3d/appliances/clothes-dryer.webp", name: "건조기", rooms: ["베란다"] },
-  { id: "clothes-styler-01", img: "/assets/items-3d/appliances/styler.webp", name: "스타일러", rooms: ["안방"] },
-  { id: "television-01", img: "/assets/items-3d/appliances/television.webp", name: "TV", rooms: ["거실", "안방"] },
-  { id: "air-conditioner-01", img: "/assets/items-3d/appliances/tower-air-conditioner.webp", name: "에어컨", rooms: ["거실", "안방", "작은방"] },
-  { id: "water-purifier-01", img: "/assets/items-3d/appliances/water-purifier.webp", name: "정수기", rooms: ["부엌"] },
-  { id: "microwave-oven-01", img: "/assets/items-3d/appliances/microwave.webp", name: "전자레인지", rooms: ["부엌"] },
-  { id: "dishwasher-01", img: "/assets/items-3d/appliances/dishwasher.webp", name: "식기세척기", rooms: ["부엌"] },
-  { id: "massage-chair-01", img: "/assets/items-3d/furniture/massage-chair.webp", name: "안마의자", rooms: ["거실"] },
-  { id: "digital-piano-01", img: "/assets/items-3d/special/digital-piano.webp", name: "디지털피아노", rooms: ["거실", "작은방"] },
+/** 출발지 평수 (추천용) — 0~6 */
+export const INTAKE_SIZES = ["5평 이하", "5~10평", "10~20평", "20~30평", "30~40평", "40~50평", "50평 이상"] as const;
+export type IntakeGroup = "가구" | "가전";
+
+export interface IntakeBaseItem {
+  id: string;
+  name: string;
+  group: IntakeGroup;
+  /** 카드 묶음 이름 (침대·소파·TV 등) */
+  kind: string;
+  rooms: string[];
+  /** 추천할 평수 범위 [최소, 최대] (INTAKE_SIZES 번호) */
+  sizes: [number, number];
+  img?: string;
+  /** 기존 품목 목록에 없는 고객 링크 전용 품목의 부피(견적 화면 계산용) */
+  vol?: number;
+}
+
+const f = (id: string, name: string, kind: string, rooms: string[], sizes: [number, number], img?: string, vol?: number): IntakeBaseItem =>
+  ({ id, name, group: "가구", kind, rooms, sizes, img, vol });
+const e = (id: string, name: string, kind: string, rooms: string[], sizes: [number, number], img?: string, vol?: number): IntakeBaseItem =>
+  ({ id, name, group: "가전", kind, rooms, sizes, img, vol });
+const BR = ["안방", "작은방"];
+
+/** 고객 링크 기본 큰 가구·가전 — 기존 품목 id를 쓰고, 없는 것만 intake- 전용 id를 씁니다. 작은 생활용품·잔짐은 넣지 않습니다. */
+export const INTAKE_BASE_ITEMS: IntakeBaseItem[] = [
+  // 침대
+  f("single-bed-01", "싱글 침대", "침대", BR, [0, 6], "/assets/items-3d/furniture/bed.webp"),
+  f("super-single-bed-01", "슈퍼싱글 침대", "침대", BR, [0, 6], "/assets/items-3d/furniture/bed.webp"),
+  f("double-bed-01", "더블 침대", "침대", BR, [1, 4], "/assets/items-3d/furniture/bed.webp"),
+  f("queen-bed-01", "퀸 침대", "침대", BR, [2, 6], "/assets/items-3d/furniture/bed.webp"),
+  f("king-bed-01", "킹 침대", "침대", BR, [3, 6], "/assets/items-3d/furniture/bed.webp"),
+  f("family-bed-01", "패밀리 침대", "침대", BR, [3, 6], "/assets/items-3d/furniture/bed.webp"),
+  f("bunk-bed-01", "2층 침대", "침대", ["작은방"], [3, 6], "/assets/items-3d/furniture/bunk-bed.webp"),
+  f("storage-bed-01", "수납 침대", "침대", BR, [1, 6], "/assets/items-3d/furniture/bed.webp"),
+  // 소파
+  f("intake-sofa-1seat", "1인용 소파", "소파", ["거실", "안방"], [0, 6], "/assets/items-3d/furniture/armchair.webp", 0.4),
+  f("two-seat-sofa-01", "2인용 소파", "소파", ["거실"], [1, 4], "/assets/items-3d/furniture/three-seat-sofa.webp"),
+  f("three-seat-sofa-01", "3인용 소파", "소파", ["거실"], [2, 6], "/assets/items-3d/furniture/three-seat-sofa.webp"),
+  f("four-seat-sofa-01", "4인용 이상 소파", "소파", ["거실"], [3, 6], "/assets/items-3d/furniture/corner-sofa.webp"),
+  f("intake-sofa-couch", "카우치형 소파", "소파", ["거실"], [3, 6], "/assets/items-3d/furniture/corner-sofa.webp", 1.2),
+  f("intake-sofa-recliner", "리클라이너 소파", "소파", ["거실"], [2, 6], "/assets/items-3d/furniture/recliner.webp", 0.8),
+  // 수납·책상·식탁
+  f("wardrobe-01", "장롱", "장롱", BR, [2, 6], "/assets/items-3d/furniture/wardrobe.webp"),
+  f("chest-of-drawers-01", "서랍장", "서랍장", BR, [0, 6], "/assets/items-3d/furniture/chest-of-drawers.webp"),
+  f("dressing-table-01", "화장대", "화장대", ["안방"], [1, 6], "/assets/items-3d/furniture/dressing-table.webp"),
+  f("desk-01", "책상", "책상", ["작은방", "거실"], [0, 6], "/assets/items-3d/furniture/desk.webp"),
+  f("bookshelf-01", "책장", "책장", ["작은방", "거실"], [1, 6], "/assets/items-3d/furniture/bookshelf.webp"),
+  f("living-room-cabinet-01", "거실장", "거실장", ["거실"], [2, 6], "/assets/items-3d/furniture/tv-stand.webp"),
+  f("dining-table-01", "식탁", "식탁", ["부엌", "거실"], [1, 6], "/assets/items-3d/furniture/dining-table.webp"),
+  f("massage-chair-01", "안마의자", "안마의자", ["거실"], [3, 6], "/assets/items-3d/furniture/massage-chair.webp"),
+  f("digital-piano-01", "디지털피아노", "피아노", ["거실", "작은방"], [2, 6], "/assets/items-3d/special/digital-piano.webp"),
+  // TV
+  e("smart-tv-32-inch-01", "TV 32인치 이하", "TV", ["거실", "안방", "작은방"], [0, 2], "/assets/items-3d/appliances/television.webp"),
+  e("intake-tv-40", "TV 40~49인치", "TV", ["거실", "안방"], [1, 3], "/assets/items-3d/appliances/television.webp", 0.2),
+  e("intake-tv-50", "TV 50~59인치", "TV", ["거실", "안방"], [2, 4], "/assets/items-3d/appliances/television.webp", 0.25),
+  e("intake-tv-60", "TV 60~69인치", "TV", ["거실"], [3, 6], "/assets/items-3d/appliances/television.webp", 0.3),
+  e("tv-75-inch-01", "TV 70~79인치", "TV", ["거실"], [3, 6], "/assets/items-3d/appliances/television.webp"),
+  e("tv-85-inch-01", "TV 80인치 이상", "TV", ["거실"], [4, 6], "/assets/items-3d/appliances/television.webp"),
+  // 냉장·세탁
+  e("refrigerator-01", "냉장고", "냉장고", ["부엌"], [0, 6], "/assets/items-3d/appliances/side-by-side-refrigerator.webp"),
+  e("kimchi-refrigerator-01", "김치냉장고", "김치냉장고", ["부엌", "베란다"], [2, 6], "/assets/items-3d/appliances/kimchi-refrigerator.webp"),
+  e("freezer-01", "냉동고", "냉장고", ["부엌", "베란다"], [3, 6], "/assets/items-3d/appliances/one-door-refrigerator.webp"),
+  e("washing-machine-01", "세탁기", "세탁기", ["베란다"], [0, 6], "/assets/items-3d/appliances/drum-washing-machine.webp"),
+  e("clothes-dryer-01", "건조기", "건조기", ["베란다"], [2, 6], "/assets/items-3d/appliances/clothes-dryer.webp"),
+  e("clothes-styler-01", "스타일러", "스타일러", ["안방"], [2, 6], "/assets/items-3d/appliances/styler.webp"),
+  // 에어컨·주방
+  e("stand-air-conditioner-01", "스탠드 에어컨", "에어컨", ["거실"], [2, 6], "/assets/items-3d/appliances/tower-air-conditioner.webp"),
+  e("wall-air-conditioner-01", "벽걸이 에어컨", "에어컨", ["안방", "작은방", "거실"], [0, 6], "/assets/items-3d/appliances/wall-air-conditioner.webp"),
+  e("water-purifier-01", "정수기", "정수기", ["부엌"], [1, 6], "/assets/items-3d/appliances/water-purifier.webp"),
+  e("microwave-oven-01", "전자레인지", "전자레인지", ["부엌"], [0, 6], "/assets/items-3d/appliances/microwave.webp"),
+  e("dishwasher-01", "식기세척기", "식기세척기", ["부엌"], [2, 6], "/assets/items-3d/appliances/dishwasher.webp"),
 ];
+
+/** 예전 고객 링크(1차)에서 쓰던 품목 — 이미 제출된 자료의 이름 표시용 */
+export const INTAKE_LEGACY_NAMES: Record<string, string> = {
+  "bed-01": "침대", "sofa-01": "소파", "television-01": "TV", "air-conditioner-01": "에어컨",
+};
+
+/** 견적 화면에서도 이름·부피를 알 수 있도록: 고객 링크 전용 품목 */
+export const INTAKE_EXTRA_ITEMS = INTAKE_BASE_ITEMS.filter((b) => b.id.startsWith("intake-"));
+
+export function intakeItemName(id: string): string | undefined {
+  return INTAKE_BASE_ITEMS.find((b) => b.id === id)?.name ?? INTAKE_LEGACY_NAMES[id];
+}
+
+/** 평수에 맞는 추천인지 */
+export function fitsSize(sizes: [number, number] | undefined, size: string | undefined): boolean {
+  const i = INTAKE_SIZES.indexOf((size ?? "") as (typeof INTAKE_SIZES)[number]);
+  if (i < 0 || !sizes) return true;
+  return i >= sizes[0] && i <= sizes[1];
+}
 
 export const INTAKE_ROOMS = ["거실", "안방", "작은방", "부엌", "베란다", "기타"] as const;
 export type IntakeRoom = (typeof INTAKE_ROOMS)[number];
@@ -52,6 +120,12 @@ export interface IntakeForm {
   fromY?: number | null;
   toX?: number | null;
   toY?: number | null;
+  fromJibun?: string;
+  fromZip?: string;
+  toJibun?: string;
+  toZip?: string;
+  /** 출발지 평수 (추천용) */
+  fromSize?: string;
   rooms: IntakeRooms;
 }
 
@@ -190,11 +264,17 @@ export function mergeIntakeIntoDraft(
     fromY: form.fromY ?? null,
     toX: form.toX ?? null,
     toY: form.toY ?? null,
+    fromJibun: form.fromJibun ?? "",
+    fromZip: form.fromZip ?? "",
+    toJibun: form.toJibun ?? "",
+    toZip: form.toZip ?? "",
     rooms,
     intakeRequestId: meta.intakeRequestId,
     intakeFromFloor: floorText(fromFloor),
     intakeToFloor: floorText(toFloor),
   };
+  // 평수는 추천용 참고 정보로만 남깁니다(사장님 화면의 평수·기본 품목은 바꾸지 않음).
+  out.intakeFromSize = form.fromSize ?? "";
   // 층수: 사장님이 직접 고친 값은 덮어쓰지 않고, 확실한 경우만 넣습니다.
   if (!base.fromFloorEdited && fromFloor !== null) out.fromFloor = fromFloor;
   if (!base.toFloorEdited && toFloor !== null) out.toFloor = toFloor;
@@ -227,7 +307,7 @@ export function intakeSmsText(v: { customerName: string; link: string; contact: 
   return [
     "[JIMPICK 짐픽]",
     "",
-    `${v.customerName} 고객님, 방문견적 전 기본정보 입력을 부탁드립니다.`,
+    `${v.customerName.trim() ? `${v.customerName.trim()} ` : ""}고객님, 방문견적 전 기본정보 입력을 부탁드립니다.`,
     "",
     "아래 링크에서 이사 날짜, 주소와 큰 가구·가전만 간단히 선택해 주세요.",
     "",

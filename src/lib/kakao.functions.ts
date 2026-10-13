@@ -7,7 +7,8 @@ interface KakaoDocument {
   address_name?: string;
   place_name?: string;
   road_address_name?: string;
-  road_address?: { address_name?: string } | null;
+  road_address?: { address_name?: string; zone_no?: string } | null;
+  address?: { address_name?: string } | null;
   x?: string;
   y?: string;
 }
@@ -47,6 +48,8 @@ export const searchAddress = createServerFn({ method: "POST" })
           address,
           roadAddress: d.road_address?.address_name ?? address,
           name: address,
+          jibunAddress: d.address?.address_name ?? address,
+          zipCode: d.road_address?.zone_no ?? "",
           x: Number(d.x),
           y: Number(d.y),
         });
@@ -60,6 +63,7 @@ export const searchAddress = createServerFn({ method: "POST" })
           address,
           roadAddress: d.road_address_name || address,
           name: d.place_name ?? address,
+          jibunAddress: address,
           x: Number(d.x),
           y: Number(d.y),
         });

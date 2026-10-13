@@ -1293,6 +1293,7 @@ export function Step1() {
           <div className="rounded-2xl bg-[#EFF6FF] p-3 text-sm text-[#1E3A8A] space-y-0.5">
             <div className="font-black">고객 사전정보로 채운 견적 초안입니다. 모든 칸을 고칠 수 있습니다.</div>
             <div>출발지 층수: {draft.intakeFromFloor ?? "방문 확인 예정"} · 도착지 층수: {draft.intakeToFloor ?? "방문 확인 예정"}</div>
+            {draft.intakeFromSize && <div>고객이 고른 출발지 평수(참고): {draft.intakeFromSize}</div>}
             <div>엘리베이터·사다리차: 방문 후 결정 · 폐기물 처리비: 방문 후 확인</div>
             {draft.intakeNote && <div className="whitespace-pre-line text-[#374151]">{draft.intakeNote}</div>}
           </div>

@@ -65,7 +65,10 @@ export interface CalendarBooking {
 export function MoveDateCalendar({
   value,
   onSelect,
+  sonLabel = "손없는날",
 }: {
+  /** 손 없는 날 표시 문구 (고객 링크는 「손 없는 날」) */
+  sonLabel?: string;
   /** YYYY-MM-DD (없으면 빈 문자열) */
   value: string;
   onSelect: (date: string) => void;
@@ -176,7 +179,7 @@ export function MoveDateCalendar({
                     // 계약이 있어도 날짜 선택은 항상 가능합니다(하루 여러 건 계약 허용).
                     onSelect(c.date);
                   }}
-                  aria-label={`${view.m}월 ${c.d}일${c.son ? " 손없는날" : ""}`}
+                  aria-label={`${view.m}월 ${c.d}일${c.son ? ` ${sonLabel}` : ""}`}
                   aria-pressed={selected}
                   aria-disabled={c.past}
                   className={`relative flex min-h-[60px] flex-col items-center justify-start gap-[2px] rounded-xl border px-0.5 pt-1.5 pb-1 ${box}${ring} ${
@@ -187,7 +190,7 @@ export function MoveDateCalendar({
                   {/* 상태 표시 — 계약 건수 배지 > 손없는날 배지 */}
                   {c.son ? (
                     <span className="rounded-full bg-[#FBE7B8] px-1 py-[1px] text-[10px] font-black text-[#8A6D1B]">
-                      손없는날
+                      {sonLabel}
                     </span>
                   ) : (
                     <span className="h-1.5 w-1.5" aria-hidden />
@@ -207,7 +210,7 @@ export function MoveDateCalendar({
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-4 w-4 rounded-md border border-[#F3D98A] bg-[#FDF6E3]" />
-            손없는날
+            {sonLabel}
           </span>
         </div>
       </div>

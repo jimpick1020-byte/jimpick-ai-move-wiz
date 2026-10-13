@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { isIdentityEvent, recoverAuthSession } from "./auth-recovery";
 import { ITEMS_1000, CATS20 } from "./items-catalog-1000";
+import { INTAKE_EXTRA_ITEMS } from "./intake";
 import { useDraftAutosave, type DraftSaveState } from "./use-draft-autosave";
 import { loadEstimateDraft } from "./draft-sync.functions";
 import { registerCustomIcons } from "./jimpick-icon3d";
@@ -199,6 +200,7 @@ export interface Estimate {
   intakeRequestId?: string;
   /** 고객 상세주소에서 확실히 찾은 층수 또는 「방문 확인 예정」 (참고용) */
   intakeFromFloor?: string;
+  intakeFromSize?: string;
   intakeToFloor?: string;
   /** 고객이 고른 방별 품목·폐기물 요약 */
   intakeNote?: string;
@@ -1221,7 +1223,12 @@ export { CATS20 };
 const _nameById = new Map<string, string>();
 for (const i of ITEM_CATALOG) _nameById.set(i.id, i.name);
 for (const i of ITEMS_1000) if (!_nameById.has(i.id)) _nameById.set(i.id, i.name);
-const _vol1000 = new Map<string, number>(ITEMS_1000.map((i) => [i.id, i.vol]));
+// 고객 사전정보 링크 전용 품목(1인용 소파, TV 인치별 등)도 견적 화면에서 이름·부피를 알 수 있게 합니다.
+for (const i of INTAKE_EXTRA_ITEMS) if (!_nameById.has(i.id)) _nameById.set(i.id, i.name);
+const _vol1000 = new Map<string, number>([
+  ...ITEMS_1000.map((i) => [i.id, i.vol] as [string, number]),
+  ...INTAKE_EXTRA_ITEMS.map((i) => [i.id, i.vol ?? 0.3] as [string, number]),
+]);
 
 /** id 로 한글 품목명을 찾습니다(기존 + 1,000). 없으면 undefined. */
 export function itemNameById(id: string): string | undefined {

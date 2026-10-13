@@ -3,12 +3,13 @@
  * 1단계 기본정보 → 2단계 주소 → 3단계 큰 가구·가전 → 확인·동의 → 제출.
  */
 import { useEffect, useRef, useState } from "react";
-import { MoreVertical, Search, X } from "lucide-react";
+import { ChevronDown, MoreVertical, Search, X } from "lucide-react";
+import { MoveDateCalendar } from "./MoveDateCalendar";
 import { openIntake, saveIntakeProgress, submitIntake, type IntakeOpen } from "@/lib/intake.functions";
 import { searchAddress, type KakaoPlace } from "@/lib/kakao.functions";
 import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import { formatTel } from "@/lib/format-input";
-import { INTAKE_ROOMS, setQty, tapOnce, tapTwice, type IntakeForm } from "@/lib/intake";
+import { INTAKE_ROOMS, INTAKE_SIZES, fitsSize, setQty, tapOnce, tapTwice, type IntakeForm } from "@/lib/intake";
 
 const NOTICE = "방문견적 전에 기본정보와 큰 가구·가전만 간단히 선택해 주세요. 층수, 작업환경, 잔짐과 정확한 견적은 방문 시 자세히 확인해 드립니다.";
 const DONE = "기본정보가 정상적으로 입력되었습니다. 세부 품목, 작업환경과 정확한 견적은 방문 시 자세히 설명드리겠습니다.";
@@ -100,29 +101,26 @@ export function IntakePage({ token }: { token: string }) {
           <>
             <Big label="이름"><input className={inp} value={form.customerName} onChange={(e) => up({ customerName: e.target.value })} placeholder="홍길동" /></Big>
             <Big label="휴대전화 번호"><input className={inp} inputMode="tel" value={form.phone} onChange={(e) => up({ phone: formatTel(e.target.value) })} placeholder="010-0000-0000" /></Big>
-            <Big label="이사 날짜"><input className={inp} type="date" value={form.moveDate} onChange={(e) => up({ moveDate: e.target.value })} /></Big>
             <div>
-              <div className="mb-2 text-lg font-bold text-[#25282D]">희망 시간</div>
-              <div className="grid grid-cols-3 gap-2">
-                {TIMES.map((t) => (
-                  <button key={t} type="button" onClick={() => up({ moveTime: t })}
-                    className={`rounded-xl py-3 text-base font-bold ${form.moveTime === t ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5]"}`}>{t}</button>
-                ))}
-              </div>
+              <div className="mb-2 text-lg font-bold text-[#25282D]">이사 날짜</div>
+              <MoveDateCalendar value={form.moveDate} onSelect={(d) => up({ moveDate: d })} sonLabel="손 없는 날" />
             </div>
+            <TimeSelect value={form.moveTime} onChange={(t) => up({ moveTime: t })} />
           </>
         )}
         {step === 2 && (
           <>
-            <AddressField label="나가는 주소" value={form.fromAddress} onPick={(p) => up({ fromAddress: p.roadAddress || p.address, fromX: p.x, fromY: p.y })} />
+            <AddressField label="나가는 주소" value={form.fromAddress} jibun={form.fromJibun} zip={form.fromZip}
+              onPick={(p) => up({ fromAddress: p.roadAddress || p.address, fromJibun: p.jibunAddress ?? p.address, fromZip: p.zipCode ?? "", fromX: p.x, fromY: p.y })} />
             <Big label="나가는 상세주소"><input className={inp} value={form.fromDetail} onChange={(e) => up({ fromDetail: e.target.value })} placeholder="예) 101동 502호 / 3층" /></Big>
-            <AddressField label="들어가는 주소" value={form.toAddress} onPick={(p) => up({ toAddress: p.roadAddress || p.address, toX: p.x, toY: p.y })} />
+            <AddressField label="들어가는 주소" value={form.toAddress} jibun={form.toJibun} zip={form.toZip}
+              onPick={(p) => up({ toAddress: p.roadAddress || p.address, toJibun: p.jibunAddress ?? p.address, toZip: p.zipCode ?? "", toX: p.x, toY: p.y })} />
             <Big label="들어가는 상세주소"><input className={inp} value={form.toDetail} onChange={(e) => up({ toDetail: e.target.value })} placeholder="예) 2층" /></Big>
           </>
         )}
         {step === 3 && <ItemsStep form={form} items={data.items ?? []} setForm={setForm} />}
         {step === 4 && (
-          <Review form={form} items={data.items ?? []} consent={consent} setConsent={setConsent} />
+          <Review form={form} items={data.items ?? []} consent={consent} setConsent={setConsent} setForm={setForm} />
         )}
         {err && <div className="rounded-2xl bg-[#FEE2E2] p-4 text-base font-bold text-[#B91C1C]">{err}</div>}
       </div>
@@ -162,34 +160,84 @@ function Big({ label, children }: { label: string; children: React.ReactNode }) 
   return <label className="block"><div className="mb-2 text-lg font-bold text-[#25282D]">{label}</div>{children}</label>;
 }
 
-function AddressField({ label, value, onPick }: { label: string; value: string; onPick: (p: KakaoPlace) => void }) {
+function TimeSelect({ value, onChange }: { value: string; onChange: (t: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <div className="mb-2 text-lg font-bold text-[#25282D]">희망 시간</div>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
+        className="flex w-full items-center justify-between rounded-2xl border-2 border-[#E5E7EB] px-4 py-4 text-lg font-bold">
+        <span className={value ? "text-[#25282D]" : "text-[#9CA3AF]"}>{value || "시간을 골라 주세요"}</span>
+        <ChevronDown className={`h-6 w-6 transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div role="listbox" className="mt-2 overflow-hidden rounded-2xl border-2 border-[#E5E7EB]">
+          {TIMES.map((t) => (
+            <button key={t} type="button" role="option" aria-selected={value === t} onClick={() => { onChange(t); setOpen(false); }}
+              className={`block w-full border-b px-4 py-4 text-left text-lg font-bold last:border-b-0 ${value === t ? "bg-[#2563EB] text-white" : "bg-white"}`}>{t}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 카카오 주소검색 — 입력하면 잠시 뒤 결과가 자동으로 나옵니다. 도로명·지번·우편번호를 저장합니다. */
+function AddressField({ label, value, jibun, zip, onPick }: { label: string; value: string; jibun?: string; zip?: string; onPick: (p: KakaoPlace) => void }) {
   const [q, setQ] = useState("");
   const [list, setList] = useState<KakaoPlace[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const find = async () => {
-    if (!q.trim()) return;
+  const seq = useRef(0);
+  const find = async (text: string) => {
+    const t = text.trim();
+    if (t.length < 2) { setList(null); return; }
+    const my = ++seq.current;
     setBusy(true);
-    try { setList((await searchAddress({ data: { query: q.trim() } })).places); }
-    catch { setList([]); } finally { setBusy(false); }
+    try {
+      const r = await searchAddress({ data: { query: t } });
+      if (my === seq.current) setList(r.places);
+    } catch { if (my === seq.current) setList([]); }
+    finally { if (my === seq.current) setBusy(false); }
+  };
+  useEffect(() => {
+    const h = window.setTimeout(() => void find(q), 400);
+    return () => window.clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
+  const pick = async (p: KakaoPlace) => {
+    setList(null); setQ("");
+    // 건물 이름으로 찾은 결과에는 우편번호가 없어서, 도로명주소로 한 번 더 찾아 채웁니다.
+    if (!p.zipCode && p.roadAddress) {
+      try {
+        const r = await searchAddress({ data: { query: p.roadAddress } });
+        const hit = r.places.find((x) => x.zipCode);
+        if (hit) p = { ...p, zipCode: hit.zipCode, jibunAddress: p.jibunAddress || hit.jibunAddress };
+      } catch { /* 우편번호 없이 저장 */ }
+    }
+    onPick(p);
   };
   return (
     <div>
       <div className="mb-2 text-lg font-bold text-[#25282D]">{label}</div>
-      {value && <div className="mb-2 rounded-2xl bg-[#EFF6FF] px-4 py-3 text-base font-bold text-[#1E3A8A]">{value}</div>}
-      <div className="flex gap-2">
-        <input className={inp} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void find(); } }}
-          placeholder={value ? "다른 주소 검색" : "도로명·건물명 검색"} />
-        <button type="button" onClick={find} className="shrink-0 rounded-2xl bg-[#2563EB] px-4 text-white" aria-label="주소 검색">
-          {busy ? "…" : <Search className="w-6 h-6" />}
-        </button>
+      {value && (
+        <div className="mb-2 rounded-2xl bg-[#EFF6FF] px-4 py-3 text-[#1E3A8A]">
+          <div className="text-base font-bold">{value}</div>
+          {jibun && jibun !== value && <div className="text-sm">지번 {jibun}</div>}
+          {zip && <div className="text-sm">우편번호 {zip}</div>}
+        </div>
+      )}
+      <div className="relative">
+        <input className={inp + " pr-12"} value={q} onChange={(e) => setQ(e.target.value)}
+          placeholder={value ? "다른 주소 검색" : "도로명·건물명·동 이름 입력"} aria-label={`${label} 검색`} />
+        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#6B7280]">{busy ? "…" : <Search className="h-6 w-6" />}</span>
       </div>
       {list && (
-        <div className="mt-2 max-h-64 overflow-auto rounded-2xl border">
+        <div className="mt-2 max-h-72 overflow-auto rounded-2xl border">
           {list.length === 0 && <div className="p-4 text-base text-[#6B7280]">검색 결과가 없습니다. 다른 이름으로 찾아 주세요.</div>}
           {list.map((p, i) => (
-            <button key={i} type="button" onClick={() => { onPick(p); setList(null); setQ(""); }} className="block w-full border-b px-4 py-3 text-left text-base">
+            <button key={i} type="button" onClick={() => void pick(p)} className="block w-full border-b px-4 py-3 text-left text-base">
               <div className="font-bold">{p.name}</div>
-              <div className="text-sm text-[#6B7280]">{p.roadAddress || p.address}</div>
+              <div className="text-sm text-[#6B7280]">{p.roadAddress || p.address}{p.zipCode ? ` (${p.zipCode})` : ""}</div>
             </button>
           ))}
         </div>
@@ -201,10 +249,19 @@ function AddressField({ label, value, onPick }: { label: string; value: string; 
 function ItemsStep({ form, items, setForm }: { form: IntakeForm; items: Item[]; setForm: React.Dispatch<React.SetStateAction<IntakeForm | null>> }) {
   const [room, setRoom] = useState<(typeof INTAKE_ROOMS)[number]>("거실");
   const [menu, setMenu] = useState<string | null>(null);
+  const [group, setGroup] = useState<"가구" | "가전">("가구");
+  const [q, setQ] = useState("");
+  const [sizeOpen, setSizeOpen] = useState(!form.fromSize);
   const pending = useRef<{ id: string; t: number } | null>(null);
   const picks = form.rooms[room] ?? {};
-  const shown = room === "기타" ? items : items.filter((i) => !i.rooms.length || i.rooms.includes(room));
-  const others = room === "기타" ? [] : items.filter((i) => !shown.includes(i));
+  const term = q.replace(/\s+/g, "").toLowerCase();
+  // 검색하면 방·분류와 상관없이 모든 품목에서 찾습니다.
+  const pool = term ? items.filter((i) => i.name.replace(/\s+/g, "").toLowerCase().includes(term) || (i.family ?? "").toLowerCase().includes(term))
+    : items.filter((i) => i.group === group);
+  // 평수·방에 맞는 품목을 먼저 보여 줍니다(추천용 — 나머지도 아래에서 고를 수 있음).
+  const fitRoom = (i: Item) => room === "기타" || !i.rooms.length || i.rooms.includes(room);
+  const shown = term ? pool : pool.filter((i) => fitRoom(i) && fitsSize(i.sizes, form.fromSize));
+  const others = term ? [] : pool.filter((i) => !shown.includes(i));
   const setRoomPicks = (f: (r: typeof picks) => typeof picks) =>
     setForm((s) => (s ? { ...s, rooms: { ...s.rooms, [room]: f(s.rooms[room] ?? {}) } } : s));
   const buzz = () => { try { navigator.vibrate?.(25); } catch { /* 진동 없음 */ } };
@@ -229,7 +286,13 @@ function ItemsStep({ form, items, setForm }: { form: IntakeForm; items: Item[]; 
     const p = picks[it.id];
     return (
       <div key={it.id} className={`relative rounded-2xl border-2 p-2 text-center transition ${p ? (p.disposal ? "border-[#EF4444] bg-[#FEE2E2]/70" : "border-[#2563EB] bg-[#EFF6FF]") : "border-[#E5E7EB]"}`}>
-        <button type="button" onClick={() => press(it)} className="block w-full select-none" style={{ touchAction: "manipulation" }} aria-pressed={!!p}>
+        {p && (
+          <button type="button" onClick={() => { setRoomPicks((r) => setQty(r, it.id, 0)); setMenu(null); buzz(); }}
+            className="absolute -left-2 -top-2 z-[5] flex h-7 w-7 items-center justify-center rounded-full bg-[#25282D] text-white shadow" aria-label={`${it.name} 선택 삭제`}>
+            <X className="h-4 w-4" strokeWidth={3} />
+          </button>
+        )}
+        <button type="button" onClick={() => press(it)} className="block w-full select-none" style={{ touchAction: "manipulation" }} aria-pressed={!!p} aria-label={it.name}>
           <span className="relative mx-auto block h-16 w-16">
             <Icon3D src={it.icon ?? icon3dFor(it.id, it.name)} alt={it.name} size={64} className={p?.disposal ? "opacity-50" : ""} />
             {p?.disposal && <X className="absolute inset-0 m-auto h-14 w-14 text-[#DC2626]" strokeWidth={3.5} />}
@@ -244,6 +307,7 @@ function ItemsStep({ form, items, setForm }: { form: IntakeForm; items: Item[]; 
               <div className="absolute right-1 top-8 z-10 w-36 rounded-xl border bg-white text-left shadow-lg">
                 {it.disposalAllowed && !p.disposal && <button type="button" className="block w-full px-3 py-3 text-sm font-bold" onClick={() => { setRoomPicks((r) => tapTwice(r, it.id, true)); setMenu(null); buzz(); }}>폐기물로 변경</button>}
                 {p.disposal && <button type="button" className="block w-full px-3 py-3 text-sm font-bold" onClick={() => { setRoomPicks((r) => tapTwice(r, it.id, true)); setMenu(null); buzz(); }}>일반 이사 품목으로 변경</button>}
+                <button type="button" className="block w-full px-3 py-3 text-sm font-bold text-[#B91C1C]" onClick={() => { setRoomPicks((r) => setQty(r, it.id, 0)); setMenu(null); buzz(); }}>선택 삭제</button>
               </div>
             )}
             <div className="mt-2 flex items-center justify-between">
@@ -258,6 +322,23 @@ function ItemsStep({ form, items, setForm }: { form: IntakeForm; items: Item[]; 
   };
   return (
     <div className="space-y-4">
+      <div className="rounded-2xl border-2 border-[#E5E7EB] p-3">
+        <button type="button" onClick={() => setSizeOpen((o) => !o)} aria-expanded={sizeOpen} className="flex w-full items-center justify-between text-lg font-bold">
+          <span>출발지 평수 {form.fromSize ? <span className="text-[#2563EB]">· {form.fromSize}</span> : <span className="text-[#9CA3AF]">· 골라 주세요</span>}</span>
+          <ChevronDown className={`h-6 w-6 transition ${sizeOpen ? "rotate-180" : ""}`} />
+        </button>
+        {sizeOpen && (
+          <>
+            <p className="mt-1 text-sm text-[#6B7280]">평수에 맞는 품목을 먼저 보여 드려요. 다른 품목도 모두 고를 수 있습니다.</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {INTAKE_SIZES.map((z) => (
+                <button key={z} type="button" onClick={() => { setForm((s) => (s ? { ...s, fromSize: z } : s)); setSizeOpen(false); }}
+                  className={`rounded-xl py-3 text-base font-bold ${form.fromSize === z ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5]"}`}>{z}</button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
       <p className="rounded-2xl bg-[#FEF2F2] p-4 text-[15px] leading-relaxed text-[#991B1B]">버릴 물건은 품목 카드를 두 번 빠르게 눌러 주세요. 빨간색 X가 표시되면 폐기물로 선택된 것입니다.</p>
       <div className="grid grid-cols-3 gap-2">
         {INTAKE_ROOMS.map((r) => {
@@ -268,18 +349,32 @@ function ItemsStep({ form, items, setForm }: { form: IntakeForm; items: Item[]; 
           );
         })}
       </div>
-      <div className="grid grid-cols-3 gap-2">{shown.map(card)}</div>
+      <div className="grid grid-cols-2 gap-2">
+        {(["가구", "가전"] as const).map((g) => (
+          <button key={g} type="button" onClick={() => { setGroup(g); setMenu(null); }}
+            className={`rounded-xl py-3 text-lg font-black ${group === g && !term ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5]"}`}>{g}</button>
+        ))}
+      </div>
+      <div className="relative">
+        <input className={inp + " pr-12"} value={q} onChange={(e) => setQ(e.target.value)} placeholder="품목 검색 (예: 침대, 냉장고)" aria-label="품목 검색" />
+        {q ? <button type="button" onClick={() => setQ("")} className="absolute right-3 top-1/2 -translate-y-1/2 p-1" aria-label="검색 지우기"><X className="h-6 w-6" /></button>
+          : <Search className="pointer-events-none absolute right-4 top-1/2 h-6 w-6 -translate-y-1/2 text-[#6B7280]" />}
+      </div>
+      {term && !shown.length && <div className="rounded-2xl bg-[#F7F8F5] p-4 text-base text-[#6B7280]">찾는 품목이 없습니다. 비슷한 품목을 고르시거나 방문 시 말씀해 주세요.</div>}
+      {!term && form.fromSize && shown.length > 0 && <div className="text-sm font-bold text-[#6B7280]">{form.fromSize} {room} 추천 품목</div>}
+      <div className="grid grid-cols-3 gap-3 pt-1">{shown.map(card)}</div>
       {others.length > 0 && (
         <details className="rounded-2xl bg-[#F7F8F5] p-3">
           <summary className="text-base font-bold">다른 품목 더 보기</summary>
-          <div className="mt-3 grid grid-cols-3 gap-2">{others.map(card)}</div>
+          <div className="mt-3 grid grid-cols-3 gap-3 pt-1">{others.map(card)}</div>
         </details>
       )}
     </div>
   );
 }
 
-function Review({ form, items, consent, setConsent }: { form: IntakeForm; items: Item[]; consent: boolean; setConsent: (v: boolean) => void }) {
+function Review({ form, items, consent, setConsent, setForm }: { form: IntakeForm; items: Item[]; consent: boolean; setConsent: (v: boolean) => void; setForm: React.Dispatch<React.SetStateAction<IntakeForm | null>> }) {
+  const drop = (room: string, id: string) => setForm((s) => (s ? { ...s, rooms: { ...s.rooms, [room]: setQty(s.rooms[room] ?? {}, id, 0) } } : s));
   const nameOf = (id: string) => items.find((i) => i.id === id)?.name ?? "품목";
   return (
     <div className="space-y-4 text-base">
@@ -292,8 +387,19 @@ function Review({ form, items, consent, setConsent }: { form: IntakeForm; items:
       </div>
       <div className="rounded-2xl bg-[#F7F8F5] p-4 space-y-1">
         {Object.entries(form.rooms).filter(([, p]) => Object.keys(p).length).map(([room, picks]) => (
-          <div key={room}><b>{room}</b>: {Object.entries(picks).map(([id, p]) => `${nameOf(id)}${p.disposal ? "(버림)" : ""} ${p.qty}`).join(", ")}</div>
+          <div key={room}>
+            <b>{room}</b>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {Object.entries(picks).map(([id, p]) => (
+                <span key={id} className={`inline-flex items-center gap-1 rounded-full py-1 pl-3 pr-1 text-sm font-bold ${p.disposal ? "bg-[#FEE2E2] text-[#B91C1C]" : "bg-white"}`}>
+                  {nameOf(id)}{p.disposal ? "(버림)" : ""} {p.qty}
+                  <button type="button" onClick={() => drop(room, id)} className="rounded-full p-1" aria-label={`${nameOf(id)} 삭제`}><X className="h-4 w-4" /></button>
+                </span>
+              ))}
+            </div>
+          </div>
         ))}
+        <div className="pt-1 text-sm text-[#6B7280]">{form.fromSize ? `출발지 평수: ${form.fromSize} · ` : ""}수량을 바꾸려면 「이전」을 눌러 주세요.</div>
         {!Object.values(form.rooms).some((p) => Object.keys(p).length) && <div className="text-[#6B7280]">선택한 가구·가전이 없습니다. 방문 시 확인해 드립니다.</div>}
       </div>
       <div className="rounded-2xl border p-4 text-sm leading-relaxed text-[#4B5563]">
