@@ -8,8 +8,11 @@ describe("고객 링크 층수 (명확한 층만)", () => {
     assert.equal(strictFloor("지하 1층"), -1);
     assert.equal(strictFloor("B1"), -1);
   });
-  it("502호는 층수로 보지 않음 → 방문 확인 예정", () => {
-    assert.equal(strictFloor("101동 502호"), null);
+  it("동과 호수를 구분해 101동 502호는 5층, 105-1001은 10층", () => {
+    assert.equal(strictFloor("101동 502호"), 5);
+    assert.equal(strictFloor("105-1001"), 10);
+    assert.equal(strictFloor("101동"), null);
+    assert.equal(strictFloor("판교역로 235"), null);
     assert.equal(strictFloor(""), null);
   });
 });
@@ -35,7 +38,8 @@ describe("견적 초안 합치기", () => {
     const once = mergeIntakeIntoDraft(base, f, null, { intakeRequestId: "r1" });
     const f2 = { ...f, rooms: { 거실: { "television-01": { qty: 2, disposal: true } } } };
     const twice = mergeIntakeIntoDraft(once, f2, f.rooms, { intakeRequestId: "r1" });
-    const room = (twice.rooms as { name: string; items: Record<string, number>; disposal: Record<string, boolean> }[]).find((r) => r.name === "거실")!;
+    const room = (twice.rooms as { name: string; items: Record<string, number>; disposal: Record<string, boolean> }[]).find((r) => r.name === "거실");
+    assert.ok(room);
     assert.equal(room.items["television-01"], 2);
     assert.equal(room.disposal["television-01"], true);
     assert.equal(room.items["sofa-01"], 1);

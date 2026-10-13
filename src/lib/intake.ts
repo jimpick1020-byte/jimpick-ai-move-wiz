@@ -151,11 +151,7 @@ export function intakeStatusLabel(r: { status: string; expires_at: string }, now
   return "링크 미발송";
 }
 
-/**
- * 상세주소에서 「명확하게 적힌」 층수만 찾습니다.
- * 「3층」「지하 1층」「B1」만 인정하고, 「502호」 같은 호수는 층수로 보지 않습니다.
- * 확실하지 않으면 null (→ 방문 확인 예정).
- */
+/** 명시된 층을 우선하고 동·호가 구분된 호수에서만 층수를 계산합니다. */
 export function strictFloor(detail: string | null | undefined): number | null {
   const t = (detail ?? "").replace(/\s+/g, " ").trim();
   if (!t) return null;
@@ -169,7 +165,11 @@ export function strictFloor(detail: string | null | undefined): number | null {
     const n = Number(m[1]);
     return n >= 1 && n <= 150 ? n : null;
   }
-  return null;
+  const room = t.match(/\d+\s*동\s*(\d{3,5})(?:\s*호)?(?!\d)/)
+    ?? t.match(/(?:^|\s)(\d{1,4})\s*[-/]\s*(\d{3,5})(?!\d)/);
+  const unit = room ? Number(room[2] ?? room[1]) : Number(t.match(/(?:^|[^\d])(\d{3,5})\s*호/)?.[1]);
+  const floor = Math.floor(unit / 100);
+  return Number.isFinite(floor) && floor >= 1 && floor <= 150 ? floor : null;
 }
 
 /** 층수 표시 (고객에게는 보이지 않고 사장님 화면에만 보입니다) */
@@ -221,8 +221,8 @@ export function mergeIntakeIntoDraft(
   prev: IntakeRooms | null,
   meta: { intakeRequestId: string },
 ): Record<string, unknown> {
-  const fromFloor = strictFloor(form.fromDetail);
-  const toFloor = strictFloor(form.toDetail);
+  const fromFloor = strictFloor(`${form.fromDetail} ${form.fromAddress}`);
+  const toFloor = strictFloor(`${form.toDetail} ${form.toAddress}`);
   const rooms: DraftRoom[] = ((base.rooms as DraftRoom[] | undefined) ?? []).map((r) => ({
     ...r, items: { ...(r.items ?? {}) }, disposal: { ...(r.disposal ?? {}) },
   }));
@@ -246,8 +246,9 @@ export function mergeIntakeIntoDraft(
     }
     for (const [id, p] of list) {
       r.items[id] = p.qty;
-      if (p.disposal) r.disposal![id] = true;
-      else delete r.disposal![id];
+      if (!r.disposal) r.disposal = {};
+      if (p.disposal) r.disposal[id] = true;
+      else delete r.disposal[id];
     }
   }
   const out: Record<string, unknown> = {
@@ -276,8 +277,8 @@ export function mergeIntakeIntoDraft(
   // 평수는 추천용 참고 정보로만 남깁니다(사장님 화면의 평수·기본 품목은 바꾸지 않음).
   out.intakeFromSize = form.fromSize ?? "";
   // 층수: 사장님이 직접 고친 값은 덮어쓰지 않고, 확실한 경우만 넣습니다.
-  if (!base.fromFloorEdited && fromFloor !== null) out.fromFloor = fromFloor;
-  if (!base.toFloorEdited && toFloor !== null) out.toFloor = toFloor;
+  if (!base.fromFloorEdited) out.fromFloor = fromFloor;
+  if (!base.toFloorEdited) out.toFloor = toFloor;
   // 엘리베이터·사다리차: 방문 후 결정 — 처음 만들 때만 비워 둡니다(사장님이 고른 값은 보존).
   if (!base.intakeRequestId) {
     delete out.fromEnv;

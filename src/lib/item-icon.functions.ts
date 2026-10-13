@@ -219,6 +219,7 @@ export const listItemIcons = createServerFn({ method: "GET" })
         .from("item_icons")
         .select("id, item_id, name, display_name, requested_name, original_name, prompt, cat, category_group, subcategory_group, size_label, room, image_path, storage_path, created_at, default_volume")
         .eq("user_id", context.userId)
+         .eq("customer_only", false)
         .eq("active", true)
         .eq("status", "ready")
         .order("created_at", { ascending: true });
