@@ -710,6 +710,16 @@ export type Database = {
           category_group: string
           created_at: string
           created_by: string
+          customer_category: string | null
+          customer_deleted_at: string | null
+          customer_disposal_allowed: boolean
+          customer_key: string | null
+          customer_name: string | null
+          customer_only: boolean
+          customer_order: number
+          customer_room: string[]
+          customer_size: string
+          customer_visible: boolean | null
           default_volume: number
           display_name: string
           from_photo: boolean
@@ -747,6 +757,16 @@ export type Database = {
           category_group: string
           created_at?: string
           created_by: string
+          customer_category?: string | null
+          customer_deleted_at?: string | null
+          customer_disposal_allowed?: boolean
+          customer_key?: string | null
+          customer_name?: string | null
+          customer_only?: boolean
+          customer_order?: number
+          customer_room?: string[]
+          customer_size?: string
+          customer_visible?: boolean | null
           default_volume?: number
           display_name: string
           from_photo?: boolean
@@ -784,6 +804,16 @@ export type Database = {
           category_group?: string
           created_at?: string
           created_by?: string
+          customer_category?: string | null
+          customer_deleted_at?: string | null
+          customer_disposal_allowed?: boolean
+          customer_key?: string | null
+          customer_name?: string | null
+          customer_only?: boolean
+          customer_order?: number
+          customer_room?: string[]
+          customer_size?: string
+          customer_visible?: boolean | null
           default_volume?: number
           display_name?: string
           from_photo?: boolean
@@ -1723,6 +1753,10 @@ export type Database = {
       reserve_free_sms: {
         Args: { _count?: number; _key: string; _user_id: string }
         Returns: Json
+      }
+      save_customer_catalog_order: {
+        Args: { ids: string[] }
+        Returns: undefined
       }
       save_worker_contact: { Args: { _contact: Json }; Returns: Json }
       sms_free_limit: { Args: never; Returns: number }

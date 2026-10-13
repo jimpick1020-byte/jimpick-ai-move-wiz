@@ -17,7 +17,8 @@ import {
   listIntakeDrafts, listIntakeRequests, loadIntakeDraft, markIntakeSeen, removeIntakeItem, saveIntakeItemSetting, saveIntakeOrder, sendIntakeSms,
   type IntakeItem, type IntakeRow,
 } from "@/lib/intake.functions";
-import { createManualItem } from "@/lib/manual-item.functions";
+import { Button } from "@/components/ui/button";
+import { canManageIntakeItems, createCustomerIntakeItem } from "@/lib/intake.functions";
 import { INTAKE_ROOMS, floorText, intakeItemName, intakeStatusLabel, strictFloor, type IntakeForm } from "@/lib/intake";
 
 /** 고객이 아직 이름을 넣기 전에는 전화번호로 구분합니다 */
@@ -80,13 +81,13 @@ export function IntakeRequestButton({ name = "", phone = "", sourceEstimateId, l
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
+      <Button variant="ghost"
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen(true); }}
         className={`${wide ? "w-full py-3 text-[15px]" : "px-2 py-2 text-[11px]"} inline-flex items-center justify-center gap-1 rounded-lg bg-[#2563EB] font-black text-white active:scale-[0.98]`}
       >
         <FileText className="w-4 h-4" /> {label}
-      </button>
+      </Button>
       {open && <IntakeRequestSheet name={name} phone={phone} sourceEstimateId={sourceEstimateId} onClose={() => setOpen(false)} />}
     </>
   );
@@ -182,7 +183,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
       <div className="w-full max-w-md max-h-[92vh] overflow-auto rounded-t-3xl bg-white p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-black text-[#25282D]">고객 사전정보 요청</h2>
-          <button type="button" onClick={onClose} aria-label="닫기" className="p-2"><X className="w-5 h-5" /></button>
+          <Button variant="ghost" type="button" onClick={onClose} aria-label="닫기" className="p-2"><X className="w-5 h-5" /></Button>
         </div>
         <label className="block text-sm font-bold">고객 휴대전화 번호
           <input value={p} inputMode="tel" onChange={(e) => setP(formatTel(e.target.value))} disabled={!!row && !closed}
@@ -212,8 +213,8 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
             <div>{sub.customerName} · {sub.phone}</div>
             <div>이사 {sub.moveDate || "-"} {sub.moveTime}</div>
             {sub.fromSize && <div>출발지 평수(참고) {sub.fromSize}</div>}
-            <div>출발 {sub.fromAddress} {sub.fromDetail} ({floorText(strictFloor(sub.fromDetail))}){sub.fromZip ? ` · 우편 ${sub.fromZip}` : ""}</div>
-            <div>도착 {sub.toAddress} {sub.toDetail} ({floorText(strictFloor(sub.toDetail))}){sub.toZip ? ` · 우편 ${sub.toZip}` : ""}</div>
+            <div>출발 {sub.fromAddress} {sub.fromDetail} ({floorText(strictFloor(`${sub.fromDetail} ${sub.fromAddress}`))}){sub.fromZip ? ` · 우편 ${sub.fromZip}` : ""}</div>
+            <div>도착 {sub.toAddress} {sub.toDetail} ({floorText(strictFloor(`${sub.toDetail} ${sub.toAddress}`))}){sub.toZip ? ` · 우편 ${sub.toZip}` : ""}</div>
             <div className="text-[#6B7280]">엘리베이터·사다리차: 방문 후 결정 · 폐기물 처리비: 방문 후 확인</div>
             {Object.entries(sub.rooms ?? {}).map(([room, picks]) => {
               const list = Object.entries(picks);
@@ -243,11 +244,11 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
 function ActionBtn({ icon: Icon, children, onClick, busy, primary, danger }:
   { icon: typeof Send; children: React.ReactNode; onClick: () => void; busy?: boolean; primary?: boolean; danger?: boolean }) {
   return (
-    <button type="button" onClick={onClick} disabled={busy}
+    <Button variant="ghost" type="button" onClick={onClick} disabled={busy}
       className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-sm font-black disabled:opacity-60 ${
         primary ? "bg-[#2563EB] text-white" : danger ? "bg-[#FEE2E2] text-[#B91C1C]" : "bg-[#EEF1F5] text-[#25282D]"}`}>
       <Icon className="w-4 h-4" /> {busy ? "처리 중…" : children}
-    </button>
+    </Button>
   );
 }
 
@@ -256,26 +257,28 @@ export function IntakeInbox() {
   const rows = useIntakeRequests();
   const [openId, setOpenId] = useState<string | null>(null);
   const [items, setItems] = useState(false);
+  const [allowed, setAllowed] = useState(false);
+  useEffect(() => { canManageIntakeItems().then(r => setAllowed(r.allowed)).catch(() => setAllowed(false)); }, []);
   const shown = rows.filter((r) => r.status !== "cancelled").slice(0, 20);
   const open = rows.find((r) => r.id === openId);
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <IntakeRequestButton label="새 고객 사전정보 요청" wide />
-        <button type="button" onClick={() => setItems(true)}
+        {allowed && <Button variant="ghost" type="button" onClick={() => setItems(true)}
           className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#EEF1F5] py-3 text-[15px] font-black text-[#25282D]">
           <Settings2 className="w-4 h-4" /> 고객 링크 품목 관리
-        </button>
+        </Button>}
       </div>
       {shown.length > 0 && (
         <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3 space-y-2">
           <div className="text-sm font-black text-[#25282D]">사전정보 요청 {shown.length}건</div>
           {shown.map((r) => (
-            <button key={r.id} type="button" onClick={() => setOpenId(r.id)}
+            <Button variant="ghost" key={r.id} type="button" onClick={() => setOpenId(r.id)}
               className="w-full flex items-center justify-between rounded-xl bg-[#F7F8F5] px-3 py-2 text-left">
               <span className="text-sm font-bold">{intakeDisplayName(r)} <span className="text-xs text-[#6B7280]">{r.customer_phone}</span></span>
               <IntakeStatusChip row={r} />
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -330,7 +333,7 @@ export function IntakeItemsManager({ onClose }: { onClose: () => void }) {
   const [adding, setAdding] = useState(false);
   const load = useCallback(async () => {
     const r = await listIntakeItemsOwner();
-    if (r.ok) setItems(r.items); else setErr("품목을 불러오지 못했습니다.");
+    if (r.ok) setItems(r.items); else setErr(r.error ?? "품목을 불러오지 못했습니다.");
   }, []);
   useEffect(() => { void load(); }, [load]);
   const save = async (it: IntakeItem, patch: Partial<IntakeItem>) => {
@@ -339,7 +342,7 @@ export function IntakeItemsManager({ onClose }: { onClose: () => void }) {
     const r = await saveIntakeItemSetting({ data: {
       id: next.id, kind: next.kind, visible: next.visible, disposalAllowed: next.disposalAllowed,
       rooms: next.rooms.filter((x): x is (typeof INTAKE_ROOMS)[number] => (INTAKE_ROOMS as readonly string[]).includes(x)),
-      sort: next.sort, ...(next.kind === "company" && patch.name ? { name: patch.name } : {}),
+      sort: next.sort, ...(patch.name ? { name: patch.name } : {}), ...(patch.group ? { cat:patch.group } : {}), ...(patch.size !== undefined ? { size:patch.size } : {}),
     } });
     if (!r.ok) { toast.error(r.error ?? "저장하지 못했습니다."); void load(); }
   };
@@ -378,7 +381,8 @@ export function IntakeItemsManager({ onClose }: { onClose: () => void }) {
       if (!l) return l;
       const from = l.findIndex((x) => x.id === d.id), to = l.findIndex((x) => x.id === over);
       if (from < 0 || to < 0) return l;
-      const c = [...l]; const [m] = c.splice(from, 1); c.splice(to, 0, m);
+       const c = [...l]; const [m] = c.splice(from, 1); c.splice(to, 0, m);
+       itemsRef.current = c;
       return c;
     });
   };
@@ -399,17 +403,23 @@ export function IntakeItemsManager({ onClose }: { onClose: () => void }) {
     if (r.ok) { setItems((l) => l?.filter((x) => x.id !== it.id) ?? l); toast.success("고객 링크에서 삭제했습니다."); }
     else toast.error(r.error ?? "삭제하지 못했습니다.");
   };
+  useEffect(() => {
+    const release = () => { if (drag.current.id) void onUp(); };
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+    return () => { window.removeEventListener("pointerup", release); window.removeEventListener("pointercancel", release); };
+  });
   return (
     <div className="fixed inset-0 z-[80] bg-white overflow-auto" onClick={(e) => e.stopPropagation()}>
       <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-4 py-3">
         <h2 className="text-lg font-black">고객 링크 품목 관리</h2>
-        <button type="button" onClick={onClose} className="p-2" aria-label="닫기"><X className="w-5 h-5" /></button>
+        <Button variant="ghost" type="button" onClick={onClose} className="p-2" aria-label="닫기"><X className="w-5 h-5" /></Button>
       </div>
       <div className="p-4 space-y-3 pb-24">
-        <p className="text-sm text-[#6B7280]">카드를 길게 누른 채 위아래로 끌면 순서가 바뀝니다. 고객 사전정보 링크에 보일 큰 가구·가전입니다. 새로 추가한 품목은 그림과 함께 영구 저장되어 이 업체 고객 링크에만 나타납니다.</p>
-        <button type="button" onClick={() => setAdding(true)} className="w-full inline-flex items-center justify-center gap-1 rounded-xl bg-[#2563EB] py-3 font-black text-white">
+        <p className="text-sm text-[#6B7280]">카드를 길게 누른 채 위아래로 끌면 순서가 바뀝니다. 고객 사전정보 링크에 보일 큰 가구·가전입니다. 새로 추가한 품목은 그림과 함께 영구 저장되어 고객 링크에 나타납니다.</p>
+        <Button variant="ghost" type="button" onClick={() => setAdding(true)} className="w-full inline-flex items-center justify-center gap-1 rounded-xl bg-[#2563EB] py-3 font-black text-white">
           <Plus className="w-4 h-4" /> 새 품목 추가
-        </button>
+        </Button>
         {err && <div className="text-sm font-bold text-[#B91C1C]">{err}</div>}
         {!items && !err && <div className="py-10 text-center text-[#6B7280]">불러오는 중…</div>}
         {items?.map((it) => (
@@ -419,21 +429,28 @@ export function IntakeItemsManager({ onClose }: { onClose: () => void }) {
             className={`select-none rounded-2xl border p-3 space-y-2 transition ${dragId === it.id ? "scale-[1.02] border-[#2563EB] bg-[#EFF6FF] shadow-lg" : it.visible ? "border-[#E5E7EB]" : "border-dashed border-[#D1D5DB] opacity-70"}`}>
             <div className="flex items-center gap-3">
               <GripVertical className="h-5 w-5 shrink-0 text-[#9CA3AF]" aria-hidden />
-              <Icon3D src={it.icon ?? icon3dFor(it.id, it.name)} alt={it.name} size={48} />
-              <input defaultValue={it.name} disabled={it.kind === "base"}
+              <Icon3D key={it.icon} src={it.icon ?? icon3dFor(it.id, it.name)} alt={it.name} size={48} />
+              <input defaultValue={it.name} aria-label={`${it.name} 이름`}
                 onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== it.name) void save(it, { name: v }); }}
                 className="min-w-0 flex-1 rounded-lg border border-[#E5E7EB] px-2 py-2 font-bold disabled:bg-[#F7F8F5]" />
-              <button type="button" onClick={() => void remove(it)} className="rounded-lg bg-[#FEE2E2] p-2 text-[#B91C1C]" aria-label={`${it.name} 삭제`}>
+              <Button variant="ghost" type="button" onClick={() => void remove(it)} className="rounded-lg bg-[#FEE2E2] p-2 text-[#B91C1C]" aria-label={`${it.name} 삭제`}>
                 <Trash2 className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
-            <div className="text-xs text-[#6B7280]">분류: {it.group}{it.family ? ` · ${it.family}` : ""}{it.cat && it.cat !== it.group ? ` (${it.cat})` : ""}</div>
+            <div className="flex gap-2">
+              <select aria-label={`${it.name} 분류`} value={it.group} onChange={e => void save(it, {group:e.target.value as "가구"|"가전"})} className="rounded-lg border px-2 py-2"><option>가구</option><option>가전</option></select>
+              <input aria-label={`${it.name} 크기`} defaultValue={it.size ?? ""} placeholder="크기 (예: 50~59인치)" onBlur={e => void save(it,{size:e.target.value})} className="min-w-0 flex-1 rounded-lg border px-2 py-2" />
+            </div>
+            <label className="block text-sm font-bold">그림 변경<input type="file" accept="image/*" className="mt-1 block w-full" onChange={async e => {
+              const file=e.target.files?.[0];if(!file) return;
+              try {const photo=await toJpeg(file);const r=await saveIntakeItemSetting({data:{id:it.id,kind:it.kind,visible:it.visible,disposalAllowed:it.disposalAllowed,rooms:it.rooms as (typeof INTAKE_ROOMS)[number][],sort:it.sort,photo}});if(!r.ok)toast.error(r.error);else await load();} catch(e){toast.error(e instanceof Error?e.message:"저장하지 못했습니다.");}
+            }} /></label>
             <div className="flex flex-wrap gap-1">
               {INTAKE_ROOMS.map((room) => {
                 const on = it.rooms.includes(room);
                 return (
-                  <button key={room} type="button" onClick={() => void save(it, { rooms: on ? it.rooms.filter((x) => x !== room) : [...it.rooms, room] })}
-                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${on ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5] text-[#6B7280]"}`}>{room}</button>
+                  <Button variant="ghost" key={room} type="button" onClick={() => void save(it, { rooms: on ? it.rooms.filter((x) => x !== room) : [...it.rooms, room] })}
+                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${on ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5] text-[#6B7280]"}`}>{room}</Button>
                 );
               })}
             </div>
@@ -457,7 +474,8 @@ async function toJpeg(file: File): Promise<string> {
     const s = Math.min(1, 640 / Math.max(img.width, img.height));
     const c = document.createElement("canvas");
     c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-    const g = c.getContext("2d")!;
+    const g = c.getContext("2d");
+    if (!g) throw new Error("그림을 준비하지 못했습니다.");
     g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
     g.drawImage(img, 0, 0, c.width, c.height);
     return c.toDataURL("image/jpeg", 0.85);
@@ -472,23 +490,18 @@ function AddIntakeItem({ onClose, onDone, sortBase }: { onClose: () => void; onD
   const [photo, setPhoto] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const { refreshCompanyItems } = useApp();
+  const [size, setSize] = useState("");
   const submit = async () => {
     setErr(null);
     if (name.trim().length < 2) return setErr("품목 이름을 2글자 이상 입력해 주세요.");
     if (!photo) return setErr("그림(사진)을 골라 주세요.");
     setBusy(true);
     try {
-      // 기존 「품목 직접 등록」과 같은 저장: 그림을 Storage에 올린 뒤에만 품목이 저장되고, 실패하면 올린 그림을 지웁니다.
-      const r = await createManualItem({ data: { name: name.trim(), cat, room: rooms[0] ?? "거실", volume: 0.5, photo, rooms, photoSource: "upload" } });
-      if (!r.ok || !r.itemId) { setErr(r.error ?? "저장하지 못했습니다."); return; }
-      const s = await saveIntakeItemSetting({ data: { id: r.itemId, kind: "company", visible: true, disposalAllowed: disposal,
-        rooms: rooms as (typeof INTAKE_ROOMS)[number][], sort: sortBase } });
-      if (!s.ok) { setErr(s.error ?? "고객 링크 표시 설정을 저장하지 못했습니다."); return; }
-      void refreshCompanyItems();
-      toast.success(r.reused ? "같은 이름의 기존 품목을 고객 링크에 표시했습니다." : "품목과 그림을 저장했습니다.");
+      const r = await createCustomerIntakeItem({data:{name:name.trim(),cat,size,rooms:rooms as (typeof INTAKE_ROOMS)[number][],disposal,sort:sortBase,photo}});
+      if (!r.ok) { setErr(r.error ?? "저장하지 못했습니다."); return; }
+      toast.success("고객 품목과 그림을 저장했습니다.");
       onDone();
-    } finally { setBusy(false); }
+    } catch(e) { setErr(e instanceof Error ? e.message : "저장하지 못했습니다."); } finally { setBusy(false); }
   };
   return (
     <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40" onClick={onClose}>
@@ -498,22 +511,23 @@ function AddIntakeItem({ onClose, onDone, sortBase }: { onClose: () => void; onD
           className="w-full rounded-xl border border-[#E5E7EB] px-3 py-3" />
         <div className="flex gap-2">
           {(["가구", "가전"] as const).map((c) => (
-            <button key={c} type="button" onClick={() => setCat(c)} className={`flex-1 rounded-xl py-2 font-bold ${cat === c ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5]"}`}>{c}</button>
+            <Button variant="ghost" key={c} type="button" onClick={() => setCat(c)} className={`flex-1 rounded-xl py-2 font-bold ${cat === c ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5]"}`}>{c}</Button>
           ))}
         </div>
         <div className="flex flex-wrap gap-1">
           {INTAKE_ROOMS.map((room) => (
-            <button key={room} type="button" onClick={() => setRooms((l) => l.includes(room) ? l.filter((x) => x !== room) : [...l, room])}
-              className={`rounded-full px-2.5 py-1 text-xs font-bold ${rooms.includes(room) ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5] text-[#6B7280]"}`}>{room}</button>
+            <Button variant="ghost" key={room} type="button" onClick={() => setRooms((l) => l.includes(room) ? l.filter((x) => x !== room) : [...l, room])}
+              className={`rounded-full px-2.5 py-1 text-xs font-bold ${rooms.includes(room) ? "bg-[#2563EB] text-white" : "bg-[#EEF1F5] text-[#6B7280]"}`}>{room}</Button>
           ))}
         </div>
+        <input aria-label="크기" value={size} onChange={e=>setSize(e.target.value)} placeholder="크기 (예: 퀸, 50~59인치)" className="w-full rounded-xl border px-3 py-3" />
         <label className="flex items-center gap-1 text-sm font-bold"><input type="checkbox" checked={disposal} onChange={(e) => setDisposal(e.target.checked)} /> 폐기물 선택 가능</label>
         <label className="block rounded-xl border border-dashed border-[#D1D5DB] p-3 text-center text-sm font-bold">
           {photo ? <img src={photo} alt="선택한 그림" className="mx-auto h-24 object-contain" /> : "그림 고르기"}
           <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setPhoto(await toJpeg(f)); }} />
         </label>
         {err && <div className="text-sm font-bold text-[#B91C1C]">{err}</div>}
-        <button type="button" disabled={busy} onClick={submit} className="w-full rounded-xl bg-[#2563EB] py-3 font-black text-white disabled:opacity-60">{busy ? "저장 중…" : "저장"}</button>
+        <Button variant="ghost" type="button" disabled={busy} onClick={submit} className="w-full rounded-xl bg-[#2563EB] py-3 font-black text-white disabled:opacity-60">{busy ? "저장 중…" : "저장"}</Button>
       </div>
     </div>
   );
@@ -531,10 +545,10 @@ export function IntakeSubmittedList() {
     <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] p-3 space-y-2">
       <div className="text-sm font-black text-[#1E3A8A]">고객 사전정보 견적 초안</div>
       {rows.map((r) => (
-        <button key={r.id} type="button" onClick={() => setOpenId(r.id)} className="w-full flex items-center justify-between rounded-xl bg-white px-3 py-2 text-left">
+        <Button variant="ghost" key={r.id} type="button" onClick={() => setOpenId(r.id)} className="w-full flex items-center justify-between rounded-xl bg-white px-3 py-2 text-left">
           <span className="text-sm font-bold">{intakeDisplayName(r)} <span className="text-xs text-[#6B7280]">{r.submission && "moveDate" in r.submission ? r.submission.moveDate : ""}</span></span>
           <IntakeStatusChip row={r} />
-        </button>
+        </Button>
       ))}
       {open && <IntakeRequestSheet name={open.customer_name} phone={open.customer_phone} requestId={open.id} onClose={() => setOpenId(null)} />}
     </div>

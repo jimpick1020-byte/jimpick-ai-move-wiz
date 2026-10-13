@@ -64,6 +64,27 @@
       "when": 1791843083860,
       "tag": "0008_intake_token_enc",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791857450528,
+      "tag": "0009_customer_catalog_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791857547253,
+      "tag": "0010_customer_order_atomic",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791857766185,
+      "tag": "0011_protect_customer_only_rows",
+      "breakpoints": true
     }
   ]
 }

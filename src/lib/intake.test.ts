@@ -8,8 +8,11 @@ describe("고객 링크 층수 (명확한 층만)", () => {
     assert.equal(strictFloor("지하 1층"), -1);
     assert.equal(strictFloor("B1"), -1);
   });
-  it("502호는 층수로 보지 않음 → 방문 확인 예정", () => {
-    assert.equal(strictFloor("101동 502호"), null);
+  it("동과 호수를 구분해 101동 502호는 5층, 105-1001은 10층", () => {
+    assert.equal(strictFloor("101동 502호"), 5);
+    assert.equal(strictFloor("105-1001"), 10);
+    assert.equal(strictFloor("101동"), null);
+    assert.equal(strictFloor("판교역로 235"), null);
     assert.equal(strictFloor(""), null);
   });
 });
@@ -35,7 +38,8 @@ describe("견적 초안 합치기", () => {
     const once = mergeIntakeIntoDraft(base, f, null, { intakeRequestId: "r1" });
     const f2 = { ...f, rooms: { 거실: { "television-01": { qty: 2, disposal: true } } } };
     const twice = mergeIntakeIntoDraft(once, f2, f.rooms, { intakeRequestId: "r1" });
-    const room = (twice.rooms as { name: string; items: Record<string, number>; disposal: Record<string, boolean> }[]).find((r) => r.name === "거실")!;
+    const room = (twice.rooms as { name: string; items: Record<string, number>; disposal: Record<string, boolean> }[]).find((r) => r.name === "거실");
+    assert.ok(room);
     assert.equal(room.items["television-01"], 2);
     assert.equal(room.disposal["television-01"], true);
     assert.equal(room.items["sofa-01"], 1);
@@ -52,7 +56,41 @@ describe("링크 상태", () => {
   });
 });
 
-import { fitsSize, intakeItemName, intakeSmsText, INTAKE_BASE_ITEMS } from "./intake";
+import { fitsSize, intakeItemName, intakeSmsText, INTAKE_BASE_ITEMS, customerItemLabel, isLargeCustomerItem, customerCatalogRoleAllowed } from "./intake";
+
+describe("고객 품목 제한", () => {
+  it("플랫폼 관리자만 관리하고 일반 업체와 구독자는 차단", () => {
+    assert.equal(customerCatalogRoleAllowed(["admin"]), true);
+    assert.equal(customerCatalogRoleAllowed(["super_admin"]), true);
+    assert.equal(customerCatalogRoleAllowed(["user", "subscriber"]), false);
+    assert.equal(customerCatalogRoleAllowed([]), false);
+  });
+  it("큰 가구만 포함하고 잔짐은 제외", () => {
+    assert.equal(isLargeCustomerItem("책장"), true);
+    assert.equal(isLargeCustomerItem("디지털 피아노"), true);
+    assert.equal(isLargeCustomerItem("수건"), false);
+    assert.equal(isLargeCustomerItem("박스"), false);
+  });
+  it("영문 파일명은 한글 품목으로 복구", () => {
+    assert.equal(customerItemLabel("bookself-01.png"), "책장");
+  });
+});
+
+describe("실제 견적 필드 연결", () => {
+  it("출발지 502호와 도착지 105-1001을 각각 저장", () => {
+    const form = { ...emptyIntakeForm("시험", "010-9999-0003"), fromDetail: "101동 502호", toDetail: "105-1001" };
+    const draft = mergeIntakeIntoDraft({ id: "same-id" }, form, null, { intakeRequestId: "request" });
+    assert.equal(draft.fromFloor, 5);
+    assert.equal(draft.toFloor, 10);
+    assert.equal(draft.id, "same-id");
+    assert.equal(mergeIntakeIntoDraft(draft, form, null, { intakeRequestId: "request" }).id, "same-id");
+  });
+  it("알 수 없는 층수는 1층으로 추측하지 않음", () => {
+    const draft = mergeIntakeIntoDraft({ fromFloor: 1 }, emptyIntakeForm(), null, { intakeRequestId: "request" });
+    assert.equal(draft.fromFloor, null);
+    assert.equal(draft.intakeFromFloor, "방문 확인 예정");
+  });
+});
 
 describe("평수 추천과 품목", () => {
   it("5평 이하에는 킹 침대를 추천하지 않고, 30~40평에는 추천", () => {
