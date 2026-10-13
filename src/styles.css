@@ -143,6 +143,21 @@
 }
 
 .jp-item-card { background: var(--item-card-fill); border-color: var(--border); box-shadow: var(--item-card-shadow); }
+.jp-intake {
+  color-scheme: light;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.23 0.01 260);
+  --card: oklch(1 0 0);
+  --muted: oklch(0.96 0.015 250);
+  --muted-foreground: oklch(0.43 0.02 260);
+  --border: oklch(0.88 0.02 250);
+  --auth-soft: oklch(0.96 0.027 250);
+  --auth-text: oklch(0.28 0.09 260);
+  --auth-primary: oklch(0.5 0.21 260);
+  --auth-primary-foreground: oklch(1 0 0);
+  --destructive: oklch(0.5 0.2 25);
+}
+.jp-intake-room { background: var(--item-card-fill); box-shadow: var(--item-card-shadow); }
 .jp-scan-outline-auto { color: var(--scan-outline-auto); }
 .jp-scan-outline-check { color: var(--scan-outline-check); }
 .jp-scan-outline-label { fill: var(--scan-label-fill); stroke: var(--scan-label-stroke); font-weight: 700; }
