@@ -111,3 +111,16 @@ describe("문자 문구", () => {
     assert.match(intakeSmsText({ customerName: "", link: "x", contact: "y" }), /\n\n고객님, 방문견적/);
   });
 });
+
+describe("기존 단계 작업조건 저장", () => {
+  it("출발지 계단·도착지 사다리차·직접 층수·평수·빈 방도 동일 초안에 유지", () => {
+    const f = { ...emptyIntakeForm("확인", "010-9999-0003"), moveType: "일반이사" as const,
+      fromEnv: "계단" as const, fromFloor: 5, fromFloorEdited: true, toFloor: 10, toFloorEdited: true,
+      ladderTo: true, fromSize: "30~40평", spaces: ["입구방", "옷방"], memo: "예약 필요" };
+    const draft = mergeIntakeIntoDraft({ id: "same" }, f, null, { intakeRequestId: "r" });
+    assert.equal(draft.id, "same"); assert.equal(draft.fromEnv, "계단"); assert.equal(draft.ladderTo, true);
+    assert.equal(draft.fromFloor, 5); assert.equal(draft.toFloor, 10); assert.equal(draft.sizeTab, "30~40평");
+    assert.equal(draft.moveType, "일반이사"); assert.equal(draft.memo, "예약 필요");
+    assert.deepEqual((draft.rooms as {name:string}[]).map(r => r.name), ["입구방", "옷방"]);
+  });
+});

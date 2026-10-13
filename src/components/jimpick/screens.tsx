@@ -1209,12 +1209,14 @@ export function Step1() {
     estimates,
     deleteEstimate,
     applyCustomerName,
+    customerFlow,
   } = useApp();
   const [err, setErr] = useState("");
   /** 날짜별 확정 예약 건수 — 실제 예약 데이터(estimate_terms)에서 집계해 달력에 표시 */
   const [bookingCounts, setBookingCounts] = useState<Record<string, number>>({});
   const [bookings, setBookings] = useState<Record<string, CalendarBooking[]>>({});
   const loadBookings = useCallback(() => {
+    if (customerFlow) return;
     getReservationCounts()
       .then((r) => {
         if (!r?.ok) return;
@@ -1247,7 +1249,7 @@ export function Step1() {
       .catch(() => {
         /* 못 읽으면 표시만 비웁니다(가짜 숫자를 만들지 않습니다) */
       });
-  }, []);
+  }, [customerFlow]);
   useEffect(() => {
     loadBookings();
   }, [loadBookings]);
@@ -1269,6 +1271,7 @@ export function Step1() {
 
   /** 다른 휴대전화에서 삭제한 견적은 이 기기 목록에서도 감춥니다 */
   useEffect(() => {
+    if (customerFlow) return;
     let alive = true;
     listDeletedEstimateIds()
       .then((r) => {
@@ -1295,8 +1298,8 @@ export function Step1() {
     <MobileShell className="jp-estimate-flow jp-tone-1">
       <TopBar title="1단계. 고객 정보 입력" onBack={() => setScreen("home")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
-        {!draft.intakeRequestId && <IntakeRequestButton label="고객 사전정보 요청" name={draft.customerName} phone={draft.phone} wide />}
-        {draft.intakeRequestId && (
+        {!customerFlow && !draft.intakeRequestId && <IntakeRequestButton label="고객 사전정보 요청" name={draft.customerName} phone={draft.phone} wide />}
+        {!customerFlow && draft.intakeRequestId && (
           <div className="rounded-2xl bg-[#EFF6FF] p-3 text-sm text-[#1E3A8A] space-y-0.5">
             <div className="font-black">고객 사전정보로 채운 견적 초안입니다. 모든 칸을 고칠 수 있습니다.</div>
             <div>출발지 층수: {draft.intakeFromFloor ?? "방문 확인 예정"} · 도착지 층수: {draft.intakeToFloor ?? "방문 확인 예정"}</div>
@@ -1310,7 +1313,7 @@ export function Step1() {
             placeholder="홍길동"
             value={draft.customerName}
             onChange={(e) => updateDraft({ customerName: e.target.value })}
-            onBlur={(e) => syncContractName(draft.id, e.target.value)}
+            onBlur={(e) => { if (!customerFlow) syncContractName(draft.id, e.target.value); }}
           />
         </Field>
         <Field label="연락처" labelClassName="text-[#2DD4BF]">
@@ -1442,7 +1445,7 @@ function AddressSearch({
   label: string;
   value: string;
   detail: string;
-  onSelect: (a: string, coord: { x: number; y: number }) => void;
+  onSelect: (a: string, coord: { x: number; y: number; jibun?: string; zip?: string }) => void;
   onDetail: (d: string) => void;
 }) {
   // null = 선택한 주소 표시, 문자열 = 새 주소 검색 중
@@ -1512,7 +1515,7 @@ function AddressSearch({
               <button
                 key={`${a.name}-${i}`}
                 onClick={() => {
-                  onSelect(a.roadAddress || a.address, { x: a.x, y: a.y });
+                  onSelect(a.roadAddress || a.address, { x: a.x, y: a.y, jibun: a.jibunAddress || a.address, zip: a.zipCode });
                    setOpen(false);
                    setQ(null);
                   tap();
@@ -1642,6 +1645,7 @@ export function Step2() {
             setPath(null);
             updateDraft({
               fromAddress: a,
+              fromJibun: c.jibun, fromZip: c.zip,
               distanceKm: 0,
               durationMin: 0,
               fromX: c.x || null,
@@ -1658,6 +1662,7 @@ export function Step2() {
             setPath(null);
             updateDraft({
               toAddress: a,
+              toJibun: c.jibun, toZip: c.zip,
               distanceKm: 0,
               durationMin: 0,
               toX: c.x || null,
@@ -1843,7 +1848,7 @@ function FloorStepper({
 }
 
 export function Step3() {
-  const { draft, updateDraft, setScreen } = useApp();
+  const { draft, updateDraft, setScreen, customerFlow } = useApp();
   const ladderUnit = getPricing().ladder;
 
   /** 출발지/도착지 작업 방식(계단·엘리베이터)을 각각 독립적으로 설정합니다. 한쪽을 바꿔도 반대편은 그대로 둡니다. */
@@ -2010,7 +2015,7 @@ export function Step3() {
         })}
       </div>
       <BottomButtonBar>
-         <PrimaryButton onClick={() => setScreen("scan")}>다음: AI 연속촬영</PrimaryButton>
+         <PrimaryButton onClick={() => setScreen("scan")}>{customerFlow ? "다음: 직접 선택" : "다음: AI 연속촬영"}</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
@@ -2307,6 +2312,7 @@ export function Step6() {
     hideCatalogItem,
     companyItems,
     refreshCompanyItems,
+    customerFlow,
   } = useApp();
   const [size, setSize] = useState<string>(() => {
     if (draft.sizeTab) return draft.sizeTab;
@@ -2349,8 +2355,11 @@ export function Step6() {
     draftRef.current = next;
     updateDraft(patch);
     try {
-      const result = await saveEstimateDraft({ data: { estimateId: next.id, payload: JSON.stringify(next), revision: nextRevision() } });
-      if (!result.ok || result.stale) throw new Error(result.error || "저장 내용이 변경되었습니다. 다시 확인해 주세요.");
+      if (customerFlow) await customerFlow.persist(next);
+      else {
+        const result = await saveEstimateDraft({ data: { estimateId: next.id, payload: JSON.stringify(next), revision: nextRevision() } });
+        if (!result.ok || result.stale) throw new Error(result.error || "저장 내용이 변경되었습니다. 다시 확인해 주세요.");
+      }
       return true;
     } catch (cause) {
       const rollback = Object.fromEntries(Object.keys(patch).map((key) => [key, before[key as keyof Estimate]])) as Partial<Estimate>;
@@ -2393,6 +2402,7 @@ export function Step6() {
    */
   const [openRooms, setOpenRooms] = useState<string[] | null>(null);
   useEffect(() => {
+    if (customerFlow) { setOpenRooms([]); return; }
     let saved: string[] | null = null;
     try {
       const raw = localStorage.getItem(ROOM_OPEN_KEY);
@@ -2429,6 +2439,7 @@ export function Step6() {
   /** 사장님이 설정에서 고친 평수별 기본품목 (없으면 기본값) */
   const [ownerPresets, setOwnerPresets] = useState<SizePresets>({});
   useEffect(() => {
+    if (customerFlow) return;
     let alive = true;
     getSizePresets()
       .then((r) => {
@@ -2464,7 +2475,7 @@ export function Step6() {
   // 기본 품목과 현재 업체의 영구 생성 품목을 안정적인 ID로 병합합니다.
   const catalog = useMemo(
     () =>
-      [
+      customerFlow ? customerFlow.catalog : [
         ...BROWSE_ITEMS,
         ...persistentCustomItems.map((c) => ({
           id: c.id,
@@ -2479,12 +2490,12 @@ export function Step6() {
       ].filter(
         (i) => !(draft.hiddenItems || []).includes(i.id) && !(catalogHidden || []).includes(i.id),
       ),
-    [persistentCustomItems, draft.hiddenItems, catalogHidden],
+    [persistentCustomItems, draft.hiddenItems, catalogHidden, customerFlow],
   );
 
   /** 품목이 하나도 없는 카테고리 탭은 감춥니다 (박스 품목 제거 후 빈 탭 방지) */
   const visibleCats = useMemo(
-    () => CATS5.filter((c) => catalog.some((i) => i.cat5 === c)),
+    () => customerFlow ? ["가구", "가전", "주방"] : CATS5.filter((c) => catalog.some((i) => i.cat5 === c)),
     [catalog],
   );
 
@@ -3062,7 +3073,7 @@ export function Step6() {
 
   // 검색 결과가 없을 때, 전에 만들어 둔 아이콘이 있으면 먼저 보여 줍니다 (중복 생성 방지)
   const noResult =
-    !!qd.trim() && !catalog.some((i) => matchesQuery(qd, i.name, i.sub, i.cat5));
+    !customerFlow && !!qd.trim() && !catalog.some((i) => matchesQuery(qd, i.name, i.sub, i.cat5));
   useEffect(() => {
     if (!noResult) {
       setSavedIcon(null);
@@ -3188,6 +3199,7 @@ export function Step6() {
     .filter((i) => (qd.trim() ? matchesQuery(qd, i.name, i.sub, i.cat5) : i.cat5 === tab))
     .slice()
     .sort((a, b) => {
+      if (customerFlow) return customerFlow.catalog.findIndex(i => i.id === a.id) - customerFlow.catalog.findIndex(i => i.id === b.id);
       const af = itemFamily(a.name, a.sub || "기타");
       const bf = itemFamily(b.name, b.sub || "기타");
       return (
@@ -3235,6 +3247,7 @@ export function Step6() {
   const [favSaving, setFavSaving] = useState(false);
 
   useEffect(() => {
+    if (customerFlow) return;
     let alive = true;
     getFavoriteItems()
       .then((r) => {
@@ -3538,7 +3551,7 @@ export function Step6() {
 
       <BottomButtonBar>
          <PrimaryButton onClick={() => setScreen("step4")}>
-           <span className="inline-flex items-center gap-2">다음: 차량 선택</span>
+           <span className="inline-flex items-center gap-2">{customerFlow ? "다음: 입력 내용 확인" : "다음: 차량 선택"}</span>
         </PrimaryButton>
       </BottomButtonBar>
 
@@ -3591,13 +3604,13 @@ export function Step6() {
                   />
                 </div>
 
-              <div className="flex justify-end">
+              {!customerFlow && <div className="flex justify-end">
                 <Button variant="ghost" size="sm" onClick={() => { setListTab(tab); setManualOpen(true); }} className="text-auth-primary"><Plus /> 목록에 없는 품목 추가</Button>
-              </div>
+              </div>}
             </div>
             <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pt-3 pb-8 space-y-4 [-webkit-overflow-scrolling:touch]" data-room-item-list {...tabSwipe}>
                 {/* 자주 담는 품목 — 검색 없이 눌러서 바로 담습니다 */}
-                <div className="space-y-2">
+                {!customerFlow && <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-[13.5px] font-black text-[#25282D]">
                       자주 담는 품목
@@ -3642,6 +3655,7 @@ export function Step6() {
                   </div>
                 </div>
 
+                }
                 {/* 소분류로 묶어서 3D 카드로 보여줍니다 */}
                 <div className="space-y-4">
                   {[...new Set(items.map((i) => roomPickerKind(i.name, i.sub || "기타")))].map((g) => (
@@ -3678,7 +3692,8 @@ export function Step6() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     tap("soft");
-                                    setItemMenu(it.id);
+                                    if (customerFlow) { if (qty > 0) setConfirmRemove({ id: it.id, name: it.name, room: room.name }); }
+                                    else setItemMenu(it.id);
                                   }}
                                   className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[11px] font-black leading-none text-[#64748B]"
                                   aria-label={`${it.name} 관리`}

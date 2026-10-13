@@ -66,9 +66,15 @@ const formSchema = z.object({
   fromZip: z.string().max(10).optional(),
   toJibun: z.string().max(200).optional(),
   toZip: z.string().max(10).optional(),
-  fromSize: z.union([z.enum(INTAKE_SIZES), z.literal("")]).optional(),
-  spaces: z.array(z.enum(INTAKE_ROOMS)).max(6).optional(),
-  rooms: z.record(z.enum(INTAKE_ROOMS), z.record(z.string().min(1).max(60), pickSchema)),
+  fromSize: z.union([z.enum(INTAKE_SIZES), z.enum(["50~60평"]), z.literal("")]).optional(),
+  moveType: z.enum(["포장이사", "반포장이사", "일반이사", "보관이사", "사무실이사"]).optional(),
+  storageEnabled: z.boolean().optional(), memo: z.string().max(2000).optional(),
+  fromEnv: z.enum(["계단", "엘리베이터"]).optional(), toEnv: z.enum(["계단", "엘리베이터"]).optional(),
+  fromFloor: z.number().int().min(-5).max(100).nullable().optional(), toFloor: z.number().int().min(-5).max(100).nullable().optional(),
+  fromFloorEdited: z.boolean().optional(), toFloorEdited: z.boolean().optional(),
+  ladderFrom: z.boolean().optional(), ladderTo: z.boolean().optional(),
+  spaces: z.array(z.enum(["거실", "안방", "작은방", "부엌", "베란다", "기타", "입구방", "옷방", "서재"])).max(9).optional(),
+  rooms: z.record(z.enum(["거실", "안방", "작은방", "부엌", "베란다", "기타", "입구방", "옷방", "서재"]), z.record(z.string().min(1).max(60), pickSchema)),
 });
 
 async function admin() {
@@ -460,6 +466,10 @@ export const openIntake = createServerFn({ method: "POST" })
       fromJibun: saved.fromJibun ?? "", fromZip: saved.fromZip ?? "", toJibun: saved.toJibun ?? "", toZip: saved.toZip ?? "",
       fromSize: saved.fromSize ?? "",
       spaces: Array.isArray(saved.spaces) ? saved.spaces : undefined,
+      moveType: saved.moveType, storageEnabled: saved.storageEnabled, memo: saved.memo,
+      fromEnv: saved.fromEnv, toEnv: saved.toEnv, fromFloor: saved.fromFloor, toFloor: saved.toFloor,
+      fromFloorEdited: saved.fromFloorEdited, toFloorEdited: saved.toFloorEdited,
+      ladderFrom: saved.ladderFrom, ladderTo: saved.ladderTo,
       rooms: (saved.rooms ?? {}) as IntakeRooms,
     };
     const items = (await itemsFor(sb, row.company_id, true)).map(({ id, name, icon, rooms, disposalAllowed, group, family, sizes }) => ({ id, name, icon, rooms, disposalAllowed, group, family, sizes }));

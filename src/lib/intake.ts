@@ -151,6 +151,17 @@ export interface IntakeForm {
   fromSize?: string;
   /** 3단계에서 고른 공간 (4단계 방 목록) */
   spaces?: string[];
+  moveType?: "포장이사" | "반포장이사" | "일반이사" | "보관이사" | "사무실이사";
+  storageEnabled?: boolean;
+  memo?: string;
+  fromEnv?: "계단" | "엘리베이터";
+  toEnv?: "계단" | "엘리베이터";
+  fromFloor?: number | null;
+  toFloor?: number | null;
+  fromFloorEdited?: boolean;
+  toFloorEdited?: boolean;
+  ladderFrom?: boolean;
+  ladderTo?: boolean;
   rooms: IntakeRooms;
 }
 
@@ -246,8 +257,8 @@ export function mergeIntakeIntoDraft(
   prev: IntakeRooms | null,
   meta: { intakeRequestId: string },
 ): Record<string, unknown> {
-  const fromFloor = strictFloor(`${form.fromDetail} ${form.fromAddress}`);
-  const toFloor = strictFloor(`${form.toDetail} ${form.toAddress}`);
+  const fromFloor = form.fromFloorEdited ? form.fromFloor ?? null : strictFloor(`${form.fromDetail} ${form.fromAddress}`);
+  const toFloor = form.toFloorEdited ? form.toFloor ?? null : strictFloor(`${form.toDetail} ${form.toAddress}`);
   const rooms: DraftRoom[] = ((base.rooms as DraftRoom[] | undefined) ?? []).map((r) => ({
     ...r, items: { ...(r.items ?? {}) }, disposal: { ...(r.disposal ?? {}) },
   }));
@@ -301,6 +312,13 @@ export function mergeIntakeIntoDraft(
   };
   // 평수는 추천용 참고 정보로만 남깁니다(사장님 화면의 평수·기본 품목은 바꾸지 않음).
   out.intakeFromSize = form.fromSize ?? "";
+  if (form.fromSize) out.sizeTab = form.fromSize;
+  if (form.moveType) out.moveType = form.moveType;
+  if (form.storageEnabled !== undefined) out.storageEnabled = form.storageEnabled;
+  if (form.memo !== undefined) out.memo = form.memo;
+  for (const name of form.spaces ?? []) {
+    if (!rooms.some(r => r.name === name)) rooms.push({ id: `r_${name}`, name, items: {}, disposal: {} });
+  }
   // 층수: 사장님이 직접 고친 값은 덮어쓰지 않고, 확실한 경우만 넣습니다.
   if (!base.fromFloorEdited) out.fromFloor = fromFloor;
   if (!base.toFloorEdited) out.toFloor = toFloor;
@@ -311,6 +329,16 @@ export function mergeIntakeIntoDraft(
     out.ladderFrom = false;
     out.ladderTo = false;
     out.intakeSiteDecision = "방문 후 결정";
+  }
+  for (const side of ["from", "to"] as const) {
+    const envKey = `${side}Env` as const;
+    const ladderKey = side === "from" ? "ladderFrom" : "ladderTo";
+    if (form[envKey] !== undefined) out[envKey] = form[envKey];
+    if (form[ladderKey] !== undefined) out[ladderKey] = form[ladderKey];
+  }
+  if (form.fromEnv || form.toEnv) {
+    const methods = [form.fromEnv, form.toEnv];
+    out.workEnv = methods.includes("계단") && methods.includes("엘리베이터") ? "계단+엘리베이터" : methods.includes("계단") ? "계단" : "엘리베이터";
   }
   return out;
 }
