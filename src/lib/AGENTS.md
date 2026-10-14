@@ -1,7 +1,7 @@
 # Customer intake link rules
 
 - Owner selected-item removal uses an authenticated security-invoker RPC locking the company request and matching draft; it removes only room quantity/disposal JSON, never catalog rows.
-- Picker art removes edge-connected white pixels and crops transparent margins in the browser at native resolution; original assets and stored catalog images stay unchanged.
+- Shared picker art uses a responsive square with an inset safety area and centered contain images without fit scaling or clipped overflow; this keeps wide items intact in both owner and customer three-column lists without altering source assets.
 
 - Customer intake links live in `intake_requests` (company-scoped RLS; token stored as SHA-256 hash for lookup plus AES-GCM copy under INTAKE_TOKEN_KEY for owner re-copy); each request pre-assigns one estimate_id so repeated customer submits update the same estimate_drafts row and never duplicate.
 - Intake customer functions in `intake.functions.ts` are public and must look up rows only by token hash; intake SMS reuses `sendViaAligo` with the fixed admin sender and logs to estimate_deliveries (delivery_method intake_link).

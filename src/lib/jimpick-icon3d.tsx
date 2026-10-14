@@ -624,7 +624,7 @@ export function Icon3D({
   const fit = useIconFit(shown);
   return (
     <span
-      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden ${className}`}
+      className={`relative inline-flex shrink-0 items-center justify-center ${cutout ? "overflow-visible" : "overflow-hidden"} ${className}`}
       style={{ width: size, height: size }}
     >
       <img
@@ -635,7 +635,7 @@ export function Icon3D({
         loading="lazy"
         onError={() => setFailed(true)}
         className="h-full w-full object-contain"
-        style={{ transform: `scale(${cutout ? 1 : fit})`, transformOrigin: "center" }}
+        style={cutout ? undefined : { transform: `scale(${fit})`, transformOrigin: "center" }}
       />
     </span>
   );
