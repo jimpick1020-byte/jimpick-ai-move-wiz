@@ -1,4 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import { strict as assert } from "node:assert";
+const expect = (v: string) => ({ toBe: (x: string) => assert.equal(v, x), toContain: (x: string) => assert.ok(v.includes(x), x) });
 import { requestStatusLabel, visitSmsText } from "./intake";
 
 const base = { status: "submitted", expires_at: "2099-01-01" };
