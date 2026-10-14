@@ -1,6 +1,14 @@
 /** Remove only edge-connected neutral white background, never enclosed white object details. */
 export function clearWhiteBackdrop(pixels: Uint8ClampedArray, width: number, height: number): Uint8ClampedArray {
   const result = new Uint8ClampedArray(pixels);
+  // Already transparent art has white object highlights connected to its alpha edge.
+  // Only process an opaque, light rectangular backdrop, not those highlights.
+  const corners = [0, width - 1, (height - 1) * width, width * height - 1];
+  const backdrop = corners.every(index => {
+    const i = index * 4;
+    return pixels[i + 3] > 240 && Math.min(pixels[i], pixels[i + 1], pixels[i + 2]) >= 215;
+  });
+  if (!backdrop) return result;
   const seen = new Uint8Array(width * height);
   const queue: number[] = [];
   const add = (index: number) => {

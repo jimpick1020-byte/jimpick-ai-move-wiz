@@ -13,3 +13,8 @@ it("removes white backdrop but preserves enclosed white furniture detail and ori
   assert.equal(next[(1 * 5 + 1) * 4 + 3], 255);
   assert.equal(pixels[3], 255);
 });
+it("preserves white object surfaces on already transparent images", () => {
+  const pixels = new Uint8ClampedArray(3 * 3 * 4);
+  pixels.set([255,255,255,255], 4 * 4);
+  assert.deepEqual(clearWhiteBackdrop(pixels, 3, 3), pixels);
+});
