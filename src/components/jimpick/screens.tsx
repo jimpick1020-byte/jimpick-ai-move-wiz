@@ -6897,6 +6897,9 @@ export function History() {
                         )}
                         {ts.row && <ReminderPanel estimateId={e.id} />}
 
+                        {e.intakeRequestId && intakeById.get(e.intakeRequestId) && (
+                          <VisitScheduleBox row={intakeById.get(e.intakeRequestId)!} onWrite={() => loadEstimate(e.id)} />
+                        )}
                         <div className="flex gap-2 mt-3">
                           <button
                             onClick={() => loadEstimate(e.id)}
