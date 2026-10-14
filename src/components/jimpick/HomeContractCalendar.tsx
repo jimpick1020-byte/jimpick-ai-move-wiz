@@ -6,6 +6,7 @@ import { normalizePaymentStatus } from "@/lib/payment.functions";
 import { RESERVATION_STAGE_LABEL, reservationStageOf } from "@/lib/reservation-status";
 import { cancelContract, type ReservationRow } from "@/lib/terms.functions";
 import { toast } from "sonner";
+import type { IntakeRow } from "@/lib/intake.functions";
 
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -51,12 +52,15 @@ function moveTimeOrder(value: string | null) {
 }
 
 export function HomeContractCalendar({
+  visits = [],
   bookings,
   companyName,
   onOpenBooking,
   onCancelled,
 }: {
   bookings: Record<string, ReservationRow[]>;
+  /** 방문 견적 일정 (고객 사전정보 요청) */
+  visits?: IntakeRow[];
   companyName: string;
   onOpenBooking: (booking: ReservationRow) => void;
   onCancelled: () => void;
@@ -135,6 +139,12 @@ export function HomeContractCalendar({
     () => [...(bookings[selectedDate] ?? [])].sort((a, b) => moveTimeOrder(a.moveTime) - moveTimeOrder(b.moveTime)),
     [bookings, selectedDate],
   );
+  const visitsByDate = useMemo(() => {
+    const m: Record<string, IntakeRow[]> = {};
+    for (const v of visits) if (v.visit_date) (m[v.visit_date] ??= []).push(v);
+    return m;
+  }, [visits]);
+  const selectedVisits = visitsByDate[selectedDate] ?? [];
   const moveMonth = (delta: number) => {
     const next = new Date(Date.UTC(view.year, view.month - 1 + delta, 1));
     setView({ year: next.getUTCFullYear(), month: next.getUTCMonth() + 1 });
@@ -180,6 +190,7 @@ export function HomeContractCalendar({
             return <div key={cell.date} aria-hidden="true" className="min-h-[64px]" />;
           }
           const dayBookings = bookings[cell.date] ?? [];
+          const dayVisits = visitsByDate[cell.date] ?? [];
           const completed = dayBookings.filter((booking) => normalizePaymentStatus(booking.paymentStatus) === "completed").length;
           const progressing = dayBookings.length - completed;
           const selected = selectedDate === cell.date;
@@ -209,6 +220,11 @@ export function HomeContractCalendar({
                   {progressing === 0 ? "완료" : `${progressing}건`}
                 </span>
               )}
+              {dayVisits.length > 0 && (
+                <span data-visit-chip className="pointer-events-none relative z-20 mt-0.5 flex h-[17px] max-w-[46px] items-center justify-center whitespace-nowrap rounded-full bg-[#7C3AED] px-1.5 text-[10px] font-black leading-none text-white">
+                  방문{dayVisits.length > 1 ? ` ${dayVisits.length}` : ""}
+                </span>
+              )}
               {cell.son && (
                 <span className="pointer-events-none absolute right-0.5 top-0 z-0 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[#FF6B68] px-0.5 text-[7px] font-black leading-none text-white">
                   손
@@ -224,7 +240,15 @@ export function HomeContractCalendar({
           {Number(selectedDate.slice(5, 7))}월 {Number(selectedDate.slice(8, 10))}일
           {selectedBookings.length > 1 ? ` · 계약 ${selectedBookings.length}건` : ""}
         </div>
+        {selectedVisits.map((v) => (
+          <div key={v.id} data-visit-item className="mb-2 rounded-xl border-l-4 border-[#7C3AED] bg-white p-3">
+            <div className="text-[15px] font-black text-[#6B21A8]">{v.customer_name || "고객"} 방문</div>
+            <div className="text-[12.5px] font-semibold text-[#667085]">방문 견적 · {v.visit_time || "시간 미정"} · {v.customer_phone}</div>
+            <div className="break-keep text-[12.5px] font-semibold text-[#667085]">{(v.submission as { fromAddress?: string; fromDetail?: string })?.fromAddress || "주소 미입력"} {(v.submission as { fromDetail?: string })?.fromDetail ?? ""}</div>
+          </div>
+        ))}
         {selectedBookings.length === 0 ? (
+          selectedVisits.length ? null :
           <p className="py-2 text-center text-[13px] font-semibold text-[#8A94A6]">등록된 계약 일정이 없습니다.</p>
         ) : (
           <div className="space-y-2">

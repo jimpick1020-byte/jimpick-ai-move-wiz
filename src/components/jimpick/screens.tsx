@@ -617,6 +617,8 @@ export function HomeScreen() {
   /** 「새 견적 작성」을 눌렀을 때 작성 중 견적을 지울지 물어보는 창 */
   const [askNewEstimate, setAskNewEstimate] = useState(false);
   const [contractBookings, setContractBookings] = useState<Record<string, import("@/lib/terms.functions").ReservationRow[]>>({});
+  const homeIntakeRows = useIntakeRequests();
+  const visitBookings = useMemo(() => homeIntakeRows.filter((r) => r.visit_status === "scheduled" && r.visit_date && !r.cancelled_at), [homeIntakeRows]);
 
   /**
    * 작성 중이던 견적 요약 (없으면 null).
@@ -1186,7 +1188,7 @@ export function HomeScreen() {
           </div>
         </Card>
 
-        <HomeContractCalendar bookings={contractBookings} companyName={companyName ?? ""} onOpenBooking={openContractBooking} onCancelled={() => { loadContractSchedule(); window.dispatchEvent(new Event("jimpick:payment-updated")); }} />
+        <HomeContractCalendar visits={visitBookings} bookings={contractBookings} companyName={companyName ?? ""} onOpenBooking={openContractBooking} onCancelled={() => { loadContractSchedule(); window.dispatchEvent(new Event("jimpick:payment-updated")); }} />
       </div>
       <BottomNav />
     </MobileShell>
