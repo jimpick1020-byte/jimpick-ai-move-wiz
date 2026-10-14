@@ -3426,9 +3426,8 @@ export function Step6() {
           <button
             onClick={() => {
               tap("soft");
-              if (customerFlow || draft.intakeRequestId) setScreen("step3");
-              else if (window.history.state?.jpScreen === "step6" && window.history.length > 1) window.history.back();
-              else setScreen("step6");
+              // 이미 4단계(step6)이므로 같은 화면으로 이동하면 아무 변화가 없습니다. 항상 3단계로 돌아갑니다.
+              setScreen("step3");
             }}
             aria-label="뒤로"
             className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] flex items-center justify-center text-[#25282D] shadow-[0_4px_0_#E5E7EB,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#E5E7EB]"
