@@ -162,6 +162,9 @@ export interface IntakeForm {
   toFloorEdited?: boolean;
   ladderFrom?: boolean;
   ladderTo?: boolean;
+  /** 고객이 작업 방식을 모를 때: 방문 후 결정 */
+  fromDecideOnVisit?: boolean;
+  toDecideOnVisit?: boolean;
   rooms: IntakeRooms;
 }
 
@@ -335,6 +338,10 @@ export function mergeIntakeIntoDraft(
     const ladderKey = side === "from" ? "ladderFrom" : "ladderTo";
     if (form[envKey] !== undefined) out[envKey] = form[envKey];
     if (form[ladderKey] !== undefined) out[ladderKey] = form[ladderKey];
+    // 고객이 「방문 후 결정」을 고르면 그 장소의 작업 방식·사다리차는 비워 둡니다.
+    const decide = side === "from" ? form.fromDecideOnVisit : form.toDecideOnVisit;
+    out[`${side}DecideOnVisit`] = !!decide;
+    if (decide) { delete out[envKey]; out[ladderKey] = false; }
   }
   if (form.fromEnv || form.toEnv) {
     const methods = [form.fromEnv, form.toEnv];

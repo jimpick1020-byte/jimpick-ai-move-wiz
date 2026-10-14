@@ -679,6 +679,9 @@ export type Database = {
           token_enc: string | null
           token_hash: string
           updated_at: string
+          visit_date: string | null
+          visit_status: string
+          visit_time: string | null
         }
         Insert: {
           cancelled_at?: string | null
@@ -709,6 +712,9 @@ export type Database = {
           token_enc?: string | null
           token_hash: string
           updated_at?: string
+          visit_date?: string | null
+          visit_status?: string
+          visit_time?: string | null
         }
         Update: {
           cancelled_at?: string | null
@@ -739,6 +745,9 @@ export type Database = {
           token_enc?: string | null
           token_hash?: string
           updated_at?: string
+          visit_date?: string | null
+          visit_status?: string
+          visit_time?: string | null
         }
         Relationships: []
       }

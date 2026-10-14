@@ -19,7 +19,7 @@ import {
 
 const ADMIN_SENDER = "01075662542";
 const OWNER_COLS =
-  "id, estimate_id, source_estimate_id, customer_name, customer_phone, status, expires_at, submission, first_opened_at, last_opened_at, editing_started_at, first_submitted_at, last_submitted_at, submit_count, consent_at, confirmed_at, cancelled_at, owner_seen_at, last_sent_at, last_send_method, last_send_error, created_at, updated_at";
+  "id, estimate_id, source_estimate_id, customer_name, customer_phone, status, expires_at, submission, first_opened_at, last_opened_at, editing_started_at, first_submitted_at, last_submitted_at, submit_count, consent_at, confirmed_at, cancelled_at, owner_seen_at, last_sent_at, last_send_method, last_send_error, created_at, updated_at, visit_date, visit_time, visit_status";
 
 export interface IntakeRow {
   id: string;
@@ -45,6 +45,11 @@ export interface IntakeRow {
   last_send_error: string | null;
   created_at: string;
   updated_at: string;
+  /** 방문 견적 일정 (YYYY-MM-DD) */
+  visit_date: string | null;
+  visit_time: string | null;
+  /** none | scheduled */
+  visit_status: string;
 }
 
 const phoneSchema = z.string().trim().regex(/^0\d{1,2}-?\d{3,4}-?\d{4}$/, "휴대전화 번호를 확인해 주세요.");
@@ -73,6 +78,7 @@ const formSchema = z.object({
   fromFloor: z.number().int().min(-5).max(100).nullable().optional(), toFloor: z.number().int().min(-5).max(100).nullable().optional(),
   fromFloorEdited: z.boolean().optional(), toFloorEdited: z.boolean().optional(),
   ladderFrom: z.boolean().optional(), ladderTo: z.boolean().optional(),
+  fromDecideOnVisit: z.boolean().optional(), toDecideOnVisit: z.boolean().optional(),
   spaces: z.array(z.enum(["거실", "안방", "작은방", "부엌", "베란다", "기타", "입구방", "옷방", "서재"])).max(9).optional(),
   rooms: z.record(z.enum(["거실", "안방", "작은방", "부엌", "베란다", "기타", "입구방", "옷방", "서재"]), z.record(z.string().min(1).max(60), pickSchema)),
 });
@@ -91,6 +97,25 @@ export const listIntakeRequests = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false }).limit(300);
     if (error) return { ok: false, rows: [], error: "사전정보 요청 목록을 불러오지 못했습니다." };
     return { ok: true, rows: (data ?? []) as unknown as IntakeRow[] };
+  });
+
+/** 사전 견적요청에 방문 견적 일정을 저장하거나 지웁니다 (자기 업체 요청만, RLS 적용). */
+export const setIntakeVisit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    id: z.string().uuid(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+    time: z.string().trim().max(20).nullable(),
+  }).parse(d))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
+    const patch = data.date
+      ? { visit_date: data.date, visit_time: data.time || null, visit_status: "scheduled" }
+      : { visit_date: null, visit_time: null, visit_status: "none" };
+    const { data: rows, error } = await context.supabase.from("intake_requests").update(patch)
+      .eq("id", data.id).eq("company_id", context.userId).select("id");
+    if (error) return { ok: false, error: `방문 일정을 저장하지 못했습니다. (${error.message})` };
+    if (!rows?.length) return { ok: false, error: "이 업체의 사전 견적요청을 찾지 못했습니다." };
+    return { ok: true };
   });
 
 export const createIntakeRequest = createServerFn({ method: "POST" })

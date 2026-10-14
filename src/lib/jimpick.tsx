@@ -107,6 +107,9 @@ export interface Estimate {
    */
   fromEnv?: WorkMethod;
   toEnv?: WorkMethod;
+  /** 고객 사전정보에서 「방문 후 결정」을 고른 경우 */
+  fromDecideOnVisit?: boolean;
+  toDecideOnVisit?: boolean;
   fromFloor: number;
   toFloor: number;
   /** 사장님이 층수를 직접 고친 경우 표시 — 주소에서 찾은 층수로 덮어쓰지 않습니다 */

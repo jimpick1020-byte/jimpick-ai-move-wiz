@@ -119,7 +119,8 @@ import {
 import { getSizePresets } from "@/lib/size-presets.functions";
 
 import { toast } from "sonner";
-import { IntakeRequestButton, IntakeInbox, IntakeNotifier, IntakeStatusChip, findIntakeFor, useIntakeRequests } from "./IntakePanel";
+import { IntakeRequestButton, IntakeInbox, IntakeNotifier, IntakeStatusChip, findIntakeFor, useIntakeRequests, reloadIntakeRequests } from "./IntakePanel";
+import { setIntakeVisit, type IntakeRow } from "@/lib/intake.functions";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
@@ -617,6 +618,8 @@ export function HomeScreen() {
   /** 「새 견적 작성」을 눌렀을 때 작성 중 견적을 지울지 물어보는 창 */
   const [askNewEstimate, setAskNewEstimate] = useState(false);
   const [contractBookings, setContractBookings] = useState<Record<string, import("@/lib/terms.functions").ReservationRow[]>>({});
+  const homeIntakeRows = useIntakeRequests();
+  const visitBookings = useMemo(() => homeIntakeRows.filter((r) => r.visit_status === "scheduled" && r.visit_date && !r.cancelled_at), [homeIntakeRows]);
 
   /**
    * 작성 중이던 견적 요약 (없으면 null).
@@ -1186,7 +1189,7 @@ export function HomeScreen() {
           </div>
         </Card>
 
-        <HomeContractCalendar bookings={contractBookings} companyName={companyName ?? ""} onOpenBooking={openContractBooking} onCancelled={() => { loadContractSchedule(); window.dispatchEvent(new Event("jimpick:payment-updated")); }} />
+        <HomeContractCalendar visits={visitBookings} bookings={contractBookings} companyName={companyName ?? ""} onOpenBooking={openContractBooking} onCancelled={() => { loadContractSchedule(); window.dispatchEvent(new Event("jimpick:payment-updated")); }} />
       </div>
       <BottomNav />
     </MobileShell>
@@ -1871,6 +1874,7 @@ export function Step3() {
     if (side === "from") {
       updateDraft({
         fromEnv: method,
+        fromDecideOnVisit: false,
         workEnv: combineEnv(method, draft.toEnv),
         ladderFrom: false,
         ladderFromPrice: 0,
@@ -1880,6 +1884,7 @@ export function Step3() {
     } else {
       updateDraft({
         toEnv: method,
+        toDecideOnVisit: false,
         workEnv: combineEnv(draft.fromEnv, method),
         ladderTo: false,
         ladderToPrice: 0,
@@ -1910,6 +1915,7 @@ export function Step3() {
       const price = on ? draft.ladderFromPrice || ladderUnit : 0;
       updateDraft({
         ladderFrom: on,
+        ...(on ? { fromDecideOnVisit: false } : {}),
         ladderFromPrice: price,
         ladderFromSeparate: false,
         ladder: (on ? 1 : 0) + (draft.ladderTo ? 1 : 0),
@@ -1922,6 +1928,7 @@ export function Step3() {
       const price = on ? draft.ladderToPrice || ladderUnit : 0;
       updateDraft({
         ladderTo: on,
+        ...(on ? { toDecideOnVisit: false } : {}),
         ladderToPrice: price,
         ladderToSeparate: false,
         ladder: (draft.ladderFrom ? 1 : 0) + (on ? 1 : 0),
@@ -1973,7 +1980,22 @@ export function Step3() {
                     <div className="text-[17px] font-black text-[#25282D]">엘리베이터</div>
                   </Card>
                 </div>
-                {!env && !ladderOn && (
+                {customerFlow && (() => {
+                  const decide = isFrom ? !!draft.fromDecideOnVisit : !!draft.toDecideOnVisit;
+                  return (
+                    <Card
+                      selected={decide}
+                      onClick={() => updateDraft(isFrom
+                        ? { fromDecideOnVisit: !decide, ...(decide ? {} : { fromEnv: undefined, ladderFrom: false }) }
+                        : { toDecideOnVisit: !decide, ...(decide ? {} : { toEnv: undefined, ladderTo: false }) })}
+                      className="mt-3 text-center py-4"
+                    >
+                      <div className="text-[17px] font-black text-[#25282D]">방문 후 결정</div>
+                      <div className="text-[14px] font-semibold text-[#6B7280]">잘 모르시면 눌러 주세요</div>
+                    </Card>
+                  );
+                })()}
+                {!env && !ladderOn && !(isFrom ? draft.fromDecideOnVisit : draft.toDecideOnVisit) && (
                   <div className="mt-2 text-[13px] font-semibold text-[#D95C5C]">
                     {place} 작업 방식을 선택해 주세요 (계단 / 엘리베이터)
                   </div>
@@ -3485,6 +3507,8 @@ export function Step6() {
                   onClick={() => {
                     tap("soft");
                     if (r) setCurrentRoom(r.id);
+                    // 고객 화면: 평수로 보이는 방이 아직 초안에 없으면 짐픽과 같은 모양으로 추가해 바로 엽니다.
+                    else if (customerFlow) updateDraft({ rooms: [...draft.rooms, { id: `r_${name}`, name, items: {}, disposal: {} }] });
                     setOpenRoom(name);
                     setPickedCollapsed(false);
                     setQ("");
@@ -6311,6 +6335,8 @@ export function Result() {
 }
 
 // ============ History ============
+type HistoryKind = "normal" | "intake" | "visit";
+
 export function History() {
   const { estimates, setScreen, loadEstimate, deleteEstimate } = useApp();
   const [waitingTargetId, setWaitingTargetId] = useState<string | null>(null);
@@ -6321,6 +6347,9 @@ export function History() {
     try { setWaitingTargetId(sessionStorage.getItem("jp_waiting_history_target")); } catch { /* 저장소 제한 */ }
   }, []);
   const [q, setQ] = useState("");
+  const [histTab, setHistTab] = useState<"all" | "intake" | "visit">("all");
+  const intakeHistoryRows = useIntakeRequests();
+  const intakeById = useMemo(() => new Map(intakeHistoryRows.map((r) => [r.id, r])), [intakeHistoryRows]);
   const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
   /** 사장님 예약확정 알림 문자 발송 기록 */
   const [noticeRows, setNoticeRows] = useState<ManagerNoticeRow[]>([]);
@@ -6475,9 +6504,20 @@ export function History() {
   // 잔금까지 전액 받은 계약만 완료 보관함으로 옮깁니다 (예약금만 받은 건은 목록에 남습니다)
   const stats = buildEstimateStats({ estimates, termsRows, archived });
   const qDigits = q.replace(/[^0-9]/g, "");
-  const list = estimates.filter(
+  const kindOf = (e: Estimate): HistoryKind => {
+    if (!e.intakeRequestId) return "normal";
+    const r = intakeById.get(e.intakeRequestId);
+    return r?.visit_status === "scheduled" && r.visit_date ? "visit" : "intake";
+  };
+  const allCurrent = estimates.filter((e) => stats.currentIds.has(e.id));
+  const kindCount = {
+    all: allCurrent.length,
+    intake: allCurrent.filter((e) => kindOf(e) === "intake").length,
+    visit: allCurrent.filter((e) => kindOf(e) === "visit").length,
+  };
+  const list = allCurrent.filter(
     (e) =>
-      stats.currentIds.has(e.id) &&
+      (histTab === "all" || kindOf(e) === histTab) &&
       (!q ||
         e.customerName.includes(q) ||
         e.phone.includes(q) ||
@@ -6549,6 +6589,16 @@ export function History() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
+
+        {/* 분류 — 고객 사전정보로 들어온 요청과 방문 견적을 일반 견적과 구분합니다 */}
+        <div role="tablist" className="grid grid-cols-3 gap-1.5">
+          {([["all", "전체", kindCount.all], ["intake", "사전 견적요청", kindCount.intake], ["visit", "방문 견적", kindCount.visit]] as const).map(([k, label, n]) => (
+            <button key={k} type="button" role="tab" aria-selected={histTab === k} onClick={() => setHistTab(k)}
+              className={`rounded-xl py-2 text-[13px] font-bold ${histTab === k ? "bg-[#3578C8] text-white" : "bg-white text-[#4B5563] ring-1 ring-[#E5E7EB]"}`}>
+              {label} {n}
+            </button>
+          ))}
+        </div>
 
         {/* 건수 요약 — 홈 견적 현황과 같은 공통 집계 결과입니다 */}
         <div className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2 text-[13px] font-semibold text-[#25282D]">
@@ -6665,12 +6715,12 @@ export function History() {
                         <div>
                           <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
                             <span className="font-bold truncate">{e.customerName || "이름 없음"}</span>
-                            {review && (
-                              <span className="shrink-0 whitespace-nowrap text-xs font-bold">{review.kind === "balance" ? "잔금 입금 · 확인 대기" : "예약금 입금 · 확인 대기"}</span>
-                            )}
-                            {e.intakeRequestId && (
-                              <span className="shrink-0 whitespace-nowrap rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-bold text-[#166534]">사전정보 입력 완료</span>
-                            )}
+                            {e.intakeRequestId && (() => {
+                              const visit = intakeById.get(e.intakeRequestId);
+                              return visit?.visit_status === "scheduled" && visit.visit_date
+                                ? <span className="shrink-0 whitespace-nowrap rounded-full bg-[#F3E8FF] px-2 py-0.5 text-xs font-bold text-[#6B21A8]">방문 예정 {Number(visit.visit_date.slice(5, 7))}/{Number(visit.visit_date.slice(8, 10))}</span>
+                                : <span className="shrink-0 whitespace-nowrap rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-bold text-[#166534]">사전 견적요청</span>;
+                            })()}
                             {MOVE_TYPE_BADGE[String(e.moveType ?? "").trim()] && (
                               <span className={`shrink-0 whitespace-nowrap text-xs px-2 py-0.5 rounded-full font-bold ${MOVE_TYPE_BADGE[String(e.moveType).trim()]}`}>
                                 {String(e.moveType).trim()}
@@ -6678,7 +6728,11 @@ export function History() {
                             )}
                           </div>
                           <div className="text-xs text-[#6B7280]">{formatTel(e.phone)}</div>
-                          {review && <div className="mt-1 text-sm font-bold text-foreground">입금자 {review.names.join(" · ") || "이름 확인 필요"}</div>}
+                          {review && (
+                            <div className="mt-1 text-sm font-bold text-foreground" data-payment-review-text>
+                              {review.kind === "balance" ? "잔금 입금" : "예약금 입금"} · {review.amount.toLocaleString("ko-KR")}원 · 입금자 {review.names.join(" · ") || "이름 미확인"} · 확인 필요
+                            </div>
+                          )}
                         </div>
                         {/* 결제상태만 한 개 표시합니다 (독립적인 '완료' 문구는 쓰지 않습니다) */}
                         {(() => {
@@ -6860,6 +6914,9 @@ export function History() {
                         )}
                         {ts.row && <ReminderPanel estimateId={e.id} />}
 
+                        {e.intakeRequestId && intakeById.get(e.intakeRequestId) && (
+                          <VisitScheduleBox row={intakeById.get(e.intakeRequestId)!} onWrite={() => loadEstimate(e.id)} />
+                        )}
                         <div className="flex gap-2 mt-3">
                           <button
                             onClick={() => loadEstimate(e.id)}
@@ -7610,5 +7667,44 @@ export function StatsScreen() {
         </Card>
       </div>
     </MobileShell>
+  );
+}
+
+/** 사전 견적요청 카드 안: 방문 견적 일정 저장 + 견적 작성으로 이동 */
+function VisitScheduleBox({ row, onWrite }: { row: IntakeRow; onWrite: () => void }) {
+  const [date, setDate] = useState(row.visit_date ?? "");
+  const [time, setTime] = useState(row.visit_time ?? "");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setDate(row.visit_date ?? ""); setTime(row.visit_time ?? ""); }, [row.visit_date, row.visit_time]);
+  const save = async (clear = false) => {
+    if (busy) return;
+    if (!clear && !date) { toast.error("방문 날짜를 골라 주세요"); return; }
+    setBusy(true);
+    try {
+      const r = await setIntakeVisit({ data: { id: row.id, date: clear ? null : date, time: clear ? null : time || null } });
+      if (!r.ok) { toast.error(r.error ?? "방문 일정을 저장하지 못했습니다"); return; }
+      toast.success(clear ? "방문 일정을 지웠습니다" : "방문 일정을 저장했습니다");
+      await reloadIntakeRequests();
+    } catch (err) {
+      toast.error("방문 일정을 저장하지 못했습니다", { description: err instanceof Error ? err.message : "" });
+    } finally { setBusy(false); }
+  };
+  const scheduled = row.visit_status === "scheduled" && !!row.visit_date;
+  return (
+    <div className="mt-3 rounded-xl bg-[#F5F0FF] p-3 space-y-2" data-visit-box>
+      <div className="text-[13px] font-black text-[#6B21A8]">{scheduled ? `방문 예정 · ${row.visit_date} ${row.visit_time ?? ""}` : "방문 견적 일정"}</div>
+      <div className="grid grid-cols-2 gap-2">
+        <input type="date" aria-label="방문 날짜" value={date} onChange={(ev) => setDate(ev.target.value)} className="rounded-lg border border-[#E5E7EB] bg-white px-2 py-2 text-[13px]" />
+        <select aria-label="방문 시간" value={time} onChange={(ev) => setTime(ev.target.value)} className="rounded-lg border border-[#E5E7EB] bg-white px-2 py-2 text-[13px]">
+          <option value="">시간 미정</option>
+          {["오전 9시", "오전 10시", "오전 11시", "오후 1시", "오후 2시", "오후 3시", "오후 4시", "오후 5시", "오후 6시"].map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+      <div className="flex gap-2">
+        <button type="button" disabled={busy} onClick={() => save()} className="flex-1 rounded-lg bg-[#7C3AED] py-2 text-[13px] font-bold text-white disabled:opacity-50">{busy ? "저장 중…" : "방문 일정 저장"}</button>
+        {scheduled && <button type="button" disabled={busy} onClick={() => save(true)} className="rounded-lg bg-white px-3 py-2 text-[13px] font-bold text-[#6B7280] ring-1 ring-[#E5E7EB]">일정 지우기</button>}
+        <button type="button" onClick={onWrite} className="flex-1 rounded-lg bg-[#3578C8] py-2 text-[13px] font-bold text-white">견적 작성</button>
+      </div>
+    </div>
   );
 }
