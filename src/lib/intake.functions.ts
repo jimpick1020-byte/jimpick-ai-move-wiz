@@ -481,8 +481,11 @@ export const openIntake = createServerFn({ method: "POST" })
       ladderFrom: saved.ladderFrom, ladderTo: saved.ladderTo,
       rooms: (saved.rooms ?? {}) as IntakeRooms,
     };
-    const items = (await itemsFor(sb, row.company_id, true)).map(({ id, name, icon, rooms, disposalAllowed, group, family, sizes }) => ({ id, name, icon, rooms, disposalAllowed, group, family, sizes }));
-    return { ok: true, state: row.status === "submitted" ? "submitted" : "open", companyName, contact, form, items };
+    // 고객 화면은 짐픽 기본 품목(가구·가전·주방)을 그대로 쓰고, 여기서는 관리자가 추가한 고객용 카드만 더합니다.
+    const items = (await itemsFor(sb, row.company_id, true)).filter(i => i.kind === "company").map(({ id, name, icon, rooms, disposalAllowed, group, family, sizes }) => ({ id, name, icon, rooms, disposalAllowed, group, family, sizes }));
+    const { data: hiddenRows } = await sb.from("item_icons").select("customer_key,item_id").eq("customer_visible", false).not("customer_key", "is", null).or(`customer_only.eq.true,user_id.eq.${row.company_id}`);
+    const hiddenIds = Array.from(new Set(((hiddenRows ?? []) as { customer_key: string | null }[]).map(r => r.customer_key).filter((v): v is string => !!v)));
+    return { ok: true, state: row.status === "submitted" ? "submitted" : "open", companyName, contact, form, items, hiddenIds };
   });
 
 export const saveIntakeProgress = createServerFn({ method: "POST" })
@@ -519,7 +522,8 @@ export const submitIntake = createServerFn({ method: "POST" })
     const prevRooms = (row.submission?.rooms ?? null) as IntakeRooms | null;
     const base = (draftRow?.payload as Record<string, unknown> | null) ?? baseEstimate(row.estimate_id);
     const company = await itemsFor(sb, row.company_id, false);
-    const nameOf = (id: string) => intakeItemName(id) ?? company.find((c) => c.id === id)?.name ?? id;
+    const { ITEM_CATALOG } = await import("./jimpick");
+    const nameOf = (id: string) => ITEM_CATALOG.find((c) => c.id === id)?.name ?? intakeItemName(id) ?? company.find((c) => c.id === id)?.name ?? id;
     const merged = mergeIntakeIntoDraft(base, form, prevRooms, { intakeRequestId: row.id });
     const pickedIds = new Set(Object.values(form.rooms).flatMap(p => Object.keys(p)));
     const snapshots = (base.customItems as any[] | undefined) ?? [];
