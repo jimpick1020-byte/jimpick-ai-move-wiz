@@ -2400,6 +2400,15 @@ export function Step6() {
   };
   useEffect(() => {
     if (!openRoom) return;
+    const token = `room-${Date.now()}`;
+    window.history.pushState({ ...window.history.state, jpRoomPicker: token }, "");
+    const onPop = (event: PopStateEvent) => {
+      if (window.history.state?.jpRoomPicker !== token) {
+        event.stopImmediatePropagation();
+        setOpenRoom(null);
+      }
+    };
+    window.addEventListener("popstate", onPop, true);
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -2407,6 +2416,8 @@ export function Step6() {
     };
     document.addEventListener("keydown", closeOnEscape);
     return () => {
+      window.removeEventListener("popstate", onPop, true);
+      if (window.history.state?.jpRoomPicker === token) window.history.back();
       document.body.style.overflow = previous;
       document.removeEventListener("keydown", closeOnEscape);
     };
@@ -3591,6 +3602,7 @@ export function Step6() {
           <div className="mx-auto flex h-full w-full max-w-md min-h-0 flex-col bg-card">
             <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
               <div className="flex min-w-0 items-center gap-3">
+                <Button variant="ghost" size="icon" className="size-9 shrink-0" aria-label="이전 화면" onClick={() => { if (!itemWriteLock.current) setOpenRoom(null); }}><ChevronLeft /></Button>
                 <h2 className="truncate text-lg font-black">{room.name}</h2>
                 <span className="shrink-0 text-sm font-bold text-muted-foreground">{roomSummary(room.items).kinds}종 · {roomSummary(room.items).count}개</span>
               </div>
