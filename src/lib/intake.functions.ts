@@ -73,6 +73,7 @@ const formSchema = z.object({
   fromFloor: z.number().int().min(-5).max(100).nullable().optional(), toFloor: z.number().int().min(-5).max(100).nullable().optional(),
   fromFloorEdited: z.boolean().optional(), toFloorEdited: z.boolean().optional(),
   ladderFrom: z.boolean().optional(), ladderTo: z.boolean().optional(),
+  fromDecideOnVisit: z.boolean().optional(), toDecideOnVisit: z.boolean().optional(),
   spaces: z.array(z.enum(["거실", "안방", "작은방", "부엌", "베란다", "기타", "입구방", "옷방", "서재"])).max(9).optional(),
   rooms: z.record(z.enum(["거실", "안방", "작은방", "부엌", "베란다", "기타", "입구방", "옷방", "서재"]), z.record(z.string().min(1).max(60), pickSchema)),
 });

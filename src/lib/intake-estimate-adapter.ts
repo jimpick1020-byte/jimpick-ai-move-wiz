@@ -17,6 +17,8 @@ export function intakeToEstimate(form: IntakeForm): Estimate {
     toFloor: form.toFloorEdited ? form.toFloor ?? 1 : strictFloor(form.toDetail) ?? 1,
     fromFloorEdited: form.fromFloorEdited, toFloorEdited: form.toFloorEdited,
     ladderFrom: form.ladderFrom ?? false, ladderTo: form.ladderTo ?? false,
+    fromDecideOnVisit: form.fromDecideOnVisit, toDecideOnVisit: form.toDecideOnVisit,
+    ...(form.fromDecideOnVisit ? { fromEnv: undefined } : {}), ...(form.toDecideOnVisit ? { toEnv: undefined } : {}),
     sizeTab: form.fromSize || base.sizeTab,
     rooms: names.map(name => ({ id: `r_${name}`, name,
       items: Object.fromEntries(Object.entries(form.rooms[name] ?? {}).map(([id, pick]) => [id, pick.qty])),
@@ -35,6 +37,7 @@ export function estimateToIntake(draft: Estimate, previous: IntakeForm): IntakeF
     fromEnv: draft.fromEnv, toEnv: draft.toEnv, fromFloor: draft.fromFloor, toFloor: draft.toFloor,
     fromFloorEdited: draft.fromFloorEdited, toFloorEdited: draft.toFloorEdited,
     ladderFrom: draft.ladderFrom, ladderTo: draft.ladderTo,
+    fromDecideOnVisit: draft.fromDecideOnVisit, toDecideOnVisit: draft.toDecideOnVisit,
     fromSize: draft.sizeTab, spaces: draft.rooms.map(r => r.name),
     rooms: Object.fromEntries(draft.rooms.map(r => [r.name, Object.fromEntries(Object.entries(r.items).filter(([, qty]) => qty > 0).map(([id, qty]) => [id, { qty, disposal: !!r.disposal?.[id] }]))])),
   };
