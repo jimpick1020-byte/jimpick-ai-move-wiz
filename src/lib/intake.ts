@@ -339,7 +339,7 @@ export function mergeIntakeIntoDraft(
   };
   // 평수는 추천용 참고 정보로만 남깁니다(사장님 화면의 평수·기본 품목은 바꾸지 않음).
   out.intakeFromSize = form.fromSize ?? "";
-  if (form.fromSize) out.sizeTab = form.fromSize;
+  if (form.fromSize && (INTAKE_SIZES as readonly string[]).includes(form.fromSize)) out.sizeTab = form.fromSize;
   if (form.moveType) out.moveType = form.moveType;
   if (form.storageEnabled !== undefined) out.storageEnabled = form.storageEnabled;
   if (form.memo !== undefined) out.memo = form.memo;

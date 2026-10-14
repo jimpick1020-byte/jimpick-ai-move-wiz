@@ -2044,7 +2044,7 @@ export function Step3() {
         })}
       </div>
       <BottomButtonBar>
-         <PrimaryButton onClick={() => setScreen("scan")}>{customerFlow ? "다음: 직접 선택" : "다음: AI 연속촬영"}</PrimaryButton>
+         <PrimaryButton onClick={() => setScreen("scan")}>{customerFlow ? "다음: 집 평수 선택" : "다음: AI 연속촬영"}</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
