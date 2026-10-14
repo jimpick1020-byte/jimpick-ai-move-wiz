@@ -2482,7 +2482,11 @@ export function Step6() {
   // 기본 품목과 현재 업체의 영구 생성 품목을 안정적인 ID로 병합합니다.
   const catalog = useMemo(
     () =>
-      customerFlow ? customerFlow.catalog : [
+      customerFlow ? [
+        // 짐픽 원본 품목(같은 ID·이름·그림)을 가구·가전·주방만 그대로 사용합니다.
+        ...BROWSE_ITEMS.filter((i) => ["가구", "가전", "주방"].includes(i.cat5) && !(customerFlow.hidden || []).includes(i.id)),
+        ...customerFlow.catalog.filter((c) => !BROWSE_ITEMS.some((b) => b.id === c.id)),
+      ] : [
         ...BROWSE_ITEMS,
         ...persistentCustomItems.map((c) => ({
           id: c.id,
@@ -3206,7 +3210,6 @@ export function Step6() {
     .filter((i) => (qd.trim() ? matchesQuery(qd, i.name, i.sub, i.cat5) : i.cat5 === tab))
     .slice()
     .sort((a, b) => {
-      if (customerFlow) return customerFlow.catalog.findIndex(i => i.id === a.id) - customerFlow.catalog.findIndex(i => i.id === b.id);
       const af = itemFamily(a.name, a.sub || "기타");
       const bf = itemFamily(b.name, b.sub || "기타");
       return (

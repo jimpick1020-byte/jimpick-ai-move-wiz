@@ -135,7 +135,7 @@ function IntakeEstimateFlow({ token, form, setForm, data, step, setStep, consent
     } catch (e) { setErr(e instanceof Error ? e.message : "저장하지 못했습니다."); }
     finally { setBusy(false); }
   };
-  const flow = { persist, catalog: (data.items ?? []).map(i => ({ id: i.id, name: i.name, cat: i.group, cat5: i.group, sub: i.family || i.name, group: i.family, emoji: "", extra: 0 })) };
+  const flow = { persist, hidden: data.hiddenIds ?? [], catalog: (data.items ?? []).map(i => ({ id: i.id, name: i.name, cat: i.group, cat5: i.group, sub: i.family || i.name, group: i.family, emoji: "", extra: 0 })) };
   return <CustomerFlowProvider draft={draft} updateDraft={update} setScreen={navigate} flow={flow}>
     {step === 1 ? <Step1 /> : step === 2 ? <Step2 /> : step === 3 ? <Step3 /> : step === 4 ? <Step6 /> :
       <MobileShell className="jp-estimate-flow jp-tone-4">

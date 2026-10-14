@@ -430,6 +430,8 @@ export interface IntakeOpen {
   contact?: string;
   form?: IntakeForm;
   items?: { id: string; name: string; icon?: string; rooms: string[]; disposalAllowed: boolean; group: "가구" | "가전" | "주방"; family?: string; sizes?: [number, number] }[];
+  /** 관리자가 고객 화면에서 숨긴 짐픽 기본 품목 ID */
+  hiddenIds?: string[];
 }
 
 const tokenSchema = z.string().regex(/^[0-9a-f]{64}$/);
