@@ -179,6 +179,30 @@ export function emptyIntakeForm(name = "", phone = ""): IntakeForm {
 export type IntakeStatusLabel =
   | "링크 미발송" | "발송 완료" | "고객 열람" | "작성 중" | "입력 완료" | "사장님 확인 완료" | "링크 만료" | "링크 취소";
 
+/** 방문 일정 안내 문자 (업체 휴대폰 문자 앱에 자동 입력) */
+export function visitSmsText(v: { customerName: string; date: string; time: string | null; address: string; contact: string; link: string | null }): string {
+  const [, m, d] = v.date.split("-").map(Number);
+  return [
+    "[짐픽 방문견적 안내]", "",
+    `${v.customerName || "고객"} 고객님,`,
+    `${m}월 ${d}일 ${v.time || "약속한 시간"}에 방문견적을 위해 찾아가겠습니다.`, "",
+    `방문 주소: ${v.address || "방문 시 확인"}`, "",
+    `일정 변경 문의: ${v.contact}`,
+    ...(v.link ? ["", `일정 확인: ${v.link}`] : []),
+  ].join("\n");
+}
+
+/** 홈 「고객 요청」 화면용 상태 */
+export function requestStatusLabel(r: { status: string; expires_at: string; last_sent_at?: string | null; visit_status?: string; visit_date?: string | null; visit_customer_confirmed_at?: string | null }): string {
+  if (r.status === "cancelled") return "취소";
+  if (r.visit_status === "scheduled" && r.visit_date) return r.visit_customer_confirmed_at ? "고객 일정 확인" : "방문 일정 확정";
+  if (r.status === "submitted" || r.status === "confirmed") return "입력 완료";
+  if (r.status === "editing") return "작성 중";
+  if (r.status === "opened") return "고객 열람";
+  if (r.status === "sent" || r.last_sent_at) return "문자 발송";
+  return "문자 미발송";
+}
+
 export function intakeStatusLabel(r: { status: string; expires_at: string }, now = Date.now()): IntakeStatusLabel {
   if (r.status === "cancelled") return "링크 취소";
   if (r.status === "confirmed") return "사장님 확인 완료";
