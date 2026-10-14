@@ -205,7 +205,7 @@ async function ownRow(supabase: { from: (t: "intake_requests") => any }, userId:
 
 export const getIntakeLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), method: z.enum(["copy", "kakao"]).optional() }).parse(d))
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), method: z.enum(["copy", "kakao", "sms"]).optional() }).parse(d))
   .handler(async ({ data, context }): Promise<{ ok: boolean; link?: string; error?: string }> => {
     const row = await ownRow(context.supabase, context.userId, data.id);
     if (!row) return { ok: false, error: "요청을 찾지 못했습니다." };

@@ -1839,6 +1839,10 @@ export type Database = {
         Args: { _estimate_id: string; _reason?: string; _source?: string }
         Returns: Json
       }
+      soft_delete_estimate_with_intake: {
+        Args: { _estimate_id: string; _reason?: string; _source?: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "super_admin" | "subscriber"

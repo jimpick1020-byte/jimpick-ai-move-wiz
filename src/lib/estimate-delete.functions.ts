@@ -18,6 +18,8 @@ export interface DeleteEstimateResult {
   ok: boolean;
   /** 이미 삭제되어 있던 계약 */
   already?: boolean;
+  /** 함께 취소된 사전 요청 ID */
+  intakeIds?: string[];
   error?: string;
   /** 권한 없음 — 다시 눌러도 삭제되지 않음 */
   forbidden?: boolean;
@@ -40,7 +42,7 @@ export const deleteEstimateEverywhere = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }): Promise<DeleteEstimateResult> => {
-    const { data: res, error } = await context.supabase.rpc("soft_delete_estimate", {
+    const { data: res, error } = await context.supabase.rpc("soft_delete_estimate_with_intake", {
       _estimate_id: data.estimateId,
       _source: data.source,
       _reason: data.reason ?? null,
@@ -49,7 +51,7 @@ export const deleteEstimateEverywhere = createServerFn({ method: "POST" })
       console.error("[deleteEstimateEverywhere]", error.message);
       return { ok: false, error: "삭제하지 못했습니다. 잠시 후 다시 시도해 주세요." };
     }
-    const out = (res ?? {}) as { ok?: boolean; reason?: string; already?: boolean };
+    const out = (res ?? {}) as { ok?: boolean; reason?: string; already?: boolean; intake_ids?: string[] };
     if (!out.ok) {
       const msg =
         out.reason === "forbidden"
@@ -63,7 +65,7 @@ export const deleteEstimateEverywhere = createServerFn({ method: "POST" })
                 : "삭제하지 못했습니다.";
       return { ok: false, error: msg, forbidden: out.reason === "forbidden" || out.reason === "ambiguous" };
     }
-    return { ok: true, already: !!out.already };
+    return { ok: true, already: !!out.already, intakeIds: out.intake_ids ?? [] };
   });
 
 /**

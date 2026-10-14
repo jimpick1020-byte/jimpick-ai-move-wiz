@@ -3,7 +3,6 @@
  * 1 기본정보 → 2 주소·층수 → 3 기본 작업정보 → 4 현재 집 평수 → 확인·동의 → 제출. 고객은 품목을 고르지 않습니다.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Step1, Step2, Step3 } from "./screens";
 import { MobileShell, TopBar, BottomButtonBar, PrimaryButton } from "./ui";
 import { CustomerFlowProvider, type Estimate, type Screen } from "@/lib/jimpick";
@@ -27,8 +26,6 @@ export function IntakePage({ token }: { token: string }) {
   const [err, setErr] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [returnReady, setReturnReady] = useState(false);
-  const returnAttempt = useRef(false);
 
   // Renew private image links before expiry without replacing the customer's unsaved form.
   useEffect(() => {
@@ -64,34 +61,10 @@ export function IntakePage({ token }: { token: string }) {
     return () => { if (timer.current) window.clearTimeout(timer.current); };
   }, [form, token, closed, done, busy]);
 
-  useEffect(() => {
-    if (!done || returnAttempt.current) return;
-    const h = window.setTimeout(() => {
-      returnAttempt.current = true;
-      // A fresh browser tab may have only its initial blank entry, not the SMS app.
-      // Keep an in-document return target in that case so the fallback is not unloaded.
-      const navigation = (window as Window & { navigation?: { canGoBack: boolean } }).navigation;
-      if (navigation?.canGoBack === false || window.history.length <= 1) {
-        window.history.pushState(window.history.state, "", window.location.href);
-      }
-      window.history.back();
-      window.setTimeout(() => setReturnReady(true), 800);
-    }, 1500);
-    return () => window.clearTimeout(h);
-  }, [done]);
-
   if (!data) return <Shell><div className="py-24 text-center text-xl">불러오는 중…</div></Shell>;
   if (!data.ok) return <Shell><Message text={data.error ?? "링크를 열 수 없습니다."} /></Shell>;
   if (closed) return <Shell company={data.companyName}><Message text={CLOSED} sub={`문의: ${data.contact}`} /></Shell>;
-  if (done) return (
-    <Shell company={data.companyName}>
-      <Message text={DONE} sub={`문의: ${data.contact}`} />
-      {returnReady && <div className="mx-5 space-y-3">
-        <Button asChild className="w-full h-auto py-4 text-lg font-bold bg-auth-primary text-auth-primary-foreground"><a href="sms:">문자 화면으로 돌아가기</a></Button>
-        <Button variant="secondary" onClick={() => { setDone(false); setReturnReady(false); returnAttempt.current=false; setStep(1); }} className="w-full h-auto py-4 text-lg font-bold">입력 내용 수정하기</Button>
-      </div>}
-    </Shell>
-  );
+  if (done) return <div className="jp-intake-done" data-intake-done><p className="text-2xl font-black">{DONE}</p></div>;
   if (!form) return null;
 
   return <>

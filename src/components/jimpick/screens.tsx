@@ -1365,7 +1365,7 @@ export function Step1() {
                       });
                     }
                   }}
-                  className="text-center py-3"
+                  className={`text-center py-3 ${customerFlow && selected ? "jp-pick-orange" : ""}`}
                 >
                   <div className="text-[17px] font-black text-[#25282D]">{t}</div>
                 </Card>
@@ -6277,7 +6277,7 @@ export function Result() {
 type HistoryKind = "normal" | "intake" | "visit";
 
 export function History() {
-  const { estimates, setScreen, loadEstimate, deleteEstimate } = useApp();
+  const { estimates, setScreen, loadEstimate, deleteEstimate, draft, resetDraft } = useApp();
   const [waitingTargetId, setWaitingTargetId] = useState<string | null>(null);
   const [termsReady, setTermsReady] = useState(false);
   const historyCards = useRef(new Map<string, HTMLDivElement>());
@@ -6381,8 +6381,11 @@ export function History() {
   /** 견적 내역에서 삭제 → 달력 일정도 함께 삭제됩니다(서버에서 한 번에 처리) */
   const contractDelete = useDeleteContract({
     source: "history",
-    onDeleted: (estimateId) => {
+    onDeleted: (estimateId, intakeIds) => {
       deleteEstimate(estimateId);
+      // 같은 견적 ID·요청 ID로 연결된 「이어서 작성하기」 임시 초안도 지웁니다
+      if (draft.id === estimateId || (draft.intakeRequestId && intakeIds.includes(draft.intakeRequestId))) resetDraft();
+      void reloadIntakeRequests();
       loadTerms();
       loadNotices();
       toast.success("계약을 삭제했습니다", {
