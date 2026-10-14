@@ -53,6 +53,7 @@ import {
   ChevronRight,
   CircleDollarSign,
   User,
+  Bell,
   Calendar,
   CheckCircle2,
   Headphones,
@@ -613,6 +614,7 @@ export function Login() {
 // ============ Home ============
 export function HomeScreen() {
   const { setScreen, resetDraft, estimates, loadEstimate, openEstimate, draft } = useApp();
+  const newRequests = useNewRequestCount();
   /** null = 아직 불러오는 중, "" = 상호명 없음/실패, 그 외 = 상호명 */
   const [companyName, setCompanyName] = useState<string | null>(null);
   /** 「새 견적 작성」을 눌렀을 때 작성 중 견적을 지울지 물어보는 창 */
