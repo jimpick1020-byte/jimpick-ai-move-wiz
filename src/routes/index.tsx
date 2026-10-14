@@ -17,6 +17,7 @@ import {
   Customers,
   SettingsScreen,
   StatsScreen,
+  RequestsScreen,
 } from "@/components/jimpick/screens";
 
 import { SignupScreen, SubscriptionScreen } from "@/components/jimpick/account";
@@ -60,6 +61,7 @@ function Screens() {
     case "result": return <Result />;
     case "history": return <History />;
     case "customers": return <Customers />;
+    case "requests": return <RequestsScreen />;
     case "signup": return <SignupScreen />;
     case "forgot": return <ForgotPasswordScreen />;
     case "subscription": return <SubscriptionScreen />;

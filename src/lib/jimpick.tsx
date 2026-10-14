@@ -1557,6 +1557,7 @@ export type Screen =
   | "result"
   | "history"
   | "customers"
+  | "requests"
   | "signup"
   | "forgot"
   | "subscription"
