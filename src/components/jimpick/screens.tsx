@@ -1365,7 +1365,7 @@ export function Step1() {
                       });
                     }
                   }}
-                  className="text-center py-3"
+                  className={`text-center py-3 ${customerFlow && selected ? "jp-pick-orange" : ""}`}
                 >
                   <div className="text-[17px] font-black text-[#25282D]">{t}</div>
                 </Card>

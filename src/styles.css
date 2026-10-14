@@ -528,3 +528,8 @@ html.jp-force-light, html.jp-force-light body { color-scheme: light only; backgr
 .jp-visit-box { background: var(--visit-soft); color: #111111; border: 2px solid var(--visit-orange); }
 .jp-visit-btn { background: var(--visit-orange); color: #FFFFFF; }
 .jp-visit-accent { color: var(--visit-orange); }
+
+/* 고객 사전정보: 선택된 카드만 밝은 주황 테두리 */
+.jp-pick-orange { border-color: #FF8A00 !important; box-shadow: 0 0 0 2px #FF8A00 !important; }
+/* 고객 완료 화면: 흰 배경·검은 글자 고정 */
+.jp-intake-done { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #FFFFFF !important; color: #111111 !important; color-scheme: light; }
