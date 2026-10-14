@@ -18,6 +18,8 @@ export interface DeleteEstimateResult {
   ok: boolean;
   /** 이미 삭제되어 있던 계약 */
   already?: boolean;
+  /** 함께 취소된 사전 요청 ID */
+  intakeIds?: string[];
   error?: string;
   /** 권한 없음 — 다시 눌러도 삭제되지 않음 */
   forbidden?: boolean;

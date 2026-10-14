@@ -6277,7 +6277,7 @@ export function Result() {
 type HistoryKind = "normal" | "intake" | "visit";
 
 export function History() {
-  const { estimates, setScreen, loadEstimate, deleteEstimate } = useApp();
+  const { estimates, setScreen, loadEstimate, deleteEstimate, draft, resetDraft } = useApp();
   const [waitingTargetId, setWaitingTargetId] = useState<string | null>(null);
   const [termsReady, setTermsReady] = useState(false);
   const historyCards = useRef(new Map<string, HTMLDivElement>());
