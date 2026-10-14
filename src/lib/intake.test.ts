@@ -107,8 +107,11 @@ describe("평수 추천과 품목", () => {
 });
 
 describe("문자 문구", () => {
-  it("이름 없이 보내면 「고객님」으로 시작", () => {
-    assert.match(intakeSmsText({ customerName: "", link: "x", contact: "y" }), /\n\n고객님, 방문견적/);
+  it("사전정보 문자에는 보안 링크 한 개만 포함", () => {
+    const link = "https://example.test/intake/request?preview=v2";
+    const body = intakeSmsText({ link });
+    assert.equal(body.match(/https:\/\/\S+/g)?.length, 1);
+    assert.equal(body.split(link).length - 1, 1);
   });
 });
 

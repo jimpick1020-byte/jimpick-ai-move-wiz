@@ -10,12 +10,11 @@ describe("고객 요청 상태", () => {
   test("보내지 않은 요청은 문자 미발송", () => expect(requestStatusLabel({ status: "created", expires_at: "2099-01-01" })).toBe("문자 미발송"));
   test("취소", () => expect(requestStatusLabel({ ...base, status: "cancelled" })).toBe("취소"));
 });
-test("방문 안내 문자 문구", () => {
-  const t = visitSmsText({ customerName: "김호영", date: "2026-10-20", time: "오후 2시", address: "서울 강남구 1", contact: "010-1111-2222", link: null });
-  expect(t).toContain("[짐픽 방문견적 안내]");
-  expect(t).toContain("10월 20일 오후 2시에 방문견적을 위해 찾아가겠습니다.");
-  expect(t).toContain("방문 주소: 서울 강남구 1");
-  expect(t).toContain("일정 변경 문의: 010-1111-2222");
+test("방문 안내에는 방문 보안 링크 한 개만 포함", () => {
+  const link = "https://example.test/visit/request?preview=v2";
+  const body = visitSmsText({ link });
+  assert.equal(body.match(/https:\/\/\S+/g)?.length, 1);
+  assert.equal(body.split(link).length - 1, 1);
 });
 
 test("방문 시간은 오전과 오후 한 시간 구간", () => {
@@ -25,10 +24,8 @@ test("방문 시간은 오전과 오후 한 시간 구간", () => {
   assert.ok(VISIT_TIMES.includes("오후 3~4시"));
   assert.equal(VISIT_TIMES.length, 11);
 });
-test("메모는 문자에 한 번만 포함하고 빈 메모는 생략", () => {
-  const v = { customerName: "시험", date: "2026-10-15", time: "오후 1~2시", address: "서울 1", contact: "010-0000-0000", link: "https://example.test/visit/token" };
-  const body = visitSmsText({ ...v, memo: "주차 확인" });
-  assert.equal(body.split("방문 메모: 주차 확인").length - 1, 1);
-  assert.equal(body.split(v.link).length - 1, 1);
-  assert.equal(visitSmsText({ ...v, memo: " " }).includes("방문 메모"), false);
+test("고객 상세 필드가 전달되어도 방문 문자에는 유출하지 않음", () => {
+  const v = { customerName: "시험고객", date: "2026-10-15", time: "오후 1~2시", address: "서울 시험주소 1", contact: "010-0000-0000", memo: "주차 확인", link: "https://example.test/visit/token" };
+  const body = visitSmsText(v);
+  for (const value of [v.customerName, v.date, v.time, v.address, v.contact, v.memo]) assert.equal(body.includes(value), false);
 });
