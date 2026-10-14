@@ -53,7 +53,6 @@ import {
   ChevronRight,
   CircleDollarSign,
   User,
-  Bell,
   Calendar,
   CheckCircle2,
   Headphones,
