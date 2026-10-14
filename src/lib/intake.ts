@@ -319,16 +319,6 @@ export function mergeIntakeIntoDraft(
   if (form.moveType) out.moveType = form.moveType;
   if (form.storageEnabled !== undefined) out.storageEnabled = form.storageEnabled;
   if (form.memo !== undefined) out.memo = form.memo;
-  // 작업 조건: 고객이 고른 값만 반영하고, 「방문 후 결정」은 비워 둔 채 표시만 남깁니다.
-  for (const side of ["from", "to"] as const) {
-    const decide = side === "from" ? form.fromDecideOnVisit : form.toDecideOnVisit;
-    const env = side === "from" ? form.fromEnv : form.toEnv;
-    const ladder = side === "from" ? form.ladderFrom : form.ladderTo;
-    out[`${side}DecideOnVisit`] = !!decide;
-    if (decide) { delete out[`${side}Env`]; out[side === "from" ? "ladderFrom" : "ladderTo"] = false; continue; }
-    if (env) out[`${side}Env`] = env;
-    if (ladder !== undefined) out[side === "from" ? "ladderFrom" : "ladderTo"] = ladder;
-  }
   for (const name of form.spaces ?? []) {
     if (!rooms.some(r => r.name === name)) rooms.push({ id: `r_${name}`, name, items: {}, disposal: {} });
   }
@@ -348,6 +338,10 @@ export function mergeIntakeIntoDraft(
     const ladderKey = side === "from" ? "ladderFrom" : "ladderTo";
     if (form[envKey] !== undefined) out[envKey] = form[envKey];
     if (form[ladderKey] !== undefined) out[ladderKey] = form[ladderKey];
+    // 고객이 「방문 후 결정」을 고르면 그 장소의 작업 방식·사다리차는 비워 둡니다.
+    const decide = side === "from" ? form.fromDecideOnVisit : form.toDecideOnVisit;
+    out[`${side}DecideOnVisit`] = !!decide;
+    if (decide) { delete out[envKey]; out[ladderKey] = false; }
   }
   if (form.fromEnv || form.toEnv) {
     const methods = [form.fromEnv, form.toEnv];
