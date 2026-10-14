@@ -3,10 +3,17 @@ export function clearWhiteBackdrop(pixels: Uint8ClampedArray, width: number, hei
   const result = new Uint8ClampedArray(pixels);
   // Already transparent art has white object highlights connected to its alpha edge.
   // Only process an opaque, light rectangular backdrop, not those highlights.
-  const corners = [0, width - 1, (height - 1) * width, width * height - 1];
+  let left = width, right = -1, top = height, bottom = -1;
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    if (pixels[(y * width + x) * 4 + 3] < 240) continue;
+    left = Math.min(left, x); right = Math.max(right, x);
+    top = Math.min(top, y); bottom = Math.max(bottom, y);
+  }
+  if (right < left) return result;
+  const corners = [top * width + left, top * width + right, bottom * width + left, bottom * width + right];
   const backdrop = corners.every(index => {
     const i = index * 4;
-    return pixels[i + 3] > 240 && Math.min(pixels[i], pixels[i + 1], pixels[i + 2]) >= 215;
+    return pixels[i + 3] > 240 && Math.min(pixels[i], pixels[i + 1], pixels[i + 2]) >= 215 && Math.max(pixels[i], pixels[i + 1], pixels[i + 2]) - Math.min(pixels[i], pixels[i + 1], pixels[i + 2]) <= 45;
   });
   if (!backdrop) return result;
   const seen = new Uint8Array(width * height);
@@ -21,6 +28,7 @@ export function clearWhiteBackdrop(pixels: Uint8ClampedArray, width: number, hei
   };
   for (let x = 0; x < width; x++) { add(x); add((height - 1) * width + x); }
   for (let y = 0; y < height; y++) { add(y * width); add(y * width + width - 1); }
+  corners.forEach(add);
   for (let cursor = 0; cursor < queue.length; cursor++) {
     const index = queue[cursor];
     result[index * 4 + 3] = 0;
