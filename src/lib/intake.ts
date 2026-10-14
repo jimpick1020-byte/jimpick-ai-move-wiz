@@ -185,16 +185,11 @@ export const VISIT_TIMES = Array.from({ length: 11 }, (_, i) => {
 });
 
 /** 방문 일정 안내 문자 (업체 휴대폰 문자 앱에 자동 입력) */
-export function visitSmsText(v: { customerName: string; date: string; time: string | null; address: string; contact: string; link: string | null; memo?: string | null }): string {
-  const [, m, d] = v.date.split("-").map(Number);
+export function visitSmsText(v: { link: string }): string {
   return [
     "[짐픽 방문견적 안내]", "",
-    `${v.customerName || "고객"} 고객님,`,
-    `${m}월 ${d}일 ${v.time || "약속한 시간"}에 방문견적을 위해 찾아가겠습니다.`, "",
-    `방문 주소: ${v.address || "방문 시 확인"}`,
-    ...(v.memo?.trim() ? [`방문 메모: ${v.memo.trim()}`] : []), "",
-    `일정 변경 문의: ${v.contact}`,
-    ...(v.link ? ["", `일정 확인: ${v.link}`] : []),
+    "아래 링크를 눌러 방문 날짜와 시간을 확인해 주세요.", "",
+    v.link,
   ].join("\n");
 }
 
@@ -394,18 +389,12 @@ export function intakeSummary(form: IntakeForm, nameOf: (id: string) => string):
   return lines;
 }
 
-export function intakeSmsText(v: { customerName: string; link: string; contact: string }): string {
+export function intakeSmsText(v: { link: string }): string {
   return [
-    "[JIMPICK 짐픽]",
+    "[짐픽 사전정보 요청]",
     "",
-    `${v.customerName.trim() ? `${v.customerName.trim()} ` : ""}고객님, 방문견적 전 기본정보 입력을 부탁드립니다.`,
-    "",
-    "아래 링크에서 이사 날짜, 주소와 큰 가구·가전만 간단히 선택해 주세요.",
+    "방문 전 이름,이사 날짜, 주소, 작업 조건, 평수를 입력해 주세요.",
     "",
     v.link,
-    "",
-    "층수, 작업환경, 잔짐과 정확한 견적은 방문 시 자세히 확인해 드리겠습니다.",
-    "",
-    `문의: ${v.contact}`,
   ].join("\n");
 }

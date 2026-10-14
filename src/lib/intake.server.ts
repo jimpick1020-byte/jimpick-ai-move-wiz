@@ -37,7 +37,7 @@ export async function decryptToken(v: string | null | undefined): Promise<string
 
 export function intakeLink(token: string): string {
   const base = String(process.env["PUBLIC_APP_URL"] || "https://jimpick-ai-move-wiz.lovable.app").trim().replace(/\/$/, "");
-  return `${base}/intake/${token}`;
+  return `${base}/intake/${token}?preview=v2`;
 }
 
 export function visitLink(token: string): string {

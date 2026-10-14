@@ -113,16 +113,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "AI로 더 쉽고 정확한 이사 견적. 방별 품목, 차량, 옵션, 보관료까지 한 번에 계산합니다.",
       },
-      {
-        property: "og:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1c18e9fe-a0c0-456f-8b12-fe73d72bfaa0/id-preview-ae72831b--9ef0e6b7-7d23-4428-8895-6a82ebf234c8.lovable.app-1785279774503.png",
-      },
-      {
-        name: "twitter:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1c18e9fe-a0c0-456f-8b12-fe73d72bfaa0/id-preview-ae72831b--9ef0e6b7-7d23-4428-8895-6a82ebf234c8.lovable.app-1785279774503.png",
-      },
     ],
     links: [
       {
