@@ -1973,7 +1973,22 @@ export function Step3() {
                     <div className="text-[17px] font-black text-[#25282D]">엘리베이터</div>
                   </Card>
                 </div>
-                {!env && !ladderOn && (
+                {customerFlow && (() => {
+                  const decide = isFrom ? !!draft.fromDecideOnVisit : !!draft.toDecideOnVisit;
+                  return (
+                    <Card
+                      selected={decide}
+                      onClick={() => updateDraft(isFrom
+                        ? { fromDecideOnVisit: !decide, ...(decide ? {} : { fromEnv: undefined, ladderFrom: false }) }
+                        : { toDecideOnVisit: !decide, ...(decide ? {} : { toEnv: undefined, ladderTo: false }) })}
+                      className="mt-3 text-center py-4"
+                    >
+                      <div className="text-[17px] font-black text-[#25282D]">방문 후 결정</div>
+                      <div className="text-[14px] font-semibold text-[#6B7280]">잘 모르시면 눌러 주세요</div>
+                    </Card>
+                  );
+                })()}
+                {!env && !ladderOn && !(isFrom ? draft.fromDecideOnVisit : draft.toDecideOnVisit) && (
                   <div className="mt-2 text-[13px] font-semibold text-[#D95C5C]">
                     {place} 작업 방식을 선택해 주세요 (계단 / 엘리베이터)
                   </div>
