@@ -166,6 +166,7 @@ export function HomeContractCalendar({
           <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-full bg-[#F97316]" />2건 이상</span>
           <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-full bg-[#4ED2BC]" />완료</span>
           <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-full bg-[#FF6B68]" />손 없는 날</span>
+          <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-full bg-[#7C3AED]" />방문 견적</span>
         </div>
       </div>
 
