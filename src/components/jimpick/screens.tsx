@@ -119,7 +119,8 @@ import {
 import { getSizePresets } from "@/lib/size-presets.functions";
 
 import { toast } from "sonner";
-import { IntakeRequestButton, IntakeInbox, IntakeNotifier, IntakeStatusChip, findIntakeFor, useIntakeRequests } from "./IntakePanel";
+import { IntakeRequestButton, IntakeInbox, IntakeNotifier, IntakeStatusChip, findIntakeFor, useIntakeRequests, reloadIntakeRequests } from "./IntakePanel";
+import { setIntakeVisit, type IntakeRow } from "@/lib/intake.functions";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
@@ -6332,6 +6333,8 @@ export function Result() {
 }
 
 // ============ History ============
+type HistoryKind = "normal" | "intake" | "visit";
+
 export function History() {
   const { estimates, setScreen, loadEstimate, deleteEstimate } = useApp();
   const [waitingTargetId, setWaitingTargetId] = useState<string | null>(null);
@@ -6584,6 +6587,16 @@ export function History() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
+
+        {/* 분류 — 고객 사전정보로 들어온 요청과 방문 견적을 일반 견적과 구분합니다 */}
+        <div role="tablist" className="grid grid-cols-3 gap-1.5">
+          {([["all", "전체", kindCount.all], ["intake", "사전 견적요청", kindCount.intake], ["visit", "방문 견적", kindCount.visit]] as const).map(([k, label, n]) => (
+            <button key={k} type="button" role="tab" aria-selected={histTab === k} onClick={() => setHistTab(k)}
+              className={`rounded-xl py-2 text-[13px] font-bold ${histTab === k ? "bg-[#3578C8] text-white" : "bg-white text-[#4B5563] ring-1 ring-[#E5E7EB]"}`}>
+              {label} {n}
+            </button>
+          ))}
+        </div>
 
         {/* 건수 요약 — 홈 견적 현황과 같은 공통 집계 결과입니다 */}
         <div className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2 text-[13px] font-semibold text-[#25282D]">
@@ -7652,5 +7665,44 @@ export function StatsScreen() {
         </Card>
       </div>
     </MobileShell>
+  );
+}
+
+/** 사전 견적요청 카드 안: 방문 견적 일정 저장 + 견적 작성으로 이동 */
+function VisitScheduleBox({ row, onWrite }: { row: IntakeRow; onWrite: () => void }) {
+  const [date, setDate] = useState(row.visit_date ?? "");
+  const [time, setTime] = useState(row.visit_time ?? "");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setDate(row.visit_date ?? ""); setTime(row.visit_time ?? ""); }, [row.visit_date, row.visit_time]);
+  const save = async (clear = false) => {
+    if (busy) return;
+    if (!clear && !date) { toast.error("방문 날짜를 골라 주세요"); return; }
+    setBusy(true);
+    try {
+      const r = await setIntakeVisit({ data: { id: row.id, date: clear ? null : date, time: clear ? null : time || null } });
+      if (!r.ok) { toast.error(r.error ?? "방문 일정을 저장하지 못했습니다"); return; }
+      toast.success(clear ? "방문 일정을 지웠습니다" : "방문 일정을 저장했습니다");
+      await reloadIntakeRequests();
+    } catch (err) {
+      toast.error("방문 일정을 저장하지 못했습니다", { description: err instanceof Error ? err.message : "" });
+    } finally { setBusy(false); }
+  };
+  const scheduled = row.visit_status === "scheduled" && !!row.visit_date;
+  return (
+    <div className="mt-3 rounded-xl bg-[#F5F0FF] p-3 space-y-2" data-visit-box>
+      <div className="text-[13px] font-black text-[#6B21A8]">{scheduled ? `방문 예정 · ${row.visit_date} ${row.visit_time ?? ""}` : "방문 견적 일정"}</div>
+      <div className="grid grid-cols-2 gap-2">
+        <input type="date" aria-label="방문 날짜" value={date} onChange={(ev) => setDate(ev.target.value)} className="rounded-lg border border-[#E5E7EB] bg-white px-2 py-2 text-[13px]" />
+        <select aria-label="방문 시간" value={time} onChange={(ev) => setTime(ev.target.value)} className="rounded-lg border border-[#E5E7EB] bg-white px-2 py-2 text-[13px]">
+          <option value="">시간 미정</option>
+          {["오전 9시", "오전 10시", "오전 11시", "오후 1시", "오후 2시", "오후 3시", "오후 4시", "오후 5시", "오후 6시"].map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+      <div className="flex gap-2">
+        <button type="button" disabled={busy} onClick={() => save()} className="flex-1 rounded-lg bg-[#7C3AED] py-2 text-[13px] font-bold text-white disabled:opacity-50">{busy ? "저장 중…" : "방문 일정 저장"}</button>
+        {scheduled && <button type="button" disabled={busy} onClick={() => save(true)} className="rounded-lg bg-white px-3 py-2 text-[13px] font-bold text-[#6B7280] ring-1 ring-[#E5E7EB]">일정 지우기</button>}
+        <button type="button" onClick={onWrite} className="flex-1 rounded-lg bg-[#3578C8] py-2 text-[13px] font-bold text-white">견적 작성</button>
+      </div>
+    </div>
   );
 }
