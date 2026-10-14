@@ -1871,6 +1871,7 @@ export function Step3() {
     if (side === "from") {
       updateDraft({
         fromEnv: method,
+        fromDecideOnVisit: false,
         workEnv: combineEnv(method, draft.toEnv),
         ladderFrom: false,
         ladderFromPrice: 0,
@@ -1880,6 +1881,7 @@ export function Step3() {
     } else {
       updateDraft({
         toEnv: method,
+        toDecideOnVisit: false,
         workEnv: combineEnv(draft.fromEnv, method),
         ladderTo: false,
         ladderToPrice: 0,
@@ -1910,6 +1912,7 @@ export function Step3() {
       const price = on ? draft.ladderFromPrice || ladderUnit : 0;
       updateDraft({
         ladderFrom: on,
+        ...(on ? { fromDecideOnVisit: false } : {}),
         ladderFromPrice: price,
         ladderFromSeparate: false,
         ladder: (on ? 1 : 0) + (draft.ladderTo ? 1 : 0),
@@ -1922,6 +1925,7 @@ export function Step3() {
       const price = on ? draft.ladderToPrice || ladderUnit : 0;
       updateDraft({
         ladderTo: on,
+        ...(on ? { toDecideOnVisit: false } : {}),
         ladderToPrice: price,
         ladderToSeparate: false,
         ladder: (draft.ladderFrom ? 1 : 0) + (on ? 1 : 0),
