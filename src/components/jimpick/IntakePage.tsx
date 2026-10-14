@@ -3,7 +3,6 @@
  * 1 기본정보 → 2 주소·층수 → 3 기본 작업정보 → 4 현재 집 평수 → 확인·동의 → 제출. 고객은 품목을 고르지 않습니다.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Step1, Step2, Step3 } from "./screens";
 import { MobileShell, TopBar, BottomButtonBar, PrimaryButton } from "./ui";
 import { CustomerFlowProvider, type Estimate, type Screen } from "@/lib/jimpick";

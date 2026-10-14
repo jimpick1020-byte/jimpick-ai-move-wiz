@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, Settings2, Plus, GripVertical, Trash2 } from "lucide-react";
 import { useApp, ITEM_CATALOG, type Estimate } from "@/lib/jimpick";
 import { formatTel } from "@/lib/format-input";
+import { smsHref } from "@/lib/sms";
 import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
@@ -125,13 +126,17 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
     try { await f(); } catch (e) { setErr(e instanceof Error ? e.message : "처리하지 못했습니다."); }
     finally { setBusy(null); void reloadIntakeRequests(); }
   };
+  // 휴대전화 기본 문자 앱을 엽니다. 열기만 해서는 발송 완료로 저장하지 않습니다.
+  const [smsOpened, setSmsOpened] = useState(false);
   const sms = () => run("sms", async () => {
-    const r = await ensure(); if (!r) return;
-    const out = await sendIntakeSms({ data: { id: r.id } });
-    if (out.ok) toast.success("문자를 보냈습니다. (문자업체 접수 완료)");
-    else setErr(`문자 발송 실패: ${out.error}`);
+    const link = await linkOf(); if (!link) return;
+    window.location.href = smsHref(p, link);
+    setSmsOpened(true);
   });
-  const linkOf = async (method: "copy" | "kakao") => {
+  const smsSent = () => run("smsSent", async () => {
+    const link = await linkOf("sms"); if (link) { setSmsOpened(false); toast.success("문자 보냄을 기록했습니다."); }
+  });
+  const linkOf = async (method?: "copy" | "kakao" | "sms") => {
     const r = await ensure(); if (!r) return null;
     const l = await getIntakeLink({ data: { id: r.id, method } });
     if (!l.ok || !l.link) { setErr(l.error ?? "링크를 불러오지 못했습니다."); return null; }
@@ -214,6 +219,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
         {label !== "사장님 확인 완료" && (
           <div className="grid grid-cols-2 gap-2">
             <ActionBtn icon={Send} onClick={sms} busy={busy === "sms"} primary>{row?.last_sent_at ? "다시 보내기(문자)" : "문자로 보내기"}</ActionBtn>
+            {smsOpened && <ActionBtn icon={CheckCircle2} onClick={smsSent} busy={busy === "smsSent"}>문자 보냄 확인</ActionBtn>}
             <ActionBtn icon={MessageCircle} onClick={kakao} busy={busy === "kakao"}>카카오톡으로 보내기</ActionBtn>
             <ActionBtn icon={Copy} onClick={copy} busy={busy === "copy"}>링크 복사</ActionBtn>
             {row && !closed && <ActionBtn icon={Ban} onClick={cancel} busy={busy === "cancel"} danger>링크 취소</ActionBtn>}
@@ -249,7 +255,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
             {row.status === "submitted" && <ActionBtn icon={CheckCircle2} onClick={confirm} busy={busy === "confirm"}>사전정보 확정</ActionBtn>}
           </div>
         )}
-        <p className="text-[11px] text-[#9CA3AF]">문자는 짐픽 공통 번호(010-7566-2542)로 나가고, 문의번호에는 업체 연락처가 들어갑니다.</p>
+        <p className="text-[11px] text-[#9CA3AF]">「문자로 보내기」는 이 휴대폰의 기본 문자 앱을 엽니다. 보낸 뒤 「문자 보냄 확인」을 눌러 주세요.</p>
       </div>
     </div>
   );
