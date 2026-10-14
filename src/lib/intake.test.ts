@@ -124,3 +124,15 @@ describe("기존 단계 작업조건 저장", () => {
     assert.deepEqual((draft.rooms as {name:string}[]).map(r => r.name), ["입구방", "옷방"]);
   });
 });
+
+describe("방문 후 결정", () => {
+  test("출발지 방문 후 결정이면 작업 방식과 사다리차를 비워 둔다", async () => {
+    const { mergeIntakeIntoDraft, emptyIntakeForm } = await import("./intake");
+    const form = { ...emptyIntakeForm("홍길동", "010-1234-5678"), fromEnv: "계단" as const, ladderFrom: true, fromDecideOnVisit: true, toEnv: "엘리베이터" as const };
+    const out = mergeIntakeIntoDraft({ fromEnv: "엘리베이터", ladderFrom: true }, form, null, { intakeRequestId: "r1" });
+    assert.equal(out.fromEnv, undefined);
+    assert.equal(out.ladderFrom, false);
+    assert.equal(out.fromDecideOnVisit, true);
+    assert.equal(out.toEnv, "엘리베이터");
+  });
+});
