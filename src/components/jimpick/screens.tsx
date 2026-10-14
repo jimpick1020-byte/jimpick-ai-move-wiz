@@ -6684,12 +6684,12 @@ export function History() {
                         <div>
                           <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
                             <span className="font-bold truncate">{e.customerName || "이름 없음"}</span>
-                            {review && (
-                              <span className="shrink-0 whitespace-nowrap text-xs font-bold">{review.kind === "balance" ? "잔금 입금 · 확인 대기" : "예약금 입금 · 확인 대기"}</span>
-                            )}
-                            {e.intakeRequestId && (
-                              <span className="shrink-0 whitespace-nowrap rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-bold text-[#166534]">사전정보 입력 완료</span>
-                            )}
+                            {e.intakeRequestId && (() => {
+                              const visit = intakeById.get(e.intakeRequestId);
+                              return visit?.visit_status === "scheduled" && visit.visit_date
+                                ? <span className="shrink-0 whitespace-nowrap rounded-full bg-[#F3E8FF] px-2 py-0.5 text-xs font-bold text-[#6B21A8]">방문 예정 {Number(visit.visit_date.slice(5, 7))}/{Number(visit.visit_date.slice(8, 10))}</span>
+                                : <span className="shrink-0 whitespace-nowrap rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-bold text-[#166534]">사전 견적요청</span>;
+                            })()}
                             {MOVE_TYPE_BADGE[String(e.moveType ?? "").trim()] && (
                               <span className={`shrink-0 whitespace-nowrap text-xs px-2 py-0.5 rounded-full font-bold ${MOVE_TYPE_BADGE[String(e.moveType).trim()]}`}>
                                 {String(e.moveType).trim()}
@@ -6697,7 +6697,11 @@ export function History() {
                             )}
                           </div>
                           <div className="text-xs text-[#6B7280]">{formatTel(e.phone)}</div>
-                          {review && <div className="mt-1 text-sm font-bold text-foreground">입금자 {review.names.join(" · ") || "이름 확인 필요"}</div>}
+                          {review && (
+                            <div className="mt-1 text-sm font-bold text-foreground" data-payment-review-text>
+                              {review.kind === "balance" ? "잔금 입금" : "예약금 입금"} · {review.amount.toLocaleString("ko-KR")}원 · 입금자 {review.names.join(" · ") || "이름 미확인"} · 확인 필요
+                            </div>
+                          )}
                         </div>
                         {/* 결제상태만 한 개 표시합니다 (독립적인 '완료' 문구는 쓰지 않습니다) */}
                         {(() => {

@@ -22,10 +22,10 @@ export function paymentReview(records: PaymentEvidence[], paymentStatus: string,
   const balance = real.filter((r) => r.paymentKind === "balance");
   const balanceAmount = balance.reduce((sum, r) => sum + r.amount, 0);
   if (balance.length && total > 0 && depositPaid + balanceAmount >= total) {
-    return { kind: "balance" as const, names: [...new Set(balance.map((r) => r.depositorName).filter(Boolean))] };
+    return { kind: "balance" as const, amount: balanceAmount, names: [...new Set(balance.map((r) => r.depositorName).filter(Boolean))] };
   }
   const pending = real.filter((r) => r.status === "pending_review" && r.paymentKind !== "balance");
-  return pending.length ? { kind: "deposit" as const, names: [...new Set(pending.map((r) => r.depositorName).filter(Boolean))] } : null;
+  return pending.length ? { kind: "deposit" as const, amount: pending.reduce((s, r) => s + r.amount, 0), names: [...new Set(pending.map((r) => r.depositorName).filter(Boolean))] } : null;
 }
 /** Fixed full classes so Tailwind always generates them (no dynamic class names). */
 export const PAYMENT_REVIEW_BORDER = {
