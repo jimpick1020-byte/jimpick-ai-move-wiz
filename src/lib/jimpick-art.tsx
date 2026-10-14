@@ -166,16 +166,18 @@ export function ItemArt({
   name,
   size = 64,
   className = "",
+  cutout = false,
 }: {
   /** 카탈로그 품목 id (옵션처럼 id 가 없으면 비워 두세요) */
   id?: string;
   name: string;
   size?: number;
   className?: string;
+  cutout?: boolean;
 }) {
   // 옵션·작업(에어컨 이전 설치, 입주 청소 …)은 3D 사진이 없어 라인 아이콘을 씁니다
   const work = guessWorkLineKey(name);
   if (work) return <LineArt name={work} alt={name} size={size} className={className} />;
 
-  return <Icon3D src={icon3dFor(id, name)} alt={name} size={size} className={className} />;
+  return <Icon3D src={icon3dFor(id, name)} alt={name} size={size} className={className} cutout={cutout} />;
 }

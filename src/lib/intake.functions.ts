@@ -277,6 +277,14 @@ export const retireUnconvertedIntakeDrafts = createServerFn({ method: "POST" })
   });
 
 /** 고객이 만든 견적 초안 (사장님 화면으로 불러오기) */
+export const removeCustomerSelectedItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ requestId: z.string().uuid(), room: z.enum(INTAKE_ROOMS), itemId: z.string().min(1).max(60) }).parse(d))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
+    const { error } = await context.supabase.rpc("remove_customer_selected_item", { p_request_id: data.requestId, p_room: data.room, p_item_id: data.itemId });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  });
+
 export const loadIntakeDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ estimateId: z.string().min(1).max(80) }).parse(d))
