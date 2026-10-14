@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { Check, MoreHorizontal, Minus, Plus, Search, X } from "lucide-react";
+import { Check, Minus, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ItemArt } from "@/lib/jimpick-art";
 import { matchesQuery } from "@/lib/item-search";
@@ -83,12 +83,11 @@ export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highli
   onTap: () => void; onQuantity: (qty: number) => void; onMenu: () => void; onRemove: () => void; categoryMode?: boolean; onImageTap?: () => void; favoriteMode?: boolean;
 }) {
   const label = pickerItemLabel(item.id, item.name);
-  return <div data-picker-card={item.id} onClick={favoriteMode ? () => { if (!busy) onTap(); } : undefined} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-lg border px-1.5 pb-1.5 pt-2 transition-shadow ${favoriteMode || selectedMode || qty > 0 ? "h-40" : "h-32"} ${qty > 0 ? "jp-item-card-selected ring-1 ring-auth-primary" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""}`}>
-    <Button variant="ghost" size="icon" disabled={busy} className="absolute left-1 top-1 z-10 size-7 rounded-full border border-border bg-card" onClick={(event) => { if (favoriteMode) event.stopPropagation(); onMenu(); }} aria-label={`${label} 관리`}><MoreHorizontal className="size-4" /></Button>
+  return <div data-picker-card={item.id} onClick={favoriteMode ? () => { if (!busy) onTap(); } : undefined} className={`jp-item-card relative flex h-48 min-w-0 flex-col items-center rounded-lg border px-1.5 pb-1.5 pt-2 transition-shadow ${qty > 0 ? "jp-item-card-selected ring-1 ring-auth-primary" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""}`}>
     {selectedMode ? <Button variant="ghost" size="icon" disabled={busy} className="absolute right-1 top-1 z-10 size-7 text-destructive" onClick={onRemove} aria-label={`${label} 삭제`}><X className="size-4" /></Button> : qty > 0 && <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-auth-primary text-auth-primary-foreground"><Check className="size-3.5" /></span>}
-    <Button variant="ghost" disabled={busy} className="h-auto min-h-0 w-full flex-1 touch-manipulation select-none flex-col gap-1 whitespace-normal px-0 py-0.5" onClick={(event) => { if (favoriteMode) event.stopPropagation(); onTap(); }} aria-pressed={favoriteMode ? qty > 0 : undefined} aria-label={`${label} 선택`}>
+    <Button variant="ghost" disabled={busy} className="jp-picker-face h-auto min-h-0 w-full flex-1 touch-manipulation select-none flex-col gap-1 whitespace-normal px-0 py-0.5" onClick={(event) => { if (favoriteMode) event.stopPropagation(); onTap(); }} aria-pressed={qty > 0} aria-label={`${label} 선택`}>
       <span className="relative inline-flex shrink-0" onClick={!favoriteMode && onImageTap ? (event) => { event.stopPropagation(); onImageTap(); } : undefined}>
-        <span className={disposed ? "opacity-60" : ""}><ItemArt id={item.id} name={label} size={56} /></span>
+        <span className={disposed ? "jp-picker-art opacity-60" : "jp-picker-art"}><ItemArt id={item.id} name={label} size={96} cutout /></span>
         {disposed && <DisposalX />}
       </span>
       <span className="line-clamp-2 h-10 w-full shrink-0 break-all text-center text-[13px] font-black leading-5" title={label}>{label}</span>

@@ -1,4 +1,4 @@
-import { ChevronDown, Minus, MoreHorizontal, Plus, X } from "lucide-react";
+import { ChevronDown, Minus, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ItemArt } from "@/lib/jimpick-art";
 import { DisposalX } from "./EstimateSheet";
@@ -37,7 +37,6 @@ export function RoomPickedStrip({ items, disposal, collapsed, onToggle, onView, 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center">
                   <span className="min-w-0 flex-1 truncate text-xs font-bold" title={item.name}>{item.name}</span>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => onMenu(item.id)} aria-label={`${item.name} 관리`}><MoreHorizontal /></Button>
                   <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => onRemove(item)} aria-label={`${item.name} 삭제`}><X /></Button>
                 </div>
                 <div className="flex items-center justify-between">

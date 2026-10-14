@@ -136,13 +136,17 @@
   --auth-focus: oklch(0.552 0.204 257 / 18%);
   --auth-shadow: 0 20px 45px -28px oklch(0.36 0.12 257 / 35%);
   --auth-button-shadow: 0 8px 18px -10px oklch(0.38 0.18 257 / 55%);
-  --item-card-fill: linear-gradient(to bottom, var(--card), var(--auth-soft));
-  --item-card-selected-fill: linear-gradient(to bottom, var(--background), oklch(0.92 0.035 257));
+  --item-card-fill: oklch(0.15 0 0);
+  --item-card-text: oklch(0.98 0 0);
+  --item-card-selected-fill: var(--item-card-fill);
   --item-card-shadow: 0 4px 0 var(--background), inset 0 1px 0 var(--card);
   --item-card-selected-shadow: 0 5px 0 var(--border), inset 0 1px 0 var(--card);
 }
 
-.jp-item-card { background: var(--item-card-fill); border-color: var(--border); box-shadow: var(--item-card-shadow); }
+.jp-item-card { background: var(--item-card-fill); color: var(--item-card-text); border-color: var(--border); box-shadow: var(--item-card-shadow); }
+.jp-item-card .jp-picker-face, .jp-item-card .jp-picker-face:hover { background: var(--item-card-fill); color: var(--item-card-text); }
+.jp-picker-art { display: flex; align-items: center; justify-content: center; width: 100%; height: 96px; }
+.jp-picker-art > span { max-width: 100%; }
 .jp-scan-outline-auto { color: var(--scan-outline-auto); }
 .jp-scan-outline-check { color: var(--scan-outline-check); }
 .jp-scan-outline-label { fill: var(--scan-label-fill); stroke: var(--scan-label-stroke); font-weight: 700; }

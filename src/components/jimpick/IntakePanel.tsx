@@ -15,6 +15,7 @@ import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
   listIntakeDrafts, listIntakeRequests, loadIntakeDraft, markIntakeSeen, removeIntakeItem, saveIntakeItemSetting, saveIntakeOrder, sendIntakeSms,
+  removeCustomerSelectedItem,
   type IntakeItem, type IntakeRow,
 } from "@/lib/intake.functions";
 import { Button } from "@/components/ui/button";
@@ -176,6 +177,17 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
   const sub = row?.submission as IntakeForm | undefined;
   const hasSub = !!sub && !!sub.customerName;
   const nameOf = (id: string) => intakeItemName(id) ?? id;
+  const removeSelected = async (room: string, itemId: string) => {
+    if (!row || busy) return;
+    setBusy("remove"); setErr(null);
+    try {
+      const result = await removeCustomerSelectedItem({ data: { requestId: row.id, room: room as (typeof INTAKE_ROOMS)[number], itemId } });
+      if (!result.ok) { setErr(result.error || "품목을 삭제하지 못했습니다."); return; }
+      await reloadIntakeRequests();
+      toast.success("이 고객의 선택 품목을 삭제했습니다.");
+    } catch (error) { setErr(error instanceof Error ? error.message : "품목을 삭제하지 못했습니다."); }
+    finally { setBusy(null); }
+  };
   const t = (v: string | null | undefined) => (v ? new Date(v).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "-");
 
   return (
@@ -222,7 +234,9 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
               return (
                 <div key={room}><b>{room}</b>{" "}
                   {list.map(([id, pk]) => (
-                    <span key={id} className={pk.disposal ? "text-[#B91C1C]" : ""}>{nameOf(id)}{pk.disposal ? "(폐기)" : ""} {pk.qty} </span>
+                    <span key={id} className={`inline-flex items-center gap-1 ${pk.disposal ? "text-destructive" : ""}`}>{nameOf(id)}{pk.disposal ? "(폐기)" : ""} {pk.qty}
+                      <Button variant="ghost" size="icon" disabled={!!busy} className="size-8 text-destructive" aria-label={`${room} ${nameOf(id)} 선택 삭제`} onClick={() => void removeSelected(room, id)}><Trash2 className="size-4" /></Button>
+                    </span>
                   ))}
                 </div>
               );
@@ -256,20 +270,10 @@ function ActionBtn({ icon: Icon, children, onClick, busy, primary, danger }:
 export function IntakeInbox() {
   const rows = useIntakeRequests();
   const [openId, setOpenId] = useState<string | null>(null);
-  const [items, setItems] = useState(false);
-  const [allowed, setAllowed] = useState(false);
-  useEffect(() => { canManageIntakeItems().then(r => setAllowed(r.allowed)).catch(() => setAllowed(false)); }, []);
   const shown = rows.filter((r) => r.status !== "cancelled").slice(0, 20);
   const open = rows.find((r) => r.id === openId);
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2">
-        <IntakeRequestButton label="새 고객 사전정보 요청" wide />
-        {allowed && <Button variant="ghost" type="button" onClick={() => setItems(true)}
-          className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#EEF1F5] py-3 text-[15px] font-black text-[#25282D]">
-          <Settings2 className="w-4 h-4" /> 고객 링크 품목 관리
-        </Button>}
-      </div>
       {shown.length > 0 && (
         <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3 space-y-2">
           <div className="text-sm font-black text-[#25282D]">사전정보 요청 {shown.length}건</div>
@@ -283,7 +287,6 @@ export function IntakeInbox() {
         </div>
       )}
       {open && <IntakeRequestSheet name={open.customer_name} phone={open.customer_phone} requestId={open.id} onClose={() => setOpenId(null)} />}
-      {items && <IntakeItemsManager onClose={() => setItems(false)} />}
     </div>
   );
 }
