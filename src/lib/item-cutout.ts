@@ -9,7 +9,7 @@ export function clearWhiteBackdrop(pixels: Uint8ClampedArray, width: number, hei
     const i = index * 4;
     const min = Math.min(result[i], result[i + 1], result[i + 2]);
     const max = Math.max(result[i], result[i + 1], result[i + 2]);
-    if (result[i + 3] < 16 || (min >= 232 && max - min <= 18)) queue.push(index);
+    if (result[i + 3] < 16 || (min >= 215 && max - min <= 45)) queue.push(index);
   };
   for (let x = 0; x < width; x++) { add(x); add((height - 1) * width + x); }
   for (let y = 0; y < height; y++) { add(y * width); add(y * width + width - 1); }
