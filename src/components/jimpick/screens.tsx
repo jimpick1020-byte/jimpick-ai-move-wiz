@@ -6340,6 +6340,9 @@ export function History() {
     try { setWaitingTargetId(sessionStorage.getItem("jp_waiting_history_target")); } catch { /* 저장소 제한 */ }
   }, []);
   const [q, setQ] = useState("");
+  const [histTab, setHistTab] = useState<"all" | "intake" | "visit">("all");
+  const intakeHistoryRows = useIntakeRequests();
+  const intakeById = useMemo(() => new Map(intakeHistoryRows.map((r) => [r.id, r])), [intakeHistoryRows]);
   const [termsRows, setTermsRows] = useState<TermsStatusRow[]>([]);
   /** 사장님 예약확정 알림 문자 발송 기록 */
   const [noticeRows, setNoticeRows] = useState<ManagerNoticeRow[]>([]);
