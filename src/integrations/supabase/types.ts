@@ -659,6 +659,7 @@ export type Database = {
           created_by: string
           customer_name: string
           customer_phone: string
+          deleted_at: string | null
           draft: Json
           editing_started_at: string | null
           estimate_id: string
@@ -679,6 +680,7 @@ export type Database = {
           token_enc: string | null
           token_hash: string
           updated_at: string
+          visit_completed_at: string | null
           visit_customer_confirmed_at: string | null
           visit_date: string | null
           visit_memo: string | null
@@ -696,6 +698,7 @@ export type Database = {
           created_by: string
           customer_name: string
           customer_phone: string
+          deleted_at?: string | null
           draft?: Json
           editing_started_at?: string | null
           estimate_id: string
@@ -716,6 +719,7 @@ export type Database = {
           token_enc?: string | null
           token_hash: string
           updated_at?: string
+          visit_completed_at?: string | null
           visit_customer_confirmed_at?: string | null
           visit_date?: string | null
           visit_memo?: string | null
@@ -733,6 +737,7 @@ export type Database = {
           created_by?: string
           customer_name?: string
           customer_phone?: string
+          deleted_at?: string | null
           draft?: Json
           editing_started_at?: string | null
           estimate_id?: string
@@ -753,6 +758,7 @@ export type Database = {
           token_enc?: string | null
           token_hash?: string
           updated_at?: string
+          visit_completed_at?: string | null
           visit_customer_confirmed_at?: string | null
           visit_date?: string | null
           visit_memo?: string | null
@@ -1786,9 +1792,14 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_intake_request: { Args: { p_request_id: string }; Returns: Json }
       disable_worker_contact: { Args: { _id: string }; Returns: boolean }
       estimate_unpaid_notice_due: {
         Args: { _est: string; _today: string; _user: string }
+        Returns: boolean
+      }
+      has_confirmed_calendar_deposit: {
+        Args: { p_company: string; p_estimate: string }
         Returns: boolean
       }
       has_role: {

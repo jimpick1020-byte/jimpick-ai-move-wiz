@@ -179,14 +179,20 @@ export function emptyIntakeForm(name = "", phone = ""): IntakeForm {
 export type IntakeStatusLabel =
   | "링크 미발송" | "발송 완료" | "고객 열람" | "작성 중" | "입력 완료" | "사장님 확인 완료" | "링크 만료" | "링크 취소";
 
+export const VISIT_TIMES = Array.from({ length: 11 }, (_, i) => {
+  const hour = i + 9; const end = hour + 1;
+  return `${hour < 12 ? "오전" : "오후"} ${hour % 12 || 12}~${end % 12 || 12}시`;
+});
+
 /** 방문 일정 안내 문자 (업체 휴대폰 문자 앱에 자동 입력) */
-export function visitSmsText(v: { customerName: string; date: string; time: string | null; address: string; contact: string; link: string | null }): string {
+export function visitSmsText(v: { customerName: string; date: string; time: string | null; address: string; contact: string; link: string | null; memo?: string | null }): string {
   const [, m, d] = v.date.split("-").map(Number);
   return [
     "[짐픽 방문견적 안내]", "",
     `${v.customerName || "고객"} 고객님,`,
     `${m}월 ${d}일 ${v.time || "약속한 시간"}에 방문견적을 위해 찾아가겠습니다.`, "",
-    `방문 주소: ${v.address || "방문 시 확인"}`, "",
+    `방문 주소: ${v.address || "방문 시 확인"}`,
+    ...(v.memo?.trim() ? [`방문 메모: ${v.memo.trim()}`] : []), "",
     `일정 변경 문의: ${v.contact}`,
     ...(v.link ? ["", `일정 확인: ${v.link}`] : []),
   ].join("\n");

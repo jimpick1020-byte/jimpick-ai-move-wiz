@@ -19,7 +19,7 @@ import {
 
 const ADMIN_SENDER = "01075662542";
 const OWNER_COLS =
-  "id, estimate_id, source_estimate_id, customer_name, customer_phone, status, expires_at, submission, first_opened_at, last_opened_at, editing_started_at, first_submitted_at, last_submitted_at, submit_count, consent_at, confirmed_at, cancelled_at, owner_seen_at, last_sent_at, last_send_method, last_send_error, created_at, updated_at, visit_date, visit_time, visit_status, visit_memo, visit_sms_opened_at, visit_sms_confirmed_at, visit_customer_confirmed_at";
+  "id, estimate_id, source_estimate_id, customer_name, customer_phone, status, expires_at, submission, first_opened_at, last_opened_at, editing_started_at, first_submitted_at, last_submitted_at, submit_count, consent_at, confirmed_at, cancelled_at, owner_seen_at, last_sent_at, last_send_method, last_send_error, created_at, updated_at, visit_date, visit_time, visit_status, visit_memo, visit_sms_opened_at, visit_sms_confirmed_at, visit_customer_confirmed_at, visit_completed_at, deleted_at";
 
 export interface IntakeRow {
   id: string;
@@ -57,6 +57,8 @@ export interface IntakeRow {
   visit_sms_confirmed_at: string | null;
   /** 고객이 「확인했습니다」를 누른 시각 */
   visit_customer_confirmed_at: string | null;
+  visit_completed_at: string | null;
+  deleted_at: string | null;
 }
 
 const phoneSchema = z.string().trim().regex(/^0\d{1,2}-?\d{3,4}-?\d{4}$/, "휴대전화 번호를 확인해 주세요.");
@@ -100,7 +102,7 @@ export const listIntakeRequests = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ ok: boolean; rows: IntakeRow[]; error?: string }> => {
     const { data, error } = await context.supabase
-      .from("intake_requests").select(OWNER_COLS).eq("company_id", context.userId)
+      .from("intake_requests").select(OWNER_COLS).eq("company_id", context.userId).is("deleted_at", null)
       .order("created_at", { ascending: false }).limit(300);
     if (error) return { ok: false, rows: [], error: "사전정보 요청 목록을 불러오지 못했습니다." };
     return { ok: true, rows: (data ?? []) as unknown as IntakeRow[] };
@@ -116,6 +118,9 @@ export const setIntakeVisit = createServerFn({ method: "POST" })
     memo: z.string().trim().max(500).nullable().optional(),
   }).parse(d))
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
+    const existing = await ownRow(context.supabase, context.userId, data.id);
+    if (!existing || existing.deleted_at) return { ok: false, error: "요청을 찾지 못했습니다." };
+    if (existing.visit_completed_at) return { ok: false, error: "완료된 방문 일정은 다시 예약하지 않습니다." };
     // 일정이 바뀌거나 취소되면 이전 문자·고객 확인 기록은 새 일정에 맞지 않으므로 비웁니다 (같은 요청 행 하나만 수정).
     const reset = { visit_sms_opened_at: null, visit_sms_confirmed_at: null, visit_customer_confirmed_at: null };
     const patch = data.date
@@ -134,7 +139,7 @@ export const prepareVisitSms = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }): Promise<{ ok: boolean; to?: string; body?: string; error?: string }> => {
     const row = await ownRow(context.supabase, context.userId, data.id);
-    if (!row) return { ok: false, error: "요청을 찾지 못했습니다." };
+    if (!row || row.deleted_at) return { ok: false, error: "요청을 찾지 못했습니다." };
     if (row.visit_status !== "scheduled" || !row.visit_date) return { ok: false, error: "먼저 방문 일정을 저장해 주세요." };
     const { decryptToken, visitLink } = await import("./intake.server");
     const tok = await decryptToken(row.token_enc);
@@ -143,7 +148,7 @@ export const prepareVisitSms = createServerFn({ method: "POST" })
     const sub = (row.submission ?? {}) as Partial<IntakeForm>;
     const body = visitSmsText({
       customerName: row.customer_name || sub.customerName || "", date: row.visit_date, time: row.visit_time,
-      address: [sub.fromAddress, sub.fromDetail].filter(Boolean).join(" "), contact, link: tok ? visitLink(tok) : null,
+      address: [sub.fromAddress, sub.fromDetail].filter(Boolean).join(" "), memo: row.visit_memo, contact, link: tok ? visitLink(tok) : null,
     });
     const { error } = await context.supabase.from("intake_requests").update({ visit_sms_opened_at: new Date().toISOString() })
       .eq("id", row.id).eq("company_id", context.userId);
@@ -208,7 +213,7 @@ export const getIntakeLink = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), method: z.enum(["copy", "kakao", "sms"]).optional() }).parse(d))
   .handler(async ({ data, context }): Promise<{ ok: boolean; link?: string; error?: string }> => {
     const row = await ownRow(context.supabase, context.userId, data.id);
-    if (!row) return { ok: false, error: "요청을 찾지 못했습니다." };
+    if (!row || row.deleted_at) return { ok: false, error: "요청을 찾지 못했습니다." };
     if (row.status === "cancelled") return { ok: false, error: "취소된 링크입니다." };
     const { decryptToken, intakeLink } = await import("./intake.server");
     const tok = await decryptToken(row.token_enc);
@@ -228,7 +233,7 @@ export const sendIntakeSms = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string; msgId?: string }> => {
     const row = await ownRow(context.supabase, context.userId, data.id);
-    if (!row) return { ok: false, error: "요청을 찾지 못했습니다." };
+    if (!row || row.deleted_at) return { ok: false, error: "요청을 찾지 못했습니다." };
     if (row.status === "cancelled") return { ok: false, error: "취소된 링크는 보낼 수 없습니다." };
     if (row.status === "confirmed") return { ok: false, error: "이미 확정된 요청입니다." };
     if (new Date(row.expires_at).getTime() <= Date.now()) return { ok: false, error: "만료된 링크입니다. 새로 만들어 주세요." };
@@ -260,6 +265,16 @@ export const sendIntakeSms = createServerFn({ method: "POST" })
       ? { last_sent_at: now, last_send_method: "sms", last_send_error: null, ...(row.status === "created" ? { status: "sent" } : {}) }
       : { last_send_error: out.error ?? "문자 발송에 실패했습니다." }).eq("id", row.id).eq("company_id", context.userId);
     return out.ok ? { ok: true, msgId: out.msgId } : { ok: false, error: out.error ?? "문자 발송에 실패했습니다." };
+  });
+
+/** Remove a request and only its unconverted draft in one owner-scoped transaction. */
+export const deleteIntakeRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string; estimateId?: string; requestId?: string; draftDeleted?: boolean }> => {
+    const { data: result, error } = await context.supabase.rpc("delete_intake_request", { p_request_id: data.id });
+    if (error) return { ok: false, error: "요청을 삭제하지 못했습니다. 다시 시도해 주세요." };
+    return result as { ok: boolean; error?: string; estimateId?: string; requestId?: string; draftDeleted?: boolean };
   });
 
 export const cancelIntakeRequest = createServerFn({ method: "POST" })
@@ -518,14 +533,14 @@ async function findByToken(token: string) {
   const { hashIntakeToken } = await import("./intake.server");
   const sb = await admin();
   const { data } = await sb.from("intake_requests")
-    .select("id, company_id, estimate_id, customer_name, customer_phone, status, expires_at, submission, draft, first_opened_at, editing_started_at, first_submitted_at, submit_count")
+    .select("id, company_id, estimate_id, customer_name, customer_phone, status, deleted_at, expires_at, submission, draft, first_opened_at, editing_started_at, first_submitted_at, submit_count")
     .eq("token_hash", await hashIntakeToken(token)).maybeSingle();
   return { sb, row: data as any };
 }
 
 function blockReason(row: any): string | null {
   if (!row) return "잘못된 주소입니다. 업체에 다시 요청해 주세요.";
-  if (row.status === "cancelled") return "취소된 링크입니다. 업체에 문의해 주세요.";
+  if (row.deleted_at || row.status === "cancelled") return "취소된 링크입니다. 업체에 문의해 주세요.";
   if (row.status !== "confirmed" && new Date(row.expires_at).getTime() <= Date.now()) return "유효기간이 지난 링크입니다. 업체에 문의해 주세요.";
   return null;
 }
@@ -558,6 +573,7 @@ export const openIntake = createServerFn({ method: "POST" })
       moveType: saved.moveType, storageEnabled: saved.storageEnabled, memo: saved.memo,
       fromEnv: saved.fromEnv, toEnv: saved.toEnv, fromFloor: saved.fromFloor, toFloor: saved.toFloor,
       fromFloorEdited: saved.fromFloorEdited, toFloorEdited: saved.toFloorEdited,
+      fromDecideOnVisit: saved.fromDecideOnVisit, toDecideOnVisit: saved.toDecideOnVisit,
       ladderFrom: saved.ladderFrom, ladderTo: saved.ladderTo,
       rooms: (saved.rooms ?? {}) as IntakeRooms,
     };
@@ -642,13 +658,13 @@ export const submitIntake = createServerFn({ method: "POST" })
   });
 
 // ───────────── 고객 방문 일정 확인 (로그인 없음) ─────────────
-export interface VisitOpen { ok: boolean; error?: string; companyName?: string; contact?: string; date?: string; time?: string | null; address?: string; customerName?: string; confirmedAt?: string | null }
+export interface VisitOpen { ok: boolean; error?: string; companyName?: string; contact?: string; memo?: string | null; date?: string; time?: string | null; address?: string; customerName?: string; confirmedAt?: string | null }
 
 async function findVisit(token: string) {
   const { hashIntakeToken } = await import("./intake.server");
   const sb = await admin();
   const { data } = await sb.from("intake_requests")
-    .select("id, company_id, customer_name, status, visit_date, visit_time, visit_status, visit_customer_confirmed_at, submission")
+    .select("id, company_id, customer_name, status, visit_date, visit_time, visit_status, visit_customer_confirmed_at, visit_memo, deleted_at, submission")
     .eq("token_hash", await hashIntakeToken(token)).maybeSingle();
   return { sb, row: data as any };
 }
@@ -657,14 +673,14 @@ export const openVisit = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ token: tokenSchema }).parse(d))
   .handler(async ({ data }): Promise<VisitOpen> => {
     const { sb, row } = await findVisit(data.token);
-    if (!row || row.status === "cancelled") return { ok: false, error: "잘못되었거나 취소된 링크입니다. 업체에 문의해 주세요." };
+    if (!row || row.deleted_at || row.status === "cancelled") return { ok: false, error: "잘못되었거나 취소된 링크입니다. 업체에 문의해 주세요." };
     if (row.visit_status !== "scheduled" || !row.visit_date) return { ok: false, error: "방문 일정이 아직 정해지지 않았거나 취소되었습니다. 업체에 문의해 주세요." };
     const { data: prof } = await sb.from("profiles").select("company_name, phone").eq("id", row.company_id).maybeSingle();
     const sub = (row.submission ?? {}) as Partial<IntakeForm>;
     return {
       ok: true, companyName: String(prof?.company_name ?? "").trim() || "이사업체",
       contact: formatTel(String(prof?.phone ?? "")) || formatTel(ADMIN_SENDER),
-      date: row.visit_date, time: row.visit_time, customerName: row.customer_name || sub.customerName || "",
+      date: row.visit_date, time: row.visit_time, memo: row.visit_memo, customerName: row.customer_name || sub.customerName || "",
       address: [sub.fromAddress, sub.fromDetail].filter(Boolean).join(" "), confirmedAt: row.visit_customer_confirmed_at,
     };
   });

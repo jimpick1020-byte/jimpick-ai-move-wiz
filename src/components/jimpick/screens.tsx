@@ -3426,7 +3426,7 @@ export function Step6() {
           <button
             onClick={() => {
               tap("soft");
-              if (customerFlow) setScreen("step3");
+              if (customerFlow || draft.intakeRequestId) setScreen("step3");
               else if (window.history.state?.jpScreen === "step6" && window.history.length > 1) window.history.back();
               else setScreen("step6");
             }}

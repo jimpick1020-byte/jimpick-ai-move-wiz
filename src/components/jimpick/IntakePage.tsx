@@ -67,12 +67,12 @@ export function IntakePage({ token }: { token: string }) {
   if (done) return <div className="jp-intake-done" data-intake-done><p className="text-2xl font-black">{DONE}</p></div>;
   if (!form) return null;
 
-  return <>
+  return <div className="jp-customer-flow">
     <InAppBrowserNotice />
     <IntakeEstimateFlow token={token} form={form} setForm={setForm} data={data} step={step} setStep={setStep}
       consent={consent} setConsent={setConsent} busy={busy} setBusy={setBusy} err={err} setErr={setErr}
       onDone={() => setDone(true)} onClosed={() => setClosed(true)} />
-  </>;
+  </div>;
 }
 
 function Shell({ children }: { children: React.ReactNode; company?: string }) {
@@ -122,7 +122,7 @@ function IntakeEstimateFlow({ token, form, setForm, data, step, setStep, consent
             {SIZE_CHOICES.map((s) => (
               <button key={s} type="button" role="radio" aria-checked={form.fromSize === s}
                 onClick={() => setForm(c => c ? { ...c, fromSize: s } : c)}
-                className={`rounded-2xl border-2 py-4 text-lg font-black ${form.fromSize === s ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-foreground"}`}>{s}</button>
+                className={`rounded-2xl border-2 py-4 text-lg font-black ${form.fromSize === s ? "jp-pick-orange border-primary bg-primary/10 text-primary" : "border-border bg-card text-foreground"}`}>{s}</button>
             ))}
           </div>
           <p className="rounded-2xl bg-muted p-4 text-base font-bold">가구·가전과 자세한 이삿짐은 업체가 방문하여 확인해 드립니다.</p>
