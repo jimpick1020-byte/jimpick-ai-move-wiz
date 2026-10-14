@@ -3716,7 +3716,7 @@ export function Step6() {
                             const disposed = qty > 0 && !!room.disposal?.[it.id];
                             return (
                               <ItemPickerCard key={it.id} item={it} qty={qty} disposed={disposed} busy={itemWriteBusy}
-                                selectedMode={false} categoryMode onMenu={() => {}} onRemove={() => setQty(it.id, 0)}
+                                selectedMode={false} categoryMode onMenu={() => setItemMenu(it.id)} onRemove={() => setQty(it.id, 0)}
                                 onTap={() => customerFlow ? setQty(it.id, qty > 0 ? 0 : 1) : cardTap(room.name, it.id, () => setQty(it.id, qty + 1))}
                                 onQuantity={(next) => setQty(it.id, next)} />
                             );
