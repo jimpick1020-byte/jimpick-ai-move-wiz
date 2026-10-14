@@ -3507,6 +3507,8 @@ export function Step6() {
                   onClick={() => {
                     tap("soft");
                     if (r) setCurrentRoom(r.id);
+                    // 고객 화면: 평수로 보이는 방이 아직 초안에 없으면 짐픽과 같은 모양으로 추가해 바로 엽니다.
+                    else if (customerFlow) updateDraft({ rooms: [...draft.rooms, { id: `r_${name}`, name, items: {}, disposal: {} }] });
                     setOpenRoom(name);
                     setPickedCollapsed(false);
                     setQ("");
