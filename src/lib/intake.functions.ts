@@ -143,13 +143,8 @@ export const prepareVisitSms = createServerFn({ method: "POST" })
     if (row.visit_status !== "scheduled" || !row.visit_date) return { ok: false, error: "먼저 방문 일정을 저장해 주세요." };
     const { decryptToken, visitLink } = await import("./intake.server");
     const tok = await decryptToken(row.token_enc);
-    const { data: prof } = await context.supabase.from("profiles").select("phone").eq("id", context.userId).maybeSingle();
-    const contact = formatTel(String(prof?.phone ?? "")) || formatTel(ADMIN_SENDER);
-    const sub = (row.submission ?? {}) as Partial<IntakeForm>;
-    const body = visitSmsText({
-      customerName: row.customer_name || sub.customerName || "", date: row.visit_date, time: row.visit_time,
-      address: [sub.fromAddress, sub.fromDetail].filter(Boolean).join(" "), memo: row.visit_memo, contact, link: tok ? visitLink(tok) : null,
-    });
+    if (!tok) return { ok: false, error: "방문 확인 링크를 불러오지 못했습니다." };
+    const body = visitSmsText({ link: visitLink(tok) });
     const { error } = await context.supabase.from("intake_requests").update({ visit_sms_opened_at: new Date().toISOString() })
       .eq("id", row.id).eq("company_id", context.userId);
     if (error) return { ok: false, error: `기록하지 못했습니다. (${error.message})` };
@@ -231,7 +226,7 @@ export const getIntakeLink = createServerFn({ method: "POST" })
 export const sendIntakeSms = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string; msgId?: string }> => {
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string; to?: string; body?: string }> => {
     const row = await ownRow(context.supabase, context.userId, data.id);
     if (!row || row.deleted_at) return { ok: false, error: "요청을 찾지 못했습니다." };
     if (row.status === "cancelled") return { ok: false, error: "취소된 링크는 보낼 수 없습니다." };
@@ -242,29 +237,9 @@ export const sendIntakeSms = createServerFn({ method: "POST" })
     const { decryptToken, intakeLink } = await import("./intake.server");
     const tok = await decryptToken(row.token_enc);
     if (!tok) return { ok: false, error: "링크를 다시 만들어 주세요." };
-    const { readCreds, sendViaAligo } = await import("./reminder-send.server");
-    const creds = readCreds();
-    const sb = await admin();
-    const now = new Date().toISOString();
-    const { data: profile } = await sb.from("profiles").select("phone").eq("id", context.userId).maybeSingle();
-    const contact = formatTel(String(profile?.phone ?? "")) || formatTel(ADMIN_SENDER);
-    const text = intakeSmsText({ customerName: row.customer_name, link: intakeLink(tok), contact });
-    const out = creds
-      ? await sendViaAligo({ to, text, title: "", msgType: "LMS", ...creds, sender: ADMIN_SENDER, companyId: context.userId })
-      : { ok: false, error: "문자 발송 설정(알리고)이 준비되지 않아 보내지 않았습니다.", code: undefined, msgId: undefined, msgType: undefined };
-    await sb.from("estimate_deliveries").insert({
-      estimate_id: row.estimate_id, user_id: context.userId, company_id: context.userId,
-      to_masked: `***-****-${to.slice(-4)}`, msg_type: out.msgType ?? "LMS", msg_id: out.msgId ?? null,
-      status: out.ok ? "accepted" : "failed", error_message: out.ok ? null : out.error ?? null,
-      error_code: out.ok ? null : out.code != null ? String(out.code) : null, delivery_method: "intake_link",
-      provider: "aligo", provider_message_id: out.msgId ?? null, requested_at: now,
-      failed_at: out.ok ? null : now, provider_result: { ok: out.ok, code: out.code ?? null, msg_type: out.msgType ?? null } as never,
-      idempotency_key: `intake:${row.id}:${Date.now()}`,
-    });
-    await sb.from("intake_requests").update(out.ok
-      ? { last_sent_at: now, last_send_method: "sms", last_send_error: null, ...(row.status === "created" ? { status: "sent" } : {}) }
-      : { last_send_error: out.error ?? "문자 발송에 실패했습니다." }).eq("id", row.id).eq("company_id", context.userId);
-    return out.ok ? { ok: true, msgId: out.msgId } : { ok: false, error: out.error ?? "문자 발송에 실패했습니다." };
+    // Compatibility entry point now prepares the native composer only.
+    // No Aligo calls, delivery inserts, or sent-status writes.
+    return { ok: true, to, body: intakeSmsText({ link: intakeLink(tok) }) };
   });
 
 /** Remove a request and only its unconverted draft in one owner-scoped transaction. */

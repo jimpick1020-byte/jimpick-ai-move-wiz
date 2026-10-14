@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, Settings2, Plus, GripVertical, Trash2 } from "lucide-react";
 import { useApp, ITEM_CATALOG, type Estimate } from "@/lib/jimpick";
 import { formatTel } from "@/lib/format-input";
-import { smsHref } from "@/lib/sms";
+import { createComposerGate, intakeSmsHref } from "@/lib/intake-sms";
 import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   deleteIntakeRequest, cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
@@ -102,6 +102,8 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
   void name;
   const [p, setP] = useState(formatTel(phone));
   const [busy, setBusy] = useState<string | null>(null);
+  const actionLock = useRef(false);
+  const composerGate = useRef(createComposerGate());
   const [err, setErr] = useState<string | null>(null);
   const [rowId, setRowId] = useState<string | undefined>(requestId);
   const { patchDraft, setScreen } = useApp();
@@ -120,18 +122,24 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
     return { id: r.row.id, link: r.link };
   };
   const run = async (key: string, f: () => Promise<void>) => {
+    if (actionLock.current) return;
     setErr(null);
     if (!/^01[016789]-?\d{3,4}-?\d{4}$/.test(p)) return setErr("고객 휴대전화 번호를 확인해 주세요.");
+    actionLock.current = true;
     setBusy(key);
     try { await f(); } catch (e) { setErr(e instanceof Error ? e.message : "처리하지 못했습니다."); }
-    finally { setBusy(null); void reloadIntakeRequests(); }
+    finally { actionLock.current = false; setBusy(null); void reloadIntakeRequests(); }
   };
   // 휴대전화 기본 문자 앱을 엽니다. 열기만 해서는 발송 완료로 저장하지 않습니다.
   const [smsOpened, setSmsOpened] = useState(false);
   const sms = () => run("sms", async () => {
-    const link = await linkOf(); if (!link) return;
-    window.location.href = smsHref(p, link);
-    setSmsOpened(true);
+    const opened = await composerGate.current(async () => {
+      const request = await ensure(); if (!request) return null;
+      const prepared = await sendIntakeSms({ data: { id: request.id } });
+      if (!prepared.ok || !prepared.to || !prepared.body) throw new Error(prepared.error ?? "문자 내용을 만들지 못했습니다.");
+      return intakeSmsHref(prepared.to, prepared.body);
+    }, href => { window.location.href = href; });
+    if (opened) setSmsOpened(true);
   });
   const smsSent = () => run("smsSent", async () => {
     const link = await linkOf("sms"); if (link) { setSmsOpened(false); toast.success("문자 보냄을 기록했습니다."); }
@@ -647,12 +655,14 @@ function VisitPanel({ row }: { row: IntakeRow }) {
   const [time, setTime] = useState(row.visit_time ?? "");
   const [memo, setMemo] = useState(row.visit_memo ?? "");
   const [busy, setBusy] = useState<string | null>(null);
+  const actionLock = useRef(false);
+  const composerGate = useRef(createComposerGate());
   useEffect(() => { setDate(row.visit_date ?? ""); setTime(row.visit_time ?? ""); setMemo(row.visit_memo ?? ""); }, [row.visit_date, row.visit_time, row.visit_memo]);
   const scheduled = row.visit_status === "scheduled" && !!row.visit_date;
   const go = async (key: string, f: () => Promise<void>) => {
-    if (busy) return; setBusy(key);
+    if (actionLock.current) return; actionLock.current = true; setBusy(key);
     try { await f(); } catch (e) { toast.error(e instanceof Error ? e.message : "처리하지 못했습니다."); }
-    finally { setBusy(null); void reloadIntakeRequests(); }
+    finally { actionLock.current = false; setBusy(null); void reloadIntakeRequests(); }
   };
   const save = (clear: boolean) => go(clear ? "clear" : "save", async () => {
     if (!clear && !date) throw new Error("방문 날짜를 골라 주세요.");
@@ -662,9 +672,11 @@ function VisitPanel({ row }: { row: IntakeRow }) {
     toast.success(clear ? "방문 일정을 취소했습니다." : scheduled ? "방문 일정을 변경했습니다." : "방문 일정을 저장했습니다.");
   });
   const sms = () => go("sms", async () => {
-    const r = await prepareVisitSms({ data: { id: row.id } });
-    if (!r.ok || !r.to || !r.body) throw new Error(r.error ?? "문자 내용을 만들지 못했습니다.");
-    window.location.href = `sms:${r.to}?body=${encodeURIComponent(r.body)}`;
+    await composerGate.current(async () => {
+      const r = await prepareVisitSms({ data: { id: row.id } });
+      if (!r.ok || !r.to || !r.body) throw new Error(r.error ?? "문자 내용을 만들지 못했습니다.");
+      return intakeSmsHref(r.to, r.body);
+    }, href => { window.location.href = href; });
   });
   const sent = () => go("sent", async () => {
     const r = await confirmVisitSmsSent({ data: { id: row.id } });
