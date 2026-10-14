@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, Settings2, Plus, GripVertical, Trash2 } from "lucide-react";
-import { useApp, type Estimate } from "@/lib/jimpick";
+import { useApp, ITEM_CATALOG, type Estimate } from "@/lib/jimpick";
 import { formatTel } from "@/lib/format-input";
 import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
@@ -176,7 +176,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
 
   const sub = row?.submission as IntakeForm | undefined;
   const hasSub = !!sub && !!sub.customerName;
-  const nameOf = (id: string) => intakeItemName(id) ?? id;
+  const nameOf = (id: string) => ITEM_CATALOG.find(item => item.id === id)?.name ?? intakeItemName(id) ?? id;
   const removeSelected = async (room: string, itemId: string) => {
     if (!row || busy) return;
     setBusy("remove"); setErr(null);

@@ -93,7 +93,7 @@ export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highli
       <span className="line-clamp-2 h-10 w-full shrink-0 break-all text-center text-[13px] font-black leading-5" title={label}>{label}</span>
     </Button>
     {qty > 0 ? <div className="mt-1 flex w-full items-center justify-between gap-1" onClick={favoriteMode ? (event) => event.stopPropagation() : undefined}>
-      <Button variant="outline" size="icon" disabled={busy} className="size-7 shrink-0 rounded-full" onClick={() => onQuantity(qty - 1)} aria-label={`${label} 감소`}><Minus className="size-3.5" /></Button>
+      <Button variant="outline" size="icon" disabled={busy} className="size-7 shrink-0 rounded-full text-foreground" onClick={() => onQuantity(qty - 1)} aria-label={`${label} 감소`}><Minus className="size-3.5" /></Button>
       <span className="text-sm font-black tabular-nums" data-item-quantity>{qty}</span>
       <Button variant={favoriteMode ? "outline" : "default"} size="icon" disabled={busy} className={`size-7 shrink-0 rounded-full ${favoriteMode ? "" : "bg-auth-primary text-auth-primary-foreground"}`} onClick={() => onQuantity(qty + 1)} aria-label={`${label} 증가`}><Plus className="size-3.5" /></Button>
     </div> : !categoryMode && !favoriteMode && <Button size="icon" disabled={busy} className="absolute bottom-1.5 right-1.5 z-10 size-7 rounded-full bg-auth-primary text-auth-primary-foreground" onClick={() => onQuantity(1)} aria-label={`${label} 추가`}><Plus className="size-4" /></Button>}
