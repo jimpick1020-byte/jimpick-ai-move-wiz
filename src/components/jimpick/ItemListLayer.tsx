@@ -85,18 +85,18 @@ export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highli
   const label = pickerItemLabel(item.id, item.name);
   return <div data-picker-card={item.id} onClick={favoriteMode ? () => { if (!busy) onTap(); } : undefined} className={`jp-item-card relative flex h-48 min-w-0 flex-col items-center rounded-lg border px-1.5 pb-1.5 pt-2 transition-shadow ${qty > 0 ? "jp-item-card-selected ring-1 ring-auth-primary" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""}`}>
     {selectedMode ? <Button variant="ghost" size="icon" disabled={busy} className="absolute right-1 top-1 z-10 size-7 text-destructive" onClick={onRemove} aria-label={`${label} 삭제`}><X className="size-4" /></Button> : qty > 0 && <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-auth-primary text-auth-primary-foreground"><Check className="size-3.5" /></span>}
-    <Button variant="ghost" disabled={busy} className="jp-picker-face h-auto min-h-0 w-full flex-1 touch-manipulation select-none flex-col gap-1 whitespace-normal px-0 py-0.5" onClick={(event) => { if (favoriteMode) event.stopPropagation(); onTap(); }} aria-pressed={qty > 0} aria-label={`${label} 선택`}>
-      <span className="relative inline-flex shrink-0" onClick={!favoriteMode && onImageTap ? (event) => { event.stopPropagation(); onImageTap(); } : undefined}>
+    <Button variant="ghost" disabled={busy} className="jp-picker-face h-auto min-h-0 w-full touch-manipulation select-none flex-col gap-1 whitespace-normal p-0" onClick={(event) => { if (favoriteMode) event.stopPropagation(); onTap(); }} aria-pressed={qty > 0} aria-label={`${label} 선택`}>
+      <span className="relative inline-flex w-full shrink-0" onClick={!favoriteMode && onImageTap ? (event) => { event.stopPropagation(); onImageTap(); } : undefined}>
         <span className={disposed ? "jp-picker-art opacity-60" : "jp-picker-art"}><ItemArt id={item.id} name={label} size={96} cutout /></span>
         {disposed && <DisposalX />}
       </span>
       <span className="line-clamp-2 h-10 w-full shrink-0 break-all text-center text-[13px] font-black leading-5" title={label}>{label}</span>
     </Button>
-    {qty > 0 ? <div className="mt-1 flex w-full items-center justify-between gap-1" onClick={favoriteMode ? (event) => event.stopPropagation() : undefined}>
+    {qty > 0 ? <div className="mt-auto flex w-full items-center justify-between gap-1" onClick={favoriteMode ? (event) => event.stopPropagation() : undefined}>
       <Button variant="outline" size="icon" disabled={busy} className="size-7 shrink-0 rounded-full text-foreground" onClick={() => onQuantity(qty - 1)} aria-label={`${label} 감소`}><Minus className="size-3.5" /></Button>
       <span className="text-sm font-black tabular-nums" data-item-quantity>{qty}</span>
       <Button variant={favoriteMode ? "outline" : "default"} size="icon" disabled={busy} className={`size-7 shrink-0 rounded-full ${favoriteMode ? "" : "bg-auth-primary text-auth-primary-foreground"}`} onClick={() => onQuantity(qty + 1)} aria-label={`${label} 증가`}><Plus className="size-3.5" /></Button>
-    </div> : !categoryMode && !favoriteMode && <Button size="icon" disabled={busy} className="absolute bottom-1.5 right-1.5 z-10 size-7 rounded-full bg-auth-primary text-auth-primary-foreground" onClick={() => onQuantity(1)} aria-label={`${label} 추가`}><Plus className="size-4" /></Button>}
+    </div> : null}
   </div>;
 }
 
