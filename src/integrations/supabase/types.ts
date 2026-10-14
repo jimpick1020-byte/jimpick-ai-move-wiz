@@ -1806,6 +1806,10 @@ export type Database = {
         Args: { _key: string; _user_id: string }
         Returns: Json
       }
+      remove_customer_selected_item: {
+        Args: { p_item_id: string; p_request_id: string; p_room: string }
+        Returns: Json
+      }
       reserve_free_sms: {
         Args: { _count?: number; _key: string; _user_id: string }
         Returns: Json
