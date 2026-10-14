@@ -6494,9 +6494,20 @@ export function History() {
   // 잔금까지 전액 받은 계약만 완료 보관함으로 옮깁니다 (예약금만 받은 건은 목록에 남습니다)
   const stats = buildEstimateStats({ estimates, termsRows, archived });
   const qDigits = q.replace(/[^0-9]/g, "");
-  const list = estimates.filter(
+  const kindOf = (e: Estimate): HistoryKind => {
+    if (!e.intakeRequestId) return "normal";
+    const r = intakeById.get(e.intakeRequestId);
+    return r?.visit_status === "scheduled" && r.visit_date ? "visit" : "intake";
+  };
+  const allCurrent = estimates.filter((e) => stats.currentIds.has(e.id));
+  const kindCount = {
+    all: allCurrent.length,
+    intake: allCurrent.filter((e) => kindOf(e) === "intake").length,
+    visit: allCurrent.filter((e) => kindOf(e) === "visit").length,
+  };
+  const list = allCurrent.filter(
     (e) =>
-      stats.currentIds.has(e.id) &&
+      (histTab === "all" || kindOf(e) === histTab) &&
       (!q ||
         e.customerName.includes(q) ||
         e.phone.includes(q) ||
