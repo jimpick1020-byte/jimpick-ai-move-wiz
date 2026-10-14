@@ -513,3 +513,6 @@
     animation: none !important;
   }
 }
+
+/* 고객 화면: 삼성 인터넷·카카오톡의 강제 다크모드를 따르지 않도록 밝은 모드 고정 */
+html.jp-force-light, html.jp-force-light body { color-scheme: light only; background: #ffffff; forced-color-adjust: none; }
