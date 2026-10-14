@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { Step1, Step2, Step3, Step6 } from "./screens";
 import { MobileShell, TopBar, BottomButtonBar, PrimaryButton } from "./ui";
-import { CustomerFlowProvider, type Estimate, type Screen } from "@/lib/jimpick";
+import { CustomerFlowProvider, ITEM_CATALOG, type Estimate, type Screen } from "@/lib/jimpick";
+import { InAppBrowserNotice, useForceLightPage } from "./InAppBrowserNotice";
 import { intakeToEstimate, estimateToIntake } from "@/lib/intake-estimate-adapter";
 import { registerCustomIcons } from "@/lib/jimpick-icon3d";
 import { openIntake, saveIntakeProgress, submitIntake, type IntakeOpen } from "@/lib/intake.functions";
@@ -19,6 +20,7 @@ const CLOSED = "사전정보 입력이 마감되었습니다. 변경사항은 �
 type Item = NonNullable<IntakeOpen["items"]>[number];
 
 export function IntakePage({ token }: { token: string }) {
+  useForceLightPage();
   const [data, setData] = useState<IntakeOpen | null>(null);
   const [form, setForm] = useState<IntakeForm | null>(null);
   const [step, setStep] = useState(1);
@@ -94,9 +96,12 @@ export function IntakePage({ token }: { token: string }) {
   );
   if (!form) return null;
 
-  return <IntakeEstimateFlow token={token} form={form} setForm={setForm} data={data} step={step} setStep={setStep}
-    consent={consent} setConsent={setConsent} busy={busy} setBusy={setBusy} err={err} setErr={setErr}
-    onDone={() => setDone(true)} onClosed={() => setClosed(true)} />;
+  return <>
+    <InAppBrowserNotice />
+    <IntakeEstimateFlow token={token} form={form} setForm={setForm} data={data} step={step} setStep={setStep}
+      consent={consent} setConsent={setConsent} busy={busy} setBusy={setBusy} err={err} setErr={setErr}
+      onDone={() => setDone(true)} onClosed={() => setClosed(true)} />
+  </>;
 }
 
 function Shell({ children }: { children: React.ReactNode; company?: string }) {
@@ -135,7 +140,7 @@ function IntakeEstimateFlow({ token, form, setForm, data, step, setStep, consent
     } catch (e) { setErr(e instanceof Error ? e.message : "저장하지 못했습니다."); }
     finally { setBusy(false); }
   };
-  const flow = { persist, catalog: (data.items ?? []).map(i => ({ id: i.id, name: i.name, cat: i.group, cat5: i.group, sub: i.family || i.name, group: i.family, emoji: "", extra: 0 })) };
+  const flow = { persist, hidden: data.hiddenIds ?? [], catalog: (data.items ?? []).map(i => ({ id: i.id, name: i.name, cat: i.group, cat5: i.group, sub: i.family || i.name, group: i.family, emoji: "", extra: 0 })) };
   return <CustomerFlowProvider draft={draft} updateDraft={update} setScreen={navigate} flow={flow}>
     {step === 1 ? <Step1 /> : step === 2 ? <Step2 /> : step === 3 ? <Step3 /> : step === 4 ? <Step6 /> :
       <MobileShell className="jp-estimate-flow jp-tone-4">
@@ -151,7 +156,7 @@ function IntakeEstimateFlow({ token, form, setForm, data, step, setStep, consent
 
 function Review({ form, items, consent, setConsent, setForm }: { form: IntakeForm; items: Item[]; consent: boolean; setConsent: (v: boolean) => void; setForm: React.Dispatch<React.SetStateAction<IntakeForm | null>> }) {
   const drop = (room: string, id: string) => setForm((s) => (s ? { ...s, rooms: { ...s.rooms, [room]: setQty(s.rooms[room] ?? {}, id, 0) } } : s));
-  const nameOf = (id: string) => items.find((i) => i.id === id)?.name ?? "품목";
+  const nameOf = (id: string) => ITEM_CATALOG.find((i) => i.id === id)?.name ?? items.find((i) => i.id === id)?.name ?? "품목";
   return (
     <div className="space-y-4 text-base">
       <h2 className="text-xl font-black">입력 내용 확인</h2>

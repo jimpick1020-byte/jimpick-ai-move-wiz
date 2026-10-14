@@ -1581,7 +1581,10 @@ interface AppState {
 }
 
 export interface CustomerFlow {
+  /** 관리자가 추가한 고객용 카드 (짐픽 기본 품목 위에 더해집니다) */
   catalog: { id: string; name: string; cat: string; cat5: string; sub: string; group?: string; emoji: string; extra: number }[];
+  /** 고객 화면에서 숨길 짐픽 기본 품목 ID */
+  hidden?: string[];
   persist: (draft: Estimate) => Promise<void>;
 }
 
