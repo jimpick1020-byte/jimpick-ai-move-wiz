@@ -6,3 +6,6 @@
 - Intake customer images use short-lived signed Storage URLs; submitted drafts snapshot Korean names and durable image routes into customItems so existing estimate views can render them after re-login.
 - The owner estimate history lives in device storage, so submitted intake drafts are pulled from estimate_drafts via listIntakeDrafts and merged by estimate id (replaced only when intakeSubmittedAt changes); this keeps one card per request across devices and re-login.
 - Unconverted submitted intake drafts are retired with estimate_drafts deletion markers and cancelled intake status, never by deleting requests or touching formal estimate_terms; existing tombstone synchronization keeps device lists consistent.
+
+- Customer intake Step6 uses the same BROWSE_ITEMS catalog (filtered to 가구/가전/주방) plus item_icons customer rows via CustomerFlow.catalog/hidden; never reintroduce a separate customer base list, so IDs/images stay identical to the owner flow.
+- Visit-estimate schedules live on intake_requests (visit_date/visit_time/visit_status) with column-level UPDATE grants; the home calendar reads them through useIntakeRequests, avoiding a second schedule table.

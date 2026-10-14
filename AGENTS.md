@@ -34,5 +34,3 @@
 - Public intake renders the actual Step1/Step2/Step3/Step6 through CustomerFlowProvider and a field adapter, with token-scoped persistence and no company auth store; this prevents separate UI drift or authenticated company operations from public links.
 - Payment review uses actual receipts, not claims/stored balances; locked owner RPC completes, history polls every 15s. Explicit deposit/balance registration prevents pre-confirmation misclassification.
 - History retires only unconverted intake drafts through an owner-scoped locked RPC, leaving request snapshots and formal estimates or receipt-linked drafts intact; tombstones prevent device copies from reappearing.
-- Customer intake Step6 uses the same BROWSE_ITEMS catalog (filtered to 가구/가전/주방) plus item_icons customer rows via CustomerFlow.catalog/hidden; never reintroduce a separate customer base list, so IDs/images stay identical to the owner flow.
-- Visit-estimate schedules live on intake_requests (visit_date/visit_time/visit_status) with column-level UPDATE grants; the home calendar reads them through useIntakeRequests, avoiding a second schedule table.
