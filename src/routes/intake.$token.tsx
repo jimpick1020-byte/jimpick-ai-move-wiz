@@ -7,7 +7,7 @@ export const Route = createFileRoute("/intake/$token")({
   head: () => ({
     meta: [
       { title: "이사 사전정보 입력 | JIMPICK 짐픽" },
-      { name: "description", content: "방문견적 전에 이사 날짜, 주소와 큰 가구·가전을 간단히 입력하는 고객 전용 보안 링크입니다." },
+      { name: "description", content: "방문 전 이사 날짜, 주소, 작업 조건, 평수를 입력해 주세요." },
       { property: "og:title", content: "이사 사전정보 입력" },
       { property: "og:description", content: "방문 전 이사 날짜, 주소, 작업 조건, 평수를 입력해 주세요." },
       { property: "og:image", content: publicUrl(preview.url) },

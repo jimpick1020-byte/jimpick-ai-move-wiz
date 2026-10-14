@@ -7,7 +7,7 @@ export const Route = createFileRoute("/visit/$token")({
   head: () => ({
     meta: [
       { title: "방문견적 일정 확인 | JIMPICK 짐픽" },
-      { name: "description", content: "이사업체 방문견적 날짜·시간·주소를 확인하는 고객 전용 링크입니다." },
+      { name: "description", content: "방문 날짜와 시간을 확인해 주세요." },
       { property: "og:title", content: "방문견적 일정 확인" },
       { property: "og:description", content: "방문 날짜와 시간을 확인해 주세요." },
       { property: "og:image", content: publicUrl(preview.url) },
