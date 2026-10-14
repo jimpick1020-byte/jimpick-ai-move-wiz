@@ -32,6 +32,7 @@ export function VisitConfirmPage({ token }: { token: string }) {
             <div><b>방문 날짜</b> {date}</div>
             <div><b>방문 시간</b> {data.time || "업체가 따로 안내"}</div>
             <div><b>방문 주소</b> {data.address || "방문 시 확인"}</div>
+            {data.memo && <div className="break-all"><b>방문 메모</b> {data.memo}</div>}
             <div><b>업체 연락처</b> <a href={`tel:${data.contact}`} className="jp-visit-accent font-black underline">{data.contact}</a></div>
           </section>
           {data.confirmedAt ? (

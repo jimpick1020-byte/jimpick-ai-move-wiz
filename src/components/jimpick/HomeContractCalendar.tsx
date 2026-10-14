@@ -141,7 +141,7 @@ export function HomeContractCalendar({
   );
   const visitsByDate = useMemo(() => {
     const m: Record<string, IntakeRow[]> = {};
-    for (const v of visits) if (v.visit_date) (m[v.visit_date] ??= []).push(v);
+    for (const v of visits) if (v.visit_status === "scheduled" && !v.visit_completed_at && !v.deleted_at && v.status !== "cancelled" && v.visit_date) (m[v.visit_date] ??= []).push(v);
     return m;
   }, [visits]);
   const selectedVisits = visitsByDate[selectedDate] ?? [];
@@ -242,10 +242,11 @@ export function HomeContractCalendar({
           {selectedBookings.length > 1 ? ` · 계약 ${selectedBookings.length}건` : ""}
         </div>
         {selectedVisits.map((v) => (
-          <div key={v.id} data-visit-item className="mb-2 rounded-xl border-l-4 border-[#7C3AED] bg-white p-3">
+          <div key={v.id} data-visit-id={v.id} data-visit-item className="mb-2 rounded-xl border-l-4 border-[#7C3AED] bg-white p-3">
             <div className="text-[15px] font-black text-[#6B21A8]">{v.customer_name || "고객"} 방문</div>
             <div className="text-[12.5px] font-semibold text-[#667085]">방문 견적 · {v.visit_time || "시간 미정"} · {v.customer_phone}</div>
             <div className="break-keep text-[12.5px] font-semibold text-[#667085]">{(v.submission as { fromAddress?: string; fromDetail?: string })?.fromAddress || "주소 미입력"} {(v.submission as { fromDetail?: string })?.fromDetail ?? ""}</div>
+            {v.visit_memo && <div className="text-sm break-all">방문 메모: {v.visit_memo}</div>}
           </div>
         ))}
         {selectedBookings.length === 0 ? (

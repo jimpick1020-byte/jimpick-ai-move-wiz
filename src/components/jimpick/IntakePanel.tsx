@@ -14,14 +14,14 @@ import { formatTel } from "@/lib/format-input";
 import { smsHref } from "@/lib/sms";
 import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
-  cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
+  deleteIntakeRequest, cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
   listIntakeDrafts, listIntakeRequests, loadIntakeDraft, markIntakeSeen, removeIntakeItem, saveIntakeItemSetting, saveIntakeOrder, sendIntakeSms,
   removeCustomerSelectedItem, setIntakeVisit, prepareVisitSms, confirmVisitSmsSent,
   type IntakeItem, type IntakeRow,
 } from "@/lib/intake.functions";
 import { Button } from "@/components/ui/button";
 import { canManageIntakeItems, createCustomerIntakeItem } from "@/lib/intake.functions";
-import { INTAKE_ROOMS, floorText, intakeItemName, intakeStatusLabel, requestStatusLabel, strictFloor, type IntakeForm } from "@/lib/intake";
+import { VISIT_TIMES, INTAKE_ROOMS, floorText, intakeItemName, intakeStatusLabel, requestStatusLabel, strictFloor, type IntakeForm } from "@/lib/intake";
 
 /** 고객이 아직 이름을 넣기 전에는 전화번호로 구분합니다 */
 export function intakeDisplayName(r: Pick<IntakeRow, "customer_name">): string {
@@ -584,6 +584,24 @@ export function useNewRequestCount(): number {
 
 export function RequestsScreenBody() {
   const rows = useIntakeRequests();
+  const { draft, resetDraft, deleteEstimate } = useApp();
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const remove = async (row: IntakeRow) => {
+    if (deleting || !window.confirm("이 요청과 연결된 방문 일정 및 임시 작성 내용이 함께 삭제됩니다\n정식 견적서·계약·결제 기록은 유지됩니다. 삭제할까요?")) return;
+    setDeleting(row.id);
+    try {
+      const r = await deleteIntakeRequest({ data: { id: row.id } });
+      if (!r.ok) throw new Error(r.error);
+      if (r.draftDeleted && r.estimateId) {
+        deleteEstimate(r.estimateId);
+        if (draft.id === r.estimateId || draft.intakeRequestId === row.id) resetDraft();
+      }
+      await reloadIntakeRequests();
+      window.dispatchEvent(new Event("jimpick:payment-updated"));
+      toast.success("요청을 삭제했습니다.");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "삭제하지 못했습니다."); }
+    finally { setDeleting(null); }
+  };
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [filter, setFilter] = useState<"active" | "cancelled">("active");
@@ -602,11 +620,12 @@ export function RequestsScreenBody() {
         const l = requestStatusLabel(r);
         const sub = r.submission as Partial<IntakeForm>;
         return (
-          <div key={r.id} data-request-card className="rounded-2xl border border-[#E5E7EB] bg-white p-3 space-y-2">
+          <div key={r.id} data-request-id={r.id} data-request-card className="rounded-2xl border border-[#E5E7EB] bg-white p-3 space-y-2">
             <button type="button" onClick={() => setOpenId(r.id)} className="w-full flex items-center justify-between text-left">
               <span className="font-black text-[#25282D]">{intakeDisplayName(r)} <span className="text-xs font-bold text-[#6B7280]">{r.customer_phone}</span></span>
               <span className={`rounded-full px-2 py-0.5 text-xs font-black ${REQ_CLASS[l] ?? ""}`}>{l}</span>
             </button>
+            <div className="flex justify-end"><Button variant="ghost" size="icon" disabled={!!deleting} onClick={() => void remove(r)} aria-label={`${intakeDisplayName(r)} 요청 삭제`} title="요청 삭제" className="text-destructive"><Trash2 className="size-5" /></Button></div>
             {sub?.moveDate !== undefined && (r.status === "submitted" || r.status === "confirmed") && (
               <div className="text-xs text-[#6B7280]">이사 {sub.moveDate || "미정"} {sub.moveTime ?? ""} · 평수 {sub.fromSize || "-"} · {sub.fromAddress || "주소 미입력"}</div>
             )}
@@ -620,7 +639,6 @@ export function RequestsScreenBody() {
   );
 }
 
-const VISIT_TIMES = ["오전 9시", "오전 10시", "오전 11시", "오후 12시", "오후 1시", "오후 2시", "오후 3시", "오후 4시", "오후 5시", "오후 6시", "오후 7시"];
 
 /** 방문 일정 저장·변경·취소, 통신사 문자, 방문견적 시작 (같은 요청 행 하나에만 저장) */
 function VisitPanel({ row }: { row: IntakeRow }) {
@@ -646,8 +664,7 @@ function VisitPanel({ row }: { row: IntakeRow }) {
   const sms = () => go("sms", async () => {
     const r = await prepareVisitSms({ data: { id: row.id } });
     if (!r.ok || !r.to || !r.body) throw new Error(r.error ?? "문자 내용을 만들지 못했습니다.");
-    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    window.location.href = `sms:${r.to}${ios ? "&" : "?"}body=${encodeURIComponent(r.body)}`;
+    window.location.href = `sms:${r.to}?body=${encodeURIComponent(r.body)}`;
   });
   const sent = () => go("sent", async () => {
     const r = await confirmVisitSmsSent({ data: { id: row.id } });
@@ -657,23 +674,26 @@ function VisitPanel({ row }: { row: IntakeRow }) {
   const start = () => go("start", async () => {
     const r = await loadIntakeDraft({ data: { estimateId: row.estimate_id } });
     if (!r.ok || !r.payload) throw new Error(r.error ?? "견적 초안을 불러오지 못했습니다.");
-    patchDraft(() => JSON.parse(r.payload!) as Estimate);
+    const loaded = JSON.parse(r.payload) as Estimate;
+    patchDraft(() => loaded);
     setScreen("step1");
   });
   const t = (v: string | null) => (v ? new Date(v).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
   return (
     <div className="rounded-xl bg-[#F5F0FF] p-3 space-y-2" data-visit-panel>
-      <div className="text-[13px] font-black text-[#6B21A8]">{scheduled ? `방문 예정 · ${row.visit_date} ${row.visit_time ?? ""}` : "방문 일정 예약"}</div>
-      <div className="grid grid-cols-2 gap-2">
-        <input type="date" aria-label="방문 날짜" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-lg border border-[#E5E7EB] bg-white px-2 py-2 text-[13px]" />
-        <select aria-label="방문 시간" value={time} onChange={(e) => setTime(e.target.value)} className="rounded-lg border border-[#E5E7EB] bg-white px-2 py-2 text-[13px]">
+      <div className="text-[13px] font-black text-[#6B21A8]">{row.visit_completed_at ? `방문 완료 · ${row.visit_date ?? ""}` : scheduled ? `방문 예정 · ${row.visit_date} ${row.visit_time ?? ""}` : "방문 일정 예약"}</div>
+      {row.visit_memo && <p className="text-sm break-all">방문 메모: {row.visit_memo}</p>}
+      <div className="grid grid-cols-2 gap-2 min-w-0">
+        <input type="date" aria-label="방문 날짜" value={date} onChange={(e) => setDate(e.target.value)} className="min-w-0 w-full rounded-lg border border-border bg-card px-2 py-2 text-[13px]" />
+        <select aria-label="방문 시간" value={time} onChange={(e) => setTime(e.target.value)} className="min-w-0 w-full rounded-lg border border-border bg-card px-2 py-2 text-[13px]">
           <option value="">시간 미정</option>
+          {time && !VISIT_TIMES.includes(time) && <option value={time}>{time} (기존)</option>}
           {VISIT_TIMES.map((v) => <option key={v} value={v}>{v}</option>)}
         </select>
       </div>
       <input aria-label="방문 메모" value={memo} maxLength={500} onChange={(e) => setMemo(e.target.value)} placeholder="방문 메모 (선택)" className="w-full rounded-lg border border-[#E5E7EB] bg-white px-2 py-2 text-[13px]" />
       <div className="flex gap-2">
-        <Button type="button" disabled={!!busy} onClick={() => save(false)} className="flex-1 bg-[#7C3AED] text-white">{busy === "save" ? "저장 중…" : scheduled ? "일정 변경" : "일정 저장"}</Button>
+        <Button type="button" disabled={!!busy || !!row.visit_completed_at} onClick={() => save(false)} className="flex-1 bg-[#7C3AED] text-white">{busy === "save" ? "저장 중…" : scheduled ? "일정 변경" : "일정 저장"}</Button>
         {scheduled && <Button type="button" variant="secondary" disabled={!!busy} onClick={() => save(true)}>일정 취소</Button>}
       </div>
       {scheduled && (

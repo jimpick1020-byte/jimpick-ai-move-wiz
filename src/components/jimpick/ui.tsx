@@ -475,6 +475,7 @@ export function Card({
   return (
     <div
       {...attributes}
+      data-choice-selected={onClick ? !!selected : undefined}
       onClick={
         onClick
           ? () => {
