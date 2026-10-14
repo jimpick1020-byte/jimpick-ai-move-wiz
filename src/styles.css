@@ -522,3 +522,9 @@
 
 /* 고객 화면: 삼성 인터넷·카카오톡의 강제 다크모드를 따르지 않도록 밝은 모드 고정 */
 html.jp-force-light, html.jp-force-light body { color-scheme: light only; background: #ffffff; forced-color-adjust: none; }
+
+/* 고객 방문 일정 확인 화면 — 흰색 밝은 모드 고정, 주요 버튼 밝은 주황 */
+.jp-visit { --visit-orange: #FF8A00; --visit-soft: #FFF3E0; color-scheme: light; background: #FFFFFF; color: #111111; }
+.jp-visit-box { background: var(--visit-soft); color: #111111; border: 2px solid var(--visit-orange); }
+.jp-visit-btn { background: var(--visit-orange); color: #FFFFFF; }
+.jp-visit-accent { color: var(--visit-orange); }

@@ -13,13 +13,13 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { formatTel } from "./format-input";
 import {
-  INTAKE_BASE_ITEMS, INTAKE_ROOMS, INTAKE_SIZES, intakeItemName, intakeSmsText, mergeIntakeIntoDraft, intakeSummary,
+  visitSmsText, INTAKE_BASE_ITEMS, INTAKE_ROOMS, INTAKE_SIZES, intakeItemName, intakeSmsText, mergeIntakeIntoDraft, intakeSummary,
   type IntakeForm, type IntakeRooms, customerItemLabel, isLargeCustomerItem, customerCatalogRoleAllowed,
 } from "./intake";
 
 const ADMIN_SENDER = "01075662542";
 const OWNER_COLS =
-  "id, estimate_id, source_estimate_id, customer_name, customer_phone, status, expires_at, submission, first_opened_at, last_opened_at, editing_started_at, first_submitted_at, last_submitted_at, submit_count, consent_at, confirmed_at, cancelled_at, owner_seen_at, last_sent_at, last_send_method, last_send_error, created_at, updated_at, visit_date, visit_time, visit_status";
+  "id, estimate_id, source_estimate_id, customer_name, customer_phone, status, expires_at, submission, first_opened_at, last_opened_at, editing_started_at, first_submitted_at, last_submitted_at, submit_count, consent_at, confirmed_at, cancelled_at, owner_seen_at, last_sent_at, last_send_method, last_send_error, created_at, updated_at, visit_date, visit_time, visit_status, visit_memo, visit_sms_opened_at, visit_sms_confirmed_at, visit_customer_confirmed_at";
 
 export interface IntakeRow {
   id: string;
@@ -50,6 +50,13 @@ export interface IntakeRow {
   visit_time: string | null;
   /** none | scheduled */
   visit_status: string;
+  visit_memo: string | null;
+  /** 업체 휴대폰 문자 앱을 연 시각 (발송 완료 아님) */
+  visit_sms_opened_at: string | null;
+  /** 사장님이 「문자 보냄 확인」을 누른 시각 */
+  visit_sms_confirmed_at: string | null;
+  /** 고객이 「확인했습니다」를 누른 시각 */
+  visit_customer_confirmed_at: string | null;
 }
 
 const phoneSchema = z.string().trim().regex(/^0\d{1,2}-?\d{3,4}-?\d{4}$/, "휴대전화 번호를 확인해 주세요.");
@@ -71,7 +78,7 @@ const formSchema = z.object({
   fromZip: z.string().max(10).optional(),
   toJibun: z.string().max(200).optional(),
   toZip: z.string().max(10).optional(),
-  fromSize: z.union([z.enum(INTAKE_SIZES), z.enum(["50~60평"]), z.literal("")]).optional(),
+  fromSize: z.union([z.enum(INTAKE_SIZES), z.enum(["50~60평", "잘 모름"]), z.literal("")]).optional(),
   moveType: z.enum(["포장이사", "반포장이사", "일반이사", "보관이사", "사무실이사"]).optional(),
   storageEnabled: z.boolean().optional(), memo: z.string().max(2000).optional(),
   fromEnv: z.enum(["계단", "엘리베이터"]).optional(), toEnv: z.enum(["계단", "엘리베이터"]).optional(),
@@ -106,15 +113,53 @@ export const setIntakeVisit = createServerFn({ method: "POST" })
     id: z.string().uuid(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
     time: z.string().trim().max(20).nullable(),
+    memo: z.string().trim().max(500).nullable().optional(),
   }).parse(d))
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
+    // 일정이 바뀌거나 취소되면 이전 문자·고객 확인 기록은 새 일정에 맞지 않으므로 비웁니다 (같은 요청 행 하나만 수정).
+    const reset = { visit_sms_opened_at: null, visit_sms_confirmed_at: null, visit_customer_confirmed_at: null };
     const patch = data.date
-      ? { visit_date: data.date, visit_time: data.time || null, visit_status: "scheduled" }
-      : { visit_date: null, visit_time: null, visit_status: "none" };
+      ? { visit_date: data.date, visit_time: data.time || null, visit_status: "scheduled", ...(data.memo !== undefined ? { visit_memo: data.memo } : {}), ...reset }
+      : { visit_date: null, visit_time: null, visit_status: "none", visit_memo: null, ...reset };
     const { data: rows, error } = await context.supabase.from("intake_requests").update(patch)
       .eq("id", data.id).eq("company_id", context.userId).select("id");
     if (error) return { ok: false, error: `방문 일정을 저장하지 못했습니다. (${error.message})` };
     if (!rows?.length) return { ok: false, error: "이 업체의 사전 견적요청을 찾지 못했습니다." };
+    return { ok: true };
+  });
+
+/** 방문 일정 안내 문자 — 업체 휴대폰 문자 앱용 문구와 고객 확인 링크 (발송은 사장님이 직접) */
+export const prepareVisitSms = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; to?: string; body?: string; error?: string }> => {
+    const row = await ownRow(context.supabase, context.userId, data.id);
+    if (!row) return { ok: false, error: "요청을 찾지 못했습니다." };
+    if (row.visit_status !== "scheduled" || !row.visit_date) return { ok: false, error: "먼저 방문 일정을 저장해 주세요." };
+    const { decryptToken, visitLink } = await import("./intake.server");
+    const tok = await decryptToken(row.token_enc);
+    const { data: prof } = await context.supabase.from("profiles").select("phone").eq("id", context.userId).maybeSingle();
+    const contact = formatTel(String(prof?.phone ?? "")) || formatTel(ADMIN_SENDER);
+    const sub = (row.submission ?? {}) as Partial<IntakeForm>;
+    const body = visitSmsText({
+      customerName: row.customer_name || sub.customerName || "", date: row.visit_date, time: row.visit_time,
+      address: [sub.fromAddress, sub.fromDetail].filter(Boolean).join(" "), contact, link: tok ? visitLink(tok) : null,
+    });
+    const { error } = await context.supabase.from("intake_requests").update({ visit_sms_opened_at: new Date().toISOString() })
+      .eq("id", row.id).eq("company_id", context.userId);
+    if (error) return { ok: false, error: `기록하지 못했습니다. (${error.message})` };
+    return { ok: true, to: row.customer_phone.replace(/[^0-9]/g, ""), body };
+  });
+
+/** 사장님이 문자 앱에서 실제로 보냈다고 확인한 시각만 저장합니다. */
+export const confirmVisitSmsSent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
+    const { data: rows, error } = await context.supabase.from("intake_requests").update({ visit_sms_confirmed_at: new Date().toISOString() })
+      .eq("id", data.id).eq("company_id", context.userId).eq("visit_status", "scheduled").not("visit_sms_opened_at", "is", null).select("id");
+    if (error) return { ok: false, error: error.message };
+    if (!rows?.length) return { ok: false, error: "먼저 「통신사 문자 보내기」로 문자 앱을 열어 주세요." };
     return { ok: true };
   });
 
@@ -594,4 +639,44 @@ export const submitIntake = createServerFn({ method: "POST" })
     }).eq("id", row.id).neq("status", "confirmed").select("id").maybeSingle();
     if (error || !submitted) { console.error("[submitIntake] request update", error?.code, error?.message); return { ok: false, error: FAIL }; }
     return { ok: true };
+  });
+
+// ───────────── 고객 방문 일정 확인 (로그인 없음) ─────────────
+export interface VisitOpen { ok: boolean; error?: string; companyName?: string; contact?: string; date?: string; time?: string | null; address?: string; customerName?: string; confirmedAt?: string | null }
+
+async function findVisit(token: string) {
+  const { hashIntakeToken } = await import("./intake.server");
+  const sb = await admin();
+  const { data } = await sb.from("intake_requests")
+    .select("id, company_id, customer_name, status, visit_date, visit_time, visit_status, visit_customer_confirmed_at, submission")
+    .eq("token_hash", await hashIntakeToken(token)).maybeSingle();
+  return { sb, row: data as any };
+}
+
+export const openVisit = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ token: tokenSchema }).parse(d))
+  .handler(async ({ data }): Promise<VisitOpen> => {
+    const { sb, row } = await findVisit(data.token);
+    if (!row || row.status === "cancelled") return { ok: false, error: "잘못되었거나 취소된 링크입니다. 업체에 문의해 주세요." };
+    if (row.visit_status !== "scheduled" || !row.visit_date) return { ok: false, error: "방문 일정이 아직 정해지지 않았거나 취소되었습니다. 업체에 문의해 주세요." };
+    const { data: prof } = await sb.from("profiles").select("company_name, phone").eq("id", row.company_id).maybeSingle();
+    const sub = (row.submission ?? {}) as Partial<IntakeForm>;
+    return {
+      ok: true, companyName: String(prof?.company_name ?? "").trim() || "이사업체",
+      contact: formatTel(String(prof?.phone ?? "")) || formatTel(ADMIN_SENDER),
+      date: row.visit_date, time: row.visit_time, customerName: row.customer_name || sub.customerName || "",
+      address: [sub.fromAddress, sub.fromDetail].filter(Boolean).join(" "), confirmedAt: row.visit_customer_confirmed_at,
+    };
+  });
+
+export const confirmVisit = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ token: tokenSchema }).parse(d))
+  .handler(async ({ data }): Promise<{ ok: boolean; confirmedAt?: string; error?: string }> => {
+    const { sb, row } = await findVisit(data.token);
+    if (!row || row.status === "cancelled" || row.visit_status !== "scheduled") return { ok: false, error: "확인할 방문 일정이 없습니다." };
+    if (row.visit_customer_confirmed_at) return { ok: true, confirmedAt: row.visit_customer_confirmed_at };
+    const now = new Date().toISOString();
+    const { error } = await sb.from("intake_requests").update({ visit_customer_confirmed_at: now }).eq("id", row.id).eq("visit_status", "scheduled");
+    if (error) return { ok: false, error: "저장하지 못했습니다. 다시 눌러 주세요." };
+    return { ok: true, confirmedAt: now };
   });

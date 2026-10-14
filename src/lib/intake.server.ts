@@ -40,6 +40,10 @@ export function intakeLink(token: string): string {
   return `${base}/intake/${token}`;
 }
 
+export function visitLink(token: string): string {
+  return intakeLink(token).replace("/intake/", "/visit/");
+}
+
 /** 견적 초안의 기본값 (기존 새 견적과 같은 모양) */
 export function baseEstimate(id: string): Record<string, unknown> {
   return {

@@ -141,6 +141,13 @@
       "when": 1791948661815,
       "tag": "0019_remove_customer_selected_item",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791969237971,
+      "tag": "0020_intake_visit_notice",
+      "breakpoints": true
     }
   ]
 }

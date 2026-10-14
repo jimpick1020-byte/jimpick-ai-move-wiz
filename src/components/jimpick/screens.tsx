@@ -119,7 +119,7 @@ import {
 import { getSizePresets } from "@/lib/size-presets.functions";
 
 import { toast } from "sonner";
-import { IntakeRequestButton, IntakeInbox, IntakeNotifier, IntakeStatusChip, findIntakeFor, useIntakeRequests, reloadIntakeRequests } from "./IntakePanel";
+import { IntakeRequestButton, IntakeNotifier, RequestsScreenBody, useNewRequestCount, IntakeStatusChip, findIntakeFor, useIntakeRequests, reloadIntakeRequests } from "./IntakePanel";
 import { setIntakeVisit, type IntakeRow } from "@/lib/intake.functions";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
@@ -613,6 +613,7 @@ export function Login() {
 // ============ Home ============
 export function HomeScreen() {
   const { setScreen, resetDraft, estimates, loadEstimate, openEstimate, draft } = useApp();
+  const newRequests = useNewRequestCount();
   /** null = 아직 불러오는 중, "" = 상호명 없음/실패, 그 외 = 상호명 */
   const [companyName, setCompanyName] = useState<string | null>(null);
   /** 「새 견적 작성」을 눌렀을 때 작성 중 견적을 지울지 물어보는 창 */
@@ -1011,19 +1012,19 @@ export function HomeScreen() {
         )}
 
         <IntakeNotifier />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3" data-home-menu>
           {[
-            { label: "견적 내역", icon: ClipboardList, s: "history" as const },
-            { label: "고객 관리", icon: Users, s: "customers" as const },
-            { label: "통계 확인", icon: BarChart3, s: "stats" as const },
-          ].map(({ label, icon: Icon, s }) => (
-            <Card
-              key={label}
-              onClick={() => setScreen(s)}
-              className="flex flex-col items-center py-4 gap-2"
-            >
-              <Icon className="w-7 h-7 text-[#25282D]" />
-              <span className="text-sm font-semibold text-center">{label}</span>
+            { label: "견적 내역", icon: <ClipboardList className="w-8 h-8 text-[#25282D]" />, s: "history" as const },
+            { label: "고객 관리", icon: <User className="w-8 h-8 text-[#25282D]" />, s: "customers" as const },
+            { label: "고객 요청", icon: <span className="relative inline-flex"><User className="w-8 h-8 text-[#25282D]" /><Bell className="absolute -right-2 -top-1 w-4 h-4 text-[#25282D]" /></span>, s: "requests" as const },
+            { label: "통계 확인", icon: <BarChart3 className="w-8 h-8 text-[#25282D]" />, s: "stats" as const },
+          ].map(({ label, icon, s }) => (
+            <Card key={label} onClick={() => setScreen(s)} className="relative flex h-[96px] flex-col items-center justify-center gap-2">
+              {icon}
+              <span className="text-[15px] font-bold text-center">{label}</span>
+              {s === "requests" && newRequests > 0 && (
+                <span data-request-badge className="absolute right-2 top-2 min-w-[24px] rounded-full bg-[#FF8A00] px-1.5 py-0.5 text-center text-[13px] font-black text-white">{newRequests}</span>
+              )}
             </Card>
           ))}
         </div>
@@ -2044,7 +2045,7 @@ export function Step3() {
         })}
       </div>
       <BottomButtonBar>
-         <PrimaryButton onClick={() => setScreen("scan")}>{customerFlow ? "다음: 직접 선택" : "다음: AI 연속촬영"}</PrimaryButton>
+         <PrimaryButton onClick={() => setScreen("scan")}>{customerFlow ? "다음: 집 평수 선택" : "다음: AI 연속촬영"}</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
@@ -6998,7 +6999,6 @@ export function Customers() {
     <MobileShell>
       <TopBar title="고객 관리" onBack={() => setScreen("home")} />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
-        <IntakeInbox />
         <TextInput placeholder="고객 검색" value={q} onChange={(e) => setQ(e.target.value)} />
         {list.length === 0 && (
           <div className="text-center text-[#6B7280] py-16">고객 정보가 없습니다.</div>
@@ -7643,5 +7643,16 @@ function VisitScheduleBox({ row, onWrite }: { row: IntakeRow; onWrite: () => voi
         <button type="button" onClick={onWrite} className="flex-1 rounded-lg bg-[#3578C8] py-2 text-[13px] font-bold text-white">견적 작성</button>
       </div>
     </div>
+  );
+}
+
+/** 홈 「고객 요청」 — 고객 사전정보 요청·방문 일정 */
+export function RequestsScreen() {
+  const { setScreen } = useApp();
+  return (
+    <MobileShell>
+      <TopBar title="고객 요청" onBack={() => setScreen("home")} />
+      <div className="p-4 flex-1 overflow-auto pb-24"><RequestsScreenBody /></div>
+    </MobileShell>
   );
 }

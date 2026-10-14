@@ -15,6 +15,7 @@ import { Route as ApiItemImagePreviewRouteImport } from './routes/api/item-image
 import { Route as BillingCallbackRouteImport } from './routes/billing.callback'
 import { Route as IntakeTokenRouteImport } from './routes/intake.$token'
 import { Route as ShareIdRouteImport } from './routes/share.$id'
+import { Route as VisitTokenRouteImport } from './routes/visit.$token'
 import { Route as StaffEstimateTokenRouteImport } from './routes/staff.estimate.$token'
 import { Route as ApiPublicHooksCheckMoveReminderResultsRouteImport } from './routes/api/public/hooks/check-move-reminder-results'
 import { Route as ApiPublicHooksFixNoticeRouteImport } from './routes/api/public/hooks/fix-notice'
@@ -50,6 +51,11 @@ const IntakeTokenRoute = IntakeTokenRouteImport.update({
 const ShareIdRoute = ShareIdRouteImport.update({
   id: '/share/$id',
   path: '/share/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VisitTokenRoute = VisitTokenRouteImport.update({
+  id: '/visit/$token',
+  path: '/visit/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StaffEstimateTokenRoute = StaffEstimateTokenRouteImport.update({
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/billing/callback': typeof BillingCallbackRoute
   '/intake/$token': typeof IntakeTokenRoute
   '/share/$id': typeof ShareIdRoute
+  '/visit/$token': typeof VisitTokenRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
   '/api/public/hooks/check-move-reminder-results': typeof ApiPublicHooksCheckMoveReminderResultsRoute
   '/api/public/hooks/fix-notice': typeof ApiPublicHooksFixNoticeRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/billing/callback': typeof BillingCallbackRoute
   '/intake/$token': typeof IntakeTokenRoute
   '/share/$id': typeof ShareIdRoute
+  '/visit/$token': typeof VisitTokenRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
   '/api/public/hooks/check-move-reminder-results': typeof ApiPublicHooksCheckMoveReminderResultsRoute
   '/api/public/hooks/fix-notice': typeof ApiPublicHooksFixNoticeRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/billing/callback': typeof BillingCallbackRoute
   '/intake/$token': typeof IntakeTokenRoute
   '/share/$id': typeof ShareIdRoute
+  '/visit/$token': typeof VisitTokenRoute
   '/staff/estimate/$token': typeof StaffEstimateTokenRoute
   '/api/public/hooks/check-move-reminder-results': typeof ApiPublicHooksCheckMoveReminderResultsRoute
   '/api/public/hooks/fix-notice': typeof ApiPublicHooksFixNoticeRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/billing/callback'
     | '/intake/$token'
     | '/share/$id'
+    | '/visit/$token'
     | '/staff/estimate/$token'
     | '/api/public/hooks/check-move-reminder-results'
     | '/api/public/hooks/fix-notice'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/billing/callback'
     | '/intake/$token'
     | '/share/$id'
+    | '/visit/$token'
     | '/staff/estimate/$token'
     | '/api/public/hooks/check-move-reminder-results'
     | '/api/public/hooks/fix-notice'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/billing/callback'
     | '/intake/$token'
     | '/share/$id'
+    | '/visit/$token'
     | '/staff/estimate/$token'
     | '/api/public/hooks/check-move-reminder-results'
     | '/api/public/hooks/fix-notice'
@@ -181,6 +193,7 @@ export interface RootRouteChildren {
   BillingCallbackRoute: typeof BillingCallbackRoute
   IntakeTokenRoute: typeof IntakeTokenRoute
   ShareIdRoute: typeof ShareIdRoute
+  VisitTokenRoute: typeof VisitTokenRoute
   StaffEstimateTokenRoute: typeof StaffEstimateTokenRoute
   ApiPublicHooksCheckMoveReminderResultsRoute: typeof ApiPublicHooksCheckMoveReminderResultsRoute
   ApiPublicHooksFixNoticeRoute: typeof ApiPublicHooksFixNoticeRoute
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       path: '/share/$id'
       fullPath: '/share/$id'
       preLoaderRoute: typeof ShareIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/visit/$token': {
+      id: '/visit/$token'
+      path: '/visit/$token'
+      fullPath: '/visit/$token'
+      preLoaderRoute: typeof VisitTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/staff/estimate/$token': {
@@ -285,6 +305,7 @@ const rootRouteChildren: RootRouteChildren = {
   BillingCallbackRoute: BillingCallbackRoute,
   IntakeTokenRoute: IntakeTokenRoute,
   ShareIdRoute: ShareIdRoute,
+  VisitTokenRoute: VisitTokenRoute,
   StaffEstimateTokenRoute: StaffEstimateTokenRoute,
   ApiPublicHooksCheckMoveReminderResultsRoute:
     ApiPublicHooksCheckMoveReminderResultsRoute,
