@@ -2546,7 +2546,7 @@ export function Step6() {
 
   /** 화면을 좌우로 드래그하면 앞·뒤 단계로 넘어갑니다 */
   const swipe = useSwipeNav(
-    () => setScreen("step3"),
+    () => setScreen("scan"),
     () => setScreen("step4"),
   );
   /** 품목 목록에서 좌우로 드래그하면 분류 탭이 넘어갑니다 */
@@ -3426,8 +3426,8 @@ export function Step6() {
           <button
             onClick={() => {
               tap("soft");
-              // 이미 4단계(step6)이므로 같은 화면으로 이동하면 아무 변화가 없습니다. 항상 3단계로 돌아갑니다.
-              setScreen("step3");
+              // 직접 선택의 바로 이전 화면인 4단계 촬영으로 복귀합니다.
+              setScreen("scan");
             }}
             aria-label="뒤로"
             className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] flex items-center justify-center text-[#25282D] shadow-[0_4px_0_#E5E7EB,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#E5E7EB]"
