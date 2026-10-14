@@ -15,12 +15,12 @@ import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
   listIntakeDrafts, listIntakeRequests, loadIntakeDraft, markIntakeSeen, removeIntakeItem, saveIntakeItemSetting, saveIntakeOrder, sendIntakeSms,
-  removeCustomerSelectedItem,
+  removeCustomerSelectedItem, setIntakeVisit, prepareVisitSms, confirmVisitSmsSent,
   type IntakeItem, type IntakeRow,
 } from "@/lib/intake.functions";
 import { Button } from "@/components/ui/button";
 import { canManageIntakeItems, createCustomerIntakeItem } from "@/lib/intake.functions";
-import { INTAKE_ROOMS, floorText, intakeItemName, intakeStatusLabel, strictFloor, type IntakeForm } from "@/lib/intake";
+import { INTAKE_ROOMS, floorText, intakeItemName, intakeStatusLabel, requestStatusLabel, strictFloor, type IntakeForm } from "@/lib/intake";
 
 /** 고객이 아직 이름을 넣기 전에는 전화번호로 구분합니다 */
 export function intakeDisplayName(r: Pick<IntakeRow, "customer_name">): string {
@@ -554,6 +554,135 @@ export function IntakeSubmittedList() {
         </Button>
       ))}
       {open && <IntakeRequestSheet name={open.customer_name} phone={open.customer_phone} requestId={open.id} onClose={() => setOpenId(null)} />}
+    </div>
+  );
+}
+
+// ───────────── 홈 「고객 요청」 화면 ─────────────
+const REQ_CLASS: Record<string, string> = {
+  "문자 미발송": "bg-[#EEF1F5] text-[#6B7280]",
+  "문자 발송": "bg-[#E0ECFF] text-[#1D4ED8]",
+  "고객 열람": "bg-[#E0ECFF] text-[#1D4ED8]",
+  "작성 중": "bg-[#FEF3C7] text-[#92400E]",
+  "입력 완료": "bg-[#DCFCE7] text-[#166534]",
+  "방문 일정 확정": "bg-[#F3E8FF] text-[#6B21A8]",
+  "고객 일정 확인": "bg-[#FFEDD5] text-[#C2410C]",
+  "취소": "bg-[#FEE2E2] text-[#B91C1C]",
+};
+
+/** 홈 「고객 요청」 배지: 고객이 입력을 마쳤지만 아직 방문 일정을 잡지 않은 요청 */
+export function useNewRequestCount(): number {
+  const rows = useIntakeRequests();
+  return rows.filter((r) => r.status === "submitted" && r.visit_status !== "scheduled").length;
+}
+
+export function RequestsScreenBody() {
+  const rows = useIntakeRequests();
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [filter, setFilter] = useState<"active" | "cancelled">("active");
+  const shown = rows.filter((r) => (filter === "cancelled") === (r.status === "cancelled"));
+  const open = rows.find((r) => r.id === openId);
+  return (
+    <div className="space-y-3">
+      <Button type="button" onClick={() => setCreating(true)} className="w-full py-3 text-[15px] font-black">새 고객 사전정보 요청</Button>
+      <div className="grid grid-cols-2 gap-2">
+        {(["active", "cancelled"] as const).map((f) => (
+          <Button key={f} type="button" variant={filter === f ? "default" : "secondary"} onClick={() => setFilter(f)}>{f === "active" ? "진행 중" : "취소"}</Button>
+        ))}
+      </div>
+      {shown.length === 0 && <div className="py-12 text-center text-[#6B7280]">고객 요청이 없습니다.</div>}
+      {shown.map((r) => {
+        const l = requestStatusLabel(r);
+        const sub = r.submission as Partial<IntakeForm>;
+        return (
+          <div key={r.id} data-request-card className="rounded-2xl border border-[#E5E7EB] bg-white p-3 space-y-2">
+            <button type="button" onClick={() => setOpenId(r.id)} className="w-full flex items-center justify-between text-left">
+              <span className="font-black text-[#25282D]">{intakeDisplayName(r)} <span className="text-xs font-bold text-[#6B7280]">{r.customer_phone}</span></span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-black ${REQ_CLASS[l] ?? ""}`}>{l}</span>
+            </button>
+            {sub?.moveDate !== undefined && (r.status === "submitted" || r.status === "confirmed") && (
+              <div className="text-xs text-[#6B7280]">이사 {sub.moveDate || "미정"} {sub.moveTime ?? ""} · 평수 {sub.fromSize || "-"} · {sub.fromAddress || "주소 미입력"}</div>
+            )}
+            {r.status !== "cancelled" && (r.status === "submitted" || r.status === "confirmed") && <VisitPanel row={r} />}
+          </div>
+        );
+      })}
+      {open && <IntakeRequestSheet name={open.customer_name} phone={open.customer_phone} requestId={open.id} onClose={() => setOpenId(null)} />}
+      {creating && <IntakeRequestSheet name="" phone="" onClose={() => setCreating(false)} />}
+    </div>
+  );
+}
+
+const VISIT_TIMES = ["오전 9시", "오전 10시", "오전 11시", "오후 12시", "오후 1시", "오후 2시", "오후 3시", "오후 4시", "오후 5시", "오후 6시", "오후 7시"];
+
+/** 방문 일정 저장·변경·취소, 통신사 문자, 방문견적 시작 (같은 요청 행 하나에만 저장) */
+function VisitPanel({ row }: { row: IntakeRow }) {
+  const { patchDraft, setScreen } = useApp();
+  const [date, setDate] = useState(row.visit_date ?? "");
+  const [time, setTime] = useState(row.visit_time ?? "");
+  const [memo, setMemo] = useState(row.visit_memo ?? "");
+  const [busy, setBusy] = useState<string | null>(null);
+  useEffect(() => { setDate(row.visit_date ?? ""); setTime(row.visit_time ?? ""); setMemo(row.visit_memo ?? ""); }, [row.visit_date, row.visit_time, row.visit_memo]);
+  const scheduled = row.visit_status === "scheduled" && !!row.visit_date;
+  const go = async (key: string, f: () => Promise<void>) => {
+    if (busy) return; setBusy(key);
+    try { await f(); } catch (e) { toast.error(e instanceof Error ? e.message : "처리하지 못했습니다."); }
+    finally { setBusy(null); void reloadIntakeRequests(); }
+  };
+  const save = (clear: boolean) => go(clear ? "clear" : "save", async () => {
+    if (!clear && !date) throw new Error("방문 날짜를 골라 주세요.");
+    if (clear && !window.confirm("방문 일정을 취소할까요?")) return;
+    const r = await setIntakeVisit({ data: { id: row.id, date: clear ? null : date, time: clear ? null : time || null, memo: clear ? null : memo || null } });
+    if (!r.ok) throw new Error(r.error ?? "방문 일정을 저장하지 못했습니다.");
+    toast.success(clear ? "방문 일정을 취소했습니다." : scheduled ? "방문 일정을 변경했습니다." : "방문 일정을 저장했습니다.");
+  });
+  const sms = () => go("sms", async () => {
+    const r = await prepareVisitSms({ data: { id: row.id } });
+    if (!r.ok || !r.to || !r.body) throw new Error(r.error ?? "문자 내용을 만들지 못했습니다.");
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    window.location.href = `sms:${r.to}${ios ? "&" : "?"}body=${encodeURIComponent(r.body)}`;
+  });
+  const sent = () => go("sent", async () => {
+    const r = await confirmVisitSmsSent({ data: { id: row.id } });
+    if (!r.ok) throw new Error(r.error ?? "저장하지 못했습니다.");
+    toast.success("문자 보냄을 기록했습니다.");
+  });
+  const start = () => go("start", async () => {
+    const r = await loadIntakeDraft({ data: { estimateId: row.estimate_id } });
+    if (!r.ok || !r.payload) throw new Error(r.error ?? "견적 초안을 불러오지 못했습니다.");
+    patchDraft(() => JSON.parse(r.payload!) as Estimate);
+    setScreen("step1");
+  });
+  const t = (v: string | null) => (v ? new Date(v).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
+  return (
+    <div className="rounded-xl bg-[#F5F0FF] p-3 space-y-2" data-visit-panel>
+      <div className="text-[13px] font-black text-[#6B21A8]">{scheduled ? `방문 예정 · ${row.visit_date} ${row.visit_time ?? ""}` : "방문 일정 예약"}</div>
+      <div className="grid grid-cols-2 gap-2">
+        <input type="date" aria-label="방문 날짜" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-lg border border-[#E5E7EB] bg-white px-2 py-2 text-[13px]" />
+        <select aria-label="방문 시간" value={time} onChange={(e) => setTime(e.target.value)} className="rounded-lg border border-[#E5E7EB] bg-white px-2 py-2 text-[13px]">
+          <option value="">시간 미정</option>
+          {VISIT_TIMES.map((v) => <option key={v} value={v}>{v}</option>)}
+        </select>
+      </div>
+      <input aria-label="방문 메모" value={memo} maxLength={500} onChange={(e) => setMemo(e.target.value)} placeholder="방문 메모 (선택)" className="w-full rounded-lg border border-[#E5E7EB] bg-white px-2 py-2 text-[13px]" />
+      <div className="flex gap-2">
+        <Button type="button" disabled={!!busy} onClick={() => save(false)} className="flex-1 bg-[#7C3AED] text-white">{busy === "save" ? "저장 중…" : scheduled ? "일정 변경" : "일정 저장"}</Button>
+        {scheduled && <Button type="button" variant="secondary" disabled={!!busy} onClick={() => save(true)}>일정 취소</Button>}
+      </div>
+      {scheduled && (
+        <div className="space-y-1">
+          <div className="flex gap-2">
+            <Button type="button" variant="secondary" disabled={!!busy} onClick={sms} className="flex-1"><Send className="w-4 h-4" /> 통신사 문자 보내기</Button>
+            {row.visit_sms_opened_at && !row.visit_sms_confirmed_at && <Button type="button" variant="secondary" disabled={!!busy} onClick={sent} className="flex-1">문자 보냄 확인</Button>}
+          </div>
+          <div className="text-xs font-bold text-[#6B7280]" data-visit-sms-state>
+            {row.visit_sms_confirmed_at ? `문자 보냄 확인 ${t(row.visit_sms_confirmed_at)}` : row.visit_sms_opened_at ? "문자 앱 열림 (보낸 뒤 「문자 보냄 확인」을 눌러 주세요)" : "안내 문자 아직 안 보냄"}
+            {row.visit_customer_confirmed_at && <span className="ml-1 text-[#C2410C]">· 고객 확인 {t(row.visit_customer_confirmed_at)}</span>}
+          </div>
+        </div>
+      )}
+      <Button type="button" disabled={!!busy} onClick={start} className="w-full bg-[#3578C8] text-white"><ArrowRight className="w-4 h-4" /> 방문견적 시작</Button>
     </div>
   );
 }

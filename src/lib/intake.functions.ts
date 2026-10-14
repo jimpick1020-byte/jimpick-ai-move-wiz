@@ -119,7 +119,7 @@ export const setIntakeVisit = createServerFn({ method: "POST" })
     // 일정이 바뀌거나 취소되면 이전 문자·고객 확인 기록은 새 일정에 맞지 않으므로 비웁니다 (같은 요청 행 하나만 수정).
     const reset = { visit_sms_opened_at: null, visit_sms_confirmed_at: null, visit_customer_confirmed_at: null };
     const patch = data.date
-      ? { visit_date: data.date, visit_time: data.time || null, visit_status: "scheduled", visit_memo: data.memo ?? null, ...reset }
+      ? { visit_date: data.date, visit_time: data.time || null, visit_status: "scheduled", ...(data.memo !== undefined ? { visit_memo: data.memo } : {}), ...reset }
       : { visit_date: null, visit_time: null, visit_status: "none", visit_memo: null, ...reset };
     const { data: rows, error } = await context.supabase.from("intake_requests").update(patch)
       .eq("id", data.id).eq("company_id", context.userId).select("id");
