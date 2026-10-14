@@ -679,7 +679,11 @@ export type Database = {
           token_enc: string | null
           token_hash: string
           updated_at: string
+          visit_customer_confirmed_at: string | null
           visit_date: string | null
+          visit_memo: string | null
+          visit_sms_confirmed_at: string | null
+          visit_sms_opened_at: string | null
           visit_status: string
           visit_time: string | null
         }
@@ -712,7 +716,11 @@ export type Database = {
           token_enc?: string | null
           token_hash: string
           updated_at?: string
+          visit_customer_confirmed_at?: string | null
           visit_date?: string | null
+          visit_memo?: string | null
+          visit_sms_confirmed_at?: string | null
+          visit_sms_opened_at?: string | null
           visit_status?: string
           visit_time?: string | null
         }
@@ -745,7 +753,11 @@ export type Database = {
           token_enc?: string | null
           token_hash?: string
           updated_at?: string
+          visit_customer_confirmed_at?: string | null
           visit_date?: string | null
+          visit_memo?: string | null
+          visit_sms_confirmed_at?: string | null
+          visit_sms_opened_at?: string | null
           visit_status?: string
           visit_time?: string | null
         }
