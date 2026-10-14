@@ -13,7 +13,7 @@ export function clearWhiteBackdrop(pixels: Uint8ClampedArray, width: number, hei
   const corners = [top * width + left, top * width + right, bottom * width + left, bottom * width + right];
   const backdrop = corners.every(index => {
     const i = index * 4;
-    return pixels[i + 3] > 240 && Math.min(pixels[i], pixels[i + 1], pixels[i + 2]) >= 215 && Math.max(pixels[i], pixels[i + 1], pixels[i + 2]) - Math.min(pixels[i], pixels[i + 1], pixels[i + 2]) <= 45;
+    return pixels[i + 3] > 240 && Math.min(pixels[i], pixels[i + 1], pixels[i + 2]) >= 190 && Math.max(pixels[i], pixels[i + 1], pixels[i + 2]) - Math.min(pixels[i], pixels[i + 1], pixels[i + 2]) <= 65;
   });
   if (!backdrop) return result;
   const seen = new Uint8Array(width * height);
@@ -24,7 +24,7 @@ export function clearWhiteBackdrop(pixels: Uint8ClampedArray, width: number, hei
     const i = index * 4;
     const min = Math.min(result[i], result[i + 1], result[i + 2]);
     const max = Math.max(result[i], result[i + 1], result[i + 2]);
-    if (result[i + 3] < 16 || (min >= 215 && max - min <= 45)) queue.push(index);
+    if (result[i + 3] < 16 || (min >= 190 && max - min <= 65)) queue.push(index);
   };
   for (let x = 0; x < width; x++) { add(x); add((height - 1) * width + x); }
   for (let y = 0; y < height; y++) { add(y * width); add(y * width + width - 1); }
