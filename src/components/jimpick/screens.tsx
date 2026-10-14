@@ -5,7 +5,7 @@ import { isWaitingHistoryTarget } from "@/lib/history-focus";
 import { WorkerContacts } from "./WorkerContacts";
 import { workerSmsHref, type WorkerContact } from "@/lib/worker-contact";
 import { RoomPickedStrip } from "./RoomPickedStrip";
-import { ItemListLayer, FullScreenItemFrame, type ItemListMode } from "./ItemListLayer";
+import { ItemListLayer, ItemPickerCard, FullScreenItemFrame, type ItemListMode } from "./ItemListLayer";
 import { ManualItemForm, type ManualItemInput } from "./ManualItemForm";
 import { FavoriteItemGrid } from "./FavoriteItemGrid";
 import { pickerItemLabel } from "@/lib/picker-item-label";
@@ -3414,7 +3414,9 @@ export function Step6() {
           <button
             onClick={() => {
               tap("soft");
-              setScreen("scan");
+              if (customerFlow) setScreen("step3");
+              else if (window.history.state?.jpScreen === "step6" && window.history.length > 1) window.history.back();
+              else setScreen("step6");
             }}
             aria-label="뒤로"
             className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] flex items-center justify-center text-[#25282D] shadow-[0_4px_0_#E5E7EB,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#E5E7EB]"
@@ -3453,12 +3455,6 @@ export function Step6() {
           ))}
         </div>
         <div className="mt-2 flex gap-2">
-          <button
-            onClick={() => setSizeConfirm({ key: size, stage: 1 })}
-            className="flex-1 min-w-0 py-2.5 rounded-2xl text-[13px] font-black text-[#2A6FD6] bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_3px_0_#E5E7EB] active:translate-y-[2px]"
-          >
-            기본품목 다시 적용
-          </button>
           <button
             onClick={clearAllItems}
             className="flex-1 min-w-0 py-2.5 rounded-2xl text-[13px] font-black text-[#B4232A] bg-white border border-[#FECACA] shadow-[0_3px_0_#FEE2E2] active:translate-y-[2px]"
@@ -3707,80 +3703,10 @@ export function Step6() {
                             const qty = room.items[it.id] || 0;
                             const disposed = qty > 0 && !!room.disposal?.[it.id];
                             return (
-                              <div
-                                key={it.id}
-                                className={`relative rounded-2xl p-2 flex flex-col items-center gap-1 border transition-all ${
-                                  qty > 0
-                                    ? "border-[#3578C8] bg-gradient-to-b from-[#F7F8F5] to-[#DCE9FF] shadow-[0_5px_0_#E5E7EB,inset_0_1px_0_#fff]"
-                                    : "border-[#E5E7EB] bg-gradient-to-b from-white to-[#F7FAFF] shadow-[0_4px_0_#F7F8F5,inset_0_1px_0_#fff]"
-                                }`}
-                              >
-                                {/* 고른 품목은 파란 테두리 + 체크 */}
-                                {qty > 0 && (
-                                  <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-b from-[#5B93D6] to-[#3578C8] shadow-[0_2px_0_#285C99]">
-                                    <Check className="h-3.5 w-3.5 text-white" />
-                                  </span>
-                                )}
-                                {/* 모든 품목에 관리 메뉴(⋯) — 목록에서 삭제할 수 있습니다 */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    tap("soft");
-                                    if (customerFlow) { if (qty > 0) setConfirmRemove({ id: it.id, name: it.name, room: room.name }); }
-                                    else setItemMenu(it.id);
-                                  }}
-                                  className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[11px] font-black leading-none text-[#64748B]"
-                                  aria-label={`${it.name} 관리`}
-                                >
-                                  ⋯
-                                </button>
-                                <button
-                                  disabled={itemWriteBusy}
-                                  onClick={() => {
-                                    tap("soft");
-                                    cardTap(room.name, it.id, () => setQty(it.id, qty + 1));
-                                  }}
-                                  style={{ touchAction: "manipulation" }}
-                                  aria-label={`${it.name} (두 번 누르면 폐기물 전환)`}
-                                  className="w-full flex flex-col items-center gap-1 select-none active:translate-y-[2px] transition-transform"
-                                >
-                                  <span className="relative inline-flex">
-                                    <span className={disposed ? "opacity-60" : ""}>
-                                      <ItemArt id={it.id} name={it.name} size={70} />
-                                    </span>
-                                    {disposed && <DisposalX />}
-                                    {disposed && (
-                                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-[#DC2626] px-1.5 py-[1px] text-[10px] font-black text-white">폐기물</span>
-                                    )}
-                                  </span>
-                                  <span className="text-center text-[15px] font-black leading-tight text-[#25282D] line-clamp-2">
-                                    {it.name}
-                                  </span>
-                                </button>
-                                {qty > 0 && (
-                                  <div className="w-full flex items-center justify-between gap-1">
-                                    <button
-                                      onClick={() => decQty(it.id, it.name, qty)}
-                                      disabled={itemWriteBusy}
-                                      className="w-7 h-7 rounded-xl bg-white border border-[#E5E7EB] text-[#25282D] font-black shadow-[0_2px_0_#E5E7EB]"
-                                      aria-label={`${it.name} 감소`}
-                                    >
-                                      −
-                                    </button>
-                                    <span className="text-[14px] font-black text-[#25282D] tabular-nums">
-                                      {qty}
-                                    </span>
-                                    <button
-                                      onClick={() => setQty(it.id, qty + 1)}
-                                      disabled={itemWriteBusy}
-                                      className="w-7 h-7 rounded-xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white font-black shadow-[0_2px_0_#285C99]"
-                                      aria-label={`${it.name} 증가`}
-                                    >
-                                      +
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                              <ItemPickerCard key={it.id} item={it} qty={qty} disposed={disposed} busy={itemWriteBusy}
+                                selectedMode={false} categoryMode onMenu={() => {}} onRemove={() => setQty(it.id, 0)}
+                                onTap={() => customerFlow ? setQty(it.id, qty > 0 ? 0 : 1) : cardTap(room.name, it.id, () => setQty(it.id, qty + 1))}
+                                onQuantity={(next) => setQty(it.id, next)} />
                             );
                           })}
                       </div>
@@ -3842,11 +3768,11 @@ export function Step6() {
               onAdd={() => setManualOpen(true)} onEdit={openFavEdit} onMenu={setItemMenu}
               onTap={(item) => {
                 const currentQty = draftRef.current.rooms.find((r) => r.name === room.name)?.items[item.id] || 0;
-                setQtyInRoom(room.name, item.id, currentQty + 1);
+                setQtyInRoom(room.name, item.id, customerFlow ? (currentQty > 0 ? 0 : 1) : currentQty + 1);
               }}
-              onImageTap={(item) => cardTap(room.name, item.id, () => {
+              onImageTap={customerFlow ? undefined : (item) => cardTap(room.name, item.id, () => {
                 const currentQty = draftRef.current.rooms.find((r) => r.name === room.name)?.items[item.id] || 0;
-                setQtyInRoom(room.name, item.id, currentQty + 1);
+                setQtyInRoom(room.name, item.id, customerFlow ? (currentQty > 0 ? 0 : 1) : currentQty + 1);
               })}
               onQuantity={(item, qty) => setQtyInRoom(room.name, item.id, Math.max(0, qty))}
               onRemove={(item) => setConfirmRemove({ id: item.id, name: item.name, room: room.name })}
@@ -7144,7 +7070,6 @@ export function Customers() {
                   >
                     <MessageSquare className="w-4 h-4 text-[#25282D]" />
                   </a>
-                  <IntakeRequestButton name={c.name} phone={c.phone} sourceEstimateId={c.id} />
                 </div>
                 {(() => { const ir = findIntakeFor(intakeRows, c.ids, c.phone); return ir ? <div className="mt-1"><IntakeStatusChip row={ir} /></div> : null; })()}
               </div>
