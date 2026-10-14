@@ -7,6 +7,7 @@
  */
 import { useState } from "react";
 import { useIconFit } from "./icon-fit";
+import { useItemCutout } from "./use-item-cutout";
 import { ITEMS_1000 } from "./items-catalog-1000";
 import { FEATURED_HOUSEHOLD_100 } from "./featured-household-100";
 
@@ -608,14 +609,17 @@ export function Icon3D({
   alt,
   size = 64,
   className = "",
+  cutout = false,
 }: {
   src: string;
   alt: string;
   size?: number;
   className?: string;
+  cutout?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const shown = failed ? DEFAULT_ICON3D : src;
+  const prepared = useItemCutout(shown, cutout);
   // 그림마다 다른 투명 여백을 지우고 「침대(킹)」과 비슷한 크기로 맞춥니다
   const fit = useIconFit(shown);
   return (
@@ -624,14 +628,14 @@ export function Icon3D({
       style={{ width: size, height: size }}
     >
       <img
-        src={shown}
+        src={prepared}
         alt={alt}
         width={size}
         height={size}
         loading="lazy"
         onError={() => setFailed(true)}
         className="h-full w-full object-contain"
-        style={{ transform: `scale(${fit})`, transformOrigin: "center" }}
+        style={{ transform: `scale(${cutout ? 1 : fit})`, transformOrigin: "center" }}
       />
     </span>
   );
