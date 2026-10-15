@@ -421,17 +421,15 @@ export const updateEstimateTotal = createServerFn({ method: "POST" })
         console.error("[updateEstimateTotal] read", readErr.message);
         return { ok: false, changed: false, error: "저장된 견적서를 읽지 못했습니다." };
       }
-      const stale = ((rows ?? []) as { id: string; total: number | null }[]).filter(
-        (r) => Number(r.total ?? 0) !== data.total,
+      const staleIds = staleTermTotalIds(
+        (rows ?? []) as { id: string; total: number | null }[],
+        data.total,
       );
-      if (stale.length === 0) return { ok: true, changed: false };
+      if (staleIds.length === 0) return { ok: true, changed: false };
       const { error: upErr } = await context.supabase
         .from("estimate_terms")
         .update({ total: data.total } as never)
-        .in(
-          "id",
-          stale.map((r) => r.id),
-        )
+        .in("id", staleIds)
         .eq("user_id", context.userId);
       if (upErr) {
         console.error("[updateEstimateTotal] update", upErr.message);
