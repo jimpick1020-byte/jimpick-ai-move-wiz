@@ -187,6 +187,7 @@ import {
   getReservationCustomerName,
   getManagerNotices,
   ownerConfirmContract,
+  updateEstimateTotal,
   type TermsStatusRow,
   type ManagerNoticeRow,
 } from "@/lib/terms.functions";
@@ -5173,6 +5174,30 @@ export function Result() {
     const dep = calcDeposit(total);
     if (draft.total !== total || draft.deposit !== dep) updateDraft({ total, deposit: dep });
   }, [total, draft.total, draft.deposit, updateDraft]);
+
+  /**
+   * 이미 저장된 견적의 금액을 고치면, 견적 내역 카드와 예약금·잔금 계산 기준을 함께 맞춥니다.
+   *  · 목록(estimates)의 총액을 즉시 고쳐 내역 카드 금액이 바로 바뀌게 합니다.
+   *  · 서버(estimate_terms)의 총액도 함께 고쳐 잔금 등 입금 계산이 옛 금액으로 남지 않게 합니다.
+   *  · 아직 저장 전인 새 견적은 「견적 완료」에서 저장하므로 여기서 건드리지 않습니다.
+   *  · 할인·조정(adjust)은 저장 값이 아니라 화면 임시값이므로, 조정 값이 있을 때는 맞추지 않습니다.
+   */
+  const syncedTotal = useRef<number | null>(null);
+  const estimateSaved = estimates.some((e) => e.id === draft.id);
+  useEffect(() => {
+    if (!estimateSaved) {
+      syncedTotal.current = total;
+      return;
+    }
+    if (adjust !== 0) return;
+    if (syncedTotal.current === total) return;
+    syncedTotal.current = total;
+    saveDraft();
+    void updateEstimateTotal({ data: { estimateId: draft.id, total } }).catch(() => {
+      /* 저장 실패 시에도 화면 금액은 유지되고, 다음 수정 때 다시 시도합니다 */
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total, adjust, estimateSaved, draft.id]);
   /** 확인창에 보여 줄 문자 미리보기 (서버가 만드는 내용과 같은 형식입니다) */
   const smsPreview = [
     `${draft.customerName || "고객"} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
