@@ -117,14 +117,29 @@ export function PaymentPanel({
           <div className="text-[12px] text-[#6B7280]">실제 남은 금액 {won(remain)}</div>
           {askComplete && total > 0 && (
             <div className="rounded-xl border border-[#3E9B78] bg-white p-2.5">
-              <div className="text-[13px] font-bold text-[#25282D]">잔금 {won(Math.max(0, total - deposit - balanceNum))} 입금을 확인할까요?</div>
-              <div className="mt-1 text-[12px] text-[#6B7280]">
-                확인하면 결제완료로 바뀌고 견적 내역에서 빠져 완료 보관함으로 옮겨집니다.
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-1.5">
-                <button onClick={() => setAskComplete(false)} className="rounded-xl bg-white py-2 text-[12.5px] font-bold text-[#6B7280] ring-1 ring-[#E5E7EB]">취소</button>
-                <button onClick={complete} disabled={busy} className="rounded-xl bg-[#3E9B78] py-2 text-[12.5px] font-bold text-white disabled:opacity-50">{busy ? "저장 중…" : "확인"}</button>
-              </div>
+              {balanceReady ? (
+                <>
+                  <div className="text-[13px] font-bold text-[#25282D]">잔금 {won(Math.max(0, total - deposit - balanceNum))} 입금을 확인할까요?</div>
+                  <div className="mt-1 text-[12px] text-[#6B7280]">
+                    확인하면 결제완료로 바뀌고 견적 내역에서 빠져 완료 보관함으로 옮겨집니다.
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-1.5">
+                    <button onClick={() => setAskComplete(false)} className="rounded-xl bg-white py-2 text-[12.5px] font-bold text-[#6B7280] ring-1 ring-[#E5E7EB]">취소</button>
+                    <button onClick={complete} disabled={busy} className="rounded-xl bg-[#3E9B78] py-2 text-[12.5px] font-bold text-white disabled:opacity-50">{busy ? "저장 중…" : "확인"}</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-[13px] font-bold text-[#25282D]">잔금 {won(remain)}을 현금으로 받으셨나요?</div>
+                  <div className="mt-1 text-[12px] text-[#6B7280]">
+                    입금 기록 없이 현금 완료로 저장합니다. 확인하면 결제완료로 바뀌고 견적 내역에서 빠져 완료 보관함으로 옮겨집니다.
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-1.5">
+                    <button onClick={() => setAskComplete(false)} className="rounded-xl bg-white py-2 text-[12.5px] font-bold text-[#6B7280] ring-1 ring-[#E5E7EB]">취소</button>
+                    <button onClick={completeCash} disabled={busy} className="rounded-xl bg-[#3E9B78] py-2 text-[12.5px] font-bold text-white disabled:opacity-50">{busy ? "저장 중…" : "현금으로 받았어요"}</button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
