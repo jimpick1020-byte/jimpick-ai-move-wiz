@@ -6276,7 +6276,7 @@ export function Result() {
 type HistoryKind = "normal" | "intake" | "visit";
 
 export function History() {
-  const { estimates, setScreen, loadEstimate, deleteEstimate, draft, resetDraft } = useApp();
+  const { estimates, setScreen, loadEstimate, deleteEstimate, draft, resetDraft, patchDraft } = useApp();
   const [waitingTargetId, setWaitingTargetId] = useState<string | null>(null);
   const [termsReady, setTermsReady] = useState(false);
   const historyCards = useRef(new Map<string, HTMLDivElement>());
@@ -6315,6 +6315,12 @@ export function History() {
         if (r.ok) setNoticeRows(r.rows);
       })
       .catch(() => {});
+  };
+  /** 견적 작성은 1단계부터 열어 고객이 입력한 값을 단계별로 확인하게 합니다 */
+  const startVisitWrite = (e: Estimate) => {
+    patchDraft(() => e);
+    setScreen("step1");
+    window.scrollTo(0, 0);
   };
   const loadTerms = () => {
     getTermsStatuses({ data: {} })
@@ -6856,7 +6862,7 @@ export function History() {
                         {ts.row && <ReminderPanel estimateId={e.id} />}
 
                         {e.intakeRequestId && intakeById.get(e.intakeRequestId) && (
-                          <VisitScheduleBox row={intakeById.get(e.intakeRequestId)!} onWrite={() => loadEstimate(e.id)} />
+                          <VisitScheduleBox row={intakeById.get(e.intakeRequestId)!} onWrite={() => startVisitWrite(e)} />
                         )}
                         <div className="flex gap-2 mt-3">
                           <button
