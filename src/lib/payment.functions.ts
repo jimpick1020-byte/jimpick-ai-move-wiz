@@ -179,7 +179,7 @@ export const setPaymentState = createServerFn({ method: "POST" })
           return { ok: false, error: "견적 금액이 없어 완료할 수 없습니다." };
         }
         const now = new Date().toISOString();
-        const cashBalance = Math.max(0, total - Math.max(0, Number(row.deposit_paid ?? 0)));
+        const cashBalance = cashBalanceDue(total, Number(row.deposit_paid ?? 0));
         const { error } = await context.supabase
           .from("estimate_terms")
           .update({
