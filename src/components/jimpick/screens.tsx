@@ -5185,7 +5185,8 @@ export function Result() {
   const syncedTotal = useRef<number | null>(null);
   const estimateSaved = estimates.some((e) => e.id === draft.id);
   useEffect(() => {
-    if (!estimateSaved) {
+    // 화면을 처음 열 때의 금액은 기준값으로만 기록합니다(열기만으로 저장된 계약 금액을 바꾸지 않음).
+    if (!estimateSaved || syncedTotal.current === null) {
       syncedTotal.current = total;
       return;
     }
