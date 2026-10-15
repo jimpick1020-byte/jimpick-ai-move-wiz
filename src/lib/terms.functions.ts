@@ -387,6 +387,14 @@ export const getManagerNotices = createServerFn({ method: "POST" })
  *  · 값이 같으면 아무것도 바꾸지 않습니다(불필요한 저장을 막음).
  *  · 삭제된(deleted_at) 기록과 타 업체(user_id) 기록은 절대 건드리지 않습니다.
  */
+/** 총액이 화면 값과 다른 견적서 기록의 id만 골라 냅니다 (값이 같은 기록은 건드리지 않음) */
+export function staleTermTotalIds(
+  rows: { id: string; total: number | null }[],
+  total: number,
+): string[] {
+  return rows.filter((r) => Number(r.total ?? 0) !== total).map((r) => r.id);
+}
+
 export const updateEstimateTotal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
