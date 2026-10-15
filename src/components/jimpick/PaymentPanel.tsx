@@ -70,6 +70,9 @@ export function PaymentPanel({
   // 사장님이 남은 잔금 전액 입금을 확인했을 때만 결제완료로 저장하고 완료 보관함으로 옮깁니다.
   const complete = () =>
     void run({ estimateId, status: "completed", note }, "잔금 확인 · 완료 보관함으로 옮겼습니다");
+  // 현금으로 받은 잔금은 입금 기록이 없으므로 사장님 확인만으로 완료합니다.
+  const completeCash = () =>
+    void run({ estimateId, status: "completed", note, method: "cash" }, "현금 잔금 확인 · 완료 보관함으로 옮겼습니다");
 
   return (
     <div className="mt-2 rounded-xl bg-[#F7F8F5] p-2.5">
@@ -100,8 +103,8 @@ export function PaymentPanel({
               return (
                 <button
                   key={s}
-                   onClick={() => (isComplete ? balanceReady && setAskComplete(true) : (setAskComplete(false), setStatus(s)))}
-                   disabled={busy || (isComplete && !balanceReady)}
+                   onClick={() => (isComplete ? setAskComplete(true) : (setAskComplete(false), setStatus(s)))}
+                   disabled={busy}
                   className={`rounded-xl py-2 text-[12.5px] font-bold disabled:opacity-50 ${
                     active ? "bg-[#3578C8] text-white" : "bg-white text-[#6B7280] ring-1 ring-[#E5E7EB]"
                   }`}
