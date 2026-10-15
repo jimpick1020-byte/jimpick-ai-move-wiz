@@ -89,6 +89,11 @@ export function isFullyPaid(row: {
   return paid >= total;
 }
 
+/** 현금 완료 시 잔금으로 기록할 금액 (총액 - 이미 확인된 예약금, 음수 방지) */
+export function cashBalanceDue(total: number, depositPaid: number): number {
+  return Math.max(0, Math.max(0, Number(total) || 0) - Math.max(0, Number(depositPaid) || 0));
+}
+
 /** 한국시간 기준 이사일이 오늘 또는 그 이전이면 「이사 완료」로 봅니다 */
 export function isMoveDone(moveDate: string | null | undefined): boolean {
   const m = String(moveDate ?? "").match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
