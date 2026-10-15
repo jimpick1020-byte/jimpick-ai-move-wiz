@@ -124,7 +124,8 @@ import { setIntakeVisit, type IntakeRow } from "@/lib/intake.functions";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
 import { searchAddress, getRoute, type KakaoPlace } from "@/lib/kakao.functions";
-import { sendSmsViaEdge, resendManagerNotice, type EdgeSmsResult } from "@/lib/sms.edge";
+import { resendManagerNotice, estimateSmsText, type EdgeSmsResult } from "@/lib/sms.edge";
+import { intakeSmsHref } from "@/lib/intake-sms";
 import { hasSession, signIn } from "@/lib/auth";
 import { isRememberMe, setRememberMe } from "@/integrations/supabase/auth-persistence";
 import { AuthField, AuthInput, AuthPrimaryButton, AuthShell } from "./AuthUi";
@@ -4842,6 +4843,8 @@ export function Result() {
   const [customerPreview, setCustomerPreview] = useState(false);
   /** 이미 보낸 견적서 — 다시 보낼지 물어봅니다 */
   const [askResend, setAskResend] = useState(false);
+  const smsLock = useRef(false);
+  const smsOpenedAt = useRef<number | null>(null);
 
   /**
    * 실제 발송 — 같은 버튼을 여러 번 눌러도 한 번만 나갑니다.
@@ -4851,7 +4854,13 @@ export function Result() {
    *    받는 번호·금액·문자 내용은 서버가 견적서에서 직접 읽어 만듭니다.
    */
   const doSendSms = async (opts?: { resend?: boolean }) => {
-    if (sending) return;
+    // 빠른 연속 클릭에도 문자 앱이 한 번만 열리도록 동기 잠금 + 2초 재열기 방지
+    if (sending || smsLock.current) return;
+    if (smsOpenedAt.current && Date.now() - smsOpenedAt.current < 2000) return;
+    smsLock.current = true;
+    try { await doSendSmsInner(opts); } finally { smsLock.current = false; }
+  };
+  const doSendSmsInner = async (opts?: { resend?: boolean }) => {
     if (smsBlocked) {
       setSendResult({ ok: false, error: smsBlockMessage });
       return;
@@ -4931,38 +4940,22 @@ export function Result() {
         return;
       }
 
-      // 2) 발송 요청 — 알리고 키는 서버에만 있습니다.
-      //    같은 견적서·같은 차수·같은 번호는 같은 열쇠라 중복 발송이 막힙니다.
-      //    사장님이 「다시 발송」을 직접 확인한 경우에만 새 열쇠로 새 기록을 만듭니다.
-      const phoneKey = String(draft.phone ?? "").replace(/[^0-9]/g, "");
-      const baseKey = `${draft.id}-v${draft.sheetVersion ?? 1}-${phoneKey}`;
-      const r = await sendSmsViaEdge({
-        estimate_id: draft.id,
-        delivery_method: "link",
-        idempotency_key: opts?.resend ? `${baseKey}-r${Date.now()}` : baseKey,
-        ...(opts?.resend ? { resend: true } : {}),
-      });
-      setSendResult(r);
-      // 이미 나간 발송이면 새로 보내지 않고, 다시 보낼지 물어봅니다
-      if (r.alreadySent) setAskResend(true);
-      if (r.ok && !r.alreadySent) {
-        tap("success");
-        updateDraft({
-          termsSentAt: Date.now(),
-          termsVersion: TERMS_VERSION,
-          sheetHistory: [
-            ...(draft.sheetHistory ?? []),
-            {
-              version: draft.sheetVersion ?? 1,
-              at: Date.now(),
-              staff: draft.staffName || "담당자",
-              beforeTotal: total,
-              afterTotal: total,
-            },
-          ],
-        });
-        saveDraft();
+      // 2) 휴대전화 기본 문자 앱을 엽니다 (알리고·서버 발송 없음).
+      //    보내기는 사장님이 문자 앱에서 직접 누르므로, 여기서는 발송 완료로 저장하지 않습니다.
+      if (!hasSmsApp()) {
+        setSendResult({ ok: false, error: "이 기기에서는 휴대폰 문자 앱을 열 수 없습니다. 휴대폰에서 이용해 주세요." });
+        return;
       }
+      const body = estimateSmsText({
+        customerName: draft.customerName ?? "",
+        movingDate: formatMoveDateTime(draft.moveDate, draft.moveTime),
+        totalAmount: total,
+        secureUrl: shareUrl(),
+      });
+      window.location.href = intakeSmsHref(draft.phone ?? "", body);
+      smsOpenedAt.current = Date.now();
+      setSendResult({ ok: true, message: "문자 앱을 열었습니다. 내용과 받는 번호를 확인하고 직접 보내 주세요." });
+      void opts;
     } catch (e) {
       setSendResult({
         ok: false,
