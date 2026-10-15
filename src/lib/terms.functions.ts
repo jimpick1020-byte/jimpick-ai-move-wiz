@@ -379,6 +379,60 @@ export const getManagerNotices = createServerFn({ method: "POST" })
     };
   });
 
+/**
+ * 사장님이 견적 상세에서 금액을 고치면, 이미 발송된 견적서의 총액도 함께 맞춥니다.
+ *
+ *  · 견적 내역 카드의 예약금·잔금 계산은 estimate_terms.total을 기준으로 하므로,
+ *    이 값을 함께 고치지 않으면 잔금이 옛 금액으로 남습니다.
+ *  · 값이 같으면 아무것도 바꾸지 않습니다(불필요한 저장을 막음).
+ *  · 삭제된(deleted_at) 기록과 타 업체(user_id) 기록은 절대 건드리지 않습니다.
+ */
+export const updateEstimateTotal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        estimateId: z.string().min(1).max(80),
+        /** 화면에서 확정한 총액 (원) */
+        total: z.number().int().min(0).max(1_000_000_000),
+      })
+      .parse(d),
+  )
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{ ok: boolean; changed: boolean; error?: string }> => {
+      const { data: rows, error: readErr } = await context.supabase
+        .from("estimate_terms")
+        .select("id, total")
+        .eq("user_id", context.userId)
+        .eq("estimate_id", data.estimateId)
+        .is("deleted_at", null);
+      if (readErr) {
+        console.error("[updateEstimateTotal] read", readErr.message);
+        return { ok: false, changed: false, error: "저장된 견적서를 읽지 못했습니다." };
+      }
+      const stale = ((rows ?? []) as { id: string; total: number | null }[]).filter(
+        (r) => Number(r.total ?? 0) !== data.total,
+      );
+      if (stale.length === 0) return { ok: true, changed: false };
+      const { error: upErr } = await context.supabase
+        .from("estimate_terms")
+        .update({ total: data.total } as never)
+        .in(
+          "id",
+          stale.map((r) => r.id),
+        )
+        .eq("user_id", context.userId);
+      if (upErr) {
+        console.error("[updateEstimateTotal] update", upErr.message);
+        return { ok: false, changed: false, error: "견적 금액을 저장하지 못했습니다." };
+      }
+      return { ok: true, changed: true };
+    },
+  );
+
 export interface TermsStatusRow {
   estimateId: string;
   /** 보낸 견적서 차수 */
