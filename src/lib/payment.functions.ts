@@ -89,6 +89,11 @@ export function isFullyPaid(row: {
   return paid >= total;
 }
 
+/** 현금 완료 시 잔금으로 기록할 금액 (총액 - 이미 확인된 예약금, 음수 방지) */
+export function cashBalanceDue(total: number, depositPaid: number): number {
+  return Math.max(0, Math.max(0, Number(total) || 0) - Math.max(0, Number(depositPaid) || 0));
+}
+
 /** 한국시간 기준 이사일이 오늘 또는 그 이전이면 「이사 완료」로 봅니다 */
 export function isMoveDone(moveDate: string | null | undefined): boolean {
   const m = String(moveDate ?? "").match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
@@ -152,6 +157,59 @@ export const setPaymentState = createServerFn({ method: "POST" })
       data,
       context,
     }): Promise<{ ok: boolean; error?: string; balancePaid?: number; confirmedAt?: string }> => {
+      // 현금으로 받은 잔금은 입금 기록이 없으므로 사장님 확인만으로 완료합니다.
+      if (data.status === "completed" && data.method === "cash") {
+        const { data: terms, error: findErr } = await context.supabase
+          .from("estimate_terms")
+          .select("id, total, deposit_paid, payment_status")
+          .eq("user_id", context.userId)
+          .eq("estimate_id", data.estimateId)
+          .order("sheet_version", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (findErr || !terms) {
+          return { ok: false, error: "이 견적서를 찾지 못했습니다. 먼저 견적서를 발송해 주세요." };
+        }
+        const row = terms as { id: string; total: number | null; deposit_paid: number | null; payment_status: string | null };
+        if (row.payment_status === "canceled" || row.payment_status === "refunded") {
+          return { ok: false, error: "취소·환불 견적은 완료할 수 없습니다." };
+        }
+        const total = Math.max(0, Number(row.total ?? 0));
+        if (total <= 0) {
+          return { ok: false, error: "견적 금액이 없어 완료할 수 없습니다." };
+        }
+        const now = new Date().toISOString();
+        const cashBalance = cashBalanceDue(total, Number(row.deposit_paid ?? 0));
+        const { error } = await context.supabase
+          .from("estimate_terms")
+          .update({
+            balance_paid: cashBalance,
+            balance_paid_at: cashBalance > 0 ? now : null,
+            payment_status: "completed",
+            payment_method: "cash",
+            payment_note: data.note?.trim() ? data.note.trim() : null,
+            payment_confirmed_by: context.userId,
+            payment_confirmed_at: now,
+            paid_at: now,
+            calendar_archived: true,
+            calendar_archived_at: now,
+            calendar_archived_by: context.userId,
+            calendar_selected: false,
+          } as never)
+          .eq("id", row.id)
+          .eq("user_id", context.userId);
+        if (error) {
+          console.error("[setPaymentState] cash", error.message);
+          return { ok: false, error: "현금 결제완료를 저장하지 못했습니다." };
+        }
+        try {
+          const { syncMoveReminder } = await import("./reminder.server");
+          await syncMoveReminder(row.id);
+        } catch (e) {
+          console.error("[setPaymentState] 안내 문자 예약 변경 실패", e instanceof Error ? e.message : e);
+        }
+        return { ok: true, balancePaid: cashBalance, confirmedAt: now };
+      }
       if (data.status === "completed") {
         const { data: result, error } = await context.supabase.rpc("complete_receipted_estimate", { _estimate_id: data.estimateId, _note: data.note?.trim() || undefined });
         if (error) return { ok: false, error: error.message };

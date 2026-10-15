@@ -46,7 +46,7 @@ export function PaymentPanel({
   const remain = Math.max(0, total - deposit - balanceNum);
   const balanceReady = paymentReview(row.paymentReceipts ?? [], row.paymentStatus, deposit, balanceNum, total)?.kind === "balance";
 
-  const run = async (data: { estimateId: string; status: PaymentStatus; note?: string; balancePaid?: number }, okMsg: string) => {
+  const run = async (data: { estimateId: string; status: PaymentStatus; note?: string; balancePaid?: number; method?: string }, okMsg: string) => {
     if (busy) return;
     setBusy(true);
     try {
@@ -70,6 +70,9 @@ export function PaymentPanel({
   // 사장님이 남은 잔금 전액 입금을 확인했을 때만 결제완료로 저장하고 완료 보관함으로 옮깁니다.
   const complete = () =>
     void run({ estimateId, status: "completed", note }, "잔금 확인 · 완료 보관함으로 옮겼습니다");
+  // 현금으로 받은 잔금은 입금 기록이 없으므로 사장님 확인만으로 완료합니다.
+  const completeCash = () =>
+    void run({ estimateId, status: "completed", note, method: "cash" }, "현금 잔금 확인 · 완료 보관함으로 옮겼습니다");
 
   return (
     <div className="mt-2 rounded-xl bg-[#F7F8F5] p-2.5">
@@ -100,8 +103,8 @@ export function PaymentPanel({
               return (
                 <button
                   key={s}
-                   onClick={() => (isComplete ? balanceReady && setAskComplete(true) : (setAskComplete(false), setStatus(s)))}
-                   disabled={busy || (isComplete && !balanceReady)}
+                   onClick={() => (isComplete ? setAskComplete(true) : (setAskComplete(false), setStatus(s)))}
+                   disabled={busy}
                   className={`rounded-xl py-2 text-[12.5px] font-bold disabled:opacity-50 ${
                     active ? "bg-[#3578C8] text-white" : "bg-white text-[#6B7280] ring-1 ring-[#E5E7EB]"
                   }`}
@@ -114,14 +117,29 @@ export function PaymentPanel({
           <div className="text-[12px] text-[#6B7280]">실제 남은 금액 {won(remain)}</div>
           {askComplete && total > 0 && (
             <div className="rounded-xl border border-[#3E9B78] bg-white p-2.5">
-              <div className="text-[13px] font-bold text-[#25282D]">잔금 {won(Math.max(0, total - deposit - balanceNum))} 입금을 확인할까요?</div>
-              <div className="mt-1 text-[12px] text-[#6B7280]">
-                확인하면 결제완료로 바뀌고 견적 내역에서 빠져 완료 보관함으로 옮겨집니다.
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-1.5">
-                <button onClick={() => setAskComplete(false)} className="rounded-xl bg-white py-2 text-[12.5px] font-bold text-[#6B7280] ring-1 ring-[#E5E7EB]">취소</button>
-                <button onClick={complete} disabled={busy} className="rounded-xl bg-[#3E9B78] py-2 text-[12.5px] font-bold text-white disabled:opacity-50">{busy ? "저장 중…" : "확인"}</button>
-              </div>
+              {balanceReady ? (
+                <>
+                  <div className="text-[13px] font-bold text-[#25282D]">잔금 {won(Math.max(0, total - deposit - balanceNum))} 입금을 확인할까요?</div>
+                  <div className="mt-1 text-[12px] text-[#6B7280]">
+                    확인하면 결제완료로 바뀌고 견적 내역에서 빠져 완료 보관함으로 옮겨집니다.
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-1.5">
+                    <button onClick={() => setAskComplete(false)} className="rounded-xl bg-white py-2 text-[12.5px] font-bold text-[#6B7280] ring-1 ring-[#E5E7EB]">취소</button>
+                    <button onClick={complete} disabled={busy} className="rounded-xl bg-[#3E9B78] py-2 text-[12.5px] font-bold text-white disabled:opacity-50">{busy ? "저장 중…" : "확인"}</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-[13px] font-bold text-[#25282D]">잔금 {won(remain)}을 현금으로 받으셨나요?</div>
+                  <div className="mt-1 text-[12px] text-[#6B7280]">
+                    입금 기록 없이 현금 완료로 저장합니다. 확인하면 결제완료로 바뀌고 견적 내역에서 빠져 완료 보관함으로 옮겨집니다.
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-1.5">
+                    <button onClick={() => setAskComplete(false)} className="rounded-xl bg-white py-2 text-[12.5px] font-bold text-[#6B7280] ring-1 ring-[#E5E7EB]">취소</button>
+                    <button onClick={completeCash} disabled={busy} className="rounded-xl bg-[#3E9B78] py-2 text-[12.5px] font-bold text-white disabled:opacity-50">{busy ? "저장 중…" : "현금으로 받았어요"}</button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
