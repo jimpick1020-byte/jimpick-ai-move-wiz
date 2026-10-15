@@ -6093,7 +6093,7 @@ export function Result() {
                 </div>
 
                 <p className="mt-2.5 rounded-xl bg-[#FFF7ED] p-2.5 text-center text-[12.5px] font-bold text-[#B45309]">
-                  실제 문자 요금이 발생합니다. 알리고 충전금에서 차감됩니다.
+                  휴대전화 기본 문자 앱이 열립니다. 보내기는 직접 눌러 주세요.
                 </p>
 
                 {/* 고객이 실제로 받게 될 화면을 지금 견적서 그대로 보여 줍니다 */}
@@ -6156,12 +6156,9 @@ export function Result() {
                   >
                     {sendResult.ok ? (
                       <>
-                        견적서가 {draft.customerName || "고객"} 고객님께 발송되었습니다.
+                        문자 앱을 열었습니다 ({`****${digitsTail(draft.phone)}`}).
                         <br />
-                        발송번호 {sendResult.msgId || "-"} · {sendResult.msgType || "SMS"}
-                        <br />
-                        {new Date(sendResult.sentAt ?? Date.now()).toLocaleString("ko-KR")} ·{" "}
-                        {`****${digitsTail(draft.phone)}`}
+                        받는 번호와 내용을 확인하고 문자 앱에서 직접 보내 주세요.
                       </>
                     ) : (
                       <>
