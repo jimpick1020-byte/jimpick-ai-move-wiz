@@ -46,7 +46,7 @@ export function PaymentPanel({
   const remain = Math.max(0, total - deposit - balanceNum);
   const balanceReady = paymentReview(row.paymentReceipts ?? [], row.paymentStatus, deposit, balanceNum, total)?.kind === "balance";
 
-  const run = async (data: { estimateId: string; status: PaymentStatus; note?: string; balancePaid?: number }, okMsg: string) => {
+  const run = async (data: { estimateId: string; status: PaymentStatus; note?: string; balancePaid?: number; method?: string }, okMsg: string) => {
     if (busy) return;
     setBusy(true);
     try {
