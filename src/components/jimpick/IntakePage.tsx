@@ -4,6 +4,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Step1, Step2, Step3 } from "./screens";
+import { CharacterGuide, CharacterImg } from "./CharacterGuide";
 import { MobileShell, TopBar, BottomButtonBar, PrimaryButton } from "./ui";
 import { CustomerFlowProvider, type Estimate, type Screen } from "@/lib/jimpick";
 import { InAppBrowserNotice, useForceLightPage } from "./InAppBrowserNotice";
@@ -64,7 +65,7 @@ export function IntakePage({ token }: { token: string }) {
   if (!data) return <Shell><div className="py-24 text-center text-xl">불러오는 중…</div></Shell>;
   if (!data.ok) return <Shell><Message text={data.error ?? "링크를 열 수 없습니다."} /></Shell>;
   if (closed) return <Shell company={data.companyName}><Message text={CLOSED} sub={`문의: ${data.contact}`} /></Shell>;
-  if (done) return <div className="jp-intake-done" data-intake-done><p className="text-2xl font-black">{DONE}</p></div>;
+  if (done) return <div className="jp-intake-done" data-intake-done><CharacterImg pose="thumbsup" size={140} priority className="mx-auto mb-4" /><p className="text-2xl font-black">{DONE}</p></div>;
   if (!form) return null;
 
   return <div className="jp-customer-flow">
@@ -117,7 +118,7 @@ function IntakeEstimateFlow({ token, form, setForm, data, step, setStep, consent
       <MobileShell className="jp-estimate-flow jp-tone-4">
         <TopBar title="4단계. 현재 사는 집 평수" onBack={() => setStep(3)} />
         <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
-          <p className="text-lg font-bold">지금 사시는 집의 평수를 하나만 골라 주세요.</p>
+          <CharacterGuide pose="house" priority text="지금 사시는 집의 평수를 하나만 골라 주세요." />
           <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="현재 집 평수">
             {SIZE_CHOICES.map((s) => (
               <button key={s} type="button" role="radio" aria-checked={form.fromSize === s}
@@ -132,6 +133,7 @@ function IntakeEstimateFlow({ token, form, setForm, data, step, setStep, consent
       <MobileShell className="jp-estimate-flow jp-tone-4">
         <TopBar title="입력 내용 확인" onBack={() => setStep(4)} />
         <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
+          <CharacterGuide pose="document" priority text="입력하신 내용을 확인해 주세요." />
           <Review form={form} consent={consent} setConsent={setConsent} />
           {err && <p role="alert" className="text-destructive font-bold">{err}</p>}
         </div>
