@@ -230,3 +230,12 @@
 - [x] 고객 화면 밝기 고정(useForceLightPage) — 직원 보기에는 미적용
 - [x] 화면 시험(384×854, 다크모드 브라우저): 카드 1px rgb(107,114,128), 확인란 흰→#2F80ED, 버튼 #93C5FD→#2F80ED
 - [ ] 실물 삼성 인터넷에서 확인란·버튼이 밝게 보이는지 확인
+
+## 고객 작업 조건 중복 선택 수정 (2026-10-16)
+- [x] 원인: newEstimate() 기본값 fromEnv/toEnv "엘리베이터"가 고객 초안 변환(intakeToEstimate)에서 기본 선택으로 되살아남 → 사다리차만 골라도 엘리베이터가 같이 저장·표시됨 (DB에서 확인: est_intake_5f22e3452fff4116, toEnv+ ladderTo 동시 저장)
+- [x] intakeToEstimate: 기본값 끼워넣기 제거, 사다리차를 고른 장소는 방식 선택 비움, 방문 후 결정이면 방식·사다리차 모두 비움
+- [x] estimateToIntake: 초안→폼 복원 시에도 사다리차 있으면 방식 선택 비움(셋 중 하나만 유지)
+- [x] mergeIntakeIntoDraft: 고객 폼의 사다리차를 업체 견적에 반영할 때 그 장소의 방식 선택 삭제
+- [x] 저장된 자료 정리(마이그레이션 0023): est_intake_ 초안·intake_requests draft/submission에서 ladderTo=true+toEnv 동시 건의 toEnv 제거(1건)
+- [x] 규칙 시험 7개 추가(intake-estimate-adapter.test.ts), 전체 125개 통과, build OK
+- [ ] 고객 링크 3단계 화면에서 사다리차 선택 시 엘리베이터 해제 표시 실물 확인
