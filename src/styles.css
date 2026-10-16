@@ -564,3 +564,5 @@ html.jp-force-light, html.jp-force-light body { color-scheme: light only; backgr
 .jp-redesign [data-choice-selected="true"]::after { content: "✓"; position: absolute; top: -8px; right: -8px; display: flex; height: 22px; width: 22px; align-items: center; justify-content: center; border-radius: 999px; background: #ff8a00; color: #ffffff; font-size: 13px; font-weight: 900; box-shadow: 0 0 0 2px #ffffff; }
 .jp-redesign .jp-next-btn { background: linear-gradient(180deg, #2f80ed 0%, #1565e0 100%) !important; box-shadow: 0 8px 18px rgba(21, 101, 224, 0.32) !important; font-size: 20px; font-weight: 900; min-height: 60px; }
 .jp-redesign .jp-next-btn > span:first-child { display: none; }
+.jp-form-label { white-space: nowrap; }
+.jp-hero-bubble { word-break: keep-all; }
