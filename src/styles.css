@@ -533,4 +533,4 @@ html.jp-force-light, html.jp-force-light body { color-scheme: light only; backgr
 :root { --intake-selection: #FF8A00; }
 .jp-pick-orange, .jp-customer-flow [data-choice-selected="true"] { border-color: var(--intake-selection) !important; box-shadow: 0 0 0 2px var(--intake-selection) !important; }
 /* 고객 완료 화면: 흰 배경·검은 글자 고정 */
-.jp-intake-done { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #FFFFFF !important; color: #111111 !important; color-scheme: light; }
+.jp-intake-done { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; background: #FFFFFF !important; color: #111111 !important; color-scheme: light; }
