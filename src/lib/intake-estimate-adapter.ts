@@ -12,13 +12,15 @@ export function intakeToEstimate(form: IntakeForm): Estimate {
     fromAddress: form.fromAddress, fromDetail: form.fromDetail, toAddress: form.toAddress, toDetail: form.toDetail,
     fromX: form.fromX, fromY: form.fromY, toX: form.toX, toY: form.toY,
     fromJibun: form.fromJibun, fromZip: form.fromZip, toJibun: form.toJibun, toZip: form.toZip,
-    fromEnv: form.fromEnv ?? base.fromEnv, toEnv: form.toEnv ?? base.toEnv,
+    // 고객이 고른 작업 방식만 씁니다(견적 기본값을 끼워 넣지 않음).
+    // 사다리차를 고른 장소는 계단·엘리베이터 선택을 비웁니다(셋 중 하나만).
+    fromEnv: form.ladderFrom ? undefined : form.fromEnv, toEnv: form.ladderTo ? undefined : form.toEnv,
     fromFloor: form.fromFloorEdited ? form.fromFloor ?? 1 : strictFloor(form.fromDetail) ?? 1,
     toFloor: form.toFloorEdited ? form.toFloor ?? 1 : strictFloor(form.toDetail) ?? 1,
     fromFloorEdited: form.fromFloorEdited, toFloorEdited: form.toFloorEdited,
     ladderFrom: form.ladderFrom ?? false, ladderTo: form.ladderTo ?? false,
     fromDecideOnVisit: form.fromDecideOnVisit, toDecideOnVisit: form.toDecideOnVisit,
-    ...(form.fromDecideOnVisit ? { fromEnv: undefined } : {}), ...(form.toDecideOnVisit ? { toEnv: undefined } : {}),
+    ...(form.fromDecideOnVisit ? { fromEnv: undefined, ladderFrom: false } : {}), ...(form.toDecideOnVisit ? { toEnv: undefined, ladderTo: false } : {}),
     sizeTab: form.fromSize || base.sizeTab,
     rooms: names.map(name => ({ id: `r_${name}`, name,
       items: Object.fromEntries(Object.entries(form.rooms[name] ?? {}).map(([id, pick]) => [id, pick.qty])),
@@ -34,7 +36,8 @@ export function estimateToIntake(draft: Estimate, previous: IntakeForm): IntakeF
     fromAddress: draft.fromAddress, fromDetail: draft.fromDetail, toAddress: draft.toAddress, toDetail: draft.toDetail,
     fromX: draft.fromX, fromY: draft.fromY, toX: draft.toX, toY: draft.toY,
     fromJibun: draft.fromJibun, fromZip: draft.fromZip, toJibun: draft.toJibun, toZip: draft.toZip,
-    fromEnv: draft.fromEnv, toEnv: draft.toEnv, fromFloor: draft.fromFloor, toFloor: draft.toFloor,
+    // 사다리차를 고른 장소는 계단·엘리베이터 선택을 다시 살리지 않습니다(셋 중 하나만).
+    fromEnv: draft.ladderFrom ? undefined : draft.fromEnv, toEnv: draft.ladderTo ? undefined : draft.toEnv, fromFloor: draft.fromFloor, toFloor: draft.toFloor,
     fromFloorEdited: draft.fromFloorEdited, toFloorEdited: draft.toFloorEdited,
     ladderFrom: draft.ladderFrom, ladderTo: draft.ladderTo,
     fromDecideOnVisit: draft.fromDecideOnVisit, toDecideOnVisit: draft.toDecideOnVisit,

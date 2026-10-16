@@ -363,6 +363,8 @@ export function mergeIntakeIntoDraft(
     const ladderKey = side === "from" ? "ladderFrom" : "ladderTo";
     if (form[envKey] !== undefined) out[envKey] = form[envKey];
     if (form[ladderKey] !== undefined) out[ladderKey] = form[ladderKey];
+    // 사다리차를 고른 장소는 계단·엘리베이터 선택을 남기지 않습니다(셋 중 하나만).
+    if (form[ladderKey]) delete out[envKey];
     // 고객이 「방문 후 결정」을 고르면 그 장소의 작업 방식·사다리차는 비워 둡니다.
     const decide = side === "from" ? form.fromDecideOnVisit : form.toDecideOnVisit;
     out[`${side}DecideOnVisit`] = !!decide;
