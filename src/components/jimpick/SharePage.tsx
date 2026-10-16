@@ -931,7 +931,7 @@ export function SharePage() {
       >
         <Headphones className="h-[24px] w-[24px]" strokeWidth={1.9} /> 문의하기
       </a>
-      <div className="mt-4 flex justify-center" aria-hidden><CharacterImg pose="thumbsup" size={72} /></div>
+      <div className="jp-hero-stage mt-4" style={{ minHeight: 0 }}><p className="jp-hero-bubble">견적서를 확인하고 동의해 주세요!</p><CharacterImg pose="document" size={120} className="jp-hero-char" /></div>
     </div>,
   );
 }
