@@ -8,7 +8,9 @@ import {
   Truck,
   Package,
   ShieldCheck,
+  Check,
   FileText,
+
   ChevronRight,
   ChevronDown,
   CheckCircle2,
@@ -51,7 +53,9 @@ import {
 } from "@/lib/terms.functions";
 
 import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
+import { useForceLightPage } from "./InAppBrowserNotice";
 import { printSheet } from "@/lib/sheet-export";
+
 import { saveSheetAsPng } from "@/lib/sheet-image";
 import { BankAccountActions } from "./BankAccountActions";
 
@@ -102,7 +106,10 @@ export function SharePage() {
   const preview = useLoaderData({ from: "/share/$id" });
   const search = useSearch({ from: "/share/$id" }) as { staff?: string; t?: string; rm?: string; card?: string };
   const staffMode = String(search?.staff ?? "") === "1";
+  // 고객용 견적서는 항상 밝게 — 기기 다크모드에서 확인란·버튼이 어두워지는 것을 막습니다 (직원 보기에는 적용하지 않음)
+  useForceLightPage(!staffMode);
   const token = String(search?.t ?? "").slice(0, 80);
+
   const reminderToken = String(search?.rm ?? "").slice(0, 80);
   const isReminder = search.card === "reminder" || Boolean(reminderToken);
   const isDeposit = search.card === "deposit";
@@ -885,9 +892,19 @@ export function SharePage() {
               type="checkbox"
               checked={checked}
               onChange={(e) => setChecked(e.target.checked)}
-              className="h-[28px] w-[28px] shrink-0 rounded-md accent-[#3578C8]"
+              className="peer sr-only"
             />
+            {/* 선택 전 흰 배경·밝은 회색 테두리, 선택 후 밝은 파랑 배경·흰 체크 */}
+            <span
+              aria-hidden="true"
+              className={`flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[8px] border-2 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#2F80ED] ${
+                checked ? "border-[#2F80ED] bg-[#2F80ED]" : "border-[#CBD5E1] bg-white"
+              }`}
+            >
+              {checked && <Check className="h-[19px] w-[19px] text-white" strokeWidth={3.2} />}
+            </span>
             견적서와 약관을 확인했습니다
+
           </label>
           {saveError && (
             <div className="mt-3 rounded-xl bg-[#FBEAEA] p-3 text-[15px] font-semibold text-[#D95C5C]">
@@ -897,7 +914,8 @@ export function SharePage() {
           <button
             onClick={() => void confirmReservation()}
             disabled={!checked || saving || !hasData}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-b from-[#3578C8] to-[#2C63A8] py-4 text-[22px] font-black text-white shadow-[0_4px_12px_rgba(8,100,220,0.35)] disabled:from-[#C7D6EE] disabled:to-[#C7D6EE] disabled:shadow-none"
+            className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-xl bg-[#2F80ED] py-4 text-[22px] font-black text-white shadow-[0_4px_12px_rgba(47,128,237,0.35)] disabled:bg-[#93C5FD] disabled:text-white disabled:shadow-none"
+
           >
             <CheckCircle2 className="h-[26px] w-[26px]" strokeWidth={2.2} />
             {saving ? "요청 중..." : "동의하고 예약 요청"}

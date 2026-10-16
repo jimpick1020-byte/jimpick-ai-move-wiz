@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 /** 고객 화면은 기기·앱의 다크모드와 상관없이 항상 밝은 흰 배경으로 고정합니다. */
-export function useForceLightPage() {
+export function useForceLightPage(enabled = true) {
   useEffect(() => {
+    if (!enabled) return;
     const html = document.documentElement;
+
     const prev = { cls: html.className, scheme: html.style.colorScheme, bg: html.style.background, body: document.body.style.background };
     html.classList.remove("dark");
     html.classList.add("jp-force-light");
