@@ -652,7 +652,11 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             </div>
 
             {/* 고객 동의 상태 — 고객이 직접 동의해야만 바뀝니다 */}
-            <div className="rounded-[14px] border border-[#E5E7EB] bg-white px-3.5 py-3.5">
+            <div
+              className={`rounded-[14px] border-[3px] bg-white px-3.5 py-3.5 ${
+                acceptedAt ? "border-[#22C55E]" : "border-[#FF8A00]"
+              }`}
+            >
               <div className="flex items-center gap-2">
                 <ShieldCheck
                   className="h-[20px] w-[20px] shrink-0 text-[#25282D]"
