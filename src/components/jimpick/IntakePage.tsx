@@ -4,7 +4,8 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Step1, Step2, Step3 } from "./screens";
-import { CharacterGuide, CharacterImg } from "./CharacterGuide";
+import { CharacterImg } from "./CharacterGuide";
+import { StepHero, ResultHero } from "./StepHero";
 import { MobileShell, TopBar, BottomButtonBar, PrimaryButton } from "./ui";
 import { CustomerFlowProvider, type Estimate, type Screen } from "@/lib/jimpick";
 import { InAppBrowserNotice, useForceLightPage } from "./InAppBrowserNotice";
@@ -115,29 +116,27 @@ function IntakeEstimateFlow({ token, form, setForm, data, step, setStep, consent
   const flow = { persist, hidden: data.hiddenIds ?? [], catalog: (data.items ?? []).map(i => ({ id: i.id, name: i.name, cat: i.group, cat5: i.group, sub: i.family || i.name, group: i.family, emoji: "", extra: 0 })) };
   return <CustomerFlowProvider draft={draft} updateDraft={update} setScreen={navigate} flow={flow}>
     {step === 1 ? <Step1 /> : step === 2 ? <Step2 /> : step === 3 ? <Step3 /> : step === 4 ?
-      <MobileShell className="jp-estimate-flow jp-tone-4">
-        <TopBar title="4단계. 현재 사는 집 평수" onBack={() => setStep(3)} />
-        <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
-          <CharacterGuide pose="house" priority text="지금 사시는 집의 평수를 하나만 골라 주세요." />
+      <MobileShell className="jp-estimate-flow jp-tone-4 jp-redesign">
+        <StepHero step={4} total={4} title="집 평수" pose="house" bubble="지금 사시는 집의 평수를 하나만 골라 주세요." onBack={() => setStep(3)} />
+        <div className="px-4 pt-1 space-y-3 flex-1 overflow-auto pb-32">
           <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="현재 집 평수">
             {SIZE_CHOICES.map((s) => (
-              <button key={s} type="button" role="radio" aria-checked={form.fromSize === s}
+              <button key={s} type="button" role="radio" aria-checked={form.fromSize === s} data-choice-selected={form.fromSize === s}
                 onClick={() => setForm(c => c ? { ...c, fromSize: s } : c)}
                 className={`rounded-2xl border-2 py-4 text-lg font-black ${form.fromSize === s ? "jp-pick-orange border-primary bg-primary/10 text-primary" : "border-border bg-card text-foreground"}`}>{s}</button>
             ))}
           </div>
-          <p className="rounded-2xl bg-muted p-4 text-base font-bold">가구·가전과 자세한 이삿짐은 업체가 방문하여 확인해 드립니다.</p>
+          <p className="jp-form-card text-base font-bold">가구·가전과 자세한 이삿짐은 업체가 방문하여 확인해 드립니다.</p>
         </div>
-        <BottomButtonBar><PrimaryButton disabled={!form.fromSize} onClick={() => { setStep(5); window.scrollTo(0, 0); }}>다음: 입력 내용 확인</PrimaryButton></BottomButtonBar>
+        <BottomButtonBar><PrimaryButton className="jp-next-btn" disabled={!form.fromSize} onClick={() => { setStep(5); window.scrollTo(0, 0); }}>다음: 입력 내용 확인</PrimaryButton></BottomButtonBar>
       </MobileShell> :
-      <MobileShell className="jp-estimate-flow jp-tone-4">
-        <TopBar title="입력 내용 확인" onBack={() => setStep(4)} />
-        <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
-          <CharacterGuide pose="document" priority text="입력하신 내용을 확인해 주세요." />
+      <MobileShell className="jp-estimate-flow jp-tone-4 jp-redesign">
+        <ResultHero title="입력 내용 확인" pose="document" bubble="입력하신 내용을 확인해 주세요." onBack={() => setStep(4)} />
+        <div className="px-4 pt-1 space-y-4 flex-1 overflow-auto pb-32">
           <Review form={form} consent={consent} setConsent={setConsent} />
           {err && <p role="alert" className="text-destructive font-bold">{err}</p>}
         </div>
-        <BottomButtonBar><PrimaryButton disabled={busy} onClick={submit}>{busy ? "저장 중…" : err ? "다시 저장" : "기본정보 입력 완료"}</PrimaryButton></BottomButtonBar>
+        <BottomButtonBar><PrimaryButton className="jp-next-btn" disabled={busy} onClick={submit}>{busy ? "저장 중…" : err ? "다시 저장" : "기본정보 입력 완료"}</PrimaryButton></BottomButtonBar>
       </MobileShell>}
   </CustomerFlowProvider>;
 }

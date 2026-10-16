@@ -59,7 +59,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { CalendarDays as CalendarDaysIcon, Clock as ClockIcon, StickyNote } from "lucide-react";
-import { StepHero, FormCard, FormRow } from "./StepHero";
+import { StepHero, StepProgress, ResultHero, FormCard, FormRow } from "./StepHero";
 
 import {
   useApp,
@@ -1578,7 +1578,7 @@ function AddressSearch({
 }
 
 export function Step2() {
-  const { draft, updateDraft, setScreen } = useApp();
+  const { draft, updateDraft, setScreen, customerFlow } = useApp();
   const [path, setPath] = useState<{ x: number; y: number }[] | null>(null);
   const [routing, setRouting] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
@@ -1659,10 +1659,10 @@ export function Step2() {
     hasFrom ? () => setScreen("step3") : undefined,
   );
   return (
-    <MobileShell className="jp-estimate-flow jp-tone-2">
-      <TopBar title="2단계. 주소 검색" onBack={() => setScreen("step1")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
-        <CharacterGuide pose="mappin" priority text="출발지와 도착지 주소를 입력해 주세요!" />
+    <MobileShell className="jp-estimate-flow jp-tone-2 jp-redesign">
+      <StepHero step={2} total={customerFlow ? 4 : 6} title="주소 입력" pose="mappin"
+        bubble="출발지와 도착지 주소를 입력해 주세요!" onBack={() => setScreen("step1")} />
+      <div className="px-4 pt-1 space-y-4 flex-1 overflow-auto pb-32" {...swipe}>
         <AddressSearch
           label="출발지"
           value={draft.fromAddress}
@@ -1748,7 +1748,7 @@ export function Step2() {
       </div>
 
       <BottomButtonBar>
-        <PrimaryButton onClick={() => setScreen("step3")} disabled={!hasFrom}>
+        <PrimaryButton className="jp-next-btn" onClick={() => setScreen("step3")} disabled={!hasFrom}>
           다음: 작업 조건
         </PrimaryButton>
       </BottomButtonBar>
@@ -1958,10 +1958,10 @@ export function Step3() {
      () => setScreen("scan"),
   );
   return (
-    <MobileShell className="jp-estimate-flow jp-tone-3">
-      <TopBar title="3단계. 작업 조건" onBack={() => setScreen("step2")} />
-      <div className="p-5 space-y-5 flex-1 overflow-auto pb-24" {...swipe}>
-        <CharacterGuide pose="elevator" priority text="층수·엘리베이터·사다리차 조건을 골라 주세요!" />
+    <MobileShell className="jp-estimate-flow jp-tone-3 jp-redesign">
+      <StepHero step={3} total={customerFlow ? 4 : 6} title="작업 조건" pose="elevator"
+        bubble="층수·엘리베이터·사다리차 조건을 골라 주세요!" onBack={() => setScreen("step2")} />
+      <div className="px-4 pt-1 space-y-5 flex-1 overflow-auto pb-32" {...swipe}>
         {(["from", "to"] as const).map((side) => {
           const isFrom = side === "from";
           const place = isFrom ? "출발지" : "도착지";
@@ -2061,7 +2061,7 @@ export function Step3() {
         })}
       </div>
       <BottomButtonBar>
-         <PrimaryButton onClick={() => setScreen("scan")}>{customerFlow ? "다음: 집 평수 선택" : "다음: AI 연속촬영"}</PrimaryButton>
+         <PrimaryButton className="jp-next-btn" onClick={() => setScreen("scan")}>{customerFlow ? "다음: 집 평수 선택" : "다음: AI 연속촬영"}</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
@@ -2090,9 +2090,10 @@ export function Step4() {
   ];
   const swipe = useSwipeNav(() => setScreen("step6"), goNext);
   return (
-    <MobileShell className="jp-estimate-flow jp-tone-5">
-      <TopBar title="5단계. 차량 선택" onBack={() => setScreen("step6")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
+    <MobileShell className="jp-estimate-flow jp-tone-5 jp-redesign">
+      <StepHero step={5} total={6} title="차량 선택" pose="boxes"
+        bubble="짐 양에 맞는 차량을 골라 주세요!" onBack={() => setScreen("step6")} />
+      <div className="px-4 pt-1 space-y-4 flex-1 overflow-auto pb-32" {...swipe}>
         {vehicles.map((v) => (
           <Card key={v.key} selected={v.val > 0}>
             <div className="flex items-center justify-between">
@@ -3435,9 +3436,10 @@ export function Step6() {
   };
 
   return (
-    <MobileShell className="jp-estimate-flow jp-tone-4">
+    <MobileShell className="jp-estimate-flow jp-tone-4 jp-redesign">
       {/* 헤더 */}
-      <div className="px-4 pt-2 pb-3 bg-white border-b border-[#E5E7EB]">
+      <div className="px-4 pt-2 pb-3 bg-white/80 border-b border-[#E3EDF9]">
+        <div className="mb-2"><StepProgress current={4} total={customerFlow ? 4 : 6} /></div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -4531,10 +4533,10 @@ export function OptionsScreen() {
   const storageOn = usesStorage(draft);
 
   return (
-    <MobileShell className="jp-estimate-flow jp-tone-6">
-       <TopBar title="6단계. 옵션·보관료" onBack={() => setScreen("step4")} />
-      <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
-        <CharacterGuide pose="calculator" priority text="추가 작업과 추가 비용을 확인해 주세요!" />
+    <MobileShell className="jp-estimate-flow jp-tone-6 jp-redesign">
+      <StepHero step={6} total={6} title="옵션·보관료" pose="calculator"
+        bubble="추가 작업과 추가 비용을 확인해 주세요!" onBack={() => setScreen("step4")} />
+      <div className="px-4 pt-1 space-y-3 flex-1 overflow-auto pb-32">
         {draft.options.length === 0 && (
           <div className="text-center text-[#6B7280] py-10 text-sm">
             추가된 옵션 품목이 없습니다. 아래에서 직접 추가해 주세요.
@@ -5472,8 +5474,8 @@ export function Result() {
   };
 
   return (
-    <MobileShell className="jp-estimate-flow">
-      <TopBar
+    <MobileShell className="jp-estimate-flow jp-redesign">
+      <ResultHero
         title={backTo === "options" ? "견적 결과" : "견적 상세"}
         onBack={() => {
           // 견적 상세에서 뒤로가기는 6단계(옵션)로 돌아갑니다.
@@ -5482,8 +5484,7 @@ export function Result() {
           setScreen("options");
         }}
       />
-      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
-        <CharacterGuide pose="document" priority text="최종 견적 금액을 확인해 주세요!" />
+      <div className="px-4 pt-1 space-y-4 flex-1 overflow-auto pb-24">
         <div
           className="rounded-2xl p-6 text-white text-center"
           style={{ background: "linear-gradient(135deg, #0A2A6C 0%, #3578C8 100%)" }}
