@@ -215,6 +215,7 @@ import charC from "@/assets/jimpick-char-c.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { JimpickCharacter } from "./JimpickCharacter";
+import { CharacterGuide, CharacterImg } from "./CharacterGuide";
 
 import {
   icon3dFor,
@@ -1311,6 +1312,7 @@ export function Step1() {
     <MobileShell className="jp-estimate-flow jp-tone-1">
       <TopBar title="1단계. 고객 정보 입력" onBack={() => setScreen("home")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
+        <CharacterGuide pose="clipboard" priority text="이사 견적을 위해 고객 정보를 입력해 주세요!" />
         {!customerFlow && !draft.intakeRequestId && <IntakeRequestButton label="고객 사전정보 요청" name={draft.customerName} phone={draft.phone} wide />}
         {!customerFlow && draft.intakeRequestId && (
           <div className="rounded-2xl bg-[#EFF6FF] p-3 text-sm text-[#1E3A8A] space-y-0.5">
@@ -1650,6 +1652,7 @@ export function Step2() {
     <MobileShell className="jp-estimate-flow jp-tone-2">
       <TopBar title="2단계. 주소 검색" onBack={() => setScreen("step1")} />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
+        <CharacterGuide pose="mappin" priority text="출발지와 도착지 주소를 입력해 주세요!" />
         <AddressSearch
           label="출발지"
           value={draft.fromAddress}
@@ -1948,6 +1951,7 @@ export function Step3() {
     <MobileShell className="jp-estimate-flow jp-tone-3">
       <TopBar title="3단계. 작업 조건" onBack={() => setScreen("step2")} />
       <div className="p-5 space-y-5 flex-1 overflow-auto pb-24" {...swipe}>
+        <CharacterGuide pose="elevator" priority text="층수·엘리베이터·사다리차 조건을 골라 주세요!" />
         {(["from", "to"] as const).map((side) => {
           const isFrom = side === "from";
           const place = isFrom ? "출발지" : "도착지";
@@ -3436,7 +3440,8 @@ export function Step6() {
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
-          <h1 className="flex-1 text-center text-[20px] font-black text-[#25282D] leading-tight">
+          <h1 className="flex-1 flex items-center justify-center gap-1 text-center text-[20px] font-black text-[#25282D] leading-tight">
+            <CharacterImg pose="boxes" size={40} priority />
             4단계. 직접 선택
           </h1>
           <div className="shrink-0 w-10" />
@@ -4519,6 +4524,7 @@ export function OptionsScreen() {
     <MobileShell className="jp-estimate-flow jp-tone-6">
        <TopBar title="6단계. 옵션·보관료" onBack={() => setScreen("step4")} />
       <div className="p-5 space-y-3 flex-1 overflow-auto pb-24">
+        <CharacterGuide pose="calculator" priority text="추가 작업과 추가 비용을 확인해 주세요!" />
         {draft.options.length === 0 && (
           <div className="text-center text-[#6B7280] py-10 text-sm">
             추가된 옵션 품목이 없습니다. 아래에서 직접 추가해 주세요.
@@ -5467,6 +5473,7 @@ export function Result() {
         }}
       />
       <div className="p-5 space-y-4 flex-1 overflow-auto pb-24">
+        <CharacterGuide pose="document" priority text="최종 견적 금액을 확인해 주세요!" />
         <div
           className="rounded-2xl p-6 text-white text-center"
           style={{ background: "linear-gradient(135deg, #0A2A6C 0%, #3578C8 100%)" }}

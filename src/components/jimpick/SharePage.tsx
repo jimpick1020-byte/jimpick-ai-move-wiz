@@ -1,3 +1,4 @@
+import { CharacterImg } from "./CharacterGuide";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatTel } from "@/lib/format-input";
 import { useLoaderData, useParams, useSearch } from "@tanstack/react-router";
@@ -930,6 +931,7 @@ export function SharePage() {
       >
         <Headphones className="h-[24px] w-[24px]" strokeWidth={1.9} /> 문의하기
       </a>
+      <div className="mt-4 flex justify-center" aria-hidden><CharacterImg pose="thumbsup" size={72} /></div>
     </div>,
   );
 }
