@@ -1384,7 +1384,7 @@ export function Step1() {
         </FormRow>
         </FormCard>
         <FormCard>
-        <FormRow icon={<CalendarDays className="h-5 w-5" />} label="이사 날짜" stack>
+        <FormRow icon={<CalendarDaysIcon className="h-5 w-5" />} label="이사 날짜" stack>
           <MoveDateCalendar
             value={draft.moveDate}
             onSelect={(date) =>
@@ -1398,7 +1398,7 @@ export function Step1() {
             }
           />
         </FormRow>
-        <FormRow icon={<Clock className="h-5 w-5" />} label="시작 시간">
+        <FormRow icon={<ClockIcon className="h-5 w-5" />} label="시작 시간">
           <div className="grid grid-cols-2 gap-2">
             <select
               aria-label="오전 오후"
