@@ -58,6 +58,8 @@ import {
   Headphones,
   BookOpen,
 } from "lucide-react";
+import { CalendarDays as CalendarDaysIcon, Clock as ClockIcon, StickyNote } from "lucide-react";
+import { StepHero, FormCard, FormRow } from "./StepHero";
 
 import {
   useApp,
