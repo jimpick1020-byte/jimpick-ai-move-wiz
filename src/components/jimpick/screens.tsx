@@ -217,7 +217,7 @@ import charC from "@/assets/jimpick-char-c.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { JimpickCharacter } from "./JimpickCharacter";
-import { CharacterGuide, CharacterImg } from "./CharacterGuide";
+import { CharacterImg } from "./CharacterGuide";
 
 import {
   icon3dFor,

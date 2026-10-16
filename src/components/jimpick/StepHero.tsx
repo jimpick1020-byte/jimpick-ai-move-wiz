@@ -56,3 +56,25 @@ export function FormRow({ icon, label, children, stack = false }: { icon: ReactN
     </div>
   );
 }
+
+/** 단계 번호 없는 화면(견적 결과·확인) 머리 영역 — 같은 배치, 진행 표시선 없음 */
+export function ResultHero({ title, bubble = "최종 견적 금액을 확인해 주세요!", pose = "document", onBack }: {
+  title: string; bubble?: string; pose?: CharacterPose; onBack?: () => void;
+}) {
+  return (
+    <header className="jp-step-hero">
+      <div className="flex items-center gap-2">
+        {onBack && (
+          <button type="button" aria-label="뒤로" onClick={() => { tap("soft"); onBack(); }} className="jp-hero-back">
+            <ChevronLeft className="h-6 w-6" strokeWidth={2.4} />
+          </button>
+        )}
+        <h1 className="jp-hero-title !mt-0 min-w-0 flex-1 truncate">{title}</h1>
+      </div>
+      <div className="jp-hero-stage">
+        <p className="jp-hero-bubble">{bubble}</p>
+        <CharacterImg pose={pose} size={168} priority className="jp-hero-char" />
+      </div>
+    </header>
+  );
+}
