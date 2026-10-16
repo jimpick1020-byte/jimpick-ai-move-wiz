@@ -19,6 +19,8 @@ import document240 from "@/assets/character/char-document-v1-240.webp";
 import document480 from "@/assets/character/char-document-v1-480.webp";
 import thumbsup240 from "@/assets/character/char-thumbsup-v1-240.webp";
 import thumbsup480 from "@/assets/character/char-thumbsup-v1-480.webp";
+import camera240 from "@/assets/character/char-camera-v1-240.webp";
+import camera480 from "@/assets/character/char-camera-v1-480.webp";
 
 const POSES = {
   clipboard: [clipboard240, clipboard480],
@@ -29,6 +31,7 @@ const POSES = {
   calculator: [calculator240, calculator480],
   document: [document240, document480],
   thumbsup: [thumbsup240, thumbsup480],
+  camera: [camera240, camera480],
 } as const;
 export type CharacterPose = keyof typeof POSES;
 
