@@ -534,3 +534,35 @@ html.jp-force-light, html.jp-force-light body { color-scheme: light only; backgr
 .jp-pick-orange, .jp-customer-flow [data-choice-selected="true"] { border-color: var(--intake-selection) !important; box-shadow: 0 0 0 2px var(--intake-selection) !important; }
 /* 고객 완료 화면: 흰 배경·검은 글자 고정 */
 .jp-intake-done { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; background: #FFFFFF !important; color: #111111 !important; color-scheme: light; }
+
+/* ===== 새 단계 화면 디자인 (jp-redesign) — 연한 하늘색 배경·흰 카드·주황 선택·밝은 파란 다음 버튼 ===== */
+.jp-redesign .jp-shell-inner { background: linear-gradient(180deg, #e6f1ff 0%, #f3f8ff 38%, #ffffff 100%) !important; }
+.jp-step-hero { padding: 12px 18px 0; }
+.jp-hero-back { display: flex; height: 44px; width: 44px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 14px; background: #ffffff; color: #1e3a8a; box-shadow: 0 2px 8px rgba(30, 64, 175, 0.12); }
+.jp-step-progress { display: flex; align-items: center; justify-content: center; gap: 0; margin: 0 auto; max-width: 240px; }
+.jp-step-progress li { position: relative; flex: 1; display: flex; justify-content: center; }
+.jp-step-progress li::before { content: ""; position: absolute; top: 50%; right: 50%; width: 100%; height: 3px; transform: translateY(-50%); background: #c9dcf5; }
+.jp-step-progress li:first-child::before { display: none; }
+.jp-step-progress li[data-state="done"]::before, .jp-step-progress li[data-state="current"]::before { background: #1565e0; }
+.jp-step-progress li::after { content: ""; position: relative; z-index: 1; height: 12px; width: 12px; border-radius: 999px; background: #c9dcf5; border: 2px solid #ffffff; }
+.jp-step-progress li[data-state="done"]::after { background: #1565e0; }
+.jp-step-progress li[data-state="current"]::after { height: 18px; width: 18px; background: #ffffff; border: 5px solid #1565e0; }
+.jp-hero-title { margin-top: 14px; text-align: left; font-size: 28px; line-height: 1.2; font-weight: 900; color: #111827; }
+.jp-hero-title span { color: #1565e0; }
+.jp-hero-stage { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; min-height: 172px; }
+.jp-hero-bubble { position: relative; align-self: center; flex: 1; max-width: 190px; border-radius: 20px; background: #ffffff; padding: 12px 14px; font-size: 16px; line-height: 1.45; font-weight: 800; color: #1f2937; box-shadow: 0 6px 18px rgba(30, 64, 175, 0.12); }
+.jp-hero-bubble::after { content: ""; position: absolute; right: -8px; top: 50%; width: 16px; height: 16px; background: #ffffff; transform: translateY(-50%) rotate(45deg); border-radius: 3px; }
+.jp-hero-char { margin-bottom: -6px; filter: drop-shadow(0 8px 14px rgba(30, 64, 175, 0.18)); }
+.jp-form-card { border-radius: 22px; background: #ffffff; padding: 16px; box-shadow: 0 8px 24px rgba(30, 64, 175, 0.08); border: 1px solid #e3edf9; display: flex; flex-direction: column; gap: 14px; }
+.jp-form-row { display: flex; align-items: center; gap: 10px; }
+.jp-form-row-stack { flex-direction: column; align-items: stretch; gap: 8px; }
+.jp-form-label { display: flex; align-items: center; gap: 8px; width: 96px; flex-shrink: 0; font-size: 17px; font-weight: 900; color: #1f2937; }
+.jp-form-row-stack .jp-form-label { width: auto; }
+.jp-form-icon { display: inline-flex; color: #1565e0; }
+.jp-redesign [data-choice-selected] { position: relative; }
+.jp-redesign [data-choice-selected="true"] { border-color: #ff8a00 !important; box-shadow: 0 0 0 2px #ff8a00 !important; background: #fff7ed !important; }
+.jp-redesign [data-choice-selected="true"]::after { content: "✓"; position: absolute; top: -8px; right: -8px; display: flex; height: 22px; width: 22px; align-items: center; justify-content: center; border-radius: 999px; background: #ff8a00; color: #ffffff; font-size: 13px; font-weight: 900; box-shadow: 0 0 0 2px #ffffff; }
+.jp-redesign .jp-next-btn { background: linear-gradient(180deg, #2f80ed 0%, #1565e0 100%) !important; box-shadow: 0 8px 18px rgba(21, 101, 224, 0.32) !important; font-size: 20px; font-weight: 900; min-height: 60px; }
+.jp-redesign .jp-next-btn > span:first-child { display: none; }
+.jp-form-label { white-space: nowrap; }
+.jp-hero-bubble { word-break: keep-all; }
