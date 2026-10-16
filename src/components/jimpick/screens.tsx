@@ -7036,8 +7036,13 @@ export function Customers() {
           }
           const keys = [...gm.keys()].filter((k) => k !== "undated").sort().reverse();
           if (gm.has("undated")) keys.push("undated");
-          return keys.map((k, i) => {
-            const open = q ? true : (custOpen[k] ?? i === 0);
+          // 기본 펼침은 이번 달(한국시간). 이번 달 고객이 없으면 가장 가까운 다음 달, 그것도 없으면 첫 묶음.
+          const curMonth = seoulMonthKey();
+          const defKey = gm.has(curMonth)
+            ? curMonth
+            : (keys.find((k) => k !== "undated" && k > curMonth) ?? keys[0]);
+          return keys.map((k) => {
+            const open = q ? true : (custOpen[k] ?? k === defKey);
             const rows = [...gm.get(k)!].sort((a, b) => (parseMoveDate(a.moveDate) ?? 0) - (parseMoveDate(b.moveDate) ?? 0));
             const title = k === "undated" ? "이사 날짜 미정" : `${Number(k.slice(0, 4))}년 ${Number(k.slice(5))}월`;
             return (
