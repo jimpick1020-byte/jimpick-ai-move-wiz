@@ -59,7 +59,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { CalendarDays as CalendarDaysIcon, Clock as ClockIcon, StickyNote } from "lucide-react";
-import { StepHero, StepProgress, ResultHero, FormCard, FormRow } from "./StepHero";
+import { StepHero, ResultHero, FormCard, FormRow } from "./StepHero";
 
 import {
   useApp,
@@ -217,7 +217,6 @@ import charC from "@/assets/jimpick-char-c.png";
 import logoImg from "@/assets/jimpick-logo.png";
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { JimpickCharacter } from "./JimpickCharacter";
-import { CharacterImg } from "./CharacterGuide";
 
 import {
   icon3dFor,
@@ -2095,7 +2094,7 @@ export function Step4() {
         bubble="짐 양에 맞는 차량을 골라 주세요!" onBack={() => setScreen("step6")} />
       <div className="px-4 pt-1 space-y-4 flex-1 overflow-auto pb-32" {...swipe}>
         {vehicles.map((v) => (
-          <Card key={v.key} selected={v.val > 0}>
+          <Card key={v.key} selected={v.val > 0} className="jp-quantity-card" data-quantity-selected={v.val > 0}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Art3D src={v.img} alt={v.name} size={72} />
@@ -2245,7 +2244,7 @@ export function Step4() {
         {/* 사다리차와 작업 인원 사이 간격 넓히기 */}
         <div aria-hidden className="h-6" />
         <Field label="작업 인원">
-          <Card>
+          <Card selected={draft.workers > 0} className="jp-quantity-card" data-quantity-selected={draft.workers > 0}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Art3D src={CHAR_IMG.male} alt="남자 작업자" size={56} />
@@ -2263,7 +2262,7 @@ export function Step4() {
             </div>
           </Card>
           <div className="h-2" />
-          <Card>
+          <Card selected={draft.kitchenStaff > 0} className="jp-quantity-card" data-quantity-selected={draft.kitchenStaff > 0}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Art3D src={CHAR_IMG.female} alt="주방 이모" size={56} />
@@ -3437,35 +3436,8 @@ export function Step6() {
 
   return (
     <MobileShell className="jp-estimate-flow jp-tone-4 jp-redesign">
-      {/* 헤더 */}
-      <div className="px-4 pt-2 pb-3 bg-white/80 border-b border-[#E3EDF9]">
-        <div className="mb-2"><StepProgress current={4} total={customerFlow ? 4 : 6} /></div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              tap("soft");
-              // 직접 선택의 바로 이전 화면인 4단계 촬영으로 복귀합니다.
-              setScreen("scan");
-            }}
-            aria-label="뒤로"
-            className="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] flex items-center justify-center text-[#25282D] shadow-[0_4px_0_#E5E7EB,0_10px_18px_-10px_rgba(7,81,216,0.5),inset_0_1px_0_#fff] active:translate-y-[2px] active:shadow-[0_1px_0_#E5E7EB]"
-          >
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-          <h1 className="flex-1 flex items-center justify-center gap-1 text-center text-[20px] font-black text-[#25282D] leading-tight">
-            <CharacterImg pose="boxes" size={40} priority />
-            4단계. 직접 선택
-          </h1>
-          <div className="shrink-0 w-10" />
-        </div>
-
-        <p className="mt-2 text-center text-[12px] text-[#6B7280] font-semibold">
-          {totalKinds > 0
-            ? `${size} · 공간을 눌러 품목을 담아주세요`
-            : `${size} · 평수를 고르고 방을 추가·삭제하세요`}
-        </p>
-
-      </div>
+      <StepHero step={4} total={customerFlow ? 4 : 6} title="직접 선택" pose="boxes"
+        bubble="방을 선택하고 이삿짐 품목을 확인해 주세요." onBack={() => setScreen("scan")} />
 
       {/* 평수 선택 — 예전처럼 한 줄을 좌우로 밀어서 봅니다 */}
       <div className="bg-white border-b border-[#E5E7EB] px-4 py-3">

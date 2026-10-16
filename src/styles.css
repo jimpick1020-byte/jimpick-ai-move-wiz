@@ -566,3 +566,8 @@ html.jp-force-light, html.jp-force-light body { color-scheme: light only; backgr
 .jp-redesign .jp-next-btn > span:first-child { display: none; }
 .jp-form-label { white-space: nowrap; }
 .jp-hero-bubble { word-break: keep-all; }
+
+/* 차량과 작업 인원은 같은 수량 기반 선택 표시를 공유합니다. */
+:root { --jp-quantity-selection: var(--intake-selection); --jp-quantity-ring: 0 0 0 2px var(--jp-quantity-selection); }
+.jp-redesign .jp-quantity-card { transition: none; }
+.jp-redesign .jp-quantity-card[data-quantity-selected="true"] { border-color: var(--jp-quantity-selection); box-shadow: var(--jp-quantity-ring); }

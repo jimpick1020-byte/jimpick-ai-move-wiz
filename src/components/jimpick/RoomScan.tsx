@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp, guessCategory } from "@/lib/jimpick";
 import { registerCustomIcons } from "@/lib/jimpick-icon3d";
-import { MobileShell, TopBar, PrimaryButton, BottomButtonBar } from "./ui";
+import { MobileShell, PrimaryButton, BottomButtonBar } from "./ui";
+import { StepHero } from "./StepHero";
 import { tap } from "@/lib/feedback";
 import { analyzeRoomScan, saveCroppedItem, type ScanDetection } from "@/lib/room-scan.functions";
 import { dedupedAddQty } from "@/lib/scan-rules";
@@ -540,8 +541,7 @@ export function RoomScanScreen() {
   const latestUrl = latest ? urls[latest.id] : undefined;
 
   return (
-    <MobileShell className="jp-estimate-flow jp-tone-4">
-      <TopBar title="4단계. AI 연속촬영" onBack={() => setScreen("step3")} />
+    <MobileShell className="jp-estimate-flow jp-tone-4 jp-redesign">
       <input
         ref={fileRef}
         type="file"
@@ -566,6 +566,8 @@ export function RoomScanScreen() {
         }}
       />
       <div className="flex-1 overflow-auto pb-28">
+        <StepHero step={4} total={6} title="AI 연속촬영" pose="camera"
+          bubble="방 전체가 보이도록 천천히 촬영해 주세요." onBack={() => setScreen("step3")} />
         {!online && (
           <div className="mx-4 mt-3 rounded-xl bg-[#FDECEC] px-3 py-2 text-[13px] font-bold text-[#C62828]">
             인터넷이 끊겼습니다. 찍은 사진은 기기에 보관되며 연결되면 다시 올릴 수 있습니다.
