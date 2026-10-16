@@ -1309,10 +1309,10 @@ export function Step1() {
   };
   const swipe = useSwipeNav(() => setScreen("home"), next);
   return (
-    <MobileShell className="jp-estimate-flow jp-tone-1">
-      <TopBar title="1단계. 고객 정보 입력" onBack={() => setScreen("home")} />
-      <div className="p-5 space-y-4 flex-1 overflow-auto pb-24" {...swipe}>
-        <CharacterGuide pose="clipboard" priority text="이사 견적을 위해 고객 정보를 입력해 주세요!" />
+    <MobileShell className="jp-estimate-flow jp-tone-1 jp-redesign">
+      <StepHero step={1} total={customerFlow ? 4 : 6} title="고객 정보" pose="clipboard"
+        bubble="이사 견적을 위해 고객 정보를 입력해 주세요!" onBack={() => setScreen("home")} />
+      <div className="px-4 pt-1 space-y-4 flex-1 overflow-auto pb-32" {...swipe}>
         {!customerFlow && !draft.intakeRequestId && <IntakeRequestButton label="고객 사전정보 요청" name={draft.customerName} phone={draft.phone} wide />}
         {!customerFlow && draft.intakeRequestId && (
           <div className="rounded-2xl bg-[#EFF6FF] p-3 text-sm text-[#1E3A8A] space-y-0.5">
@@ -1323,23 +1323,26 @@ export function Step1() {
             {draft.intakeNote && <div className="whitespace-pre-line text-[#374151]">{draft.intakeNote}</div>}
           </div>
         )}
-        <Field label="고객명" labelClassName="text-[#2DD4BF]">
+        <FormCard>
+        <FormRow icon={<User className="h-5 w-5" />} label="고객명">
           <TextInput
+            aria-label="고객명"
             placeholder="홍길동"
             value={draft.customerName}
             onChange={(e) => updateDraft({ customerName: e.target.value })}
             onBlur={(e) => { if (!customerFlow) syncContractName(draft.id, e.target.value); }}
           />
-        </Field>
-        <Field label="연락처" labelClassName="text-[#2DD4BF]">
+        </FormRow>
+        <FormRow icon={<Phone className="h-5 w-5" />} label="연락처">
           <TextInput
+            aria-label="연락처"
             placeholder="010-0000-0000"
             value={formatTel(draft.phone)}
             onChange={(e) => onFormatted(e, formatTel, (v) => updateDraft({ phone: v }))}
             inputMode="numeric"
           />
-        </Field>
-        <Field label="이사 종류" labelClassName="text-[#2DD4BF]">
+        </FormRow>
+        <FormRow icon={<Truck className="h-5 w-5" />} label="이사 종류" stack>
           <div className="grid grid-cols-2 gap-2">
             {moveTypes.map((t) => {
               // 보관이사는 다른 이사 종류와 '함께' 선택되는 보관 서비스 토글입니다.
@@ -1376,8 +1379,10 @@ export function Step1() {
               );
             })}
           </div>
-        </Field>
-        <Field label="이사 날짜" labelClassName="text-[#2DD4BF]">
+        </FormRow>
+        </FormCard>
+        <FormCard>
+        <FormRow icon={<CalendarDays className="h-5 w-5" />} label="이사 날짜" stack>
           <MoveDateCalendar
             value={draft.moveDate}
             onSelect={(date) =>
@@ -1390,30 +1395,31 @@ export function Step1() {
               })
             }
           />
-        </Field>
-
-        <Field label="시작 시간" labelClassName="text-[#2DD4BF]">
+        </FormRow>
+        <FormRow icon={<Clock className="h-5 w-5" />} label="시작 시간">
           <div className="grid grid-cols-2 gap-2">
             <select
+              aria-label="오전 오후"
               value={draft.moveTime.split(" ")[0]}
               onChange={(e) =>
                 updateDraft({
                   moveTime: `${e.target.value} ${draft.moveTime.split(" ")[1] || "09:00"}`,
                 })
               }
-              className="px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-[18px] font-bold text-[#25282D]"
+              className="px-3 py-3 rounded-xl border border-[#D6E4F5] bg-white text-[18px] font-bold text-[#25282D]"
             >
               <option>오전</option>
               <option>오후</option>
             </select>
             <select
+              aria-label="시작 시각"
               value={draft.moveTime.split(" ")[1] || "09:00"}
               onChange={(e) =>
                 updateDraft({
                   moveTime: `${draft.moveTime.split(" ")[0] || "오전"} ${e.target.value}`,
                 })
               }
-              className="px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-[18px] font-bold text-[#25282D]"
+              className="px-3 py-3 rounded-xl border border-[#D6E4F5] bg-white text-[18px] font-bold text-[#25282D]"
             >
               {Array.from({ length: 12 }, (_, i) => `${String(i + 1).padStart(2, "0")}:00`).map(
                 (h) => (
@@ -1422,20 +1428,22 @@ export function Step1() {
               )}
             </select>
           </div>
-        </Field>
-        <Field label="고객 메모" labelClassName="text-[#2DD4BF]">
+        </FormRow>
+        <FormRow icon={<StickyNote className="h-5 w-5" />} label="고객 메모" stack>
           <textarea
+            aria-label="고객 메모"
             value={draft.memo}
             onChange={(e) => updateDraft({ memo: e.target.value })}
             placeholder="예) 엘리베이터 예약 필요, 반려동물 있음, 오전 도착 희망 등"
             rows={3}
-            className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] bg-gradient-to-b from-[#F8FAFD] to-white text-[18px] font-semibold text-[#25282D] placeholder:text-[#7C899D] shadow-[inset_0_2px_4px_rgba(15,23,42,0.06)] focus:outline-none focus:border-[#3578C8] resize-none"
+            className="w-full px-4 py-3 rounded-xl border border-[#D6E4F5] bg-white text-[18px] font-semibold text-[#25282D] placeholder:text-[#7C899D] focus:outline-none focus:border-[#1565E0] resize-none"
           />
-        </Field>
+        </FormRow>
+        </FormCard>
         {err && <div className="text-sm text-[#D95C5C]">{err}</div>}
       </div>
       <BottomButtonBar>
-        <PrimaryButton onClick={next}>다음: 주소 검색</PrimaryButton>
+        <PrimaryButton className="jp-next-btn" onClick={next}><span className="inline-flex items-center gap-2">다음 <ChevronRight className="h-6 w-6" /></span></PrimaryButton>
       </BottomButtonBar>
       <DeleteContractDialog
         open={contractDelete.open}
