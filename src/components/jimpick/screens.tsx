@@ -187,6 +187,7 @@ import {
   getHomeContractSchedule,
   getReservationSheet,
   renameReservationCustomer,
+  updateReservationMoveDate,
   getReservationCustomerName,
   getManagerNotices,
   ownerConfirmContract,
@@ -1211,6 +1212,24 @@ function syncContractName(estimateId: string, name: string) {
   void renameReservationCustomer({ data: { estimateId, customerName: clean } }).catch(() => {
     /* 저장에 실패하면 화면 값은 그대로 두고 다음 저장 때 다시 시도합니다 */
   });
+}
+
+/**
+ * 이사 날짜를 수정했을 때, 그 견적번호로 저장된 계약(고객 견적서)의 이사일도
+ * 서버에서 같이 맞춰 줍니다. 계약 달력도 같은 값을 읽으므로 함께 반영됩니다.
+ * 계약이 없으면 아무 일도 하지 않습니다.
+ */
+function syncContractMoveDate(estimateId: string, moveDate: string) {
+  const clean = (moveDate ?? "").trim();
+  if (!estimateId || !/^\d{4}-\d{2}-\d{2}$/.test(clean)) return;
+  void updateReservationMoveDate({ data: { estimateId, moveDate: clean } })
+    .then((r) => {
+      // 날짜가 실제로 바뀌었으면 첫 화면 달력·예약 현황이 다시 읽도록 알립니다.
+      if (r?.ok && r.updated > 0) window.dispatchEvent(new Event("jimpick:payment-updated"));
+    })
+    .catch(() => {
+      /* 저장에 실패하면 화면 값은 그대로 두고 다음 저장 때 다시 시도합니다 */
+    });
 }
 
 // ============ Step 1: Customer ============
@@ -5620,6 +5639,7 @@ export function Result() {
                   type="date"
                   value={draft.moveDate}
                   onChange={(e) => updateDraft({ moveDate: e.target.value })}
+                  onBlur={(e) => syncContractMoveDate(draft.id, e.target.value)}
                 />
               </Field>
               <Field label="출발지">
@@ -5840,6 +5860,7 @@ export function Result() {
                     type="date"
                     value={draft.moveDate}
                     onChange={(e) => updateDraft({ moveDate: e.target.value })}
+                    onBlur={(e) => syncContractMoveDate(draft.id, e.target.value)}
                   />
                 </Field>
                 <Field label="출발지">
