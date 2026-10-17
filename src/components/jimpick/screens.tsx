@@ -5860,6 +5860,7 @@ export function Result() {
                     type="date"
                     value={draft.moveDate}
                     onChange={(e) => updateDraft({ moveDate: e.target.value })}
+                    onBlur={(e) => syncContractMoveDate(draft.id, e.target.value)}
                   />
                 </Field>
                 <Field label="출발지">
