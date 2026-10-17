@@ -1253,3 +1253,95 @@ export const getReservationCustomerName = createServerFn({ method: "POST" })
     if (!name) return { ok: false };
     return { ok: true, customerName: name };
   });
+
+/**
+ * 이사 날짜를 바꿨을 때, 그 견적번호에 연결된 계약(고객 견적서)의 이사일도 함께 맞춰 줍니다.
+ * 계약 달력과 고객용 견적서가 모두 이 값을 읽으므로 한 번만 바꾸면 두 화면에 같이 반영됩니다.
+ *
+ * - 본인(user_id) 견적만 바꿉니다.
+ * - 삭제·취소된 계약은 건드리지 않습니다.
+ * - 날짜 외의 값(고객 이름·금액·계약 상태)은 바꾸지 않습니다.
+ * - 아직 보내지 않은 이사 전날 안내문자는 새 날짜에 맞춰 다시 예약합니다.
+ */
+export const updateReservationMoveDate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        estimateId: z.string().min(1),
+        moveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(d),
+  )
+  .handler(
+    async ({ context, data }): Promise<{ ok: boolean; updated: number; error?: string }> => {
+      // 내 계약인지 먼저 확인합니다(다른 업체 계약은 절대 바꾸지 않습니다).
+      const { data: mine, error: findErr } = await context.supabase
+        .from("estimate_terms")
+        .select("id, move_date, sheet_version")
+        .eq("user_id", context.userId)
+        .eq("estimate_id", data.estimateId)
+        .is("deleted_at", null)
+        .is("cancelled_at", null);
+      if (findErr) {
+        console.error("[updateReservationMoveDate] find", findErr.message);
+        return { ok: false, updated: 0, error: "이사 날짜를 저장하지 못했습니다." };
+      }
+      if (!mine?.length) return { ok: true, updated: 0 };
+
+      const rows = mine as { id: string; move_date: string | null; sheet_version: number | null }[];
+      // 이미 같은 날짜면 아무 것도 하지 않습니다.
+      const targets = rows.filter((r) => String(r.move_date ?? "").slice(0, 10) !== data.moveDate);
+      if (!targets.length) return { ok: true, updated: 0 };
+
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: updatedRows, error } = await supabaseAdmin
+        .from("estimate_terms")
+        .update({ move_date: data.moveDate, updated_at: new Date().toISOString() })
+        .in(
+          "id",
+          targets.map((r) => r.id),
+        )
+        .select("id");
+      if (error) {
+        console.error("[updateReservationMoveDate] update", error.message);
+        return { ok: false, updated: 0, error: "이사 날짜를 저장하지 못했습니다." };
+      }
+
+      // 작성 중 임시저장본(새로고침 복구용)의 날짜도 맞춰, 되살릴 때 옛 날짜로 돌아가지 않게 합니다.
+      const { data: drafts } = await supabaseAdmin
+        .from("estimate_drafts")
+        .select("id, payload, revision")
+        .eq("user_id", context.userId)
+        .eq("estimate_id", data.estimateId);
+      for (const d of (drafts ?? []) as {
+        id: string;
+        payload: Record<string, unknown> | null;
+        revision: number | null;
+      }[]) {
+        if (!d.payload || typeof d.payload !== "object") continue;
+        if (String(d.payload["moveDate"] ?? "").trim() === data.moveDate) continue;
+        await supabaseAdmin
+          .from("estimate_drafts")
+          .update({
+            payload: { ...d.payload, moveDate: data.moveDate },
+            revision: Number(d.revision ?? 0) + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", d.id);
+      }
+
+      // 아직 발송 전인 이사 전날 안내문자를 새 날짜로 다시 예약합니다(실패해도 날짜 변경은 유지).
+      const latest = [...rows].sort((a, b) => Number(b.sheet_version ?? 0) - Number(a.sheet_version ?? 0))[0];
+      if (latest) {
+        try {
+          const { syncMoveReminder } = await import("./reminder.server");
+          await syncMoveReminder(latest.id);
+        } catch (e) {
+          console.error("[updateReservationMoveDate] reminder", e);
+        }
+      }
+
+      return { ok: true, updated: updatedRows?.length ?? 0 };
+    },
+  );
