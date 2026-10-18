@@ -1620,10 +1620,14 @@ interface Ctx extends AppState {
   upsertServerEstimates: (list: Estimate[]) => void;
   deleteEstimate: (id: string) => void;
   loadEstimate: (id: string) => void;
+  /** 저장된 견적을 1단계부터 열어 입력 내용을 단계별로 확인하게 합니다 */
+  loadEstimateToStep1: (id: string) => void;
   /** 그 견적번호의 고객 이름을 최신 이름으로 맞춥니다(작성 중 견적 + 저장된 견적 목록) */
   applyCustomerName: (estimateId: string, name: string) => void;
   /** 서버에서 불러온 견적서(이 기기에 없는 계약)를 상세 화면으로 바로 엽니다 */
   openEstimate: (e: Estimate) => void;
+  /** 서버에서 불러온 견적서를 1단계부터 엽니다 */
+  openEstimateToStep1: (e: Estimate) => void;
   /** 견적 결과 화면의 뒤로가기 목적지를 지정합니다 */
   setResultFrom: (s: string) => void;
   /** 품목을 목록에서 영구히(앱 전체) 숨깁니다 — 새 견적·새로고침에도 유지 */
@@ -1651,8 +1655,8 @@ export function CustomerFlowProvider({ children, draft, updateDraft, setScreen, 
     draftSaveState: "idle", draftSavedAt: null, companyItems: draft.customItems,
     patchDraft: (make) => updateDraft(make(draft)), refreshCompanyItems: async () => draft.customItems,
     retryAuthCheck: () => {}, login: () => {}, logout: async () => {}, resetDraft: () => {}, saveDraft: () => {},
-    upsertServerEstimates: () => {}, deleteEstimate: () => {}, loadEstimate: () => {}, applyCustomerName: () => {},
-    openEstimate: () => {}, setResultFrom: () => {}, hideCatalogItem: () => {}, setCurrentRoom: () => {},
+    upsertServerEstimates: () => {}, deleteEstimate: () => {}, loadEstimate: () => {}, loadEstimateToStep1: () => {}, applyCustomerName: () => {},
+    openEstimate: () => {}, openEstimateToStep1: () => {}, setResultFrom: () => {}, hideCatalogItem: () => {}, setCurrentRoom: () => {},
     restoreStepSnapshot: () => false, finishToHome: () => {},
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
@@ -2047,6 +2051,20 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
         const e = s.estimates.find((x) => x.id === id);
         // 어느 목록에서 열었는지 기록해 두어, 뒤로가기로 그 목록으로 돌아갑니다.
         return e ? { ...s, draft: formatDraftPhones(e), screen: "result", resultFrom: s.screen } : s;
+      });
+    },
+    loadEstimateToStep1: (id) => {
+      // 견적 내역·견적 현황에서 열 때 1단계부터 보여 줍니다. 뒤로가기 기록도 쌓습니다.
+      if (typeof window !== "undefined") {
+        try {
+          window.history.pushState({ jpScreen: "step1" }, "");
+        } catch {
+          /* 기록을 못 쌓아도 화면 이동은 그대로 합니다 */
+        }
+      }
+      setState((s) => {
+        const e = s.estimates.find((x) => x.id === id);
+        return e ? { ...s, draft: formatDraftPhones(e), screen: "step1", resultFrom: s.screen } : s;
       });
     },
     applyCustomerName: (estimateId, name) => {
