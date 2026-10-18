@@ -174,11 +174,14 @@ export const getTermsLink = createServerFn({ method: "POST" })
     // 보낼 때 저장한 견적서 원본(스냅샷)의 이름도 최신 이름으로 맞춰 보여 줍니다.
     let snapshot = (row as { sheet_snapshot?: string | null }).sheet_snapshot ?? null;
     const latestName = String(row.customer_name ?? "").trim();
-    if (snapshot && latestName) {
+    const latestDate = String(row.move_date ?? "").slice(0, 10);
+    if (snapshot && (latestName || latestDate)) {
       try {
         const snap = JSON.parse(snapshot) as { draft?: Record<string, unknown> };
         if (snap?.draft && typeof snap.draft === "object") {
-          snap.draft["customerName"] = latestName;
+          if (latestName) snap.draft["customerName"] = latestName;
+          // 이사일이 바뀌면 견적서 원본(스냅샷)도 새 날짜로 맞춰 보여 줍니다.
+          if (latestDate) snap.draft["moveDate"] = latestDate;
           snapshot = JSON.stringify(snap);
         }
       } catch {
@@ -1143,10 +1146,12 @@ export const getReservationSheet = createServerFn({ method: "POST" })
           total: Number(r.total ?? 0),
         };
       }
-      // 견적번호·고객 이름은 계약 기준으로 항상 올바르게 맞춰 줍니다.
+      // 견적번호·고객 이름·이사일은 계약 기준으로 항상 올바르게 맞춰 줍니다.
       draft["id"] = r.estimate_id;
       draft["customerName"] = customerName;
       if (r.sheet_no) draft["sheetNo"] = r.sheet_no;
+      const latestDate = String(r.move_date ?? "").slice(0, 10);
+      if (latestDate) draft["moveDate"] = latestDate;
 
       // 견적서 원본(draft)은 JSON 문자열로 돌려주고 화면에서 파싱합니다(직렬화 안전).
       return { ok: true, estimateJson: JSON.stringify(draft), customerName };
