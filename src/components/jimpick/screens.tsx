@@ -616,7 +616,7 @@ export function Login() {
 
 // ============ Home ============
 export function HomeScreen() {
-  const { setScreen, resetDraft, estimates, loadEstimate, openEstimate, draft } = useApp();
+  const { setScreen, resetDraft, estimates, loadEstimate, loadEstimateToStep1, openEstimate, openEstimateToStep1, draft } = useApp();
   const newRequests = useNewRequestCount();
   /** null = 아직 불러오는 중, "" = 상호명 없음/실패, 그 외 = 상호명 */
   const [companyName, setCompanyName] = useState<string | null>(null);
@@ -1141,9 +1141,9 @@ export function HomeScreen() {
                                         }
                                         try { sessionStorage.setItem("jp_return_stage", openStage); } catch { /* 무시 */ }
                                         setOpenStage(null);
-                                        if (estimates.some((e) => e.id === item.estimateId)) loadEstimate(item.estimateId);
+                                        if (estimates.some((e) => e.id === item.estimateId)) loadEstimateToStep1(item.estimateId);
                                         else if (item.termsId)
-                                          openContractBooking({ estimateId: item.estimateId, termsId: item.termsId } as import("@/lib/terms.functions").ReservationRow);
+                                          openContractBooking({ estimateId: item.estimateId, termsId: item.termsId } as import("@/lib/terms.functions").ReservationRow, true);
                                         else toast.error("견적서를 불러오지 못했습니다.");
                                       }}
                                       className="h-auto min-h-11 shrink-0 rounded-xl bg-auth-soft px-3 py-2 text-[13px] font-black text-auth-primary"
@@ -6305,7 +6305,7 @@ export function Result() {
 type HistoryKind = "normal" | "intake" | "visit";
 
 export function History() {
-  const { estimates, setScreen, loadEstimate, deleteEstimate, draft, resetDraft, patchDraft } = useApp();
+  const { estimates, setScreen, loadEstimateToStep1, deleteEstimate, draft, resetDraft, patchDraft } = useApp();
   const [waitingTargetId, setWaitingTargetId] = useState<string | null>(null);
   const [termsReady, setTermsReady] = useState(false);
   const historyCards = useRef(new Map<string, HTMLDivElement>());
@@ -6848,7 +6848,7 @@ export function History() {
                         )}
                         <div className="flex gap-2 mt-3">
                           <button
-                            onClick={() => loadEstimate(e.id)}
+                            onClick={() => loadEstimateToStep1(e.id)}
                             className="flex-1 py-2 rounded-xl bg-[#F7F8F5] text-[#25282D] text-sm font-semibold"
                           >
                             상세 보기
