@@ -1,4 +1,5 @@
 import { DepositPanel } from "./DepositPanel";
+import { addressWithBuilding } from "@/lib/address-label";
 import { StaffSendScreen } from "./StaffSendScreen";
 import { paymentReview, PAYMENT_REVIEW_BORDER } from "@/lib/payment-review";
 import { isWaitingHistoryTarget } from "@/lib/history-focus";
@@ -1560,7 +1561,7 @@ function AddressSearch({
               <button
                 key={`${a.name}-${i}`}
                 onClick={() => {
-                  onSelect(a.roadAddress || a.address, { x: a.x, y: a.y, jibun: a.jibunAddress || a.address, zip: a.zipCode });
+                  onSelect(addressWithBuilding(a.roadAddress || a.address, a.buildingName), { x: a.x, y: a.y, jibun: a.jibunAddress || a.address, zip: a.zipCode });
                    setOpen(false);
                    setQ(null);
                   tap();
