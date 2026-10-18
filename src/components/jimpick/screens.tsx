@@ -851,23 +851,6 @@ export function HomeScreen() {
     const nearest = dated.find((g) => g.key >= cur) ?? dated[dated.length - 1];
     return new Set([nearest.key]);
   };
-  // 고객 현황·최근 작업도 같은 기준: 현재 견적(보관·삭제·취소 제외)만 씁니다
-  const currentEstimates = estimates.filter((e) => stats.currentIds.has(e.id));
-  const customerCount = new Set(
-    currentEstimates.map((e) => customerKeyOf(e)).filter(Boolean),
-  ).size;
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
-  const newThisMonth = new Set(
-    currentEstimates
-      .filter((e) => e.createdAt >= monthStart.getTime())
-      .map((e) => customerKeyOf(e))
-      .filter(Boolean),
-  ).size;
-  const doneSum = currentEstimates
-    .filter((e) => stats.completedIds.has(e.id))
-    .reduce((s, e) => s + (e.total || 0), 0);
   const { blocked, remainingText, entitlement } = useEntitlement();
 
   useEffect(() => {
@@ -1166,37 +1149,6 @@ export function HomeScreen() {
           </div>
         )}
 
-        {/* 고객 현황 — 전화번호로 같은 고객을 한 사람으로 셉니다 */}
-        <Card className="rounded-[14px]">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Users className="h-[20px] w-[20px] text-[#25282D]" strokeWidth={1.8} />
-              <div className="text-[17px] font-bold">고객 현황</div>
-            </div>
-            <button
-              onClick={() => setScreen("customers")}
-              className="shrink-0 whitespace-nowrap text-[16px] font-bold text-[#25282D]"
-            >
-              전체 보기
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-[14px] bg-[#F7F8F5] px-3 py-3">
-              <div className="text-2xl font-black text-[#25282D]">{customerCount}</div>
-              <div className="mt-0.5 text-[15px] text-[#6B7280]">등록 고객</div>
-            </div>
-            <div className="rounded-[14px] bg-[#F7F8F5] px-3 py-3">
-              <div className="text-2xl font-black text-[#25282D]">{newThisMonth}</div>
-              <div className="mt-0.5 text-[15px] text-[#6B7280]">이번 달 신규</div>
-            </div>
-          </div>
-          <div className="mt-2 rounded-[14px] bg-[#F7F8F5] px-3 py-3">
-            <div className="text-[15px] text-[#6B7280]">완료 견적 금액 합계</div>
-            <div className="mt-0.5 text-xl font-black text-[#25282D]">
-              {doneSum.toLocaleString()}원
-            </div>
-          </div>
-        </Card>
 
         <HomeContractCalendar visits={visitBookings} bookings={contractBookings} companyName={companyName ?? ""} onOpenBooking={openContractBooking} onCancelled={() => { loadContractSchedule(); window.dispatchEvent(new Event("jimpick:payment-updated")); }} />
       </div>
