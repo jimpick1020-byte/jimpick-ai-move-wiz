@@ -7,7 +7,7 @@ interface KakaoDocument {
   address_name?: string;
   place_name?: string;
   road_address_name?: string;
-  road_address?: { address_name?: string; zone_no?: string } | null;
+  road_address?: { address_name?: string; zone_no?: string; building_name?: string } | null;
   address?: { address_name?: string } | null;
   x?: string;
   y?: string;
@@ -47,7 +47,8 @@ export const searchAddress = createServerFn({ method: "POST" })
         places.push({
           address,
           roadAddress: d.road_address?.address_name ?? address,
-          name: address,
+          name: d.road_address?.building_name || address,
+          buildingName: d.road_address?.building_name,
           jibunAddress: d.address?.address_name ?? address,
           zipCode: d.road_address?.zone_no ?? "",
           x: Number(d.x),
@@ -63,6 +64,7 @@ export const searchAddress = createServerFn({ method: "POST" })
           address,
           roadAddress: d.road_address_name || address,
           name: d.place_name ?? address,
+          buildingName: d.place_name,
           jibunAddress: address,
           x: Number(d.x),
           y: Number(d.y),

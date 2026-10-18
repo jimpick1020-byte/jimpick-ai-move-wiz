@@ -29,3 +29,4 @@
 
 - Subdirectories have their own `AGENTS.md` (e.g. `src/lib/AGENTS.md` for customer intake); read it before changing files there.
 - Direct selection and room scan reuse StepHero/CharacterGuide; quantity cards share a scoped quantity-selected style without changing counter or persistence logic, preventing layout and selection drift.
+- Shared address selection appends provider-returned building names to the existing address string through address-label; this preserves names across intake, estimates and saved drafts without changing coordinates or detail fields.

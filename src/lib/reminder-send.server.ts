@@ -165,6 +165,35 @@ interface Creds {
   proxySecret?: string;
 }
 
+function reminderText(row: Reminder, template: string, link: string, companyPhone: string): string {
+  return [
+    "[짐도리]",
+    template.replace(/https?:\/\/\S+/gi, "").split("\n").map((l) => l.trim()).filter(Boolean).join("\n").slice(0, 500),
+    `${row.customer_name.trim()} 고객님, 내일은 예약하신 이사일입니다.`,
+    row.start_time?.trim() && `이사 예정 시간: ${row.start_time.trim()}`,
+    row.from_address?.trim() && `출발지: ${row.from_address.trim()}`,
+    row.to_address?.trim() && `도착지: ${row.to_address.trim()}`,
+    "원활한 이사를 위해 귀중품과 개인 소지품을 미리 확인해 주세요.",
+    "이사 내용 확인:",
+    link,
+    companyPhone && `문의: ${companyPhone}`,
+  ].filter(Boolean).join("\n");
+}
+
+/** 인증된 업체 소유권 확인 후 호출. 미리보기는 발송·사용량·상태를 변경하지 않습니다. */
+export async function previewReminderMessage(raw: unknown): Promise<{ ok: boolean; message?: string; error?: string }> {
+  const row = raw as Reminder;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const link = await customerLink(row);
+  const { data: profile, error } = await supabaseAdmin.from("profiles")
+    .select("company_name,phone,sms_template").eq("id", row.company_id).maybeSingle();
+  const phone = formatTel(String(profile?.phone ?? ""));
+  if (error || !profile?.company_name?.trim() || !phone || !link || !row.customer_name?.trim()) {
+    return { ok: false, error: "문자 안내 내용을 확인하지 못했습니다. 업체 정보와 고객 보안 링크를 확인해 주세요." };
+  }
+  return { ok: true, message: reminderText(row, profile.sms_template ?? "", link, phone) };
+}
+
 export function readCreds(): Creds | null {
   const aligoUserId = String(process.env["ALIGO_USER_ID"] ?? "").trim();
   const apiKey = String(process.env["ALIGO_API_KEY"] ?? "").trim();
@@ -230,19 +259,7 @@ async function sendOne(
     return { sent: false };
   }
   // 본문에 보안 URL은 딱 한 번만 싣습니다. 링크를 누르면 기존 전날 안내 카드 미리보기가 열립니다.
-  const text = [
-    "[짐도리]",
-    String((profile as { sms_template?: string | null } | null)?.sms_template ?? "")
-      .replace(/https?:\/\/\S+/gi, "").split("\n").map((l) => l.trim()).filter(Boolean).join("\n").slice(0, 500),
-    `${row.customer_name.trim()} 고객님, 내일은 예약하신 이사일입니다.`,
-    row.start_time?.trim() && `이사 예정 시간: ${row.start_time.trim()}`,
-    row.from_address?.trim() && `출발지: ${row.from_address.trim()}`,
-    row.to_address?.trim() && `도착지: ${row.to_address.trim()}`,
-    "원활한 이사를 위해 귀중품과 개인 소지품을 미리 확인해 주세요.",
-    "이사 내용 확인:",
-    link,
-    companyPhone && `문의: ${companyPhone}`,
-  ].filter(Boolean).join("\n");
+  const text = reminderText(row, profile?.sms_template ?? "", link ?? "", companyPhone);
   // 그림 첨부 없이 LMS 로만 보냅니다. 링크 미리보기 카드(OG)만 한 장 보입니다.
   const msgType = "LMS";
   const sendArgs = { to, text, title: "", msgType, ...creds, sender, companyId: row.company_id };

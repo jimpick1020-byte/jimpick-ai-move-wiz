@@ -1,5 +1,7 @@
 # Customer intake link rules
 
+- Reminder resend previews read only company-owned rows and share the sender's message builder; opening or cancelling a preview never sends SMS or reserves usage.
+
 - Owner selected-item removal uses an authenticated security-invoker RPC locking the company request and matching draft; it removes only room quantity/disposal JSON, never catalog rows.
 - Shared picker art uses a responsive square with an inset safety area and centered contain images without fit scaling or clipped overflow; this keeps wide items intact in both owner and customer three-column lists without altering source assets.
 

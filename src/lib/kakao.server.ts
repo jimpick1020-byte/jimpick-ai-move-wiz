@@ -2,6 +2,7 @@ export interface KakaoPlace {
   address: string;
   roadAddress: string;
   name: string;
+  buildingName?: string;
   x: number; // lng
   y: number; // lat
   /** 지번주소 (있을 때) */
@@ -50,6 +51,7 @@ export async function searchOsm(query: string): Promise<KakaoPlace[]> {
         address,
         roadAddress: address,
         name: d.name || parts[0] || address,
+        buildingName: d.name,
         x: Number(d.lon),
         y: Number(d.lat),
       };

@@ -4,11 +4,15 @@
  * 예약이 확정되면 이사 전날 18시(한국시간)에 서버가 스스로 보냅니다.
  * 여기서는 실제 저장된 상태만 보여 주고, 실패·확인 필요 건만 다시 보냅니다.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   listMoveReminders,
   retryMoveReminder,
+  previewMoveReminder,
   REMINDER_STATUS_LABEL,
   type MoveReminderRow,
 } from "@/lib/reminder.functions";
@@ -33,6 +37,31 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
   const [rows, setRows] = useState<MoveReminderRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [selected, setSelected] = useState<MoveReminderRow | null>(null);
+  const [message, setMessage] = useState("");
+  const lock = useRef(false);
+  const previewFn = useServerFn(previewMoveReminder);
+  const retryFn = useServerFn(retryMoveReminder);
+
+  const openPreview = async (row: MoveReminderRow) => {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    try {
+      const result = await previewFn({ data: { id: row.id } });
+      if (!result.ok || !result.message) {
+        toast.error(result.error ?? "문자 내용을 불러오지 못했습니다");
+        return;
+      }
+      setMessage(result.message);
+      setSelected(row);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "문자 내용을 불러오지 못했습니다");
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -50,19 +79,15 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
   }, [load]);
 
   const retry = async (row: MoveReminderRow) => {
-    if (busy) return;
+    if (lock.current) return;
     const already = ["accepted", "delivered", "success"].includes(row.status);
-    if (already) {
-      const ok = window.confirm(
-        "이미 보낸 안내 문자입니다. 고객에게 한 번 더 보내면 문자 요금이 추가로 나갑니다. 다시 보내시겠습니까?",
-      );
-      if (!ok) return;
-    }
+    lock.current = true;
     setBusy(true);
     try {
-      const r = await retryMoveReminder({ data: { id: row.id, confirmResend: already } });
+      const r = await retryFn({ data: { id: row.id, confirmResend: already } });
       if (r.ok) {
-        toast.success("안내 문자를 다시 보냈습니다");
+        toast.success("문자업체가 안내 문자를 접수했습니다");
+        setSelected(null);
         await load();
       } else {
         toast.error("다시 보낼 수 없습니다", { description: r.error ?? "" });
@@ -70,6 +95,7 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
     } catch (e) {
       toast.error("다시 보낼 수 없습니다", { description: e instanceof Error ? e.message : "" });
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   };
@@ -132,18 +158,36 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
               {["failed", "unknown", "scheduled", "accepted", "delivered", "success"].includes(
                 r.status,
               ) && (
-                <button
-                  onClick={() => retry(r)}
+                <Button variant="secondary"
+                  onClick={() => openPreview(r)}
                   disabled={busy}
-                  className="mt-2 w-full py-2 rounded-xl bg-[#F7F8F5] text-[#25282D] text-sm font-semibold disabled:opacity-60"
+                  className="mt-2 w-full"
                 >
                   {r.status === "failed" || r.status === "unknown" ? "다시 발송" : "한 번 더 발송"}
-                </button>
+                </Button>
               )}
             </div>
           ))}
         </div>
       )}
+      <Dialog open={selected !== null} onOpenChange={(open) => { if (!open && !busy) setSelected(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-h-[85dvh] overflow-y-auto rounded-lg text-foreground">
+          <DialogTitle>이사 전날 안내 문자 확인</DialogTitle>
+          <DialogDescription>
+            {selected?.customerName} · {selected?.toMasked}
+            {selected && ["accepted", "delivered", "success"].includes(selected.status)
+              ? " · 이미 보낸 문자입니다. 다시 발송하면 문자 요금이 추가됩니다."
+              : " · 아래 내용을 확인한 후 발송해 주세요."}
+          </DialogDescription>
+          <div className="max-h-[45dvh] overflow-y-auto whitespace-pre-wrap break-all rounded-md border border-border bg-muted p-3 text-sm leading-relaxed">{message}</div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" disabled={busy} onClick={() => setSelected(null)}>취소</Button>
+            <Button variant="staff" disabled={busy || !message} onClick={() => { if (selected) void retry(selected); }}>
+              {busy ? "발송 처리 중…" : "이 내용으로 발송"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
