@@ -682,9 +682,10 @@ export function HomeScreen() {
     return () => window.removeEventListener("jimpick:payment-updated", loadContractSchedule);
   }, [loadContractSchedule]);
 
-  const openContractBooking = useCallback((booking: import("@/lib/terms.functions").ReservationRow) => {
+  const openContractBooking = useCallback((booking: import("@/lib/terms.functions").ReservationRow, toStep1 = false) => {
     if (estimates.some((estimate) => estimate.id === booking.estimateId)) {
-      loadEstimate(booking.estimateId);
+      if (toStep1) loadEstimateToStep1(booking.estimateId);
+      else loadEstimate(booking.estimateId);
       return;
     }
     getReservationSheet({ data: { termsId: booking.termsId } })
@@ -694,13 +695,15 @@ export function HomeScreen() {
           return;
         }
         try {
-          openEstimate(JSON.parse(result.estimateJson) as Estimate);
+          const parsed = JSON.parse(result.estimateJson) as Estimate;
+          if (toStep1) openEstimateToStep1(parsed);
+          else openEstimate(parsed);
         } catch {
           toast.error("견적서를 불러오지 못했습니다.");
         }
       })
       .catch(() => toast.error("견적서를 불러오지 못했습니다."));
-  }, [estimates, loadEstimate, openEstimate]);
+  }, [estimates, loadEstimate, loadEstimateToStep1, openEstimate, openEstimateToStep1]);
 
   const greetingName =
     companyName === null ? "…" : companyName ? `${companyName} 사장님 👋` : "사장님 👋";
