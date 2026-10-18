@@ -2089,6 +2089,17 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       }
       setState((s) => ({ ...s, draft: formatDraftPhones(e), screen: "result", resultFrom: s.screen }));
     },
+    openEstimateToStep1: (e) => {
+      // 서버에서 불러온 계약 견적서를 1단계부터 엽니다. 뒤로가기 기록도 쌓습니다.
+      if (typeof window !== "undefined") {
+        try {
+          window.history.pushState({ jpScreen: "step1" }, "");
+        } catch {
+          /* 기록을 못 쌓아도 화면 이동은 그대로 합니다 */
+        }
+      }
+      setState((s) => ({ ...s, draft: formatDraftPhones(e), screen: "step1", resultFrom: s.screen }));
+    },
     setResultFrom: (v) => setState((s) => ({ ...s, resultFrom: v })),
     hideCatalogItem: (id) =>
       setState((s) =>
