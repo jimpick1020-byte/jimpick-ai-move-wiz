@@ -190,7 +190,6 @@ import {
   updateReservationMoveDate,
   getReservationCustomerName,
   getManagerNotices,
-  ownerConfirmContract,
   updateEstimateTotal,
   type TermsStatusRow,
   type ManagerNoticeRow,
@@ -6320,7 +6319,6 @@ export function History() {
   const [noticeRows, setNoticeRows] = useState<ManagerNoticeRow[]>([]);
   const [resending, setResending] = useState<string | null>(null);
   /** 업체 계약완료 저장 중인 견적 id */
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   /** 카드별 '기록 보기' 펼침 상태 (기본은 접힘 → 목록이 짧게 보입니다) */
   const [openLog, setOpenLog] = useState<Record<string, boolean>>({});
   const toggleLog = (id: string) => setOpenLog((p) => ({ ...p, [id]: !p[id] }));
@@ -6427,41 +6425,6 @@ export function History() {
   });
   /** 이 견적의 사장님 알림 기록 (가장 최근) */
   const noticeOf = (id: string) => noticeRows.find((n) => n.estimateId === id) ?? null;
-  /** 사장님이 직접 계약완료 처리 — 서버 저장이 성공한 뒤에만 계약완료로 보여 줍니다 */
-  const doOwnerConfirm = async (e: Estimate) => {
-    if (confirmingId) return;
-    const date = (e.moveDate ?? "").slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      toast.error("이사 날짜를 먼저 입력해 주세요.");
-      return;
-    }
-    if (!window.confirm(`${e.customerName || "고객"} · ${date} 계약완료로 저장할까요?`)) return;
-    setConfirmingId(e.id);
-    try {
-      const r = await ownerConfirmContract({
-        data: {
-          estimateId: e.id,
-          moveDate: date,
-          customerName: e.customerName ?? "",
-          total: Math.max(0, Math.round(Number(e.total ?? 0))),
-          sheetNo: e.sheetNo ?? null,
-          sheetVersion: Number(e.sheetVersion ?? 1) || 1,
-          estimateSnapshot: JSON.stringify({ draft: e }).slice(0, 300_000),
-          contactPhone: e.phone ?? null,
-        },
-      });
-      if (r.ok) {
-        toast.success(r.duplicate ? "이미 계약완료된 건입니다" : "계약완료로 저장했습니다");
-        loadTerms();
-      } else {
-        toast.error(r.error ?? "계약완료를 저장하지 못했습니다.");
-      }
-    } catch {
-      toast.error("계약완료를 저장하지 못했습니다. 통신 상태를 확인해 주세요.");
-    } finally {
-      setConfirmingId(null);
-    }
-  };
   const doResend = async (id: string) => {
     if (resending) return;
     setResending(id);
@@ -6758,17 +6721,6 @@ export function History() {
                             </span>
                           )}
                         </div>
-                        {/* 업체(사장님) 직접 계약완료 — 고객 웹 동의가 없어도 달력에 계약으로 표시됩니다 */}
-                        {!ts.row?.acceptedAt && (
-                          <button
-                            type="button"
-                            disabled={confirmingId === e.id}
-                            onClick={() => doOwnerConfirm(e)}
-                            className="mt-2 w-full rounded-xl bg-[#3578C8] py-2.5 text-[13.5px] font-bold text-white disabled:opacity-50"
-                          >
-                            {confirmingId === e.id ? "저장 중…" : "예약 요청으로 표시 (업체)"}
-                          </button>
-                        )}
                         {ts.row?.acceptedAt && (
                           <div className="mt-2 rounded-xl bg-[#EAF2FC] px-3 py-2 text-[12.5px] font-bold text-[#1D4ED8]">
                             예약 요청이 접수되었습니다 · 예약금 확인 후 달력에 표시됩니다
@@ -7674,7 +7626,7 @@ function VisitScheduleBox({ row, onWrite }: { row: IntakeRow; onWrite: () => voi
         <input type="date" aria-label="방문 날짜" value={date} onChange={(ev) => setDate(ev.target.value)} className="rounded-lg border border-[#E5E7EB] bg-white px-2 py-2 text-[13px]" />
         <select aria-label="방문 시간" value={time} onChange={(ev) => setTime(ev.target.value)} className="rounded-lg border border-[#E5E7EB] bg-white px-2 py-2 text-[13px]">
           <option value="">시간 미정</option>
-          {["오전 9시", "오전 10시", "오전 11시", "오후 1시", "오후 2시", "오후 3시", "오후 4시", "오후 5시", "오후 6시"].map((t) => <option key={t} value={t}>{t}</option>)}
+          {["9~10시", "10~11시", "11~12시", "12~1시", "1~2시", "2~3시", "3~4시", "4~5시", "5~6시"].map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
       <div className="flex gap-2">
