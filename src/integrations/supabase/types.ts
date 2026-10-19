@@ -32,6 +32,107 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_sms_ingest_tokens: {
+        Row: {
+          company_id: string
+          created_at: string
+          last_received_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          last_received_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          last_received_at?: string | null
+          token_hash?: string
+        }
+        Relationships: []
+      }
+      bank_sms_messages: {
+        Row: {
+          amount: number | null
+          bank: string | null
+          candidate_estimate_ids: string[]
+          channel: string
+          company_id: string
+          created_at: string
+          dedupe_key: string
+          deposit_record_id: string | null
+          deposited_at: string | null
+          depositor_name: string | null
+          event_id: string | null
+          id: string
+          looks_like_deposit: boolean
+          match_note: string | null
+          match_status: string
+          matched_estimate_id: string | null
+          payment_kind: string | null
+          raw_text: string
+          received_at: string
+          sender: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          bank?: string | null
+          candidate_estimate_ids?: string[]
+          channel?: string
+          company_id: string
+          created_at?: string
+          dedupe_key: string
+          deposit_record_id?: string | null
+          deposited_at?: string | null
+          depositor_name?: string | null
+          event_id?: string | null
+          id?: string
+          looks_like_deposit?: boolean
+          match_note?: string | null
+          match_status?: string
+          matched_estimate_id?: string | null
+          payment_kind?: string | null
+          raw_text: string
+          received_at?: string
+          sender?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          bank?: string | null
+          candidate_estimate_ids?: string[]
+          channel?: string
+          company_id?: string
+          created_at?: string
+          dedupe_key?: string
+          deposit_record_id?: string | null
+          deposited_at?: string | null
+          depositor_name?: string | null
+          event_id?: string | null
+          id?: string
+          looks_like_deposit?: boolean
+          match_note?: string | null
+          match_status?: string
+          matched_estimate_id?: string | null
+          payment_kind?: string | null
+          raw_text?: string
+          received_at?: string
+          sender?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_sms_messages_deposit_record_id_fkey"
+            columns: ["deposit_record_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_keys: {
         Row: {
           billing_key: string
