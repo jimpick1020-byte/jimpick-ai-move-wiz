@@ -1800,6 +1800,14 @@ export type Database = {
         Args: { _key: string; _user_id: string }
         Returns: undefined
       }
+      confirm_owner_bank_balance: {
+        Args: {
+          _estimate_id: string
+          _expected_amount: number
+          _owner_reviewed?: boolean
+        }
+        Returns: Json
+      }
       confirm_payment_receipt: {
         Args: { _note?: string; _receipt_id: string }
         Returns: Json

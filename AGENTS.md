@@ -32,5 +32,5 @@
 - Shared address selection appends provider-returned building names to the existing address string through address-label; this preserves names across intake, estimates and saved drafts without changing coordinates or detail fields.
 
 - Deposit acknowledgement uses confirm_payment_receipt; explicit balance completion uses the owner-locked complete_estimate_payment RPC with separate methods and shared pendingReceipt display, preventing cash fallback, total changes or messaging side effects.
-- Automatic receipt highlighting uses explicit bank methods or known legacy bank-alert sources; the missing-balance action opens the existing owner receipt registration panel, avoiding duplicate receipt flows or assuming access to phone SMS.
+- Automatic receipt highlighting uses explicit bank methods or known legacy bank-alert sources; receipt-free bank balance confirmation uses an explicit owner-reviewed, expected-amount-checked security-invoker RPC that creates an audited confirmed receipt and delegates to the existing completion RPC, without assuming access to phone SMS.
 - Pending bank receipts stay directly visible in DepositPanel and use its existing locked confirmation path; registration is separate so confirmation never requires re-entering evidence or reselecting a payment method.

@@ -241,6 +241,22 @@ export const setPaymentState = createServerFn({ method: "POST" })
     },
   );
 
+/** Explicit owner attestation, never automatic bank/SMS detection. */
+export const confirmOwnerBankBalance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    estimateId: z.string().min(1).max(80),
+    expectedAmount: z.number().int().positive().max(1_000_000_000),
+    ownerReviewed: z.literal(true),
+  }).parse(d))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string; balancePaid?: number }> => {
+    const { data: result, error } = await context.supabase.rpc("confirm_owner_bank_balance", {
+      _estimate_id: data.estimateId, _expected_amount: data.expectedAmount, _owner_reviewed: data.ownerReviewed,
+    });
+    if (error) return { ok: false, error: "잔금 확인을 저장하지 못했습니다. 다시 확인해 주세요." };
+    return result as { ok: boolean; error?: string; balancePaid?: number };
+  });
+
 /** 달력에서 「정리 대상」으로 체크/해제합니다 (데이터는 지우지 않습니다) */
 export const setCalendarSelected = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
