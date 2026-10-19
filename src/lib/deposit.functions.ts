@@ -195,17 +195,22 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
       const { kind, amount } = customerPaymentDue(Number(t.total ?? 0), Number(t.deposit_paid ?? 0), Number(t.balance_paid ?? 0), t.payment_status);
       if (amount <= 0) return { ok: false, error: "신고할 입금 금액이 없습니다." };
 
-      const { data: exist } = await supabaseAdmin
+      // 같은 견적·같은 종류·같은 금액의 확인 대기/확인 기록이 어떤 경로로든 이미 있으면
+      // 새 기록을 만들지 않습니다. 은행 문자가 먼저 연결된 뒤 고객이 「입금했습니다」를
+      // 눌러도 같은 입금이 두 건으로 집계되지 않습니다.
+      const { data: existingRows } = await supabaseAdmin
         .from("deposit_records")
-        .select("id, status")
+        .select("id,status,amount,payment_kind")
         .eq("user_id", t.user_id)
         .eq("estimate_id", t.estimate_id)
-        .eq("source", "customer_claim")
-        .eq("payment_kind", kind)
         .in("status", ["pending_review", "confirmed"])
-        .limit(1)
-        .maybeSingle();
-      if (exist) return { ok: true, already: true, amount };
+        .limit(50);
+      const existing = (existingRows ?? []).map((r: { amount: number | null; status: string | null; payment_kind: string | null }) => ({
+        amount: Number(r.amount ?? 0),
+        status: String(r.status ?? ""),
+        paymentKind: r.payment_kind ?? undefined,
+      }));
+      if (claimAlreadyRecorded(existing, kind, amount)) return { ok: true, already: true, amount };
 
       const { error } = await supabaseAdmin.from("deposit_records").insert({
         user_id: t.user_id,
