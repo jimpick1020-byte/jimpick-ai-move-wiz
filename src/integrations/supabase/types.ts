@@ -151,6 +151,7 @@ export type Database = {
           notified_at: string | null
           notify_error: string | null
           payment_kind: string
+          payment_method: string | null
           raw_text: string | null
           review_note: string | null
           sheet_no: string | null
@@ -175,6 +176,7 @@ export type Database = {
           notified_at?: string | null
           notify_error?: string | null
           payment_kind?: string
+          payment_method?: string | null
           raw_text?: string | null
           review_note?: string | null
           sheet_no?: string | null
@@ -199,6 +201,7 @@ export type Database = {
           notified_at?: string | null
           notify_error?: string | null
           payment_kind?: string
+          payment_method?: string | null
           raw_text?: string | null
           review_note?: string | null
           sheet_no?: string | null
@@ -469,6 +472,7 @@ export type Database = {
           calendar_selected: boolean
           cancelled_at: string | null
           cancelled_by: string | null
+          card_approval_number: string | null
           company_phone: string | null
           contact_phone: string | null
           contract_status: string
@@ -486,6 +490,7 @@ export type Database = {
           last_viewed_at: string | null
           move_date: string | null
           paid_at: string | null
+          payment_amount: number | null
           payment_confirmed_at: string | null
           payment_confirmed_by: string | null
           payment_method: string | null
@@ -520,6 +525,7 @@ export type Database = {
           calendar_selected?: boolean
           cancelled_at?: string | null
           cancelled_by?: string | null
+          card_approval_number?: string | null
           company_phone?: string | null
           contact_phone?: string | null
           contract_status?: string
@@ -537,6 +543,7 @@ export type Database = {
           last_viewed_at?: string | null
           move_date?: string | null
           paid_at?: string | null
+          payment_amount?: number | null
           payment_confirmed_at?: string | null
           payment_confirmed_by?: string | null
           payment_method?: string | null
@@ -571,6 +578,7 @@ export type Database = {
           calendar_selected?: boolean
           cancelled_at?: string | null
           cancelled_by?: string | null
+          card_approval_number?: string | null
           company_phone?: string | null
           contact_phone?: string | null
           contract_status?: string
@@ -588,6 +596,7 @@ export type Database = {
           last_viewed_at?: string | null
           move_date?: string | null
           paid_at?: string | null
+          payment_amount?: number | null
           payment_confirmed_at?: string | null
           payment_confirmed_by?: string | null
           payment_method?: string | null
@@ -1771,6 +1780,16 @@ export type Database = {
       }
       claim_trial_identity_for: {
         Args: { _business: string; _phone: string; _user_id: string }
+        Returns: Json
+      }
+      complete_estimate_payment: {
+        Args: {
+          _approval?: string
+          _estimate_id: string
+          _method: string
+          _note?: string
+          _receipt_id?: string
+        }
         Returns: Json
       }
       complete_receipted_estimate: {
