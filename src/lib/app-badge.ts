@@ -30,8 +30,8 @@ export function updateAppBadge(count: number): void {
   const nav = badgeApi();
   if (!nav) return;
   try {
-    if (count > 0) void nav.setAppBadge!(count).catch(() => {});
-    else void nav.clearAppBadge!().catch(() => {});
+    if (count > 0) void nav.setAppBadge(count).catch(() => {});
+    else void nav.clearAppBadge().catch(() => {});
   } catch {
     /* 배지를 못 써도 화면은 그대로 씁니다 */
   }
