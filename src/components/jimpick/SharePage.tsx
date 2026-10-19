@@ -171,9 +171,6 @@ export function SharePage() {
           /* 저장할 수 없는 브라우저는 그냥 넘어갑니다 */
         }
         void getTermsLink({ data: { token } }).then(setLink).catch(() => {});
-        // 예전처럼 한 번만 누르면 기본 문자 앱에 업체 알림 문자가 바로 작성됩니다. 보내기는 고객이 직접 누릅니다.
-        const url = claimSmsUrl(r.amount ?? amount, kind);
-        if (url) window.location.href = url;
       } else {
         setClaimError(r.error ?? "알리지 못했습니다. 다시 시도해 주세요.");
       }
