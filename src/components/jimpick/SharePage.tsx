@@ -313,12 +313,12 @@ export function SharePage() {
   const customerName = validLink ? link.customerName ?? "" : "";
   const moveDate = ymd(validLink ? link.moveDate : null);
   // 위쪽 요약 금액과 아래 견적서 금액이 서로 다르면 안 됩니다.
-  // 사장님이 보낸 견적서 원본이 있으면 그 금액을 먼저 씁니다.
+  // 금액 수정 후에는 계약에 저장된 최신 총액을 우선합니다.
   const total =
-    validLink && sentSheet && sentSheet.total > 0
-      ? sentSheet.total
-      : validLink && typeof link.total === "number" && link.total > 0
-        ? link.total
+    validLink && typeof link.total === "number" && link.total > 0
+      ? link.total
+      : validLink && sentSheet && sentSheet.total > 0
+        ? sentSheet.total
         : 0;
   const contactPhone = formatTel(validLink ? link.contactPhone ?? "" : "");
   const companyName = (validLink ? link.companyName ?? "" : "").trim();
