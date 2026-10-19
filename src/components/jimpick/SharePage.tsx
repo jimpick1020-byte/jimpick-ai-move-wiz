@@ -156,7 +156,7 @@ export function SharePage() {
   }, [token]);
 
   /** 고객이 예약금을 보냈다고 알립니다 (금액 반영은 사장님 확인 후) */
-  const sendDepositClaim = async () => {
+  const sendDepositClaim = async (amount: number, kind: "deposit" | "balance") => {
     if (claimLock.current || claiming || (link?.ok ? link.depositClaimPending === true : claimSent)) return;
     claimLock.current = true;
     setClaiming(true);
@@ -173,6 +173,9 @@ export function SharePage() {
           /* 저장할 수 없는 브라우저는 그냥 넘어갑니다 */
         }
         void getTermsLink({ data: { token } }).then(setLink).catch(() => {});
+        // 예전처럼 한 번만 누르면 기본 문자 앱에 업체 알림 문자가 바로 작성됩니다. 보내기는 고객이 직접 누릅니다.
+        const url = claimSmsUrl(r.amount ?? amount, kind);
+        if (url) window.location.href = url;
       } else {
         setClaimError(r.error ?? "알리지 못했습니다. 다시 시도해 주세요.");
       }
@@ -353,6 +356,14 @@ export function SharePage() {
    * 상태는 서버(Supabase)에 저장된 실제 기록으로 판단해서
    * 새로고침해도 그대로 유지됩니다.
    */
+  function claimSmsUrl(amount: number, kind: "deposit" | "balance"): string | null {
+    try {
+      return intakeSmsHref(link?.ok ? link.contactPhone ?? "" : "", paymentText(customerName.trim(), amount, kind, false));
+    } catch {
+      return null; // 업체 연락처가 없으면 다른 번호로 대신 보내지 않습니다.
+    }
+  }
+
   const depositClaimSlot = (() => {
     if (!hasData) return null;
     const due = customerPaymentDue(total, paidDeposit, link?.balancePaid ?? 0, link?.paymentStatus ?? "unpaid");
@@ -402,7 +413,7 @@ export function SharePage() {
         <div className="rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
           <button
             type="button"
-            onClick={() => void sendDepositClaim()}
+            onClick={() => void sendDepositClaim(due.amount, due.kind)}
             disabled={claiming}
             className="w-full rounded-[14px] bg-[#B45309] py-3.5 text-[17px] font-black text-white disabled:opacity-50"
           >
