@@ -151,11 +151,7 @@ export function DepositPanel({
 
       {(open || pending.length > 0) && (
         <div className="mt-2 space-y-2">
-          {depositPaid <= 0 && <Button variant="outline" className="w-full" disabled={busy} aria-expanded={adding} onClick={() => setAdding((value) => !value)}>
-            {adding ? "입력 닫기" : "예약금 입금 기록 추가"}
-          </Button>
-          }
-          {adding && depositPaid <= 0 && <>
+          {depositPaid <= 0 && <>
           <textarea
             aria-label="은행 입금알림 문자"
             value={text}
