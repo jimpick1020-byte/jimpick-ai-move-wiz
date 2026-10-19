@@ -1,6 +1,7 @@
 import { describe, test } from "node:test";
 import { strict as assert } from "node:assert";
-import { paymentReview, pendingReceipt, balanceReceiptReady, receiptPaymentKind, type PaymentEvidence } from "./payment-review";
+import { paymentReview, pendingReceipt, balanceReceiptReady, receiptPaymentKind, PAYMENT_REVIEW_BORDER, type PaymentEvidence } from "./payment-review";
+import { remainingPayment } from "./payment-method";
 const receipt: PaymentEvidence = { amount: 950000, status: "pending_review", source: "sms_paste", depositorName: "시험 입금자", paymentKind: "deposit", paymentMethod: "bank_transfer" };
 describe("owner receipt review", () => {
   test("80000 deposit and 950000 balance both stay pending with their own depositor", () => {
