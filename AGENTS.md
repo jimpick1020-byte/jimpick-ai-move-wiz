@@ -22,7 +22,7 @@
 - AI SDK imports `@vercel/oidc`, which uses Node-only `createRequire(import.meta.url)` and crashes the Cloudflare worker at startup; `vite.config.ts` aliases it to `src/lib/vercel-oidc-stub.ts` — keep this alias.
 - Worker contacts are never hard-deleted; deletion sets disabled in the profile JSON via disable_worker_contact so past contracts and staff-share records stay intact.
 - Staff-share links are created only when the latest estimate_terms payment_status confirms the deposit; the UI and server both check stored status, not displayed amounts.
-- Deposit-waiting history navigation carries estimate_id in session storage and validates it against the current company list and stored reservation stage; highlighting must disappear when payment is confirmed.
+- Home status grouping uses home-reservation-stage without changing contract stages; both waiting lists carry estimate_id to history and validate stored payment evidence so confirmation clears the target.
 - Telephone inputs, draft saves, company defaults and worker RPCs use formatTel for stored/display values; SMS transport alone strips separators, preserving legacy records on reads.
 - Auth persistence preserves existing durable sessions during refresh; Google sets persistence before OAuth so reopening cannot downgrade stored tokens to tab-only storage.
 - JimpickProvider owns the sole app auth subscription, waits for validated startup recovery, and cancels/clears private query caches before explicit sign-out; this avoids login flashes and duplicate sign-outs.

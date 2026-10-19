@@ -5,6 +5,7 @@ import { StaffSendScreen } from "./StaffSendScreen";
 import { paymentReview, PAYMENT_REVIEW_BORDER } from "@/lib/payment-review";
 import { clearAppBadge, unreadReceiptCount, updateAppBadge } from "@/lib/app-badge";
 import { isWaitingHistoryTarget } from "@/lib/history-focus";
+import { homeReservationStageOf, HOME_STAGE_LABEL, type HomeReservationStage } from "@/lib/home-reservation-stage";
 import { WorkerContacts } from "./WorkerContacts";
 import { workerSmsHref, type WorkerContact } from "@/lib/worker-contact";
 import { RoomPickedStrip } from "./RoomPickedStrip";
@@ -153,7 +154,7 @@ import {
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { SmsNoticeCard } from "./SmsNoticeCard";
 import { PaymentPanel } from "./PaymentPanel";
-import { completedPaymentLabel } from "@/lib/payment-method";
+import { completedPaymentLabel, remainingPayment } from "@/lib/payment-method";
 import {
   setCalendarSelected,
   archiveCalendarSelected,
@@ -719,14 +720,14 @@ export function HomeScreen() {
   const [archivedRows, setArchivedRows] = useState<ArchivedContractRow[]>([]);
   /** 서버(실제 결제 기록)를 다 읽기 전에는 숫자를 보여 주지 않습니다 */
   const [statsReady, setStatsReady] = useState(false);
-  const [openStage, setOpenStage] = useState<import("@/lib/reservation-status").ReservationStage | null>(null);
+  const [openStage, setOpenStage] = useState<HomeReservationStage | null>(null);
   const [openStageMonths, setOpenStageMonths] = useState<Set<string>>(new Set());
   /** 견적 상세에서 뒤로 오면 보던 상태 목록을 다시 엽니다 */
-  const [returnStage, setReturnStage] = useState<import("@/lib/reservation-status").ReservationStage | null>(null);
+  const [returnStage, setReturnStage] = useState<HomeReservationStage | null>(null);
   useEffect(() => {
     try {
       const v = sessionStorage.getItem("jp_return_stage");
-      if (v) { sessionStorage.removeItem("jp_return_stage"); setReturnStage(v as import("@/lib/reservation-status").ReservationStage); }
+      if (v) { sessionStorage.removeItem("jp_return_stage"); setReturnStage((v === "reservation_request" ? "deposit_waiting" : v) as HomeReservationStage); }
     } catch { /* 저장소를 못 쓰면 그냥 홈을 보여 줍니다 */ }
   }, []);
   useEffect(() => {
@@ -776,29 +777,30 @@ export function HomeScreen() {
   const pct = statsReady ? stats.pct : 0;
   const stageCounts = {
     estimate_notice: 0,
-    reservation_request: 0,
     deposit_waiting: 0,
     reservation_confirmed: 0,
+    balance_waiting: 0,
     payment_completed: stats.completed,
   };
   type StageItem = { key: string; estimateId: string; termsId?: string; name: string; amount: number; amountLabel: string; moveDate?: string; moveTime?: string | null; createdAt?: number };
   const stageLists: Record<keyof typeof stageCounts, StageItem[]> = {
     estimate_notice: [],
-    reservation_request: [],
     deposit_waiting: [],
     reservation_confirmed: [],
+    balance_waiting: [],
     payment_completed: [],
   };
   for (const estimate of estimates) {
     if (!stats.currentIds.has(estimate.id)) continue;
     const row = termsRows.find((item) => item.estimateId === estimate.id);
-    const stage = reservationStageOf({
+    const stage = homeReservationStageOf({
       paymentStatus: row?.paymentStatus,
       depositPaid: row?.depositPaid,
       balancePaid: row?.balancePaid,
       acceptedAt: row?.acceptedAt,
       reservationStatus: row?.reservationStatus,
       depositClaimPending: Boolean(row?.depositClaimId),
+      paymentReceipts: row?.paymentReceipts,
     });
     stageCounts[stage] += 1;
     if (stage === "payment_completed") continue;
@@ -808,8 +810,8 @@ export function HomeScreen() {
       key: estimate.id,
       estimateId: estimate.id,
       name: estimate.customerName || "이름 없음",
-      amount: showDeposit ? depositPaid : estimate.total || 0,
-      amountLabel: showDeposit ? "예약금" : "견적금액",
+      amount: stage === "balance_waiting" ? remainingPayment(row?.total ?? estimate.total, depositPaid, row?.balancePaid ?? 0) : showDeposit ? depositPaid : estimate.total || 0,
+      amountLabel: stage === "balance_waiting" ? "잔금" : showDeposit ? "예약금" : "견적금액",
       moveDate: estimate.moveDate,
       moveTime: estimate.moveTime,
       createdAt: estimate.createdAt,
@@ -1033,20 +1035,21 @@ export function HomeScreen() {
           </div>
           <div className="grid grid-cols-2 gap-2 text-center">
             {(Object.keys(stageCounts) as Array<keyof typeof stageCounts>).map((stage) => (
-              <button
+              <Button
                 type="button"
                 key={stage}
+                variant="ghost"
                 onClick={() => {
                   setOpenStage(stage);
                   setOpenStageMonths(nearestStageMonth(stageLists[stage]));
                 }}
-                className="rounded-[14px] bg-[#F7F8F5] py-3 last:col-span-2 active:scale-[0.98]"
+                className="h-auto flex-col rounded-[14px] bg-muted py-3 last:col-span-2 active:scale-[0.98]"
               >
                 <div className="text-2xl font-black text-[#25282D]">
                   {statsReady ? stageCounts[stage] : "…"}
                 </div>
-                <div className="mt-0.5 text-[14px] text-[#6B7280]">{RESERVATION_STAGE_LABEL[stage]}</div>
-              </button>
+                <div className="mt-0.5 text-[14px] text-muted-foreground">{HOME_STAGE_LABEL[stage]}</div>
+              </Button>
             ))}
           </div>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#F1F5FA]">
@@ -1063,7 +1066,7 @@ export function HomeScreen() {
             <div role="dialog" aria-modal="true" className="relative flex max-h-[75vh] w-full max-w-[480px] flex-col rounded-t-3xl bg-white p-5 pb-6 shadow-[0_-8px_30px_rgba(15,23,42,0.2)]">
               <div className="mb-3 flex items-center justify-between">
                 <div className="text-[17px] font-black text-[#25282D]">
-                  {RESERVATION_STAGE_LABEL[openStage]} · {stageLists[openStage].length}건
+                  {HOME_STAGE_LABEL[openStage]} · {stageLists[openStage].length}건
                 </div>
                 <button type="button" onClick={() => setOpenStage(null)} className="text-[14px] font-bold text-[#6B7280]">닫기</button>
               </div>
@@ -1120,10 +1123,10 @@ export function HomeScreen() {
                                       type="button"
                                       variant="ghost"
                                       onClick={() => {
-                                        if (openStage === "deposit_waiting") {
+                                        if (openStage === "deposit_waiting" || openStage === "balance_waiting") {
                                           try {
                                             sessionStorage.setItem("jp_waiting_history_target", item.estimateId);
-                                            sessionStorage.setItem("jp_return_stage", "deposit_waiting");
+                                            sessionStorage.setItem("jp_return_stage", openStage);
                                           } catch { /* 저장소 제한 */ }
                                           setOpenStage(null);
                                           setScreen("history");
@@ -1138,7 +1141,7 @@ export function HomeScreen() {
                                       }}
                                       className="h-auto min-h-11 shrink-0 rounded-xl bg-auth-soft px-3 py-2 text-[13px] font-black text-auth-primary"
                                     >
-                                      {openStage === "deposit_waiting" ? "입금 대기" : "견적 보기"}
+                                      {openStage === "deposit_waiting" || openStage === "balance_waiting" ? HOME_STAGE_LABEL[openStage] : "견적 보기"}
                                     </Button>
                                   </div>
                                 ))}
@@ -6441,10 +6444,11 @@ export function History() {
   useEffect(() => {
     if (!waitingTargetId || !termsReady) return;
     const row = termsRows.find((r) => r.estimateId === waitingTargetId);
-    const stage = reservationStageOf({
+    const stage = homeReservationStageOf({
       paymentStatus: row?.paymentStatus, depositPaid: row?.depositPaid,
       balancePaid: row?.balancePaid, acceptedAt: row?.acceptedAt,
       reservationStatus: row?.reservationStatus, depositClaimPending: Boolean(row?.depositClaimId),
+      paymentReceipts: row?.paymentReceipts,
     });
     if (!isWaitingHistoryTarget(waitingTargetId, waitingTargetId, stage)) {
       setWaitingTargetId(null);
@@ -6609,10 +6613,11 @@ export function History() {
               {gOpen && g.items.map((e) => {
           const ts = termsState(e.id);
           const review = paymentReview(ts.row?.paymentReceipts ?? [], ts.row?.paymentStatus ?? "unpaid", ts.row?.depositPaid ?? 0, ts.row?.balancePaid ?? 0, ts.row?.total ?? e.total);
-          const waitingSelected = termsReady && isWaitingHistoryTarget(waitingTargetId, e.id, reservationStageOf({
+          const waitingSelected = termsReady && isWaitingHistoryTarget(waitingTargetId, e.id, homeReservationStageOf({
             paymentStatus: ts.row?.paymentStatus, depositPaid: ts.row?.depositPaid,
             balancePaid: ts.row?.balancePaid, acceptedAt: ts.row?.acceptedAt,
             reservationStatus: ts.row?.reservationStatus, depositClaimPending: Boolean(ts.row?.depositClaimId),
+            paymentReceipts: ts.row?.paymentReceipts,
           }));
           return (
             <div key={e.id} data-history-estimate-id={e.id} data-waiting-selected={waitingSelected}
