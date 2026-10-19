@@ -4,7 +4,7 @@
  * 고객이 「입금했습니다」를 누르면 기록이 만들어지고,
  * 사장님은 기록별로 확인합니다. 확인 시 문자 발송이나 견적 금액 변경은 하지 않습니다.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   confirmDeposit,
