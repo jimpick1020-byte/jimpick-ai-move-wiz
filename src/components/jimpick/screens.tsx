@@ -6326,7 +6326,12 @@ export function History() {
     const load = () => {
       getTermsStatuses({ data: {} })
         .then((r) => {
-          if (alive && r.ok) { setTermsRows(r.rows); setTermsReady(true); }
+          if (alive && r.ok) {
+            setTermsRows(r.rows);
+            setTermsReady(true);
+            // 견적 내역을 열어 확인했으니 앱 아이콘 배지 숫자도 함께 갱신합니다
+            updateAppBadge(unreadReceiptCount(r.rows));
+          }
         })
         .catch(() => {});
       listArchivedContracts()
