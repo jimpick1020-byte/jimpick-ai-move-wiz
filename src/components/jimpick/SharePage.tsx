@@ -1,5 +1,4 @@
-import { customerPaymentDue, paymentText } from "@/lib/customer-payment";
-import { intakeSmsHref } from "@/lib/intake-sms";
+import { customerPaymentDue } from "@/lib/customer-payment";
 import { CharacterImg } from "./CharacterGuide";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatTel } from "@/lib/format-input";
@@ -172,9 +171,6 @@ export function SharePage() {
           /* 저장할 수 없는 브라우저는 그냥 넘어갑니다 */
         }
         void getTermsLink({ data: { token } }).then(setLink).catch(() => {});
-        // 예전처럼 한 번만 누르면 기본 문자 앱에 업체 알림 문자가 바로 작성됩니다. 보내기는 고객이 직접 누릅니다.
-        const url = claimSmsUrl(r.amount ?? amount, kind);
-        if (url) window.location.href = url;
       } else {
         setClaimError(r.error ?? "알리지 못했습니다. 다시 시도해 주세요.");
       }
@@ -350,19 +346,6 @@ export function SharePage() {
   /** 실제로 입금 확인된 예약금 — 사장님이 확인한 금액만 들어옵니다 */
   const paidDeposit = Math.max(0, (validLink ? (link.depositPaid ?? 0) : 0) || 0);
 
-  /**
-   * 「입금 계좌」 카드 바로 아래에 붙는 예약금 입금 알림 영역.
-   * 상태는 서버(Supabase)에 저장된 실제 기록으로 판단해서
-   * 새로고침해도 그대로 유지됩니다.
-   */
-  function claimSmsUrl(amount: number, kind: "deposit" | "balance"): string | null {
-    try {
-      return intakeSmsHref(link?.ok ? link.contactPhone ?? "" : "", paymentText(customerName.trim(), amount, kind, false));
-    } catch {
-      return null; // 업체 연락처가 없으면 다른 번호로 대신 보내지 않습니다.
-    }
-  }
-
   const depositClaimSlot = (() => {
     if (!hasData) return null;
     const due = customerPaymentDue(total, paidDeposit, link?.balancePaid ?? 0, link?.paymentStatus ?? "unpaid");
@@ -385,7 +368,6 @@ export function SharePage() {
       );
     }
     const pending = link?.ok ? link.depositClaimPending === true : claimSent;
-    const smsUrl = claimSmsUrl(due.amount, due.kind);
     if (pending) {
       return (
         <div className="space-y-2">
@@ -394,13 +376,6 @@ export function SharePage() {
             <div className="text-center text-[15.5px] font-bold leading-snug text-[#B45309]">
               {label} {won(due.amount)} 입금 확인 대기
             </div>
-            {smsUrl ? (
-              <a href={smsUrl} className="mt-2 block w-full rounded-[14px] border border-[#B45309] bg-white py-3 text-center text-[16px] font-black text-[#B45309]">
-                업체에 입금 문자 보내기
-              </a>
-            ) : (
-              <div className="mt-2 text-center text-[14px] font-semibold text-[#D95C5C]">업체 연락처가 없어 문자를 작성할 수 없습니다.</div>
-            )}
             {errorBox}
           </div>
         </div>
