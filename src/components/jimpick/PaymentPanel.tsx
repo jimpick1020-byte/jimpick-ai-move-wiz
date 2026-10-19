@@ -20,11 +20,19 @@ export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: 
   const [method, setMethod] = useState<PaymentMethod | null>(null);
   const savePayment = useServerFn(setPaymentState);
   const confirmBank = useServerFn(confirmOwnerBankBalance);
-  useEffect(() => { setStatus(normalizePaymentStatus(row.paymentStatus)); setAskComplete(false); setMethod(null); setNote(row.paymentNote ?? ""); }, [estimateId, row.paymentStatus, row.paymentNote]);
   const remain = remainingPayment(total, row.depositPaid, row.balancePaid);
   const summary = paymentSummaryParts(total, row.depositPaid, row.balancePaid);
-  const receipts = (row.paymentReceipts ?? []).filter((r) => r.amount > 0 && ["pending_review", "confirmed"].includes(r.status) && r.paymentKind === "balance" && r.source !== "customer_claim" && bankReceipt(r));
+  const receipts = (row.paymentReceipts ?? []).filter((r) => r.amount > 0 && ["pending_review", "confirmed"].includes(r.status) && r.paymentKind === "balance" && bankReceipt(r))
+    .sort((a, b) => Number(b.amount === remain) - Number(a.amount === remain));
   const pending = (row.paymentReceipts ?? []).filter(pendingReceipt);
+  const balancePendingKey = receipts.filter((r) => r.status === "pending_review").map((r) => r.id).join(",");
+  useEffect(() => {
+    const stored = normalizePaymentStatus(row.paymentStatus);
+    setNote(row.paymentNote ?? "");
+    // 잔금 입금 신고가 대기 중이면 결제완료·계좌이체를 미리 선택해 둡니다 (확인 버튼은 사장님이 직접 누릅니다).
+    if (balancePendingKey && stored !== "completed") { setStatus("completed"); setAskComplete(true); setMethod("bank_transfer"); setOpen(true); }
+    else { setStatus(stored); setAskComplete(false); setMethod(null); }
+  }, [estimateId, row.paymentStatus, row.paymentNote, balancePendingKey]);
   const label = pending.length ? "계좌이체 확인 필요" : status === "completed" ? completedPaymentLabel(row.paymentMethod) : `${PAYMENT_METHOD_LABEL[normalizePaymentMethod(row.paymentMethod)]} · ${PAYMENT_STATUS_LABEL[status]}`;
   const cancel = () => { setAskComplete(false); setMethod(null); };
   const confirmDirectBank = async () => {

@@ -356,7 +356,7 @@ export const confirmDeposit = createServerFn({ method: "POST" })
     }): Promise<{ ok: boolean; error?: string; paid?: number; confirmedAt?: string }> => {
       const { data: receipt } = await context.supabase.from("deposit_records").select("estimate_id,payment_kind,source,payment_method").eq("id", data.id).eq("user_id", context.userId).maybeSingle();
       if (!receipt) return { ok: false, error: "입금 기록을 찾지 못했습니다." };
-      if (receipt.payment_kind === "balance" && receipt.source !== "customer_claim" && (!receipt.payment_method || receipt.payment_method === "bank_transfer")) {
+      if (receipt.payment_kind === "balance" && (!receipt.payment_method || receipt.payment_method === "bank_transfer")) {
         const { data: result, error } = await context.supabase.rpc("complete_estimate_payment", { _estimate_id: receipt.estimate_id, _method: "bank_transfer", _receipt_id: data.id });
         if (error) return { ok: false, error: "계좌이체 확인을 저장하지 못했습니다." };
         return result as { ok: boolean; error?: string; paid?: number; confirmedAt?: string };
