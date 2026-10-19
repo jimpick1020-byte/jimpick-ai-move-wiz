@@ -279,6 +279,25 @@ export function SharePage() {
       .finally(() => setLoading(false));
   }, [id, token, staffMode, preview.valid]);
 
+  // 업체가 입금을 확인하면 새로고침 없이도 다음 단계(잔금 입금)가 보이도록 저장된 기록을 다시 읽습니다.
+  useEffect(() => {
+    if (!token || staffMode) return;
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      void getTermsLink({ data: { token } })
+        .then((info) => { if (info.ok) setLink((current) => (current?.ok ? { ...current, ...info } : current)); })
+        .catch(() => {});
+    };
+    const timer = window.setInterval(refresh, 10000);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [token, staffMode]);
+
   const localCalc = useMemo(() => (validLink && estimate ? calcEstimate(estimate) : null), [estimate, validLink]);
 
   /**
@@ -338,18 +357,66 @@ export function SharePage() {
     if (!hasData) return null;
     const due = customerPaymentDue(total, paidDeposit, link?.balancePaid ?? 0, link?.paymentStatus ?? "unpaid");
     const label = due.kind === "balance" ? "잔금" : "예약금";
-    if (due.amount <= 0) return <div className="rounded-lg border border-border bg-muted p-4 text-center font-bold">결제가 완료되었습니다</div>;
+    const errorBox = claimError && (
+      <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">{claimError}</div>
+    );
+    const confirmedDeposit = paidDeposit > 0 && (
+      <div className="rounded-[14px] border border-[#BFE7CE] bg-[#F1FBF4] px-4 py-3.5">
+        <div className="text-center text-[16px] font-black text-[#3E9B78]">예약금 입금이 확인되었습니다</div>
+      </div>
+    );
+    if (due.amount <= 0) {
+      return (
+        <div className="rounded-[14px] border border-[#BFE7CE] bg-[#F1FBF4] px-4 py-3.5">
+          <div className="text-center text-[16px] font-black text-[#3E9B78]">
+            {paidDeposit > 0 ? "결제가 완료되었습니다" : "예약금 입금이 확인되었습니다"}
+          </div>
+        </div>
+      );
+    }
     const pending = link?.ok ? link.depositClaimPending === true : claimSent;
-    let smsUrl: string | null = null;
-    try { smsUrl = intakeSmsHref(link?.contactPhone ?? "", paymentText(customerName.trim(), due.amount, due.kind, false)); } catch { /* Missing company phone must not use a fallback. */ }
-    return <div className="space-y-2 rounded-lg border border-border bg-muted p-4">
-      {paidDeposit > 0 && <p className="text-center font-bold">예약금 {won(paidDeposit)} 확인 완료</p>}
-      <p className="text-center font-bold">{label} {won(due.amount)}{pending ? " 입금 확인 대기" : ""}</p>
-      {!pending && <Button variant="staff" className="w-full" disabled={claiming} onClick={() => void sendDepositClaim()}>{claiming ? "알리는 중…" : due.kind === "balance" ? "잔금 입금했습니다" : "입금했습니다"}</Button>}
-      {pending && smsUrl && <Button asChild variant="outline" className="w-full"><a href={smsUrl}>업체에 입금 문자 보내기</a></Button>}
-      {pending && !smsUrl && <p className="text-sm text-destructive">업체 연락처가 없어 문자를 작성할 수 없습니다.</p>}
-      {claimError && <p className="text-sm text-destructive">{claimError}</p>}
-    </div>;
+    const smsUrl = claimSmsUrl(due.amount, due.kind);
+    if (pending) {
+      return (
+        <div className="space-y-2">
+          {confirmedDeposit}
+          <div className="rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
+            <div className="text-center text-[15.5px] font-bold leading-snug text-[#B45309]">
+              {label} {won(due.amount)} 입금 확인 대기
+            </div>
+            {smsUrl ? (
+              <a href={smsUrl} className="mt-2 block w-full rounded-[14px] border border-[#B45309] bg-white py-3 text-center text-[16px] font-black text-[#B45309]">
+                업체에 입금 문자 보내기
+              </a>
+            ) : (
+              <div className="mt-2 text-center text-[14px] font-semibold text-[#D95C5C]">업체 연락처가 없어 문자를 작성할 수 없습니다.</div>
+            )}
+            {errorBox}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-2">
+        {confirmedDeposit}
+        <div className="rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
+          <button
+            type="button"
+            onClick={() => void sendDepositClaim()}
+            disabled={claiming}
+            className="w-full rounded-[14px] bg-[#B45309] py-3.5 text-[17px] font-black text-white disabled:opacity-50"
+          >
+            {claiming ? "알리는 중…" : due.kind === "balance" ? `잔금 ${won(due.amount)} 입금했습니다` : "입금했습니다"}
+          </button>
+          <div className="mt-1.5 text-center text-[14px] font-semibold text-[#8A6D1B]">
+            {due.kind === "balance"
+              ? "업체가 잔금 입금을 확인한 후 결제가 완료됩니다."
+              : "업체가 예약금 입금을 확인한 후 예약이 확정됩니다."}
+          </div>
+          {errorBox}
+        </div>
+      </div>
+    );
   })();
 
   const selectedItems = (estimate?.rooms ?? []).flatMap((room) =>
