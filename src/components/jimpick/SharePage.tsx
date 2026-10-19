@@ -346,19 +346,6 @@ export function SharePage() {
   /** 실제로 입금 확인된 예약금 — 사장님이 확인한 금액만 들어옵니다 */
   const paidDeposit = Math.max(0, (validLink ? (link.depositPaid ?? 0) : 0) || 0);
 
-  /**
-   * 「입금 계좌」 카드 바로 아래에 붙는 예약금 입금 알림 영역.
-   * 상태는 서버(Supabase)에 저장된 실제 기록으로 판단해서
-   * 새로고침해도 그대로 유지됩니다.
-   */
-  function claimSmsUrl(amount: number, kind: "deposit" | "balance"): string | null {
-    try {
-      return intakeSmsHref(link?.ok ? link.contactPhone ?? "" : "", paymentText(customerName.trim(), amount, kind, false));
-    } catch {
-      return null; // 업체 연락처가 없으면 다른 번호로 대신 보내지 않습니다.
-    }
-  }
-
   const depositClaimSlot = (() => {
     if (!hasData) return null;
     const due = customerPaymentDue(total, paidDeposit, link?.balancePaid ?? 0, link?.paymentStatus ?? "unpaid");
