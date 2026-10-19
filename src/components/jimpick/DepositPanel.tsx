@@ -13,6 +13,7 @@ import {
   type DepositRow,
 } from "@/lib/deposit.functions";
 import { pendingReceipt } from "@/lib/payment-review";
+import { PaymentSmsButton } from "./PaymentSmsButton";
 import { Button } from "@/components/ui/button";
 
 const won = (n: number) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
@@ -147,6 +148,7 @@ export function DepositPanel({
                       고객 문자 실패: {r.notifyError}
                     </div>
                   )}
+                  {r.status === "confirmed" && <PaymentSmsButton estimateId={estimateId} receiptId={r.id} />}
                   {pendingReceipt(r) && (
                     <div className="mt-2 flex gap-2">
                       <Button onClick={() => void doConfirm(r.id)} disabled={working !== null} variant="outline" className="flex-1">

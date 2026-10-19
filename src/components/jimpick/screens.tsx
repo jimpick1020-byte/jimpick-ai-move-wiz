@@ -1,3 +1,4 @@
+import { PaymentSmsButton } from "./PaymentSmsButton";
 import { DepositPanel } from "./DepositPanel";
 import { addressWithBuilding } from "@/lib/address-label";
 import { StaffSendScreen } from "./StaffSendScreen";
@@ -6576,6 +6577,7 @@ export function History() {
                   >
                     견적서 보기
                   </button>
+                  <PaymentSmsButton estimateId={a.estimateId} />
                 </div>
               ))}
             </div>
