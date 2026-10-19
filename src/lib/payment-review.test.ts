@@ -3,6 +3,14 @@ import { strict as assert } from "node:assert";
 import { paymentReview, pendingReceipt, balanceReceiptReady, receiptPaymentKind, type PaymentEvidence } from "./payment-review";
 const receipt: PaymentEvidence = { amount: 950000, status: "pending_review", source: "sms_paste", depositorName: "시험 입금자", paymentKind: "deposit", paymentMethod: "bank_transfer" };
 describe("owner receipt review", () => {
+  test("80000 deposit and 950000 balance both stay pending with their own depositor", () => {
+    const deposit = { ...receipt, amount: 80000, depositorName: "예약금 입금자", paymentKind: "deposit" };
+    const balance = { ...receipt, amount: 950000, depositorName: "잔금 입금자", paymentKind: "balance" };
+    const review = paymentReview([deposit, balance], "deposit_paid", 80000, 0, 1030000);
+    assert.equal(review?.amount, 1030000);
+    assert.deepEqual(review?.receipts.map((r) => [r.paymentKind, r.depositorName, r.amount]), [["deposit", "예약금 입금자", 80000], ["balance", "잔금 입금자", 950000]]);
+    assert.equal(paymentReview([{ ...deposit, status: "confirmed" }, balance], "deposit_paid", 80000, 0, 1030000)?.amount, 950000);
+  });
   test("950000 pending deposit requires review", () => assert.equal(paymentReview([receipt], "unpaid", 0, 0, 2000000)?.amount, 950000));
   test("950000 short balance also requires orange review", () => assert.equal(paymentReview([{ ...receipt, paymentKind: "balance" }], "deposit_paid", 100000, 0, 2000000)?.kind, "deposit"));
   test("stored completed state cannot hide pending receipt", () => assert.equal(paymentReview([receipt], "completed", 0, 0, 950000)?.amount, 950000));

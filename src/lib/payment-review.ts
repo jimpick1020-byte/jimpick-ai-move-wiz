@@ -44,5 +44,5 @@ export function paymentReview(records: PaymentEvidence[], _paymentStatus: string
 /** Fixed full classes so Tailwind always generates them (no dynamic class names). */
 export const PAYMENT_REVIEW_BORDER = {
   deposit: "border-4 border-payment-review",
-  balance: "border-4 border-red-500",
+  balance: "border-4 border-payment-review",
 } as const;
