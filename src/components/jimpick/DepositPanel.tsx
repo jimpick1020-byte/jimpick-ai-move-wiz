@@ -34,7 +34,6 @@ export function DepositPanel({
   onSaved?: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
   const [text, setText] = useState("");
   const [rows, setRows] = useState<DepositRow[]>([]);
   const [busy, setBusy] = useState(false);
@@ -82,7 +81,6 @@ export function DepositPanel({
       } else {
         toast.info("입금 기록을 저장했습니다", { description: "입금 확인 필요 상태입니다. 고객 문자는 보내지 않습니다." });
         setText("");
-        setAdding(false);
         onSaved?.();
       }
     } catch (error) {
