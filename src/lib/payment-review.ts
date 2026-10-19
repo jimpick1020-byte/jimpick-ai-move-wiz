@@ -27,8 +27,14 @@ export function balanceReceiptReady(records: PaymentEvidence[], paymentStatus: s
   return balance.length > 0 && total > 0 && depositPaid + balance.reduce((s, r) => s + r.amount, 0) >= total;
 }
 
-export function pendingReceipt(record: { amount: number; status: string }): boolean {
-  return record.amount > 0 && record.status === "pending_review";
+export function bankReceipt(record: { paymentMethod?: string | null; source?: string }): boolean {
+  if (record.paymentMethod) return record.paymentMethod === "bank_transfer";
+  // Preserve known legacy bank-alert records without reclassifying stored data.
+  return record.source === "sms_paste" || record.source === "manual";
+}
+
+export function pendingReceipt(record: { amount: number; status: string; paymentMethod?: string | null; source?: string }): boolean {
+  return record.amount > 0 && record.status === "pending_review" && bankReceipt(record);
 }
 
 export function paymentReview(records: PaymentEvidence[], _paymentStatus: string, _depositPaid: number, _balancePaid: number, _total: number) {

@@ -38,9 +38,21 @@ export function DepositPanel({
   const [rows, setRows] = useState<DepositRow[]>([]);
   const [busy, setBusy] = useState(false);
   const confirmLock = useRef(false);
+  const textInput = useRef<HTMLTextAreaElement>(null);
   const [working, setWorking] = useState<string | null>(null);
   const [selectedKind, setSelectedKind] = useState<"deposit" | "balance" | null>(null);
   const paymentKind = selectedKind ?? (depositPaid > 0 ? "balance" : "deposit");
+
+  useEffect(() => {
+    const openBalance = (event: Event) => {
+      if (!(event instanceof CustomEvent) || event.detail !== estimateId) return;
+      setOpen(true);
+      setSelectedKind("balance");
+      window.setTimeout(() => { textInput.current?.focus(); textInput.current?.scrollIntoView({ block: "center", behavior: "smooth" }); }, 0);
+    };
+    window.addEventListener("jimpick:open-bank-receipts", openBalance);
+    return () => window.removeEventListener("jimpick:open-bank-receipts", openBalance);
+  }, [estimateId]);
 
   const load = () => {
     listDeposits({ data: { estimateId } })
@@ -82,6 +94,7 @@ export function DepositPanel({
       } else {
         toast.info("입금 기록을 저장했습니다", { description: "입금 확인 필요 상태입니다. 고객 문자는 보내지 않습니다." });
         setText("");
+        onSaved?.();
       }
     } catch (error) {
       toast.error("입금 기록 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요" });
@@ -157,6 +170,8 @@ export function DepositPanel({
             ))}
           </div>
           <textarea
+            ref={textInput}
+            aria-label="은행 입금알림 문자"
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={3}
@@ -179,13 +194,14 @@ export function DepositPanel({
               </div>
             </div>
           )}
-          <button
+          <Button
             onClick={() => void submit()}
             disabled={busy || !text.trim()}
-            className="w-full rounded-xl bg-[#3578C8] py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
+            variant="staff"
+            className="w-full"
           >
-            {busy ? "확인 중…" : "입금 확인하기"}
-          </button>
+            {busy ? "저장 중…" : `${paymentKind === "balance" ? "잔금" : "예약금"} 입금 기록 저장`}
+          </Button>
 
           {rows.length > 0 && (
             <div className="space-y-1.5">
