@@ -2,10 +2,10 @@
  * 예약금 입금 확인 칸 (사장님용).
  *
  * 은행에서 온 입금알림 문자를 그대로 붙여넣으면
- *  · 입금자 이름이 고객 이름과 같으면 → 바로 예약금으로 반영하고 고객에게 확인 문자를 보냅니다.
- *  · 이름이 다르면 → 절대 금액을 바꾸지 않고 「확인 대기」로 남겨, 사장님이 직접 확인합니다.
+ *  · 이름 일치와 무관하게 확인 대기로 저장하고 업체가 기록별로 확인합니다.
+ *  · 확인 시 문자 발송이나 견적 금액 변경은 하지 않습니다.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   registerDeposit,
@@ -14,6 +14,7 @@ import {
   listDeposits,
   type DepositRow,
 } from "@/lib/deposit.functions";
+import { pendingReceipt } from "@/lib/payment-review";
 import { parseDepositSms } from "@/lib/deposit-parse";
 import { Button } from "@/components/ui/button";
 
@@ -24,16 +25,19 @@ export function DepositPanel({
   customerName,
   total,
   depositPaid = 0,
+  onSaved,
 }: {
   estimateId: string;
   customerName: string;
   total: number;
   depositPaid?: number;
+  onSaved?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [rows, setRows] = useState<DepositRow[]>([]);
   const [busy, setBusy] = useState(false);
+  const confirmLock = useRef(false);
   const [working, setWorking] = useState<string | null>(null);
   const [selectedKind, setSelectedKind] = useState<"deposit" | "balance" | null>(null);
   const paymentKind = selectedKind ?? (depositPaid > 0 ? "balance" : "deposit");
@@ -65,7 +69,7 @@ export function DepositPanel({
   }, [estimateId]);
 
   const paid = rows.filter((r) => r.status === "confirmed").reduce((s, r) => s + r.amount, 0);
-  const pending = rows.filter((r) => r.status === "pending_review");
+  const pending = rows.filter(pendingReceipt);
   const preview = text.trim() ? parseDepositSms(text) : null;
 
   const submit = async () => {
@@ -75,17 +79,8 @@ export function DepositPanel({
       const r = await registerDeposit({ data: { estimateId, text, paymentKind } });
       if (!r.ok) {
         toast.error("입금 기록 실패", { description: r.error ?? "다시 시도해 주세요" });
-      } else if (r.needsReview) {
-        toast.info("입금 기록을 저장했습니다", {
-          description: "금액은 아직 반영하지 않았습니다. 통장을 확인한 뒤 예약금 확인 또는 결제완료를 눌러 주세요.",
-        });
-        setText("");
       } else {
-        toast.success(`예약금 ${won(r.paid ?? 0)} 반영 완료`, {
-          description: r.smsError
-            ? `고객 문자 실패: ${r.smsError}`
-            : "고객에게 입금 확인 문자를 보냈습니다.",
-        });
+        toast.info("입금 기록을 저장했습니다", { description: "입금 확인 필요 상태입니다. 고객 문자는 보내지 않습니다." });
         setText("");
       }
     } catch (error) {
@@ -98,21 +93,23 @@ export function DepositPanel({
   };
 
   const doConfirm = async (id: string) => {
-    if (working) return;
+    if (confirmLock.current) return;
+    confirmLock.current = true;
     setWorking(id);
     try {
       const r = await confirmDeposit({ data: { id } });
       if (r.ok) {
-        toast.success(`예약금 ${won(r.paid ?? 0)} 반영 완료`, {
-          description: r.smsError
-            ? `고객 문자 실패: ${r.smsError}`
-            : "고객에게 안내 문자를 보냈습니다.",
-        });
-      } else toast.error("반영 실패", { description: r.error ?? "" });
+        setRows((old) => old.map((row) => row.id === id ? { ...row, status: "confirmed", confirmedAt: new Date().toISOString() } : row));
+        toast.success(`입금 ${won(r.paid ?? 0)} 확인 완료`);
+        onSaved?.();
+        window.dispatchEvent(new Event("jimpick:payment-updated"));
+      } else toast.error("확인 실패", { description: r.error ?? "" });
+    } catch (error) {
+      toast.error("확인 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요" });
     } finally {
+      confirmLock.current = false;
       setWorking(null);
       load();
-      window.dispatchEvent(new Event("jimpick:payment-updated"));
     }
   };
 
@@ -221,25 +218,22 @@ export function DepositPanel({
                     </span>
                   </div>
                   <div className="mt-0.5 text-[#6B7280]">
-                    {r.depositedAt ? new Date(r.depositedAt).toLocaleString("ko-KR") : ""}
+                    입금 시각 {new Date(r.depositedAt ?? r.createdAt).toLocaleString("ko-KR")}
                     {r.status === "pending_review" && !r.nameMatched
                       ? ` · 고객명(${r.customerName || "없음"})과 다릅니다`
                       : ""}
                   </div>
+                  {r.confirmedAt && r.status === "confirmed" && <div className="mt-1 text-xs text-muted-foreground">확인 {new Date(r.confirmedAt).toLocaleString("ko-KR")} · 확인 담당자 {r.confirmedBy ? "업체 담당자" : "기록 없음"}</div>}
                   {r.notifyError && r.status === "confirmed" && (
                     <div className="mt-0.5 font-semibold text-[#D95C5C]">
                       고객 문자 실패: {r.notifyError}
                     </div>
                   )}
-                  {r.status === "pending_review" && r.paymentKind !== "balance" && (
+                  {pendingReceipt(r) && (
                     <div className="mt-2 flex gap-2">
-                      <button
-                        onClick={() => void doConfirm(r.id)}
-                        disabled={working === r.id}
-                        className="flex-1 rounded-xl bg-[#F7F8F5] py-2 font-bold text-[#25282D] disabled:opacity-50"
-                      >
-                        {working === r.id ? "처리 중…" : "예약금 확인"}
-                      </button>
+                      <Button onClick={() => void doConfirm(r.id)} disabled={working !== null} variant="outline" className="flex-1">
+                        {working === r.id ? "처리 중…" : "입금 확인"}
+                      </Button>
                       <button
                         onClick={() => void doReject(r.id)}
                         disabled={working === r.id}
