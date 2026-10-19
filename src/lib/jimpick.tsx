@@ -1564,7 +1564,8 @@ export type Screen =
   | "settings"
   | "stats"
   | "adminAccounts"
-  | "errorLogs";
+  | "errorLogs"
+  | "bankSms";
 
 interface AppState {
   loggedIn: boolean;

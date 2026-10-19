@@ -1017,8 +1017,9 @@ export function HomeScreen() {
             { label: "고객 관리", icon: <User className="w-8 h-8 text-[#25282D]" />, s: "customers" as const },
             { label: "고객 요청", icon: <span className="relative inline-flex"><User className="w-8 h-8 text-[#25282D]" /><Bell className="absolute -right-2 -top-1 w-4 h-4 text-[#25282D]" /></span>, s: "requests" as const },
             { label: "통계 확인", icon: <BarChart3 className="w-8 h-8 text-[#25282D]" />, s: "stats" as const },
+            { label: "입금 문자", icon: <Bell className="w-8 h-8 text-[#25282D]" />, s: "bankSms" as const },
           ].map(({ label, icon, s }) => (
-            <Card key={label} onClick={() => setScreen(s)} className="relative flex h-[96px] flex-col items-center justify-center gap-2">
+            <Card key={label} onClick={() => setScreen(s)} className={`relative flex flex-col items-center justify-center gap-2 ${s === "bankSms" ? "col-span-2 h-[72px]" : "h-[96px]"}`}>
               {icon}
               <span className="text-[15px] font-bold text-center">{label}</span>
               {s === "requests" && newRequests > 0 && (
