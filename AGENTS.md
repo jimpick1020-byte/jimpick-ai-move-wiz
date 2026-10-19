@@ -33,3 +33,4 @@
 
 - Deposit acknowledgement uses confirm_payment_receipt; explicit balance completion uses the owner-locked complete_estimate_payment RPC with separate methods and shared pendingReceipt display, preventing cash fallback, total changes or messaging side effects.
 - Automatic receipt highlighting uses explicit bank methods or known legacy bank-alert sources; the missing-balance action opens the existing owner receipt registration panel, avoiding duplicate receipt flows or assuming access to phone SMS.
+- Pending bank receipts stay directly visible in DepositPanel and use its existing locked confirmation path; registration is separate so confirmation never requires re-entering evidence or reselecting a payment method.

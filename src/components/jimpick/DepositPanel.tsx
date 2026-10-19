@@ -34,6 +34,7 @@ export function DepositPanel({
   onSaved?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [text, setText] = useState("");
   const [rows, setRows] = useState<DepositRow[]>([]);
   const [busy, setBusy] = useState(false);
@@ -47,6 +48,7 @@ export function DepositPanel({
     const openBalance = (event: Event) => {
       if (!(event instanceof CustomEvent) || event.detail !== estimateId) return;
       setOpen(true);
+      setAdding(true);
       setSelectedKind("balance");
       window.setTimeout(() => { textInput.current?.focus(); textInput.current?.scrollIntoView({ block: "center", behavior: "smooth" }); }, 0);
     };
@@ -94,6 +96,7 @@ export function DepositPanel({
       } else {
         toast.info("입금 기록을 저장했습니다", { description: "입금 확인 필요 상태입니다. 고객 문자는 보내지 않습니다." });
         setText("");
+        setAdding(false);
         onSaved?.();
       }
     } catch (error) {
@@ -160,8 +163,12 @@ export function DepositPanel({
         <span className="text-[#6B7280]">{open ? "닫기" : "열기"}</span>
       </button>
 
-      {open && (
+      {(open || pending.length > 0) && (
         <div className="mt-2 space-y-2">
+          <Button variant="outline" className="w-full" disabled={busy} aria-expanded={adding} onClick={() => setAdding((value) => !value)}>
+            {adding ? "입력 닫기" : `${paymentKind === "balance" ? "잔금" : "예약금"} 입금 기록 추가`}
+          </Button>
+          {adding && <>
           <div role="group" aria-label="입금 종류" className="grid grid-cols-2 gap-2">
             {(["deposit", "balance"] as const).map((kind) => (
               <Button key={kind} variant={paymentKind === kind ? "staff" : "outline"} aria-pressed={paymentKind === kind} onClick={() => setSelectedKind(kind)} disabled={busy}>
@@ -202,6 +209,7 @@ export function DepositPanel({
           >
             {busy ? "저장 중…" : `${paymentKind === "balance" ? "잔금" : "예약금"} 입금 기록 저장`}
           </Button>
+          </>}
 
           {rows.length > 0 && (
             <div className="space-y-1.5">
@@ -242,7 +250,7 @@ export function DepositPanel({
                   {pendingReceipt(r) && (
                     <div className="mt-2 flex gap-2">
                       <Button onClick={() => void doConfirm(r.id)} disabled={working !== null} variant="outline" className="flex-1">
-                        {working === r.id ? "처리 중…" : r.source === "customer_claim" ? "입금 확인" : "계좌이체 확인"}
+                        {working === r.id ? "처리 중…" : r.paymentKind === "balance" ? "잔금 입금 확인" : "예약금 입금 확인"}
                       </Button>
                       <button
                         onClick={() => void doReject(r.id)}
