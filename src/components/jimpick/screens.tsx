@@ -6586,7 +6586,11 @@ export function History() {
           <div className="text-center text-[#6B7280] py-16">저장된 견적이 없습니다.</div>
         )}
         {groups.map((g) => {
-          const gOpen = q.trim() ? true : (openMonths[g.key] ?? defaultOpen.has(g.key));
+          const pendingCount = g.items.filter((e) => {
+            const row = termsRows.find((t) => t.estimateId === e.id);
+            return Boolean(paymentReview(row?.paymentReceipts ?? [], row?.paymentStatus ?? "unpaid", row?.depositPaid ?? 0, row?.balancePaid ?? 0, row?.total ?? e.total));
+          }).length;
+          const gOpen = q.trim() ? true : (openMonths[g.key] ?? (pendingCount > 0 || defaultOpen.has(g.key)));
           return (
             <div key={g.key} className="space-y-3">
               <button
@@ -6596,6 +6600,7 @@ export function History() {
               >
                 <span>
                   {g.title} · {g.items.length}건
+                  {pendingCount > 0 && <span className="ml-2 text-payment-review">입금 확인 {pendingCount}건</span>}
                 </span>
                 <span className="text-[13px] font-semibold text-[#6B7280]">{gOpen ? "접기 ▲" : "펼치기 ▾"}</span>
               </button>
@@ -6620,8 +6625,8 @@ export function History() {
                       onClick={() => toggleCard(e.id)}
                       className="w-full text-left"
                     >
-                      <div className="flex justify-between items-start">
-                        <div>
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
                             <span className="font-bold truncate">{e.customerName || "이름 없음"}</span>
                             {e.intakeRequestId && (() => {
@@ -6640,7 +6645,7 @@ export function History() {
                           {review && (
                             <div className="mt-1 text-sm font-bold text-foreground" data-payment-review-text>
                               계좌이체 확인 필요 · {review.amount.toLocaleString("ko-KR")}원
-                              {review.receipts.map((r, i) => <div key={r.id ?? i} className="text-xs font-semibold">{r.depositorName || "이름 미확인"} · {r.amount.toLocaleString("ko-KR")}원</div>)}
+                              {review.receipts.map((r, i) => <div key={r.id ?? i} className="break-words text-sm font-semibold">{r.paymentKind === "balance" ? "잔금" : r.paymentKind === "deposit" ? "예약금" : "계좌 입금"} 입금 · 입금자 {r.depositorName || "이름 미확인"} · {r.amount.toLocaleString("ko-KR")}원 · 확인 필요</div>)}
                             </div>
                           )}
                         </div>
