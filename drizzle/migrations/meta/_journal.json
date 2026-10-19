@@ -169,6 +169,13 @@
       "when": 1792162921467,
       "tag": "0023_clean_duplicate_work_method_selection",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792384874243,
+      "tag": "0024_confirm_receipt_without_sms",
+      "breakpoints": true
     }
   ]
 }
