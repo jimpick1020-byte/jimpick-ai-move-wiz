@@ -5,6 +5,7 @@ export interface PaymentEvidence {
   source: string;
   depositorName: string;
   paymentKind?: string;
+  paymentMethod?: string | null;
   depositedAt?: string | null;
   confirmedAt?: string | null;
   confirmedBy?: string | null;

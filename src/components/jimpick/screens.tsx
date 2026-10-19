@@ -6622,7 +6622,7 @@ export function History() {
                           <div className="text-xs text-[#6B7280]">{formatTel(e.phone)}</div>
                           {review && (
                             <div className="mt-1 text-sm font-bold text-foreground" data-payment-review-text>
-                              입금 확인 필요 · {review.amount.toLocaleString("ko-KR")}원
+                              계좌이체 확인 필요 · {review.amount.toLocaleString("ko-KR")}원
                               {review.receipts.map((r, i) => <div key={r.id ?? i} className="text-xs font-semibold">{r.depositorName || "이름 미확인"} · {r.amount.toLocaleString("ko-KR")}원</div>)}
                             </div>
                           )}
