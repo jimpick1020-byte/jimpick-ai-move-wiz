@@ -7,3 +7,8 @@ test("card is not cash", () => assert.equal(normalizePaymentMethod("card"), "car
 test("unknown legacy methods remain unclassified", () => assert.equal(normalizePaymentMethod(null), "unclassified"));
 test("remaining payment is 950000 without adding VAT", () => assert.equal(remainingPayment(1000000, 50000, 0), 950000));
 test("previous balance is not charged again", () => assert.equal(remainingPayment(1000000, 50000, 100000), 850000));
+test("owner reviews 950000 bank balance after 80000 deposit without changing total", () => {
+  assert.equal(remainingPayment(1030000, 80000, 0), 950000);
+  assert.equal(remainingPayment(1030000, 80000, 950000), 0);
+  assert.equal(normalizePaymentMethod("bank_transfer"), "bank_transfer");
+});

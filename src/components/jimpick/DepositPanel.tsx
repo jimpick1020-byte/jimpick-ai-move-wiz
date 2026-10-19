@@ -39,22 +39,8 @@ export function DepositPanel({
   const [rows, setRows] = useState<DepositRow[]>([]);
   const [busy, setBusy] = useState(false);
   const confirmLock = useRef(false);
-  const textInput = useRef<HTMLTextAreaElement>(null);
   const [working, setWorking] = useState<string | null>(null);
-  const [selectedKind, setSelectedKind] = useState<"deposit" | "balance" | null>(null);
-  const paymentKind = selectedKind ?? (depositPaid > 0 ? "balance" : "deposit");
-
-  useEffect(() => {
-    const openBalance = (event: Event) => {
-      if (!(event instanceof CustomEvent) || event.detail !== estimateId) return;
-      setOpen(true);
-      setAdding(true);
-      setSelectedKind("balance");
-      window.setTimeout(() => { textInput.current?.focus(); textInput.current?.scrollIntoView({ block: "center", behavior: "smooth" }); }, 0);
-    };
-    window.addEventListener("jimpick:open-bank-receipts", openBalance);
-    return () => window.removeEventListener("jimpick:open-bank-receipts", openBalance);
-  }, [estimateId]);
+  const paymentKind = "deposit" as const;
 
   const load = () => {
     listDeposits({ data: { estimateId } })
@@ -165,19 +151,12 @@ export function DepositPanel({
 
       {(open || pending.length > 0) && (
         <div className="mt-2 space-y-2">
-          <Button variant="outline" className="w-full" disabled={busy} aria-expanded={adding} onClick={() => setAdding((value) => !value)}>
-            {adding ? "입력 닫기" : `${paymentKind === "balance" ? "잔금" : "예약금"} 입금 기록 추가`}
+          {depositPaid <= 0 && <Button variant="outline" className="w-full" disabled={busy} aria-expanded={adding} onClick={() => setAdding((value) => !value)}>
+            {adding ? "입력 닫기" : "예약금 입금 기록 추가"}
           </Button>
-          {adding && <>
-          <div role="group" aria-label="입금 종류" className="grid grid-cols-2 gap-2">
-            {(["deposit", "balance"] as const).map((kind) => (
-              <Button key={kind} variant={paymentKind === kind ? "staff" : "outline"} aria-pressed={paymentKind === kind} onClick={() => setSelectedKind(kind)} disabled={busy}>
-                {kind === "deposit" ? "예약금" : "잔금"}
-              </Button>
-            ))}
-          </div>
+          }
+          {adding && depositPaid <= 0 && <>
           <textarea
-            ref={textInput}
             aria-label="은행 입금알림 문자"
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -207,7 +186,7 @@ export function DepositPanel({
             variant="staff"
             className="w-full"
           >
-            {busy ? "저장 중…" : `${paymentKind === "balance" ? "잔금" : "예약금"} 입금 기록 저장`}
+            {busy ? "저장 중…" : "예약금 입금 기록 저장"}
           </Button>
           </>}
 
