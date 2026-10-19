@@ -1,45 +1,32 @@
 /**
  * 예약금 입금 확인 칸 (사장님용).
  *
- * 은행에서 온 입금알림 문자를 그대로 붙여넣으면
- *  · 이름 일치와 무관하게 확인 대기로 저장하고 업체가 기록별로 확인합니다.
- *  · 확인 시 문자 발송이나 견적 금액 변경은 하지 않습니다.
+ * 고객이 「입금했습니다」를 누르면 기록이 만들어지고,
+ * 사장님은 기록별로 확인합니다. 확인 시 문자 발송이나 견적 금액 변경은 하지 않습니다.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-  registerDeposit,
   confirmDeposit,
   rejectDeposit,
   listDeposits,
   type DepositRow,
 } from "@/lib/deposit.functions";
 import { pendingReceipt } from "@/lib/payment-review";
-import { parseDepositSms } from "@/lib/deposit-parse";
 import { Button } from "@/components/ui/button";
 
 const won = (n: number) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
 
 export function DepositPanel({
   estimateId,
-  customerName,
-  total,
-  depositPaid = 0,
   onSaved,
 }: {
   estimateId: string;
-  customerName: string;
-  total: number;
-  depositPaid?: number;
   onSaved?: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [text, setText] = useState("");
   const [rows, setRows] = useState<DepositRow[]>([]);
-  const [busy, setBusy] = useState(false);
-  const confirmLock = useRef(false);
   const [working, setWorking] = useState<string | null>(null);
-  const paymentKind = "deposit" as const;
 
   const load = () => {
     listDeposits({ data: { estimateId } })
@@ -69,32 +56,8 @@ export function DepositPanel({
 
   const paid = rows.filter((r) => r.status === "confirmed").reduce((s, r) => s + r.amount, 0);
   const pending = rows.filter(pendingReceipt);
-  const preview = text.trim() ? parseDepositSms(text) : null;
-
-  const submit = async () => {
-    if (busy || !text.trim()) return;
-    setBusy(true);
-    try {
-      const r = await registerDeposit({ data: { estimateId, text, paymentKind } });
-      if (!r.ok) {
-        toast.error("입금 기록 실패", { description: r.error ?? "다시 시도해 주세요" });
-      } else {
-        toast.info("입금 기록을 저장했습니다", { description: "입금 확인 필요 상태입니다. 고객 문자는 보내지 않습니다." });
-        setText("");
-        onSaved?.();
-      }
-    } catch (error) {
-      toast.error("입금 기록 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요" });
-    } finally {
-      setBusy(false);
-      load();
-      window.dispatchEvent(new Event("jimpick:payment-updated"));
-    }
-  };
-
   const doConfirm = async (id: string) => {
-    if (confirmLock.current) return;
-    confirmLock.current = true;
+    if (working) return;
     setWorking(id);
     try {
       const r = await confirmDeposit({ data: { id } });
@@ -107,7 +70,6 @@ export function DepositPanel({
     } catch (error) {
       toast.error("확인 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요" });
     } finally {
-      confirmLock.current = false;
       setWorking(null);
       load();
     }
@@ -149,41 +111,6 @@ export function DepositPanel({
 
       {(open || pending.length > 0) && (
         <div className="mt-2 space-y-2">
-          {depositPaid <= 0 && <>
-          <textarea
-            aria-label="은행 입금알림 문자"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={3}
-            placeholder={
-              "은행 입금알림 문자를 그대로 붙여넣어 주세요\n예) [Web발신] 국민 09/10 22:30 입금 100,000 김호영"
-            }
-            className="w-full rounded-xl border border-[#E5E7EB] bg-white p-2.5 text-[13px] leading-relaxed outline-none focus:border-[#3578C8]"
-          />
-          {preview && (
-            <div className="rounded-xl bg-white p-2.5 text-[12.5px] text-[#6B7280]">
-              <div>
-                읽은 입금자: <b>{preview.depositorName || "못 읽음"}</b> · 금액{" "}
-                <b>{preview.amount > 0 ? won(preview.amount) : "못 읽음"}</b>
-              </div>
-              <div className="mt-0.5 text-[#6B7280]">
-                견적서 고객명: {customerName || "없음"}
-                {preview.depositorName && customerName && preview.depositorName !== customerName
-                  ? " · 이름이 달라 확인 대기로 남습니다"
-                  : ""}
-              </div>
-            </div>
-          )}
-          <Button
-            onClick={() => void submit()}
-            disabled={busy || !text.trim()}
-            variant="staff"
-            className="w-full"
-          >
-            {busy ? "저장 중…" : "예약금 입금 기록 저장"}
-          </Button>
-          </>}
-
           {rows.length > 0 && (
             <div className="space-y-1.5">
               {rows.map((r) => (
