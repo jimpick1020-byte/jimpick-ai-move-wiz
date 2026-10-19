@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Check } from "lucide-react";
 import { setPaymentState, confirmOwnerBankBalance, PAYMENT_STATUS_CHOICES, PAYMENT_STATUS_LABEL, normalizePaymentStatus, type PaymentStatus } from "@/lib/payment.functions";
 import { PAYMENT_METHOD_LABEL, PAYMENT_METHODS, completedPaymentLabel, normalizePaymentMethod, remainingPayment, type PaymentMethod } from "@/lib/payment-method";
 import { bankReceipt, pendingReceipt } from "@/lib/payment-review";
@@ -51,7 +52,7 @@ export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: 
     <Button variant="ghost" className="w-full justify-between px-0 text-xs" onClick={() => setOpen(!open)}><span>결제 상태 · {label}</span><span>{open ? "닫기" : "열기"}</span></Button>
     <div className="mt-1 text-xs text-muted-foreground">총 {won(total)} · 예약금 {won(row.depositPaid)} · 잔금 {won(row.balancePaid)} · 남은 금액 <b>{won(remain)}</b></div>
     {open && <div className="mt-3 space-y-3">
-      <div className="grid grid-cols-2 gap-2">{PAYMENT_STATUS_CHOICES.map((s) => <Button key={s} variant={status === s ? "staff" : "outline"} disabled={busy || (s === "completed" && status === "completed")} onClick={() => { if (s === "completed") { setAskComplete(true); setMethod(null); } else { cancel(); setStatus(s); } }}>{PAYMENT_STATUS_LABEL[s]}</Button>)}</div>
+      <div className="grid grid-cols-2 gap-2">{PAYMENT_STATUS_CHOICES.map((s) => <Button key={s} aria-pressed={status === s} variant={status === s ? "staff" : "outline"} disabled={busy || (s === "completed" && status === "completed")} onClick={() => { if (s === "completed") { setAskComplete(true); setMethod(null); } else { cancel(); setStatus(s); } }}>{status === s && <Check aria-hidden="true" className="size-4 shrink-0" />}{PAYMENT_STATUS_LABEL[s]}</Button>)}</div>
       {askComplete && <div className="space-y-3 border-t border-border pt-3" aria-label="결제완료 확인">
         {!method ? <div className="grid grid-cols-2 gap-2">{PAYMENT_METHODS.map((m) => <Button key={m} variant="outline" onClick={() => setMethod(m)}>{m === "bank_transfer" ? "계좌이체" : `${PAYMENT_METHOD_LABEL[m]} 결제`}</Button>)}<Button variant="ghost" onClick={cancel}>취소</Button></div> : <>
           {method === "cash" && <><p className="text-sm font-bold">잔금 {won(remain)}을 현금으로 받으셨나요?</p><div className="grid grid-cols-2 gap-2"><Button variant="outline" disabled={busy} onClick={cancel}>취소</Button><Button variant="staff" disabled={busy} onClick={() => void run("cash")}>{busy ? "저장 중…" : "현금으로 받았어요"}</Button></div></>}
