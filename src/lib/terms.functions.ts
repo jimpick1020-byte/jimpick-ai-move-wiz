@@ -164,7 +164,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
         .eq("user_id", (row as { user_id?: string }).user_id ?? "")
         .eq("estimate_id", (row as { estimate_id?: string }).estimate_id ?? "")
         .eq("source", "customer_claim")
-        .in("status", ["pending_review", "confirmed"])
+        .eq("status", "pending_review")
         .limit(1)
         .maybeSingle();
       depositClaimPending = !!claim;

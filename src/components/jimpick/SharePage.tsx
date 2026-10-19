@@ -1,3 +1,6 @@
+import { Button } from "@/components/ui/button";
+import { customerPaymentDue, paymentText } from "@/lib/customer-payment";
+import { intakeSmsHref } from "@/lib/intake-sms";
 import { CharacterImg } from "./CharacterGuide";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatTel } from "@/lib/format-input";
@@ -140,6 +143,7 @@ export function SharePage() {
   const [exporting, setExporting] = useState<"" | "pdf" | "png">("");
   const [exportError, setExportError] = useState<string | null>(null);
   /** 「입금했습니다」 알림 상태 — 이 기기에도 기억해 두어 새로고침해도 유지됩니다 */
+  const claimLock = useRef(false);
   const [claimSent, setClaimSent] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
@@ -153,7 +157,8 @@ export function SharePage() {
 
   /** 고객이 예약금을 보냈다고 알립니다 (금액 반영은 사장님 확인 후) */
   const sendDepositClaim = async () => {
-    if (claiming || (link?.ok ? link.depositClaimPending === true : claimSent)) return;
+    if (claimLock.current || claiming || (link?.ok ? link.depositClaimPending === true : claimSent)) return;
+    claimLock.current = true;
     setClaiming(true);
     setClaimError(null);
     try {
@@ -174,6 +179,7 @@ export function SharePage() {
     } catch (e) {
       setClaimError(e instanceof Error ? e.message : "알리지 못했습니다. 다시 시도해 주세요.");
     } finally {
+      claimLock.current = false;
       setClaiming(false);
     }
   };
@@ -330,53 +336,20 @@ export function SharePage() {
    */
   const depositClaimSlot = (() => {
     if (!hasData) return null;
-    // 업체가 입금을 확인한 뒤 — 실제 저장된 예약금으로 표시합니다
-    if (paidDeposit > 0) {
-      return (
-        <div className="rounded-[14px] border border-[#BFE7CE] bg-[#F1FBF4] px-4 py-3.5">
-          <div className="text-center text-[16px] font-black text-[#3E9B78]">
-            예약금 입금이 확인되었습니다
-          </div>
-        </div>
-      );
-    }
-    // 고객이 「입금했습니다」를 누른 뒤, 업체가 통장을 확인하기 전
+    const due = customerPaymentDue(total, paidDeposit, link?.balancePaid ?? 0, link?.paymentStatus ?? "unpaid");
+    const label = due.kind === "balance" ? "잔금" : "예약금";
+    if (due.amount <= 0) return <div className="rounded-lg border border-border bg-muted p-4 text-center font-bold">결제가 완료되었습니다</div>;
     const pending = link?.ok ? link.depositClaimPending === true : claimSent;
-    if (pending) {
-      return (
-        <div className="rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
-          <div className="text-center text-[15.5px] font-bold leading-snug text-[#B45309]">
-            예약금 입금 확인 대기
-          </div>
-          {claimError && (
-            <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">
-              {claimError}
-            </div>
-          )}
-        </div>
-      );
-    }
-    // 아직 알리기 전 — 입금 계좌 아래에서 바로 알릴 수 있게 합니다
-    return (
-      <div className="rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
-        <button
-          type="button"
-          onClick={() => void sendDepositClaim()}
-          disabled={claiming}
-          className="w-full rounded-[14px] bg-[#B45309] py-3.5 text-[17px] font-black text-white disabled:opacity-50"
-        >
-          {claiming ? "알리는 중…" : "입금했습니다"}
-        </button>
-        <div className="mt-1.5 text-center text-[14px] font-semibold text-[#8A6D1B]">
-          업체가 예약금 입금을 확인한 후 예약이 확정됩니다.
-        </div>
-        {claimError && (
-          <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">
-            {claimError}
-          </div>
-        )}
-      </div>
-    );
+    let smsUrl: string | null = null;
+    try { smsUrl = intakeSmsHref(link?.contactPhone ?? "", paymentText(customerName.trim(), due.amount, due.kind, false)); } catch { /* Missing company phone must not use a fallback. */ }
+    return <div className="space-y-2 rounded-lg border border-border bg-muted p-4">
+      {paidDeposit > 0 && <p className="text-center font-bold">예약금 {won(paidDeposit)} 확인 완료</p>}
+      <p className="text-center font-bold">{label} {won(due.amount)}{pending ? " 입금 확인 대기" : ""}</p>
+      {!pending && <Button variant="staff" className="w-full" disabled={claiming} onClick={() => void sendDepositClaim()}>{claiming ? "알리는 중…" : due.kind === "balance" ? "잔금 입금했습니다" : "입금했습니다"}</Button>}
+      {pending && smsUrl && <Button asChild variant="outline" className="w-full"><a href={smsUrl}>업체에 입금 문자 보내기</a></Button>}
+      {pending && !smsUrl && <p className="text-sm text-destructive">업체 연락처가 없어 문자를 작성할 수 없습니다.</p>}
+      {claimError && <p className="text-sm text-destructive">{claimError}</p>}
+    </div>;
   })();
 
   const selectedItems = (estimate?.rooms ?? []).flatMap((room) =>

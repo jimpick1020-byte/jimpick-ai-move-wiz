@@ -15,6 +15,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { parseDepositSms, isSameName, normalizeName } from "./deposit-parse";
 import { receiptPaymentKind } from "./payment-review";
+import { customerPaymentDue } from "./customer-payment";
 
 export interface DepositRow {
   id: string;
@@ -171,7 +172,7 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
       const { data: row } = await supabaseAdmin
         .from("estimate_terms")
         .select(
-          "id, user_id, estimate_id, sheet_no, sheet_version, customer_name, total, deposit_paid, sheet_snapshot",
+          "id, user_id, estimate_id, sheet_no, sheet_version, customer_name, total, deposit_paid, balance_paid, payment_status, sheet_snapshot",
         )
         .eq("access_token", data.token)
         .is("deleted_at", null)
@@ -186,13 +187,13 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
         customer_name: string | null;
         total: number | null;
         deposit_paid: number | null;
+        balance_paid: number | null;
+        payment_status: string;
         sheet_snapshot: string | null;
       };
 
-      // 예약금은 저장된 총액으로 공통 규칙(10%, 1만 원 미만 버림)에 따라 다시 계산합니다.
-      const total = Number(t.total ?? 0);
-      let amount = calcDeposit(total);
-      if (total > 0 && amount > total) amount = total;
+      const { kind, amount } = customerPaymentDue(Number(t.total ?? 0), Number(t.deposit_paid ?? 0), Number(t.balance_paid ?? 0), t.payment_status);
+      if (amount <= 0) return { ok: false, error: "신고할 입금 금액이 없습니다." };
 
       const { data: exist } = await supabaseAdmin
         .from("deposit_records")
@@ -200,6 +201,7 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
         .eq("user_id", t.user_id)
         .eq("estimate_id", t.estimate_id)
         .eq("source", "customer_claim")
+        .eq("payment_kind", kind)
         .in("status", ["pending_review", "confirmed"])
         .limit(1)
         .maybeSingle();
@@ -215,11 +217,13 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
         amount,
         deposited_at: new Date().toISOString(),
         source: "customer_claim",
+        payment_kind: kind,
+        payment_method: "bank_transfer",
         raw_text: null,
         name_matched: true,
         status: "pending_review",
         review_note: "고객이 견적서에서 「입금했습니다」를 눌렀습니다. 통장 확인이 필요합니다.",
-        dedupe_key: `claim|${t.estimate_id}|${Number(t.sheet_version ?? 1)}`,
+        dedupe_key: kind === "deposit" ? `claim|${t.estimate_id}|${Number(t.sheet_version ?? 1)}` : `claim|${t.estimate_id}|balance|${Number(t.balance_paid ?? 0)}`,
       } as never);
       if (error) {
         if (/duplicate key|unique/i.test(error.message)) {
