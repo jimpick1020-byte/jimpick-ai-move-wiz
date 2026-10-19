@@ -2,6 +2,7 @@ import { DepositPanel } from "./DepositPanel";
 import { addressWithBuilding } from "@/lib/address-label";
 import { StaffSendScreen } from "./StaffSendScreen";
 import { paymentReview, PAYMENT_REVIEW_BORDER } from "@/lib/payment-review";
+import { clearAppBadge, unreadReceiptCount, updateAppBadge } from "@/lib/app-badge";
 import { isWaitingHistoryTarget } from "@/lib/history-focus";
 import { WorkerContacts } from "./WorkerContacts";
 import { workerSmsHref, type WorkerContact } from "@/lib/worker-contact";
@@ -736,7 +737,11 @@ export function HomeScreen() {
       ]).then(() => Promise.all([
         getTermsStatuses({ data: {} })
           .then((r) => {
-            if (alive && r.ok) setTermsRows(r.rows);
+            if (alive && r.ok) {
+              setTermsRows(r.rows);
+              // 홈 화면 앱 아이콘에 미확인 입금 건수를 빨간 숫자로 표시합니다
+              updateAppBadge(unreadReceiptCount(r.rows));
+            }
           })
           .catch(() => {}),
         listArchivedContracts()
@@ -6265,6 +6270,8 @@ export function History() {
   const scrolledTarget = useRef<string | null>(null);
   useEffect(() => {
     try { setWaitingTargetId(sessionStorage.getItem("jp_waiting_history_target")); } catch { /* 저장소 제한 */ }
+    // 사장님이 견적 내역을 직접 열었으니 아이콘의 빨간 숫자는 지웁니다 (새 미확인 입금이 오면 다시 표시)
+    clearAppBadge();
   }, []);
   const [q, setQ] = useState("");
   const [histTab, setHistTab] = useState<"all" | "intake" | "visit">("all");
@@ -6306,7 +6313,11 @@ export function History() {
   const loadTerms = () => {
     getTermsStatuses({ data: {} })
       .then((r) => {
-        if (r.ok) setTermsRows(r.rows);
+        if (r.ok) {
+          setTermsRows(r.rows);
+          // 견적 내역을 직접 열어 확인했으니 앱 아이콘 배지 숫자도 함께 갱신합니다
+          updateAppBadge(unreadReceiptCount(r.rows));
+        }
       })
       .catch((error) => toast.error("입금 상태를 불러오지 못했습니다", { description: error instanceof Error ? error.message : "다시 확인해 주세요" }));
   };
@@ -6317,7 +6328,12 @@ export function History() {
     const load = () => {
       getTermsStatuses({ data: {} })
         .then((r) => {
-          if (alive && r.ok) { setTermsRows(r.rows); setTermsReady(true); }
+          if (alive && r.ok) {
+            setTermsRows(r.rows);
+            setTermsReady(true);
+            // 견적 내역을 열어 확인했으니 앱 아이콘 배지 숫자도 함께 갱신합니다
+            updateAppBadge(unreadReceiptCount(r.rows));
+          }
         })
         .catch(() => {});
       listArchivedContracts()

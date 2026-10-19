@@ -276,3 +276,8 @@
 - [x] 저장된 자료 정리(마이그레이션 0023): est_intake_ 초안·intake_requests draft/submission에서 ladderTo=true+toEnv 동시 건의 toEnv 제거(1건)
 - [x] 규칙 시험 7개 추가(intake-estimate-adapter.test.ts), 전체 125개 통과, build OK
 - [ ] 고객 링크 3단계 화면에서 사다리차 선택 시 엘리베이터 해제 표시 실물 확인
+
+## 앱 아이콘 배지 숫자 (2026-10-19)
+- [x] navigator.setAppBadge로 미확인 계좌이체 입금 건수를 앱 아이콘 빨간 숫자로 표시
+- [x] 견적 내역을 열면 배지 지움, 새 미확인 입금 시 다시 표시
+- [ ] FCM 푸시 수신 시 백그라운드 배지 갱신 — Firebase 연결 필요(사용자가 연결 카드 닫음)
