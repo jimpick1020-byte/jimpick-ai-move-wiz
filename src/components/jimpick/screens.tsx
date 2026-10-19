@@ -154,7 +154,7 @@ import {
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { SmsNoticeCard } from "./SmsNoticeCard";
 import { PaymentPanel } from "./PaymentPanel";
-import { completedPaymentLabel } from "@/lib/payment-method";
+import { completedPaymentLabel, remainingPayment } from "@/lib/payment-method";
 import {
   setCalendarSelected,
   archiveCalendarSelected,
