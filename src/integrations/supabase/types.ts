@@ -1781,6 +1781,10 @@ export type Database = {
         Args: { _key: string; _user_id: string }
         Returns: undefined
       }
+      confirm_payment_receipt: {
+        Args: { _note?: string; _receipt_id: string }
+        Returns: Json
+      }
       confirm_reservation_atomic: {
         Args: {
           _accept_method: string

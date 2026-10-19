@@ -6,7 +6,7 @@
  * 「결제완료」는 실제 확인된 금액이 총액과 맞을 때만, 확인창을 거쳐 저장됩니다.
  */
 import { useEffect, useState } from "react";
-import { paymentReview } from "@/lib/payment-review";
+import { balanceReceiptReady } from "@/lib/payment-review";
 import { toast } from "sonner";
 import {
   setPaymentState,
@@ -44,7 +44,7 @@ export function PaymentPanel({
   const deposit = row.depositPaid;
   const balanceNum = row.balancePaid;
   const remain = Math.max(0, total - deposit - balanceNum);
-  const balanceReady = paymentReview(row.paymentReceipts ?? [], row.paymentStatus, deposit, balanceNum, total)?.kind === "balance";
+  const balanceReady = balanceReceiptReady(row.paymentReceipts ?? [], row.paymentStatus, deposit, total);
 
   const run = async (data: { estimateId: string; status: PaymentStatus; note?: string; balancePaid?: number; method?: string }, okMsg: string) => {
     if (busy) return;

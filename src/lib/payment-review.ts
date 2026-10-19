@@ -1,9 +1,13 @@
 export interface PaymentEvidence {
+  id?: string;
   amount: number;
   status: string;
   source: string;
   depositorName: string;
   paymentKind?: string;
+  depositedAt?: string | null;
+  confirmedAt?: string | null;
+  confirmedBy?: string | null;
 }
 
 /** Explicit kind prevents a balance arriving before deposit confirmation being misclassified. */
@@ -16,19 +20,22 @@ export function actualReceipt(record: PaymentEvidence): boolean {
   return record.amount > 0 && ["sms_paste", "manual", "customer_claim"].includes(record.source) && ["pending_review", "confirmed"].includes(record.status);
 }
 
-export function paymentReview(records: PaymentEvidence[], paymentStatus: string, depositPaid: number, _balancePaid: number, total: number) {
-  if (["completed", "canceled", "refunded"].includes(paymentStatus)) return null;
-  const real = records.filter(actualReceipt);
-  const balance = real.filter((r) => r.paymentKind === "balance");
-  const balanceAmount = balance.reduce((sum, r) => sum + r.amount, 0);
-  if (balance.length && total > 0 && depositPaid + balanceAmount >= total) {
-    return { kind: "balance" as const, amount: balanceAmount, names: [...new Set(balance.map((r) => r.depositorName).filter(Boolean))] };
-  }
-  const pending = real.filter((r) => r.status === "pending_review" && r.paymentKind !== "balance");
-  return pending.length ? { kind: "deposit" as const, amount: pending.reduce((s, r) => s + r.amount, 0), names: [...new Set(pending.map((r) => r.depositorName).filter(Boolean))] } : null;
+export function balanceReceiptReady(records: PaymentEvidence[], paymentStatus: string, depositPaid: number, total: number) {
+  if (["completed", "canceled", "refunded"].includes(paymentStatus)) return false;
+  const balance = records.filter(actualReceipt).filter((r) => r.paymentKind === "balance");
+  return balance.length > 0 && total > 0 && depositPaid + balance.reduce((s, r) => s + r.amount, 0) >= total;
+}
+
+export function pendingReceipt(record: { amount: number; status: string }): boolean {
+  return record.amount > 0 && record.status === "pending_review";
+}
+
+export function paymentReview(records: PaymentEvidence[], _paymentStatus: string, _depositPaid: number, _balancePaid: number, _total: number) {
+  const pending = records.filter(pendingReceipt);
+  return pending.length ? { kind: "deposit" as const, amount: pending.reduce((s, r) => s + r.amount, 0), names: [...new Set(pending.map((r) => r.depositorName).filter(Boolean))], receipts: pending } : null;
 }
 /** Fixed full classes so Tailwind always generates them (no dynamic class names). */
 export const PAYMENT_REVIEW_BORDER = {
-  deposit: "border-4 border-orange-400",
+  deposit: "border-4 border-payment-review",
   balance: "border-4 border-red-500",
 } as const;

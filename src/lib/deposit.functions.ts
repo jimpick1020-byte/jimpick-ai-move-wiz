@@ -2,14 +2,12 @@
  * 예약금 입금 확인.
  *
  *  - registerDeposit : 은행 입금알림 문자를 붙여넣으면 입금자·금액을 읽어 기록합니다.
- *                      입금자 이름이 고객 이름과 같으면 바로 반영하고,
- *                      다른 이름이면 반영하지 않고 「확인 대기」로 남깁니다.
+ *                      이름 일치 여부와 무관하게 「확인 대기」로 남깁니다.
  *  - confirmDeposit  : 사장님이 직접 확인한 입금을 반영합니다.
  *  - rejectDeposit   : 우리 고객 입금이 아닌 것으로 처리합니다.
  *  - listDeposits    : 입금 기록을 읽습니다.
  *
- * 반영이란: 견적서에 「받은 예약금」을 저장해서 고객 화면의 예약금·잔금이 바뀌고,
- * 고객에게 입금 확인 문자가 한 번 나가는 것을 말합니다.
+ * 입금 확인은 해당 기록의 확인 상태·시각·담당자만 저장합니다. 문자와 견적 금액은 변경하지 않습니다.
  */
 import { calcDeposit } from "@/lib/deposit-rule";
 import { createServerFn } from "@tanstack/react-start";
@@ -34,6 +32,8 @@ export interface DepositRow {
   notifiedAt: string | null;
   notifyError: string | null;
   createdAt: string;
+  confirmedAt: string | null;
+  confirmedBy: string | null;
 }
 
 interface RowDb {
@@ -52,6 +52,8 @@ interface RowDb {
   notified_at: string | null;
   notify_error: string | null;
   created_at: string;
+  confirmed_at: string | null;
+  confirmed_by: string | null;
 }
 
 function toRow(d: RowDb): DepositRow {
@@ -72,38 +74,13 @@ function toRow(d: RowDb): DepositRow {
     notifiedAt: d.notified_at,
     notifyError: d.notify_error,
     createdAt: d.created_at,
+    confirmedAt: d.confirmed_at,
+    confirmedBy: d.confirmed_by,
   };
 }
 
 const SELECT =
-  "id,estimate_id,sheet_no,depositor_name,customer_name,amount,deposited_at,status,name_matched,source,raw_text,notified_at,notify_error,created_at,payment_kind";
-
-/** 고객에게 입금 확인 문자를 보냅니다 (문자 열쇠는 발송 서버에만 있습니다) */
-async function notifyCustomer(estimateId: string): Promise<{ ok: boolean; error?: string }> {
-  const url = process.env["SUPABASE_URL"];
-  const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
-  if (!url || !key) return { ok: false, error: "발송 서버 설정이 없습니다." };
-  try {
-    const serverSecret = (process.env["JIMPICK_PROXY_SECRET"] ?? "").trim();
-    const r = await fetch(`${url.replace(/\/$/, "")}/functions/v1/send-estimate-sms`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        ...(serverSecret ? { "x-jimpick-server": serverSecret } : {}),
-      },
-      body: JSON.stringify({ mode: "deposit_notify", estimate_id: estimateId }),
-    });
-    const body = (await r.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-    if (!r.ok || !body?.ok) {
-      return { ok: false, error: body?.error ?? `입금 확인 문자 발송 실패 (${r.status})` };
-    }
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "연결 오류" };
-  }
-}
+  "id,estimate_id,sheet_no,depositor_name,customer_name,amount,deposited_at,status,name_matched,source,raw_text,notified_at,notify_error,created_at,payment_kind,confirmed_at,confirmed_by";
 
 /**
  * 확인된 입금만 더해서 견적서의 「받은 예약금」을 다시 계산합니다.
@@ -255,9 +232,9 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
 export interface RegisterDepositResult {
   ok: boolean;
   error?: string;
-  /** 자동 반영됐는지 (이름이 같을 때만 true) */
+  /** 등록만으로는 항상 false */
   applied?: boolean;
-  /** 이름이 달라 사장님 확인이 필요한지 */
+  /** 업체 확인이 필요한지 (이름 일치 여부와 무관) */
   needsReview?: boolean;
   row?: DepositRow;
   paid?: number;
@@ -355,27 +332,7 @@ export const registerDeposit = createServerFn({ method: "POST" })
       };
     }
 
-    const paid = await recalcAndSave(context, data.estimateId);
-    const sms = await notifyCustomer(data.estimateId);
-    if (created && !sms.ok) {
-      await context.supabase
-        .from("deposit_records")
-        .update({ notify_error: (sms.error ?? "").slice(0, 300) })
-        .eq("id", (created as RowDb).id);
-    } else if (created) {
-      await context.supabase
-        .from("deposit_records")
-        .update({ notified_at: new Date().toISOString(), notify_error: null })
-        .eq("id", (created as RowDb).id);
-    }
-    return {
-      ok: true,
-      applied: true,
-      needsReview: false,
-      row: created ? toRow(created as RowDb) : undefined,
-      paid,
-      smsError: sms.ok ? undefined : sms.error,
-    };
+    return { ok: false, error: "입금 기록 저장 결과를 확인하지 못했습니다. 다시 조회해 주세요." };
   });
 
 /** 사장님이 직접 확인한 입금을 반영합니다 */
@@ -388,33 +345,10 @@ export const confirmDeposit = createServerFn({ method: "POST" })
     async ({
       data,
       context,
-    }): Promise<{ ok: boolean; error?: string; paid?: number; smsError?: string }> => {
-      const { data: existing } = await context.supabase.from("deposit_records").select("payment_kind").eq("id", data.id).eq("user_id", context.userId).maybeSingle();
-      if (existing?.payment_kind === "balance") return { ok: false, error: "잔금은 결제완료 버튼으로 확인해 주세요." };
-      const { data: row, error } = await context.supabase
-        .from("deposit_records")
-        .update({
-          status: "confirmed",
-          confirmed_at: new Date().toISOString(),
-          confirmed_by: context.userId,
-          review_note: data.note ?? "사장님이 직접 확인",
-        })
-        .eq("id", data.id)
-        .eq("user_id", context.userId)
-        .select("id,estimate_id")
-        .maybeSingle();
-      if (error || !row) return { ok: false, error: "입금 기록을 찾지 못했습니다." };
-      const paid = await recalcAndSave(context, String(row.estimate_id));
-      const sms = await notifyCustomer(String(row.estimate_id));
-      await context.supabase
-        .from("deposit_records")
-        .update(
-          sms.ok
-            ? { notified_at: new Date().toISOString(), notify_error: null }
-            : { notify_error: (sms.error ?? "").slice(0, 300) },
-        )
-        .eq("id", data.id);
-      return { ok: true, paid, smsError: sms.ok ? undefined : sms.error };
+    }): Promise<{ ok: boolean; error?: string; paid?: number; confirmedAt?: string }> => {
+      const { data: result, error } = await context.supabase.rpc("confirm_payment_receipt", { _receipt_id: data.id });
+      if (error) return { ok: false, error: "입금 확인을 저장하지 못했습니다." };
+      return result as { ok: boolean; error?: string; paid?: number; confirmedAt?: string };
     },
   );
 

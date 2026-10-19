@@ -150,7 +150,6 @@ import {
 
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { SmsNoticeCard } from "./SmsNoticeCard";
-import { DepositClaimBox } from "./DepositClaimBox";
 import { PaymentPanel } from "./PaymentPanel";
 import {
   setCalendarSelected,
@@ -6623,7 +6622,8 @@ export function History() {
                           <div className="text-xs text-[#6B7280]">{formatTel(e.phone)}</div>
                           {review && (
                             <div className="mt-1 text-sm font-bold text-foreground" data-payment-review-text>
-                              {review.kind === "balance" ? "잔금 입금" : "예약금 입금"} · {review.amount.toLocaleString("ko-KR")}원 · 입금자 {review.names.join(" · ") || "이름 미확인"} · 확인 필요
+                              입금 확인 필요 · {review.amount.toLocaleString("ko-KR")}원
+                              {review.receipts.map((r, i) => <div key={r.id ?? i} className="text-xs font-semibold">{r.depositorName || "이름 미확인"} · {r.amount.toLocaleString("ko-KR")}원</div>)}
                             </div>
                           )}
                         </div>
@@ -6784,8 +6784,7 @@ export function History() {
                               </div>
                             );
                           })()}
-                        {ts.row && <DepositClaimBox row={ts.row} onSaved={loadTerms} />}
-                        {ts.row && <DepositPanel estimateId={e.id} customerName={e.customerName} total={ts.row.total} depositPaid={ts.row.depositPaid} />}
+                        {ts.row && <DepositPanel estimateId={e.id} customerName={e.customerName} total={ts.row.total} depositPaid={ts.row.depositPaid} onSaved={loadTerms} />}
                         {ts.row && (
                           <PaymentPanel
                             estimateId={e.id}
