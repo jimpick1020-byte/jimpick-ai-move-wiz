@@ -1,5 +1,4 @@
-import { customerPaymentDue, paymentText } from "@/lib/customer-payment";
-import { intakeSmsHref } from "@/lib/intake-sms";
+import { customerPaymentDue } from "@/lib/customer-payment";
 import { CharacterImg } from "./CharacterGuide";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatTel } from "@/lib/format-input";
