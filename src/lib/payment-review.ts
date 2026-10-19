@@ -29,8 +29,8 @@ export function balanceReceiptReady(records: PaymentEvidence[], paymentStatus: s
 
 export function bankReceipt(record: { paymentMethod?: string | null; source?: string }): boolean {
   if (record.paymentMethod) return record.paymentMethod === "bank_transfer";
-  // Preserve known legacy bank-alert records without reclassifying stored data.
-  return record.source === "sms_paste" || record.source === "manual";
+  // Customer "입금했습니다" claims are account-transfer deposits awaiting owner review.
+  return record.source === "sms_paste" || record.source === "manual" || record.source === "customer_claim";
 }
 
 export function pendingReceipt(record: { amount: number; status: string; paymentMethod?: string | null; source?: string }): boolean {

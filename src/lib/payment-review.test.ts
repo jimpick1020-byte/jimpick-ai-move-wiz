@@ -36,7 +36,7 @@ describe("owner receipt review", () => {
     assert.equal(bank.status, "pending_review");
   });
   test("legacy bank alert remains reviewable without rewriting method", () => assert.equal(pendingReceipt({ ...receipt, paymentMethod: null }), true));
-  test("customer claim is not a bank deposit", () => assert.equal(pendingReceipt({ ...receipt, paymentMethod: null, source: "customer_claim" }), false));
+  test("customer 130000 deposit claim shows orange border", () => assert.equal(pendingReceipt({ ...receipt, amount: 130000, paymentMethod: null, source: "customer_claim" }), true));
   test("unknown unclassified source is not assumed bank transfer", () => assert.equal(pendingReceipt({ ...receipt, paymentMethod: null, source: "unknown" }), false));
   test("existing full balance completion eligibility is preserved", () => assert.equal(balanceReceiptReady([{ ...receipt, paymentKind: "balance" }], "deposit_paid", 50000, 1000000), true));
   test("short balance is reviewable but not completion eligible", () => assert.equal(balanceReceiptReady([{ ...receipt, paymentKind: "balance" }], "deposit_paid", 0, 2000000), false));
