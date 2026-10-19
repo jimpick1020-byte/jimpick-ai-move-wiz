@@ -9,5 +9,7 @@ export function homeReservationStageOf(input: Parameters<typeof reservationStage
   const stage = reservationStageOf(input);
   if (stage === "payment_completed") return stage;
   if (input.paymentReceipts?.some((receipt) => receipt.paymentKind === "balance" && pendingReceipt(receipt))) return "balance_waiting";
+  // 은행 입금 문자로 연결된 예약금 기록도 고객 신고와 같이 입금 대기로 셉니다.
+  if (stage !== "reservation_confirmed" && input.paymentReceipts?.some((receipt) => receipt.paymentKind !== "balance" && pendingReceipt(receipt))) return "deposit_waiting";
   return stage === "reservation_request" ? "deposit_waiting" : stage;
 }
