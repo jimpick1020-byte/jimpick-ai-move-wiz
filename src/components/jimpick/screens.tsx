@@ -6806,7 +6806,7 @@ export function History() {
                               </div>
                             );
                           })()}
-                        {ts.row && <DepositPanel estimateId={e.id} customerName={e.customerName} total={ts.row.total} depositPaid={ts.row.depositPaid} onSaved={loadTerms} />}
+                        {ts.row && <DepositPanel estimateId={e.id} onSaved={loadTerms} />}
                         {ts.row && (
                           <PaymentPanel
                             estimateId={e.id}
