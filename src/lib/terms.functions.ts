@@ -597,7 +597,7 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
     const { data: claims, error: receiptError } = estimateIds.length
       ? await context.supabase
           .from("deposit_records")
-          .select("id, estimate_id, amount, created_at, source, status, depositor_name, payment_kind, deposited_at, confirmed_at, confirmed_by")
+          .select("id, estimate_id, amount, created_at, source, status, depositor_name, payment_kind, deposited_at, confirmed_at, confirmed_by, payment_method")
           .eq("user_id", context.userId)
           .in("estimate_id", estimateIds)
       : { data: [] as never[], error: null };
@@ -648,7 +648,7 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
           depositClaimId: claim?.id ?? null,
           depositClaimAmount: Number(claim?.amount ?? 0) || 0,
           depositClaimedAt: claim?.created_at ?? null,
-          paymentReceipts: (claims ?? []).filter((c) => c.estimate_id === r["estimate_id"]).map((c) => ({ id: c.id, amount: Number(c.amount ?? 0), status: c.status, source: c.source, depositorName: c.depositor_name ?? "", paymentKind: c.payment_kind, depositedAt: c.deposited_at, confirmedAt: c.confirmed_at, confirmedBy: c.confirmed_by })),
+          paymentReceipts: (claims ?? []).filter((c) => c.estimate_id === r["estimate_id"]).map((c) => ({ id: c.id, amount: Number(c.amount ?? 0), status: c.status, source: c.source, depositorName: c.depositor_name ?? "", paymentKind: c.payment_kind, paymentMethod: c.payment_method, depositedAt: c.deposited_at, confirmedAt: c.confirmed_at, confirmedBy: c.confirmed_by })),
         };
       }),
     };

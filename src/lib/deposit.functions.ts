@@ -28,6 +28,7 @@ export interface DepositRow {
   nameMatched: boolean;
   source: string;
   paymentKind?: string;
+  paymentMethod?: string | null;
   rawText: string | null;
   notifiedAt: string | null;
   notifyError: string | null;
@@ -48,6 +49,7 @@ interface RowDb {
   name_matched: boolean | null;
   source: string | null;
   payment_kind?: string | null;
+  payment_method?: string | null;
   raw_text: string | null;
   notified_at: string | null;
   notify_error: string | null;
@@ -70,6 +72,7 @@ function toRow(d: RowDb): DepositRow {
     nameMatched: d.name_matched === true,
     source: String(d.source ?? "sms_paste"),
     paymentKind: d.payment_kind ?? "deposit",
+    paymentMethod: d.payment_method ?? null,
     rawText: d.raw_text,
     notifiedAt: d.notified_at,
     notifyError: d.notify_error,
@@ -80,7 +83,7 @@ function toRow(d: RowDb): DepositRow {
 }
 
 const SELECT =
-  "id,estimate_id,sheet_no,depositor_name,customer_name,amount,deposited_at,status,name_matched,source,raw_text,notified_at,notify_error,created_at,payment_kind,confirmed_at,confirmed_by";
+  "id,estimate_id,sheet_no,depositor_name,customer_name,amount,deposited_at,status,name_matched,source,raw_text,notified_at,notify_error,created_at,payment_kind,confirmed_at,confirmed_by,payment_method";
 
 /**
  * 확인된 입금만 더해서 견적서의 「받은 예약금」을 다시 계산합니다.
@@ -304,6 +307,7 @@ export const registerDeposit = createServerFn({ method: "POST" })
       raw_text: (data.text ?? "").slice(0, 2000) || null,
       name_matched: matched,
       payment_kind: paymentKind,
+      payment_method: "bank_transfer",
       status: "pending_review",
       confirmed_at: null,
       confirmed_by: null,
@@ -346,6 +350,13 @@ export const confirmDeposit = createServerFn({ method: "POST" })
       data,
       context,
     }): Promise<{ ok: boolean; error?: string; paid?: number; confirmedAt?: string }> => {
+      const { data: receipt } = await context.supabase.from("deposit_records").select("estimate_id,payment_kind,source,payment_method").eq("id", data.id).eq("user_id", context.userId).maybeSingle();
+      if (!receipt) return { ok: false, error: "입금 기록을 찾지 못했습니다." };
+      if (receipt.payment_kind === "balance" && receipt.source !== "customer_claim" && (!receipt.payment_method || receipt.payment_method === "bank_transfer")) {
+        const { data: result, error } = await context.supabase.rpc("complete_estimate_payment", { _estimate_id: receipt.estimate_id, _method: "bank_transfer", _receipt_id: data.id });
+        if (error) return { ok: false, error: "계좌이체 확인을 저장하지 못했습니다." };
+        return result as { ok: boolean; error?: string; paid?: number; confirmedAt?: string };
+      }
       const { data: result, error } = await context.supabase.rpc("confirm_payment_receipt", { _receipt_id: data.id });
       if (error) return { ok: false, error: "입금 확인을 저장하지 못했습니다." };
       return result as { ok: boolean; error?: string; paid?: number; confirmedAt?: string };

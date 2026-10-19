@@ -151,6 +151,7 @@ import {
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { SmsNoticeCard } from "./SmsNoticeCard";
 import { PaymentPanel } from "./PaymentPanel";
+import { completedPaymentLabel } from "@/lib/payment-method";
 import {
   setCalendarSelected,
   archiveCalendarSelected,
@@ -6539,7 +6540,7 @@ export function History() {
                     <span
                       className={`shrink-0 rounded-full px-2 py-1 text-[11.5px] font-bold ${PAYMENT_STATUS_CLASS[a.paymentStatus]}`}
                     >
-                      {PAYMENT_STATUS_LABEL[a.paymentStatus]}
+                      {a.paymentStatus === "completed" ? completedPaymentLabel(a.paymentMethod) : PAYMENT_STATUS_LABEL[a.paymentStatus]}
                     </span>
                   </div>
                   <button
@@ -6622,7 +6623,7 @@ export function History() {
                           <div className="text-xs text-[#6B7280]">{formatTel(e.phone)}</div>
                           {review && (
                             <div className="mt-1 text-sm font-bold text-foreground" data-payment-review-text>
-                              입금 확인 필요 · {review.amount.toLocaleString("ko-KR")}원
+                              계좌이체 확인 필요 · {review.amount.toLocaleString("ko-KR")}원
                               {review.receipts.map((r, i) => <div key={r.id ?? i} className="text-xs font-semibold">{r.depositorName || "이름 미확인"} · {r.amount.toLocaleString("ko-KR")}원</div>)}
                             </div>
                           )}

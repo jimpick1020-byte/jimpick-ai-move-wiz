@@ -1,181 +1,55 @@
-/**
- * 예약금·잔금 상태 칸 (사장님용).
- *
- * 자동으로 금액을 바꾸지 않습니다. 사장님이 직접 확인한 값만 저장합니다.
- * 예약금은 「예약금 입금」 칸에서 확인한 금액을 그대로 보여 줍니다.
- * 「결제완료」는 실제 확인된 금액이 총액과 맞을 때만, 확인창을 거쳐 저장됩니다.
- */
-import { useEffect, useState } from "react";
-import { balanceReceiptReady } from "@/lib/payment-review";
+import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import {
-  setPaymentState,
-  PAYMENT_STATUS_CHOICES,
-  PAYMENT_STATUS_LABEL,
-  PAYMENT_STATUS_CLASS,
-  normalizePaymentStatus,
-  type PaymentStatus,
-} from "@/lib/payment.functions";
+import { Button } from "@/components/ui/button";
+import { setPaymentState, PAYMENT_STATUS_CHOICES, PAYMENT_STATUS_LABEL, normalizePaymentStatus, type PaymentStatus } from "@/lib/payment.functions";
+import { PAYMENT_METHOD_LABEL, PAYMENT_METHODS, completedPaymentLabel, normalizePaymentMethod, remainingPayment, type PaymentMethod } from "@/lib/payment-method";
+import { pendingReceipt } from "@/lib/payment-review";
 import type { TermsStatusRow } from "@/lib/terms.functions";
 
 const won = (n: number) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
-
-export function PaymentPanel({
-  estimateId,
-  total,
-  row,
-  onSaved,
-}: {
-  estimateId: string;
-  total: number;
-  row: TermsStatusRow;
-  onSaved?: () => void;
-}) {
+export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: string; total: number; row: TermsStatusRow; onSaved?: () => void }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<PaymentStatus>(normalizePaymentStatus(row.paymentStatus));
   const [note, setNote] = useState(row.paymentNote ?? "");
+  const [approval, setApproval] = useState("");
   const [busy, setBusy] = useState(false);
+  const locked = useRef(false);
   const [askComplete, setAskComplete] = useState(false);
-  useEffect(() => {
-    setStatus(normalizePaymentStatus(row.paymentStatus));
-    setAskComplete(false);
-  }, [estimateId, row.paymentStatus]);
-  // 화면 입력값이 아니라 서버에 저장된 실제 금액으로만 판단합니다.
-  const deposit = row.depositPaid;
-  const balanceNum = row.balancePaid;
-  const remain = Math.max(0, total - deposit - balanceNum);
-  const balanceReady = balanceReceiptReady(row.paymentReceipts ?? [], row.paymentStatus, deposit, total);
-
-  const run = async (data: { estimateId: string; status: PaymentStatus; note?: string; balancePaid?: number; method?: string }, okMsg: string) => {
-    if (busy) return;
-    setBusy(true);
+  const [method, setMethod] = useState<PaymentMethod | null>(null);
+  const savePayment = useServerFn(setPaymentState);
+  useEffect(() => { setStatus(normalizePaymentStatus(row.paymentStatus)); setAskComplete(false); setMethod(null); setNote(row.paymentNote ?? ""); }, [estimateId, row.paymentStatus, row.paymentNote]);
+  const remain = remainingPayment(total, row.depositPaid, row.balancePaid);
+  const receipts = (row.paymentReceipts ?? []).filter((r) => r.amount > 0 && ["pending_review", "confirmed"].includes(r.status) && r.paymentKind === "balance" && r.source !== "customer_claim" && (!r.paymentMethod || r.paymentMethod === "bank_transfer"));
+  const pending = (row.paymentReceipts ?? []).filter(pendingReceipt);
+  const label = pending.length ? "계좌이체 확인 필요" : status === "completed" ? completedPaymentLabel(row.paymentMethod) : `${PAYMENT_METHOD_LABEL[normalizePaymentMethod(row.paymentMethod)]} · ${PAYMENT_STATUS_LABEL[status]}`;
+  const cancel = () => { setAskComplete(false); setMethod(null); };
+  const run = async (selected?: PaymentMethod, receiptId?: string) => {
+    if (locked.current) return;
+    locked.current = true; setBusy(true);
     try {
-      const r = await setPaymentState({ data });
-      if (r.ok) {
-        toast.success(okMsg);
-        setAskComplete(false);
-        onSaved?.();
-        window.dispatchEvent(new Event("jimpick:payment-updated"));
-      } else {
-        toast.error("저장 실패", { description: r.error ?? "다시 시도해 주세요" });
-      }
-    } catch (e) {
-      toast.error("저장 실패", { description: e instanceof Error ? e.message : "" });
-    } finally {
-      setBusy(false);
-    }
+      const result = await savePayment({ data: { estimateId, status: selected ? "completed" : status, note, method: selected, receiptId, approvalNumber: selected === "card" ? approval : undefined } });
+      if (!result.ok) { toast.error("확인 실패", { description: result.error }); return; }
+      cancel(); onSaved?.(); window.dispatchEvent(new Event("jimpick:payment-updated"));
+      toast.success("결제 확인을 저장했습니다");
+    } catch (error) { toast.error("저장 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요." }); }
+    finally { locked.current = false; setBusy(false); }
   };
-
-  const save = () => void run({ estimateId, status, note }, "결제 상태를 저장했습니다");
-  // 사장님이 남은 잔금 전액 입금을 확인했을 때만 결제완료로 저장하고 완료 보관함으로 옮깁니다.
-  const complete = () =>
-    void run({ estimateId, status: "completed", note }, "잔금 확인 · 완료 보관함으로 옮겼습니다");
-  // 현금으로 받은 잔금은 입금 기록이 없으므로 사장님 확인만으로 완료합니다.
-  const completeCash = () =>
-    void run({ estimateId, status: "completed", note, method: "cash" }, "현금 잔금 확인 · 완료 보관함으로 옮겼습니다");
-
-  return (
-    <div className="mt-2 rounded-xl bg-[#F7F8F5] p-2.5">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between text-[12.5px] font-bold text-[#6B7280]"
-      >
-        <span className="flex items-center gap-1.5">
-          결제 상태
-          <span
-            className={`rounded-full px-1.5 py-[1px] text-[11px] font-black ${PAYMENT_STATUS_CLASS[status]}`}
-          >
-            {PAYMENT_STATUS_LABEL[status]}
-          </span>
-        </span>
-        <span className="text-[#6B7280]">{open ? "닫기" : "열기"}</span>
-      </button>
-
-      <div className="mt-1 text-[12px] text-[#6B7280]">
-        총 {won(total)} · 예약금 {won(deposit)}{balanceNum > 0 ? ` · 잔금 ${won(balanceNum)}` : ""} · 남은 금액 <b>{won(remain)}</b>
-      </div>
-      {open && (
-        <div className="mt-2 space-y-2">
-          <div className="grid grid-cols-2 gap-1.5">
-            {PAYMENT_STATUS_CHOICES.map((s) => {
-              const isComplete = s === "completed";
-              const active = isComplete ? askComplete : status === s;
-              return (
-                <button
-                  key={s}
-                   onClick={() => (isComplete ? setAskComplete(true) : (setAskComplete(false), setStatus(s)))}
-                   disabled={busy}
-                  className={`rounded-xl py-2 text-[12.5px] font-bold disabled:opacity-50 ${
-                    active ? "bg-[#3578C8] text-white" : "bg-white text-[#6B7280] ring-1 ring-[#E5E7EB]"
-                  }`}
-                >
-                  {isComplete ? "결제완료" : PAYMENT_STATUS_LABEL[s]}
-                </button>
-              );
-            })}
-          </div>
-          <div className="text-[12px] text-[#6B7280]">실제 남은 금액 {won(remain)}</div>
-          {askComplete && total > 0 && (
-            <div className="rounded-xl border border-[#3E9B78] bg-white p-2.5">
-              {balanceReady ? (
-                <>
-                  <div className="text-[13px] font-bold text-[#25282D]">잔금 {won(Math.max(0, total - deposit - balanceNum))} 입금을 확인할까요?</div>
-                  <div className="mt-1 text-[12px] text-[#6B7280]">
-                    확인하면 결제완료로 바뀌고 견적 내역에서 빠져 완료 보관함으로 옮겨집니다.
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-1.5">
-                    <button onClick={() => setAskComplete(false)} className="rounded-xl bg-white py-2 text-[12.5px] font-bold text-[#6B7280] ring-1 ring-[#E5E7EB]">취소</button>
-                    <button onClick={complete} disabled={busy} className="rounded-xl bg-[#3E9B78] py-2 text-[12.5px] font-bold text-white disabled:opacity-50">{busy ? "저장 중…" : "확인"}</button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="text-[13px] font-bold text-[#25282D]">잔금 {won(remain)}을 현금으로 받으셨나요?</div>
-                  <div className="mt-1 text-[12px] text-[#6B7280]">
-                    입금 기록 없이 현금 완료로 저장합니다. 확인하면 결제완료로 바뀌고 견적 내역에서 빠져 완료 보관함으로 옮겨집니다.
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-1.5">
-                    <button onClick={() => setAskComplete(false)} className="rounded-xl bg-white py-2 text-[12.5px] font-bold text-[#6B7280] ring-1 ring-[#E5E7EB]">취소</button>
-                    <button onClick={completeCash} disabled={busy} className="rounded-xl bg-[#3E9B78] py-2 text-[12.5px] font-bold text-white disabled:opacity-50">{busy ? "저장 중…" : "현금으로 받았어요"}</button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          <label
-            className="block text-[12.5px] font-bold text-[#6B7280]"
-            htmlFor={`note-${estimateId}`}
-          >
-            결제 메모
-          </label>
-          <textarea
-            id={`note-${estimateId}`}
-            name="paymentNote"
-            rows={2}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="예) 이사 당일 현금으로 잔금 받음"
-            className="w-full rounded-xl border border-[#E5E7EB] bg-white p-2.5 text-[13px] outline-none focus:border-[#3578C8]"
-          />
-
-          {row.paymentConfirmedAt && (
-            <div className="text-[12px] text-[#6B7280]">
-              마지막 확인 {new Date(row.paymentConfirmedAt).toLocaleString("ko-KR")} · 확인 담당자
-              사장님
-            </div>
-          )}
-
-          <button
-            onClick={save}
-            disabled={busy}
-            className="w-full rounded-xl bg-[#3578C8] py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
-          >
-            {busy ? "저장 중…" : "결제 상태 저장"}
-          </button>
-
-        </div>
-      )}
-    </div>
-  );
+  return <section className="mt-2 rounded-lg bg-muted p-3 text-foreground" aria-label="결제 상태">
+    <Button variant="ghost" className="w-full justify-between px-0 text-xs" onClick={() => setOpen(!open)}><span>결제 상태 · {label}</span><span>{open ? "닫기" : "열기"}</span></Button>
+    <div className="mt-1 text-xs text-muted-foreground">총 {won(total)} · 예약금 {won(row.depositPaid)} · 잔금 {won(row.balancePaid)} · 남은 금액 <b>{won(remain)}</b></div>
+    {open && <div className="mt-3 space-y-3">
+      <div className="grid grid-cols-2 gap-2">{PAYMENT_STATUS_CHOICES.map((s) => <Button key={s} variant={status === s ? "staff" : "outline"} disabled={busy || (s === "completed" && status === "completed")} onClick={() => { if (s === "completed") { setAskComplete(true); setMethod(null); } else { cancel(); setStatus(s); } }}>{PAYMENT_STATUS_LABEL[s]}</Button>)}</div>
+      {askComplete && <div className="space-y-3 border-t border-border pt-3" aria-label="결제완료 확인">
+        {!method ? <div className="grid grid-cols-2 gap-2">{PAYMENT_METHODS.map((m) => <Button key={m} variant="outline" onClick={() => setMethod(m)}>{m === "bank_transfer" ? "계좌이체" : `${PAYMENT_METHOD_LABEL[m]} 결제`}</Button>)}<Button variant="ghost" onClick={cancel}>취소</Button></div> : <>
+          {method === "cash" && <><p className="text-sm font-bold">잔금 {won(remain)}을 현금으로 받으셨나요?</p><div className="grid grid-cols-2 gap-2"><Button variant="outline" disabled={busy} onClick={cancel}>취소</Button><Button variant="staff" disabled={busy} onClick={() => void run("cash")}>{busy ? "저장 중…" : "현금으로 받았어요"}</Button></div></>}
+          {method === "bank_transfer" && <><p className="text-sm font-bold">계좌이체 · 잔금 {won(remain)}</p>{receipts.length === 0 && <p className="text-sm text-muted-foreground">확인할 잔금 입금 기록이 없습니다.</p>}{receipts.map((r) => <div key={r.id} className="space-y-1 border-b border-border py-2 text-sm"><div>{r.depositorName || "이름 미확인"} · {won(r.amount)}</div><div className="text-xs text-muted-foreground">입금 시각 {r.depositedAt ? new Date(r.depositedAt).toLocaleString("ko-KR") : "기록 없음"}</div><Button variant="staff" disabled={busy || !r.id} onClick={() => void run("bank_transfer", r.id)}>계좌이체 확인</Button></div>)}<Button variant="outline" disabled={busy} onClick={cancel}>취소</Button></>}
+          {method === "card" && <><p className="text-sm font-bold">결제금액 {won(remain)} · 결제수단: 카드</p><label className="block text-xs" htmlFor={`approval-${estimateId}`}>승인번호 (선택)</label><input id={`approval-${estimateId}`} value={approval} maxLength={80} onChange={(e) => setApproval(e.target.value)} className="w-full rounded-md border border-input bg-background p-2 text-sm"/><div className="grid grid-cols-2 gap-2"><Button variant="outline" disabled={busy} onClick={cancel}>취소</Button><Button variant="staff" disabled={busy} onClick={() => void run("card")}>{busy ? "저장 중…" : "카드 결제 확인"}</Button></div></>}
+        </>}
+      </div>}
+      <label className="block text-xs" htmlFor={`note-${estimateId}`}>결제 메모</label><textarea id={`note-${estimateId}`} rows={2} value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} className="w-full rounded-md border border-input bg-background p-2 text-sm"/>
+      {row.paymentConfirmedAt && <div className="text-xs text-muted-foreground">마지막 확인 {new Date(row.paymentConfirmedAt).toLocaleString("ko-KR")} · 업체 담당자</div>}
+      {!askComplete && status !== "completed" && <Button variant="staff" className="w-full" disabled={busy} onClick={() => void run()}>결제 상태 저장</Button>}
+    </div>}
+  </section>;
 }

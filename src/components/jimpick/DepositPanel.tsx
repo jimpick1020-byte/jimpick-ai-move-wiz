@@ -134,7 +134,7 @@ export function DepositPanel({
         className="flex w-full items-center justify-between text-[12.5px] font-bold text-[#6B7280]"
       >
         <span>
-          입금 기록{" "}
+          계좌 입금 기록{" "}
           {paid > 0 ? (
             <span className="text-[#3E9B78]">{won(paid)} 확인 완료</span>
           ) : (
@@ -226,7 +226,7 @@ export function DepositPanel({
                   {pendingReceipt(r) && (
                     <div className="mt-2 flex gap-2">
                       <Button onClick={() => void doConfirm(r.id)} disabled={working !== null} variant="outline" className="flex-1">
-                        {working === r.id ? "처리 중…" : "입금 확인"}
+                        {working === r.id ? "처리 중…" : r.source === "customer_claim" ? "입금 확인" : "계좌이체 확인"}
                       </Button>
                       <button
                         onClick={() => void doReject(r.id)}

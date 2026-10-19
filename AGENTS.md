@@ -31,4 +31,4 @@
 - Direct selection and room scan reuse StepHero/CharacterGuide; quantity cards share a scoped quantity-selected style without changing counter or persistence logic, preventing layout and selection drift.
 - Shared address selection appends provider-returned building names to the existing address string through address-label; this preserves names across intake, estimates and saved drafts without changing coordinates or detail fields.
 
-- Receipt acknowledgement uses the locked owner-scoped confirm_payment_receipt RPC and shared pendingReceipt predicate; it updates only receipt confirmation fields, never estimate amounts or messaging, so history and detail agree without side effects.
+- Deposit acknowledgement uses confirm_payment_receipt; explicit balance completion uses the owner-locked complete_estimate_payment RPC with separate methods and shared pendingReceipt display, preventing cash fallback, total changes or messaging side effects.
