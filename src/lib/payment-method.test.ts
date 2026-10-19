@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { normalizePaymentMethod, remainingPayment } from "./payment-method";
+import { normalizePaymentMethod, paymentSummaryParts, remainingPayment } from "./payment-method";
 import { paymentStatusFromAmounts, isFullyPaid } from "./payment.functions";
 test("cash is stored separately", () => assert.equal(normalizePaymentMethod("cash"), "cash"));
 test("bank transfer is not cash", () => assert.equal(normalizePaymentMethod("bank_transfer"), "bank_transfer"));
@@ -22,4 +22,13 @@ test("owner reviews 950000 bank balance after 80000 deposit without changing tot
   assert.equal(remainingPayment(1030000, 80000, 0), 950000);
   assert.equal(remainingPayment(1030000, 80000, 950000), 0);
   assert.equal(normalizePaymentMethod("bank_transfer"), "bank_transfer");
+});
+test("payment card 잔금 slot carries the calculated 1000000, not the stored zero", () => {
+  assert.deepEqual(paymentSummaryParts(1110000, 110000, 0), { total: 1110000, deposit: 110000, balance: 1000000 });
+});
+test("payment card 잔금 falls to zero once the 1000000 balance is confirmed", () => {
+  assert.equal(paymentSummaryParts(1110000, 110000, 1000000).balance, 0);
+});
+test("payment card 잔금 never goes negative on an overpayment", () => {
+  assert.equal(paymentSummaryParts(1110000, 110000, 1200000).balance, 0);
 });
