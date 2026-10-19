@@ -13,7 +13,7 @@ describe("owner receipt review", () => {
     assert.equal(paymentReview([{ ...deposit, status: "confirmed" }, balance], "deposit_paid", 80000, 0, 1030000)?.amount, 950000);
   });
   test("950000 pending deposit requires review", () => assert.equal(paymentReview([receipt], "unpaid", 0, 0, 2000000)?.amount, 950000));
-  test("950000 short balance also requires orange review", () => assert.equal(paymentReview([{ ...receipt, paymentKind: "balance" }], "deposit_paid", 100000, 0, 2000000)?.kind, "deposit"));
+  test("950000 short balance requires blue balance review", () => assert.equal(paymentReview([{ ...receipt, paymentKind: "balance" }], "deposit_paid", 100000, 0, 2000000)?.kind, "balance"));
   test("stored completed state cannot hide pending receipt", () => assert.equal(paymentReview([receipt], "completed", 0, 0, 950000)?.amount, 950000));
   test("positive pending imported record requires review regardless of source", () => assert.equal(paymentReview([{ ...receipt, source: "bank_import" }], "unpaid", 0, 0, 2000000)?.amount, 950000));
   test("zero amount never needs review", () => assert.equal(pendingReceipt({ ...receipt, amount: 0 }), false));
