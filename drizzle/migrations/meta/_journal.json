@@ -176,6 +176,13 @@
       "when": 1792384874243,
       "tag": "0024_confirm_receipt_without_sms",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792385051023,
+      "tag": "0025_receipt_acknowledgement_no_visit_side_effects",
+      "breakpoints": true
     }
   ]
 }
