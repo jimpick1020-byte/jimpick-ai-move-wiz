@@ -20,11 +20,19 @@ export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: 
   const [method, setMethod] = useState<PaymentMethod | null>(null);
   const savePayment = useServerFn(setPaymentState);
   const confirmBank = useServerFn(confirmOwnerBankBalance);
-  useEffect(() => { setStatus(normalizePaymentStatus(row.paymentStatus)); setAskComplete(false); setMethod(null); setNote(row.paymentNote ?? ""); }, [estimateId, row.paymentStatus, row.paymentNote]);
   const remain = remainingPayment(total, row.depositPaid, row.balancePaid);
   const summary = paymentSummaryParts(total, row.depositPaid, row.balancePaid);
-  const receipts = (row.paymentReceipts ?? []).filter((r) => r.amount > 0 && ["pending_review", "confirmed"].includes(r.status) && r.paymentKind === "balance" && r.source !== "customer_claim" && bankReceipt(r));
+  const receipts = (row.paymentReceipts ?? []).filter((r) => r.amount > 0 && ["pending_review", "confirmed"].includes(r.status) && r.paymentKind === "balance" && bankReceipt(r))
+    .sort((a, b) => Number(b.amount === remain) - Number(a.amount === remain));
   const pending = (row.paymentReceipts ?? []).filter(pendingReceipt);
+  const balancePendingKey = receipts.filter((r) => r.status === "pending_review").map((r) => r.id).join(",");
+  useEffect(() => {
+    const stored = normalizePaymentStatus(row.paymentStatus);
+    setNote(row.paymentNote ?? "");
+    // 잔금 입금 신고가 대기 중이면 결제완료·계좌이체를 미리 선택해 둡니다 (확인 버튼은 사장님이 직접 누릅니다).
+    if (balancePendingKey && stored !== "completed") { setStatus("completed"); setAskComplete(true); setMethod("bank_transfer"); setOpen(true); }
+    else { setStatus(stored); setAskComplete(false); setMethod(null); }
+  }, [estimateId, row.paymentStatus, row.paymentNote, balancePendingKey]);
   const label = pending.length ? "계좌이체 확인 필요" : status === "completed" ? completedPaymentLabel(row.paymentMethod) : `${PAYMENT_METHOD_LABEL[normalizePaymentMethod(row.paymentMethod)]} · ${PAYMENT_STATUS_LABEL[status]}`;
   const cancel = () => { setAskComplete(false); setMethod(null); };
   const confirmDirectBank = async () => {
@@ -57,7 +65,7 @@ export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: 
       {askComplete && <div className="space-y-3 border-t border-border pt-3" aria-label="결제완료 확인">
         {!method ? <div className="grid grid-cols-2 gap-2">{PAYMENT_METHODS.map((m) => <Button key={m} variant="outline" onClick={() => setMethod(m)}>{m === "bank_transfer" ? "계좌이체" : `${PAYMENT_METHOD_LABEL[m]} 결제`}</Button>)}<Button variant="ghost" onClick={cancel}>취소</Button></div> : <>
           {method === "cash" && <><p className="text-sm font-bold">잔금 {won(remain)}을 현금으로 받으셨나요?</p><div className="grid grid-cols-2 gap-2"><Button variant="outline" disabled={busy} onClick={cancel}>취소</Button><Button variant="staff" disabled={busy} onClick={() => void run("cash")}>{busy ? "저장 중…" : "현금으로 받았어요"}</Button></div></>}
-          {method === "bank_transfer" && <><p className="text-sm font-bold">계좌이체 · 잔금 {won(remain)}</p>{receipts.length === 0 && <><p className="text-sm text-muted-foreground">잔금 입금 문자 확인해주세요.</p><p className="text-xs text-muted-foreground">실제 계좌에 {won(remain)}이 입금된 것을 확인하셨나요?</p><Button variant="staff" disabled={busy || remain <= 0} onClick={() => void confirmDirectBank()}>{busy ? "처리 중…" : "잔금 입금 확인"}</Button></>}{receipts.map((r) => <div key={r.id} className="space-y-1 border-b border-border py-2 text-sm"><div>{r.depositorName || "이름 미확인"} · {won(r.amount)}</div><div className="text-xs text-muted-foreground">입금 시각 {r.depositedAt ? new Date(r.depositedAt).toLocaleString("ko-KR") : "기록 없음"}</div><Button variant="staff" disabled={busy || !r.id} onClick={() => void run("bank_transfer", r.id)}>잔금 입금 확인</Button></div>)}<Button variant="outline" disabled={busy} onClick={cancel}>취소</Button></>}
+          {method === "bank_transfer" && <><p className="text-sm font-bold">계좌이체 · 잔금 {won(remain)}</p>{receipts.length === 0 && <><p className="text-sm text-muted-foreground">잔금 입금 문자 확인해주세요.</p><p className="text-xs text-muted-foreground">실제 계좌에 {won(remain)}이 입금된 것을 확인하셨나요?</p><Button variant="staff" disabled={busy || remain <= 0} onClick={() => void confirmDirectBank()}>{busy ? "처리 중…" : "잔금 입금 확인"}</Button></>}{receipts.map((r) => <div key={r.id} className="space-y-1 border-b border-border py-2 text-sm"><div className="font-bold">{r.depositorName || "이름 미확인"} · {won(r.amount)}{r.amount === remain ? " · 잔금과 일치" : " · 잔금과 금액 다름"}</div><div className="text-xs text-muted-foreground">입금 시각 {r.depositedAt ? new Date(r.depositedAt).toLocaleString("ko-KR") : "기록 없음"}</div><Button variant="staff" disabled={busy || !r.id} onClick={() => void run("bank_transfer", r.id)}>잔금 입금 확인</Button></div>)}<Button variant="outline" disabled={busy} onClick={cancel}>취소</Button></>}
           {method === "card" && <><p className="text-sm font-bold">결제금액 {won(remain)} · 결제수단: 카드</p><label className="block text-xs" htmlFor={`approval-${estimateId}`}>승인번호 (선택)</label><input id={`approval-${estimateId}`} value={approval} maxLength={80} onChange={(e) => setApproval(e.target.value)} className="w-full rounded-md border border-input bg-background p-2 text-sm"/><div className="grid grid-cols-2 gap-2"><Button variant="outline" disabled={busy} onClick={cancel}>취소</Button><Button variant="staff" disabled={busy} onClick={() => void run("card")}>{busy ? "저장 중…" : "카드 결제 확인"}</Button></div></>}
         </>}
       </div>}
