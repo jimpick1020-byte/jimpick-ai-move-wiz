@@ -8,16 +8,10 @@
  */
 import { pendingReceipt, type PaymentEvidence } from "./payment-review";
 
-interface BadgeNavigator extends Navigator {
-  setAppBadge?: (contents?: number) => Promise<void>;
-  clearAppBadge?: () => Promise<void>;
-}
-
-function badgeApi(): BadgeNavigator | null {
+function badgeApi(): Navigator | null {
   if (typeof navigator === "undefined") return null;
-  const nav = navigator as BadgeNavigator;
-  if (typeof nav.setAppBadge !== "function" || typeof nav.clearAppBadge !== "function") return null;
-  return nav;
+  if (typeof navigator.setAppBadge !== "function" || typeof navigator.clearAppBadge !== "function") return null;
+  return navigator;
 }
 
 /** 미확인 계좌이체 입금 기록 건수 (견적 내역 카드 주황 테두리와 같은 기준) */
