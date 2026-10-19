@@ -1,45 +1,32 @@
 /**
  * 예약금 입금 확인 칸 (사장님용).
  *
- * 은행에서 온 입금알림 문자를 그대로 붙여넣으면
- *  · 이름 일치와 무관하게 확인 대기로 저장하고 업체가 기록별로 확인합니다.
- *  · 확인 시 문자 발송이나 견적 금액 변경은 하지 않습니다.
+ * 고객이 「입금했습니다」를 누르면 기록이 만들어지고,
+ * 사장님은 기록별로 확인합니다. 확인 시 문자 발송이나 견적 금액 변경은 하지 않습니다.
  */
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  registerDeposit,
   confirmDeposit,
   rejectDeposit,
   listDeposits,
   type DepositRow,
 } from "@/lib/deposit.functions";
 import { pendingReceipt } from "@/lib/payment-review";
-import { parseDepositSms } from "@/lib/deposit-parse";
 import { Button } from "@/components/ui/button";
 
 const won = (n: number) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
 
 export function DepositPanel({
   estimateId,
-  customerName,
-  total,
-  depositPaid = 0,
   onSaved,
 }: {
   estimateId: string;
-  customerName: string;
-  total: number;
-  depositPaid?: number;
   onSaved?: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [text, setText] = useState("");
   const [rows, setRows] = useState<DepositRow[]>([]);
-  const [busy, setBusy] = useState(false);
-  const confirmLock = useRef(false);
   const [working, setWorking] = useState<string | null>(null);
-  const paymentKind = "deposit" as const;
 
   const load = () => {
     listDeposits({ data: { estimateId } })
