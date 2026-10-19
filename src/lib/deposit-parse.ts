@@ -45,7 +45,7 @@ export function parseDepositSms(rawInput: string): ParsedDeposit {
   const text = raw.replace(/\u00a0/g, " ").trim();
   const compact = text.replace(/\[Web발신\]|\[web발신\]/g, " ");
 
-  const looksLikeDeposit = /입금|이체|받음|received/i.test(compact);
+  const looksLikeDeposit = /입금|이체|받음|보냈어요|보냈습니다|received/i.test(compact) && !/출금|결제|승인/.test(compact);
 
   // ── 금액 ──
   // 「입금」 바로 앞뒤에 붙은 숫자를 가장 믿고, 없으면 '원'이 붙은 숫자를 씁니다.
@@ -119,7 +119,7 @@ export function parseDepositSms(rawInput: string): ParsedDeposit {
           !/입금|출금|잔액|이체|계좌|통장|거래|은행/.test(w),
       ) ?? "";
   }
-  depositorName = depositorName.replace(/님$/, "");
+  depositorName = depositorName.replace(/님(이|께서)?$/, "");
 
   return { depositorName, amount, depositedAt, bank, raw, looksLikeDeposit };
 }

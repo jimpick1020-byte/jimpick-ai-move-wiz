@@ -211,6 +211,13 @@
       "when": 1792403438381,
       "tag": "0029_owner_review_customer_balance_claims",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792413898431,
+      "tag": "0030_bank_sms_inbox",
+      "breakpoints": true
     }
   ]
 }

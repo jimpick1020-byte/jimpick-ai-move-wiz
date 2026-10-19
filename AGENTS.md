@@ -16,11 +16,10 @@
 - Step6 direct-selection back buttons and swipes return to the scan screen before Step3; this preserves sequential navigation within the shared fourth step.
 - Favorite-card selection behavior is isolated by ItemListLayer mode and uses the existing quantity-save callback; this prevents changes to category and picked views or separate selection state.
 - Manual company items reuse item_icons and the existing stable image route through an authenticated owner-scoped insert before narrow storage upload; this preserves catalog IDs and avoids duplicate item tables.
-- Worker contacts are stored in company-owned profiles and changed through locked security-invoker RPCs; assignment stores contact IDs in draft JSON so management and sending read one contact source.
+- Worker contacts live in company-owned profiles, change only through locked security-invoker RPCs and are disabled (never hard-deleted) via disable_worker_contact; assignments store contact IDs in draft JSON, keeping one source and past records intact.
 - Worker work-category grouping uses shared helpers with the existing JSON gender encoding (male for male work, female for kitchen work); legacy female contacts map to kitchen and unspecified contacts fall back to their role without rewriting stored records, preserving IDs and RPC compatibility.
 
 - AI SDK imports `@vercel/oidc`, which uses Node-only `createRequire(import.meta.url)` and crashes the Cloudflare worker at startup; `vite.config.ts` aliases it to `src/lib/vercel-oidc-stub.ts` — keep this alias.
-- Worker contacts are never hard-deleted; deletion sets disabled in the profile JSON via disable_worker_contact so past contracts and staff-share records stay intact.
 - Staff-share links are created only when the latest estimate_terms payment_status confirms the deposit; the UI and server both check stored status, not displayed amounts.
 - Home status grouping uses home-reservation-stage without changing contract stages; both waiting lists carry estimate_id to history and validate stored payment evidence so confirmation clears the target.
 - Telephone inputs, draft saves, company defaults and worker RPCs use formatTel for stored/display values; SMS transport alone strips separators, preserving legacy records on reads.
@@ -32,6 +31,7 @@
 - Shared address selection appends provider-returned building names to the existing address string through address-label; this preserves names across intake, estimates and saved drafts without changing coordinates or detail fields.
 
 - Deposit acknowledgement uses the owner-locked confirm_payment_receipt RPC to atomically sync confirmed receipt sums and the latest contract payment state, including idempotent repair; balance completion delegates to complete_estimate_payment, preventing zero-deposit displays, duplicate sums, total changes or messaging side effects.
-- Automatic receipt highlighting uses explicit bank methods or known legacy bank-alert sources; receipt-free bank balance confirmation uses an explicit owner-reviewed, expected-amount-checked security-invoker RPC that creates an audited confirmed receipt and delegates to the existing completion RPC, without assuming access to phone SMS.
+- Receipt highlighting uses explicit bank methods or known bank-alert sources; receipt-free balance confirmation uses an owner-reviewed, expected-amount-checked RPC that writes an audited receipt and delegates to the completion RPC.
 - Customer claims use stage-specific deduplication and stored contract totals; pending receipts stay visible and only owner acknowledgement confirms them. Payment SMS preparation is owner-scoped, read-only and native-composer-only, never a sent record.
-- History month groups default open when recorded bank receipts need review, and receipt rows display their stored payment kind and depositor; this keeps pending deposits and balances discoverable without inferring real bank activity.
+- History month groups open by default when receipts need review and rows show stored payment kind and depositor, keeping pending payments discoverable.
+- Bank deposit SMS are stored first in bank_sms_messages (deduped by event ID or exact text hash, never by name/account/estimate) and only then matched per estimate by name plus current due amount via bank-sms-match; a match creates or reuses one pending deposit_records row, so detection never completes payment and owner confirmation stays on the existing RPCs.

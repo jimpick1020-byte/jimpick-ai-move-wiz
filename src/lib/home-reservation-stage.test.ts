@@ -19,3 +19,11 @@ test("현금 카드와 확인된 잔금은 잔금 대기에서 제외", () => {
 test("전액 결제는 잔금 대기에서 제거하여 완료로 분류", () => {
   assert.equal(homeReservationStageOf({ paymentStatus: "completed", paymentReceipts: [balance] }), "payment_completed");
 });
+test("은행 문자로 연결된 잔금 180,000원 확인 대기는 잔금 대기", () => {
+  const sms = { ...balance, amount: 180000, source: "sms_paste" };
+  assert.equal(homeReservationStageOf({ depositPaid: 20000, paymentStatus: "deposit_paid", paymentReceipts: [{ ...balance, paymentKind: "deposit", amount: 20000, status: "confirmed" }, sms] }), "balance_waiting");
+});
+test("은행 문자로 연결된 예약금 확인 대기는 입금 대기", () => {
+  const sms = { ...balance, amount: 20000, paymentKind: "deposit", source: "sms_paste" };
+  assert.equal(homeReservationStageOf({ paymentStatus: "unpaid", paymentReceipts: [sms] }), "deposit_waiting");
+});
