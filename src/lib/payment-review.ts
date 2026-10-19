@@ -39,10 +39,12 @@ export function pendingReceipt(record: { amount: number; status: string; payment
 
 export function paymentReview(records: PaymentEvidence[], _paymentStatus: string, _depositPaid: number, _balancePaid: number, _total: number) {
   const pending = records.filter(pendingReceipt);
-  return pending.length ? { kind: "deposit" as const, amount: pending.reduce((s, r) => s + r.amount, 0), names: [...new Set(pending.map((r) => r.depositorName).filter(Boolean))], receipts: pending } : null;
+  if (!pending.length) return null;
+  const kind = pending.some((r) => r.paymentKind === "balance") ? ("balance" as const) : ("deposit" as const);
+  return { kind, amount: pending.reduce((s, r) => s + r.amount, 0), names: [...new Set(pending.map((r) => r.depositorName).filter(Boolean))], receipts: pending };
 }
-/** Fixed full classes so Tailwind always generates them (no dynamic class names). */
+/** Fixed full classes so Tailwind always generates them (no dynamic class names). 예약금=밝은 주황, 잔금=밝은 파랑. */
 export const PAYMENT_REVIEW_BORDER = {
-  deposit: "border-4 border-payment-review",
-  balance: "border-4 border-payment-review",
+  deposit: "border-4 border-[#FF8A00]",
+  balance: "border-4 border-[#3B82F6]",
 } as const;

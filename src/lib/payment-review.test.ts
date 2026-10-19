@@ -1,6 +1,7 @@
 import { describe, test } from "node:test";
 import { strict as assert } from "node:assert";
-import { paymentReview, pendingReceipt, balanceReceiptReady, receiptPaymentKind, type PaymentEvidence } from "./payment-review";
+import { paymentReview, pendingReceipt, balanceReceiptReady, receiptPaymentKind, PAYMENT_REVIEW_BORDER, type PaymentEvidence } from "./payment-review";
+import { remainingPayment } from "./payment-method";
 const receipt: PaymentEvidence = { amount: 950000, status: "pending_review", source: "sms_paste", depositorName: "시험 입금자", paymentKind: "deposit", paymentMethod: "bank_transfer" };
 describe("owner receipt review", () => {
   test("80000 deposit and 950000 balance both stay pending with their own depositor", () => {
@@ -12,7 +13,7 @@ describe("owner receipt review", () => {
     assert.equal(paymentReview([{ ...deposit, status: "confirmed" }, balance], "deposit_paid", 80000, 0, 1030000)?.amount, 950000);
   });
   test("950000 pending deposit requires review", () => assert.equal(paymentReview([receipt], "unpaid", 0, 0, 2000000)?.amount, 950000));
-  test("950000 short balance also requires orange review", () => assert.equal(paymentReview([{ ...receipt, paymentKind: "balance" }], "deposit_paid", 100000, 0, 2000000)?.kind, "deposit"));
+  test("950000 short balance requires blue balance review", () => assert.equal(paymentReview([{ ...receipt, paymentKind: "balance" }], "deposit_paid", 100000, 0, 2000000)?.kind, "balance"));
   test("stored completed state cannot hide pending receipt", () => assert.equal(paymentReview([receipt], "completed", 0, 0, 950000)?.amount, 950000));
   test("positive pending imported record requires review regardless of source", () => assert.equal(paymentReview([{ ...receipt, source: "bank_import" }], "unpaid", 0, 0, 2000000)?.amount, 950000));
   test("zero amount never needs review", () => assert.equal(pendingReceipt({ ...receipt, amount: 0 }), false));
@@ -40,4 +41,13 @@ describe("owner receipt review", () => {
   test("unknown unclassified source is not assumed bank transfer", () => assert.equal(pendingReceipt({ ...receipt, paymentMethod: null, source: "unknown" }), false));
   test("existing full balance completion eligibility is preserved", () => assert.equal(balanceReceiptReady([{ ...receipt, paymentKind: "balance" }], "deposit_paid", 50000, 1000000), true));
   test("short balance is reviewable but not completion eligible", () => assert.equal(balanceReceiptReady([{ ...receipt, paymentKind: "balance" }], "deposit_paid", 0, 2000000), false));
+});
+
+describe("deposit orange / balance blue border", () => {
+  const receipt = { id: "r1", amount: 80000, status: "pending_review", source: "sms_paste", depositorName: "김호영", paymentKind: "deposit", paymentMethod: "bank_transfer" };
+  test("pending deposit receipt gives deposit kind", () => assert.equal(paymentReview([receipt], "unpaid", 0, 0, 1030000)?.kind, "deposit"));
+  test("pending balance receipt gives balance kind", () => assert.equal(paymentReview([{ ...receipt, amount: 950000, paymentKind: "balance" }], "deposit_paid", 80000, 0, 1030000)?.kind, "balance"));
+  test("deposit border is thick bright orange", () => assert.equal(PAYMENT_REVIEW_BORDER.deposit, "border-4 border-[#FF8A00]"));
+  test("balance border is thick bright blue", () => assert.equal(PAYMENT_REVIEW_BORDER.balance, "border-4 border-[#3B82F6]"));
+  test("balance auto-calculates after 80000 deposit on 1030000 total", () => assert.equal(remainingPayment(1030000, 80000, 0), 950000));
 });

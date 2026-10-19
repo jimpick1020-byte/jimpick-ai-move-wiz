@@ -34,7 +34,6 @@ export function DepositPanel({
   onSaved?: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
   const [text, setText] = useState("");
   const [rows, setRows] = useState<DepositRow[]>([]);
   const [busy, setBusy] = useState(false);
@@ -82,7 +81,6 @@ export function DepositPanel({
       } else {
         toast.info("입금 기록을 저장했습니다", { description: "입금 확인 필요 상태입니다. 고객 문자는 보내지 않습니다." });
         setText("");
-        setAdding(false);
         onSaved?.();
       }
     } catch (error) {
@@ -151,11 +149,7 @@ export function DepositPanel({
 
       {(open || pending.length > 0) && (
         <div className="mt-2 space-y-2">
-          {depositPaid <= 0 && <Button variant="outline" className="w-full" disabled={busy} aria-expanded={adding} onClick={() => setAdding((value) => !value)}>
-            {adding ? "입력 닫기" : "예약금 입금 기록 추가"}
-          </Button>
-          }
-          {adding && depositPaid <= 0 && <>
+          {depositPaid <= 0 && <>
           <textarea
             aria-label="은행 입금알림 문자"
             value={text}
