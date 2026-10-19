@@ -197,6 +197,13 @@
       "when": 1792390357352,
       "tag": "0027_owner_direct_bank_balance_confirmation",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792400528653,
+      "tag": "0028_sync_confirmed_deposit_payment_state",
+      "breakpoints": true
     }
   ]
 }
