@@ -6270,6 +6270,8 @@ export function History() {
   const scrolledTarget = useRef<string | null>(null);
   useEffect(() => {
     try { setWaitingTargetId(sessionStorage.getItem("jp_waiting_history_target")); } catch { /* 저장소 제한 */ }
+    // 사장님이 견적 내역을 직접 열었으니 아이콘의 빨간 숫자는 지웁니다 (새 미확인 입금이 오면 다시 표시)
+    clearAppBadge();
   }, []);
   const [q, setQ] = useState("");
   const [histTab, setHistTab] = useState<"all" | "intake" | "visit">("all");
