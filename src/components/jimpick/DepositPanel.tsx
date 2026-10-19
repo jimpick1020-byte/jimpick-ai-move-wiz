@@ -70,7 +70,6 @@ export function DepositPanel({
     } catch (error) {
       toast.error("확인 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요" });
     } finally {
-      confirmLock.current = false;
       setWorking(null);
       load();
     }
