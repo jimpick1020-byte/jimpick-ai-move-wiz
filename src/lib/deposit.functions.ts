@@ -14,7 +14,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { parseDepositSms, isSameName, normalizeName } from "./deposit-parse";
-import { receiptPaymentKind } from "./payment-review";
+import { receiptPaymentKind, claimAlreadyRecorded } from "./payment-review";
 import { customerPaymentDue } from "./customer-payment";
 
 export interface DepositRow {
