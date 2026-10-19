@@ -56,32 +56,8 @@ export function DepositPanel({
 
   const paid = rows.filter((r) => r.status === "confirmed").reduce((s, r) => s + r.amount, 0);
   const pending = rows.filter(pendingReceipt);
-  const preview = text.trim() ? parseDepositSms(text) : null;
-
-  const submit = async () => {
-    if (busy || !text.trim()) return;
-    setBusy(true);
-    try {
-      const r = await registerDeposit({ data: { estimateId, text, paymentKind } });
-      if (!r.ok) {
-        toast.error("입금 기록 실패", { description: r.error ?? "다시 시도해 주세요" });
-      } else {
-        toast.info("입금 기록을 저장했습니다", { description: "입금 확인 필요 상태입니다. 고객 문자는 보내지 않습니다." });
-        setText("");
-        onSaved?.();
-      }
-    } catch (error) {
-      toast.error("입금 기록 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요" });
-    } finally {
-      setBusy(false);
-      load();
-      window.dispatchEvent(new Event("jimpick:payment-updated"));
-    }
-  };
-
   const doConfirm = async (id: string) => {
-    if (confirmLock.current) return;
-    confirmLock.current = true;
+    if (working) return;
     setWorking(id);
     try {
       const r = await confirmDeposit({ data: { id } });
