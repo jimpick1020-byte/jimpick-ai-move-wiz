@@ -368,7 +368,6 @@ export function SharePage() {
       );
     }
     const pending = link?.ok ? link.depositClaimPending === true : claimSent;
-    const smsUrl = claimSmsUrl(due.amount, due.kind);
     if (pending) {
       return (
         <div className="space-y-2">
@@ -377,13 +376,6 @@ export function SharePage() {
             <div className="text-center text-[15.5px] font-bold leading-snug text-[#B45309]">
               {label} {won(due.amount)} 입금 확인 대기
             </div>
-            {smsUrl ? (
-              <a href={smsUrl} className="mt-2 block w-full rounded-[14px] border border-[#B45309] bg-white py-3 text-center text-[16px] font-black text-[#B45309]">
-                업체에 입금 문자 보내기
-              </a>
-            ) : (
-              <div className="mt-2 text-center text-[14px] font-semibold text-[#D95C5C]">업체 연락처가 없어 문자를 작성할 수 없습니다.</div>
-            )}
             {errorBox}
           </div>
         </div>
