@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { setPaymentState, confirmOwnerBankBalance, PAYMENT_STATUS_CHOICES, PAYMENT_STATUS_LABEL, normalizePaymentStatus, type PaymentStatus } from "@/lib/payment.functions";
-import { PAYMENT_METHOD_LABEL, PAYMENT_METHODS, completedPaymentLabel, normalizePaymentMethod, remainingPayment, type PaymentMethod } from "@/lib/payment-method";
+import { PAYMENT_METHOD_LABEL, PAYMENT_METHODS, completedPaymentLabel, normalizePaymentMethod, paymentSummaryParts, remainingPayment, type PaymentMethod } from "@/lib/payment-method";
 import { bankReceipt, pendingReceipt } from "@/lib/payment-review";
 import type { TermsStatusRow } from "@/lib/terms.functions";
 
@@ -22,6 +22,7 @@ export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: 
   const confirmBank = useServerFn(confirmOwnerBankBalance);
   useEffect(() => { setStatus(normalizePaymentStatus(row.paymentStatus)); setAskComplete(false); setMethod(null); setNote(row.paymentNote ?? ""); }, [estimateId, row.paymentStatus, row.paymentNote]);
   const remain = remainingPayment(total, row.depositPaid, row.balancePaid);
+  const summary = paymentSummaryParts(total, row.depositPaid, row.balancePaid);
   const receipts = (row.paymentReceipts ?? []).filter((r) => r.amount > 0 && ["pending_review", "confirmed"].includes(r.status) && r.paymentKind === "balance" && r.source !== "customer_claim" && bankReceipt(r));
   const pending = (row.paymentReceipts ?? []).filter(pendingReceipt);
   const label = pending.length ? "계좌이체 확인 필요" : status === "completed" ? completedPaymentLabel(row.paymentMethod) : `${PAYMENT_METHOD_LABEL[normalizePaymentMethod(row.paymentMethod)]} · ${PAYMENT_STATUS_LABEL[status]}`;
@@ -50,7 +51,7 @@ export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: 
   };
   return <section className="mt-2 rounded-lg bg-muted p-3 text-foreground" aria-label="결제 상태">
     <Button variant="ghost" className="w-full justify-between px-0 text-xs" onClick={() => setOpen(!open)}><span>결제 상태 · {label}</span><span>{open ? "닫기" : "열기"}</span></Button>
-    <div className="mt-1 text-xs text-muted-foreground">총 {won(total)} · 예약금 {won(row.depositPaid)} · 잔금 {won(row.balancePaid)} · 남은 금액 <b>{won(remain)}</b></div>
+    <div className="mt-1 text-xs text-muted-foreground">총 {won(summary.total)} · 예약금 {won(summary.deposit)} · 잔금 <b>{won(summary.balance)}</b></div>
     {open && <div className="mt-3 space-y-3">
       <div className="grid grid-cols-2 gap-2">{PAYMENT_STATUS_CHOICES.map((s) => <Button key={s} aria-pressed={status === s} variant={status === s ? "staff" : "outline"} disabled={busy || (s === "completed" && status === "completed")} onClick={() => { if (s === "completed") { setAskComplete(true); setMethod(null); } else { cancel(); setStatus(s); } }}>{status === s && <Check aria-hidden="true" className="size-4 shrink-0" />}{PAYMENT_STATUS_LABEL[s]}</Button>)}</div>
       {askComplete && <div className="space-y-3 border-t border-border pt-3" aria-label="결제완료 확인">
