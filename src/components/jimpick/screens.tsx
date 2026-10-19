@@ -6311,7 +6311,11 @@ export function History() {
   const loadTerms = () => {
     getTermsStatuses({ data: {} })
       .then((r) => {
-        if (r.ok) setTermsRows(r.rows);
+        if (r.ok) {
+          setTermsRows(r.rows);
+          // 견적 내역을 직접 열어 확인했으니 앱 아이콘 배지 숫자도 함께 갱신합니다
+          updateAppBadge(unreadReceiptCount(r.rows));
+        }
       })
       .catch((error) => toast.error("입금 상태를 불러오지 못했습니다", { description: error instanceof Error ? error.message : "다시 확인해 주세요" }));
   };
