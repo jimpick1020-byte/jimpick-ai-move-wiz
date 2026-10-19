@@ -232,9 +232,9 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
 export interface RegisterDepositResult {
   ok: boolean;
   error?: string;
-  /** 자동 반영됐는지 (이름이 같을 때만 true) */
+  /** 등록만으로는 항상 false */
   applied?: boolean;
-  /** 이름이 달라 사장님 확인이 필요한지 */
+  /** 업체 확인이 필요한지 (이름 일치 여부와 무관) */
   needsReview?: boolean;
   row?: DepositRow;
   paid?: number;
@@ -345,7 +345,7 @@ export const confirmDeposit = createServerFn({ method: "POST" })
     async ({
       data,
       context,
-    }): Promise<{ ok: boolean; error?: string; paid?: number; smsError?: string }> => {
+    }): Promise<{ ok: boolean; error?: string; paid?: number; confirmedAt?: string }> => {
       const { data: result, error } = await context.supabase.rpc("confirm_payment_receipt", { _receipt_id: data.id });
       if (error) return { ok: false, error: "입금 확인을 저장하지 못했습니다." };
       return result as { ok: boolean; error?: string; paid?: number; confirmedAt?: string };

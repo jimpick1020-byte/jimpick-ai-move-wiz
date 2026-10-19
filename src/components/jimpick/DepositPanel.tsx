@@ -147,12 +147,6 @@ export function DepositPanel({
         <span className="text-[#6B7280]">{open ? "닫기" : "열기"}</span>
       </button>
 
-      {paid > 0 && (
-        <div className="mt-1 text-[12px] font-semibold text-[#6B7280]">
-          잔금 {won(Math.max(0, total - paid))} · 고객 견적서에도 함께 표시됩니다
-        </div>
-      )}
-
       {open && (
         <div className="mt-2 space-y-2">
           <div role="group" aria-label="입금 종류" className="grid grid-cols-2 gap-2">
@@ -211,7 +205,7 @@ export function DepositPanel({
                       }
                     >
                       {r.status === "confirmed"
-                        ? "반영 완료"
+                        ? "확인 완료"
                         : r.status === "rejected"
                           ? "제외"
                           : "확인 대기"}
