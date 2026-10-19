@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { customerPaymentDue, paymentText } from "@/lib/customer-payment";
 import { intakeSmsHref } from "@/lib/intake-sms";
 import { CharacterImg } from "./CharacterGuide";
