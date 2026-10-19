@@ -111,41 +111,6 @@ export function DepositPanel({
 
       {(open || pending.length > 0) && (
         <div className="mt-2 space-y-2">
-          {depositPaid <= 0 && <>
-          <textarea
-            aria-label="은행 입금알림 문자"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={3}
-            placeholder={
-              "은행 입금알림 문자를 그대로 붙여넣어 주세요\n예) [Web발신] 국민 09/10 22:30 입금 100,000 김호영"
-            }
-            className="w-full rounded-xl border border-[#E5E7EB] bg-white p-2.5 text-[13px] leading-relaxed outline-none focus:border-[#3578C8]"
-          />
-          {preview && (
-            <div className="rounded-xl bg-white p-2.5 text-[12.5px] text-[#6B7280]">
-              <div>
-                읽은 입금자: <b>{preview.depositorName || "못 읽음"}</b> · 금액{" "}
-                <b>{preview.amount > 0 ? won(preview.amount) : "못 읽음"}</b>
-              </div>
-              <div className="mt-0.5 text-[#6B7280]">
-                견적서 고객명: {customerName || "없음"}
-                {preview.depositorName && customerName && preview.depositorName !== customerName
-                  ? " · 이름이 달라 확인 대기로 남습니다"
-                  : ""}
-              </div>
-            </div>
-          )}
-          <Button
-            onClick={() => void submit()}
-            disabled={busy || !text.trim()}
-            variant="staff"
-            className="w-full"
-          >
-            {busy ? "저장 중…" : "예약금 입금 기록 저장"}
-          </Button>
-          </>}
-
           {rows.length > 0 && (
             <div className="space-y-1.5">
               {rows.map((r) => (
