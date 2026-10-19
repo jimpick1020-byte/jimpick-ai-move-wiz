@@ -5,7 +5,8 @@
  *  - 실패하면 성공으로 표시하지 않고 실제 오류 내용을 확인창에 남깁니다.
  *  - 권한 오류면 "함께 삭제" 버튼을 잠급니다.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { deleteEstimateEverywhere } from "./estimate-delete.functions";
 
 export function useDeleteContract(opts: {
@@ -17,6 +18,8 @@ export function useDeleteContract(opts: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [forbidden, setForbidden] = useState(false);
+  const lock = useRef(false);
+  const deleteOnServer = useServerFn(deleteEstimateEverywhere);
 
   const ask = (estimateId: string) => {
     setError(null);
@@ -24,17 +27,18 @@ export function useDeleteContract(opts: {
     setTarget(estimateId);
   };
   const cancel = () => {
-    if (busy) return;
+    if (lock.current) return;
     setTarget(null);
     setError(null);
     setForbidden(false);
   };
   const confirm = async () => {
-    if (!target || busy || forbidden) return;
+    if (!target || lock.current || forbidden) return;
+    lock.current = true;
     setBusy(true);
     setError(null);
     try {
-      const r = await deleteEstimateEverywhere({
+      const r = await deleteOnServer({
         data: { estimateId: target, source: opts.source },
       });
       if (!r.ok) {
@@ -49,6 +53,7 @@ export function useDeleteContract(opts: {
       console.error("[useDeleteContract]", err);
       setError("삭제하지 못했습니다. 통신 상태를 확인한 뒤 다시 시도해 주세요.");
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   };

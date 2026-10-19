@@ -4,12 +4,14 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { groupBankSmsMonths, bankSmsMonthIsOpen } from "@/lib/bank-sms-months";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card } from "./ui";
 import {
-  submitBankSms, listBankSms, linkBankSms, ignoreBankSms, createBankSmsToken, getBankSmsTokenStatus,
+  listBankSms, linkBankSms, ignoreBankSms, createBankSmsToken, getBankSmsTokenStatus,
   type BankSmsRow,
 } from "@/lib/bank-sms.functions";
 
@@ -28,7 +30,6 @@ function statusText(r: BankSmsRow) {
 
 export function BankSmsScreen() {
   const { setScreen } = useApp();
-  const submit = useServerFn(submitBankSms);
   const list = useServerFn(listBankSms);
   const link = useServerFn(linkBankSms);
   const ignore = useServerFn(ignoreBankSms);
@@ -37,7 +38,7 @@ export function BankSmsScreen() {
   const [rows, setRows] = useState<BankSmsRow[]>([]);
   const [openEstimates, setOpenEstimates] = useState<Array<{ estimateId: string; customerName: string }>>([]);
   const [loaded, setLoaded] = useState(false);
-  const [text, setText] = useState("");
+  const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const lock = useRef(false);
   const [pick, setPick] = useState<Record<string, string>>({});
@@ -58,19 +59,6 @@ export function BankSmsScreen() {
     lock.current = true; setBusy(key);
     try { await fn(); } finally { lock.current = false; setBusy(null); }
   };
-
-  const doSubmit = () => guard("submit", async () => {
-    try {
-      const r = await submit({ data: { text } });
-      if (!r.ok) { toast.error("등록 실패", { description: r.error }); return; }
-      setText("");
-      if (r.duplicated) toast.message("이미 받은 문자입니다. 중복으로 기록하지 않았습니다.");
-      else if (r.matchStatus === "matched") toast.success(`${kindLabel(r.kind ?? null)} 문자로 견적에 연결했습니다`);
-      else toast.message("문자를 저장했습니다. 연결할 견적을 확인해 주세요.");
-      window.dispatchEvent(new Event("jimpick:payment-updated"));
-    } catch (e) { toast.error("등록 실패", { description: e instanceof Error ? e.message : "다시 시도해 주세요" }); }
-    finally { void load(); }
-  });
 
   const doLink = (id: string) => guard(id, async () => {
     const estimateId = pick[id];
@@ -101,17 +89,11 @@ export function BankSmsScreen() {
     } catch { toast.error("주소를 만들지 못했습니다"); }
   });
 
+  const months = groupBankSmsMonths(rows);
   return (
     <MobileShell>
       <TopBar title="입금 문자" onBack={() => setScreen("home")} />
       <div className="flex-1 space-y-3 overflow-auto p-4 pb-24">
-        <Card>
-          <div className="text-[15px] font-bold">은행 입금 문자 등록</div>
-          <p className="mt-1 text-[13px] text-muted-foreground">받은 은행 입금 문자를 그대로 붙여넣으세요. 예약금·잔금을 따로 연결합니다.</p>
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={4000} placeholder="[Web발신] 농협 입금 180,000원 김호영 ..." className="mt-2 w-full rounded-md border border-input bg-background p-2 text-sm" aria-label="은행 입금 문자" />
-          <Button variant="staff" className="mt-2 w-full" disabled={!text.trim() || busy !== null} onClick={() => void doSubmit()}>{busy === "submit" ? "등록 중…" : "입금 문자 등록"}</Button>
-        </Card>
-
         <Card>
           <div className="text-[15px] font-bold">자동 전달 (안드로이드)</div>
           <p className="mt-1 text-[13px] text-muted-foreground">문자 전달 앱에서 은행 문자를 아래 주소로 보내도록 설정하면 자동으로 들어옵니다.{token?.lastReceivedAt ? ` 마지막 수신 ${new Date(token.lastReceivedAt).toLocaleString("ko-KR")}` : token?.exists ? " 아직 받은 문자가 없습니다." : ""}</p>
@@ -125,7 +107,14 @@ export function BankSmsScreen() {
 
         <div className="text-[14px] font-bold">받은 문자 {rows.length}건</div>
         {loaded && rows.length === 0 && <div className="py-8 text-center text-[13px] text-muted-foreground">받은 입금 문자가 없습니다.</div>}
-        {rows.map((r) => {
+        {months.map((month) => {
+          const isOpen = bankSmsMonthIsOpen(month.key, months[0]?.key, openMonths);
+          return <section key={month.key} className="space-y-3">
+            <Button variant="ghost" className="h-auto w-full justify-between px-1 py-3 text-[14px] font-bold" aria-expanded={isOpen} aria-controls={`sms-month-${month.key}`} onClick={() => setOpenMonths((prev) => ({ ...prev, [month.key]: !isOpen }))}>
+              <span>{month.year}년 {month.month}월 · {month.rows.length}건</span>
+              {isOpen ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+            </Button>
+            {isOpen && <div id={`sms-month-${month.key}`} className="space-y-3">{month.rows.map((r) => {
           const st = statusText(r);
           const choices = r.candidates.length ? r.candidates : openEstimates;
           const pendingBorder = r.matchStatus === "matched" && r.receiptStatus === "pending_review" ? (r.paymentKind === "balance" ? "border-4 border-[#3B82F6]" : "border-4 border-[#FF8A00]") : undefined;
@@ -135,11 +124,11 @@ export function BankSmsScreen() {
                 <div className="text-[14px] font-bold">{r.depositorName || "이름 미확인"} · {won(r.amount)}</div>
                 <div className={`shrink-0 text-[12.5px] font-bold ${st.cls}`}>{st.text}</div>
               </div>
-              <div className="mt-0.5 text-[12px] text-muted-foreground">{new Date(r.receivedAt).toLocaleString("ko-KR")} · {r.channel === "forward" ? "자동 전달" : "직접 등록"}{r.bank ? ` · ${r.bank}` : ""}</div>
+               <div className="mt-0.5 text-[12px] text-muted-foreground">{new Date(r.receivedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} · {r.channel === "forward" ? "자동 전달" : "직접 등록"}{r.bank ? ` · ${r.bank}` : ""}</div>
               <div className="mt-1.5 whitespace-pre-wrap break-all rounded-md bg-muted p-2 text-[12px]">{r.rawText}</div>
               {r.matchNote && <div className="mt-1 text-[12px] text-muted-foreground">{r.matchNote}</div>}
               {r.matchStatus === "matched" && r.matchedEstimateId && (
-                <Button variant="outline" className="mt-2 w-full" onClick={() => goHistory(r.matchedEstimateId!)}>견적 내역에서 확인</Button>
+                 <Button variant="outline" className="mt-2 w-full" onClick={() => { if (r.matchedEstimateId) goHistory(r.matchedEstimateId); }}>견적 내역에서 확인</Button>
               )}
               {(r.matchStatus === "review" || r.matchStatus === "unmatched") && r.amount > 0 && (
                 <div className="mt-2 space-y-2">
@@ -155,6 +144,8 @@ export function BankSmsScreen() {
               )}
             </Card>
           );
+            })}</div>}
+          </section>;
         })}
       </div>
     </MobileShell>

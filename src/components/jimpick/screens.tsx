@@ -6390,6 +6390,8 @@ export function History() {
     source: "history",
     onDeleted: (estimateId, intakeIds) => {
       deleteEstimate(estimateId);
+      setArchived((rows) => rows.filter((row) => row.estimateId !== estimateId));
+      loadArchived();
       // 같은 견적 ID·요청 ID로 연결된 「이어서 작성하기」 임시 초안도 지웁니다
       if (draft.id === estimateId || (draft.intakeRequestId && intakeIds.includes(draft.intakeRequestId))) resetDraft();
       void reloadIntakeRequests();
@@ -6559,11 +6561,14 @@ export function History() {
                         {won(a.total)}
                       </div>
                     </div>
+                    <div className="flex shrink-0 items-center gap-1">
                     <span
                       className={`shrink-0 rounded-full px-2 py-1 text-[11.5px] font-bold ${PAYMENT_STATUS_CLASS[a.paymentStatus]}`}
                     >
                       {a.paymentStatus === "completed" ? completedPaymentLabel(a.paymentMethod) : PAYMENT_STATUS_LABEL[a.paymentStatus]}
                     </span>
+                    <Button variant="ghost" size="icon" className="text-destructive" aria-label={`${a.customerName || "이름 없음"} 보관 견적 삭제`} title="삭제" disabled={contractDelete.busy} onClick={() => contractDelete.ask(a.estimateId)}><Trash2 /></Button>
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -6872,6 +6877,10 @@ export function History() {
         disabled={contractDelete.forbidden}
         onCancel={contractDelete.cancel}
         onConfirm={contractDelete.confirm}
+        archiveItem={(() => {
+          const item = archived.find((row) => row.estimateId === contractDelete.target);
+          return item ? { customerName: item.customerName, estimateId: item.estimateId, moveDate: item.moveDate, total: won(item.total) } : undefined;
+        })()}
       />
     </MobileShell>
   );
