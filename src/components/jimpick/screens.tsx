@@ -151,6 +151,7 @@ import {
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { SmsNoticeCard } from "./SmsNoticeCard";
 import { PaymentPanel } from "./PaymentPanel";
+import { completedPaymentLabel } from "@/lib/payment-method";
 import {
   setCalendarSelected,
   archiveCalendarSelected,
@@ -6539,7 +6540,7 @@ export function History() {
                     <span
                       className={`shrink-0 rounded-full px-2 py-1 text-[11.5px] font-bold ${PAYMENT_STATUS_CLASS[a.paymentStatus]}`}
                     >
-                      {PAYMENT_STATUS_LABEL[a.paymentStatus]}
+                      {a.paymentStatus === "completed" ? completedPaymentLabel(a.paymentMethod) : PAYMENT_STATUS_LABEL[a.paymentStatus]}
                     </span>
                   </div>
                   <button
