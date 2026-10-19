@@ -2,6 +2,7 @@ import { DepositPanel } from "./DepositPanel";
 import { addressWithBuilding } from "@/lib/address-label";
 import { StaffSendScreen } from "./StaffSendScreen";
 import { paymentReview, PAYMENT_REVIEW_BORDER } from "@/lib/payment-review";
+import { clearAppBadge, unreadReceiptCount, updateAppBadge } from "@/lib/app-badge";
 import { isWaitingHistoryTarget } from "@/lib/history-focus";
 import { WorkerContacts } from "./WorkerContacts";
 import { workerSmsHref, type WorkerContact } from "@/lib/worker-contact";
@@ -736,7 +737,11 @@ export function HomeScreen() {
       ]).then(() => Promise.all([
         getTermsStatuses({ data: {} })
           .then((r) => {
-            if (alive && r.ok) setTermsRows(r.rows);
+            if (alive && r.ok) {
+              setTermsRows(r.rows);
+              // 홈 화면 앱 아이콘에 미확인 입금 건수를 빨간 숫자로 표시합니다
+              updateAppBadge(unreadReceiptCount(r.rows));
+            }
           })
           .catch(() => {}),
         listArchivedContracts()
