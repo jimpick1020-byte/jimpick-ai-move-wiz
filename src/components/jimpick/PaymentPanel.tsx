@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { setPaymentState, confirmOwnerBankBalance, PAYMENT_STATUS_CHOICES, PAYMENT_STATUS_LABEL, normalizePaymentStatus, type PaymentStatus } from "@/lib/payment.functions";
 import { PAYMENT_METHOD_LABEL, PAYMENT_METHODS, completedPaymentLabel, normalizePaymentMethod, paymentSummaryParts, remainingPayment, type PaymentMethod } from "@/lib/payment-method";
-import { bankReceipt, pendingReceipt } from "@/lib/payment-review";
+import { pendingBalanceReceipts, pendingReceipt } from "@/lib/payment-review";
 import { updateEstimateTotal, type TermsStatusRow } from "@/lib/terms.functions";
 
 type ReceiptRow = NonNullable<TermsStatusRow["paymentReceipts"]>[number];
@@ -26,10 +26,10 @@ export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: 
   const [finalTotals, setFinalTotals] = useState<Record<string, string>>({});
   const remain = remainingPayment(total, row.depositPaid, row.balancePaid);
   const summary = paymentSummaryParts(total, row.depositPaid, row.balancePaid);
-  const receipts = (row.paymentReceipts ?? []).filter((r) => r.amount > 0 && ["pending_review", "confirmed"].includes(r.status) && r.paymentKind === "balance" && bankReceipt(r))
+  const receipts = pendingBalanceReceipts(row.paymentReceipts ?? [])
     .sort((a, b) => Number(b.amount === remain) - Number(a.amount === remain));
   const pending = (row.paymentReceipts ?? []).filter(pendingReceipt);
-  const balancePendingKey = receipts.filter((r) => r.status === "pending_review").map((r) => r.id).join(",");
+  const balancePendingKey = receipts.map((r) => r.id).join(",");
   useEffect(() => {
     const stored = normalizePaymentStatus(row.paymentStatus);
     setNote(row.paymentNote ?? "");

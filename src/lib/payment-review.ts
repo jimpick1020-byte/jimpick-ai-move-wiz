@@ -37,6 +37,11 @@ export function pendingReceipt(record: { amount: number; status: string; payment
   return record.amount > 0 && record.status === "pending_review" && bankReceipt(record);
 }
 
+/** Confirmed balances are already deducted from remainingPayment; never offer them for review again. */
+export function pendingBalanceReceipts<T extends PaymentEvidence>(records: T[]): T[] {
+  return records.filter((record) => record.paymentKind === "balance" && pendingReceipt(record));
+}
+
 export function paymentReview(records: PaymentEvidence[], _paymentStatus: string, _depositPaid: number, _balancePaid: number, _total: number) {
   const pending = records.filter(pendingReceipt);
   if (!pending.length) return null;
