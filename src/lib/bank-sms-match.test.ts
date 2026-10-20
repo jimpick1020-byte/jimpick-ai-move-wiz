@@ -83,3 +83,17 @@ test("중복 키는 이벤트 ID 또는 원문 기준이며 이름·견적으로
   assert.equal(bankSmsDedupeKey({ eventId: "abc", rawText: "x" }, "h1"), "evt:abc");
   assert.equal(bankSmsDedupeKey({ rawText: "x" }, "h1"), "txt:h1");
 });
+
+test("자동 전달 주소는 미리보기에서 만들어도 운영 주소", async () => {
+  const { bankSmsForwardUrl } = await import("./bank-sms-match");
+  assert.equal(bankSmsForwardUrl("ab12"), "https://jimpick-ai-move-wiz.lovable.app/api/public/hooks/bank-sms?k=ab12");
+});
+
+test("전달 본문: text/plain으로 온 JSON도 문자 원문을 꺼내고, 치환 안 된 {{body}}는 빈 값", async () => {
+  const { extractForwardedText } = await import("./bank-sms-match");
+  const r = extractForwardedText('{"sender":"15882100","body":"농협 입금250,000원 김호영"}');
+  assert.equal(r.text, "농협 입금250,000원 김호영");
+  assert.equal(r.sender, "15882100");
+  assert.equal(extractForwardedText('{"sender":"{{sender}}","body":"{{body}}"}').text, "");
+  assert.equal(extractForwardedText("농협 입금180,000원").text, "농협 입금180,000원");
+});
