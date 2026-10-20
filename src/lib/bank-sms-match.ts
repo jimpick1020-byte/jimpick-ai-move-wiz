@@ -20,7 +20,7 @@ export interface MatchCandidate {
 }
 
 export type BankSmsMatch =
-  | { status: "matched"; estimateId: string; kind: "deposit" | "balance"; candidates: string[]; note: string }
+  | { status: "matched"; estimateId: string; kind: "deposit" | "balance"; candidates: string[]; note: string; expectedAmount: number }
   | { status: "review"; candidates: string[]; note: string }
   | { status: "unmatched"; candidates: string[]; note: string }
   | { status: "ignored"; candidates: string[]; note: string };
