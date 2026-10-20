@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import { strict as assert } from "node:assert";
-import { paymentReview, pendingReceipt, balanceReceiptReady, receiptPaymentKind, PAYMENT_REVIEW_BORDER, type PaymentEvidence } from "./payment-review";
+import { paymentReview, pendingReceipt, pendingBalanceReceipts, balanceReceiptReady, receiptPaymentKind, PAYMENT_REVIEW_BORDER, type PaymentEvidence } from "./payment-review";
 import { remainingPayment } from "./payment-method";
 const receipt: PaymentEvidence = { amount: 950000, status: "pending_review", source: "sms_paste", depositorName: "시험 입금자", paymentKind: "deposit", paymentMethod: "bank_transfer" };
 describe("owner receipt review", () => {
@@ -56,4 +56,20 @@ test("잔금 예정 180,000원에 250,000원 입금이면 차액 +70,000원 안�
   const { paymentDiffNote } = await import("./payment-review");
   assert.equal(paymentDiffNote("balance", 180000, 250000), "예정 잔금 180,000원 / 실제 입금 250,000원 / 차액 +70,000원");
   assert.equal(paymentDiffNote("balance", 180000, 180000), null);
+});
+
+describe("partial bank payment review", () => {
+  const confirmed = { ...receipt, id: "confirmed-partial", amount: 100000, paymentKind: "balance", status: "confirmed" };
+  test("confirmed 100000 of 180000 leaves 80000 without re-offering the old receipt", () => {
+    assert.equal(remainingPayment(200000, 20000, 100000), 80000);
+    assert.deepEqual(pendingBalanceReceipts([confirmed]), []);
+  });
+  test("only a new pending 80000 receipt is offered after the partial confirmation", () => {
+    const next = { ...confirmed, id: "next-payment", amount: 80000, status: "pending_review" };
+    assert.deepEqual(pendingBalanceReceipts([confirmed, next]), [next]);
+  });
+  test("confirmed short receipt is excluded even when it is less than the new remaining balance", () => {
+    assert.equal(remainingPayment(200000, 20000, 50000), 130000);
+    assert.deepEqual(pendingBalanceReceipts([{ ...confirmed, amount: 50000 }]), []);
+  });
 });
