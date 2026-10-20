@@ -40,7 +40,33 @@ function cleanNumber(s: string): number {
 }
 
 /** 은행 입금알림 문자 한 통을 읽어 냅니다 */
-export function parseDepositSms(rawInput: string): ParsedDeposit {
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+/** 한국시간 연·월·일·시·분을 실제 시각(ISO)으로 바꿉니다. 없는 날짜면 null */
+function kstIso(y: number, mo: number, d: number, h: number, mi: number): string | null {
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59) return null;
+  const t = Date.UTC(y, mo - 1, d, h, mi) - KST_OFFSET_MS;
+  const back = new Date(t + KST_OFFSET_MS);
+  if (back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null;
+  return new Date(t).toISOString();
+}
+
+/** 문자 속 날짜(한국시간)를 읽습니다. 계좌번호 조각은 날짜로 보지 않습니다. */
+export function parseKstDate(text: string, nowMs: number = Date.now()): string | null {
+  const ymd = text.match(/(?<![\d\-*])(20\d{2})[.\-\/](\d{1,2})[.\-\/](\d{1,2})(?![\d\-*])(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (ymd) return kstIso(Number(ymd[1]), Number(ymd[2]), Number(ymd[3]), Number(ymd[4] ?? 0), Number(ymd[5] ?? 0));
+  const md = text.match(/(?<![\d\-*])(\d{1,2})[.\-\/](\d{1,2})(?![\d\-*,])(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (!md) return null;
+  const nowYear = new Date(nowMs + KST_OFFSET_MS).getUTCFullYear();
+  let iso = kstIso(nowYear, Number(md[1]), Number(md[2]), Number(md[3] ?? 0), Number(md[4] ?? 0));
+  // 12월 문자를 1월에 받는 경우처럼 미래 날짜가 되면 작년으로 봅니다
+  if (iso && Date.parse(iso) - nowMs > 1000 * 60 * 60 * 24 * 2) {
+    iso = kstIso(nowYear - 1, Number(md[1]), Number(md[2]), Number(md[3] ?? 0), Number(md[4] ?? 0));
+  }
+  return iso;
+}
+
+export function parseDepositSms(rawInput: string, nowMs: number = Date.now()): ParsedDeposit {
   const raw = String(rawInput ?? "");
   const text = raw.replace(/\u00a0/g, " ").trim();
   const compact = text.replace(/\[Web발신\]|\[web발신\]/g, " ");
