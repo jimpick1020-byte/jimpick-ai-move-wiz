@@ -60,6 +60,21 @@ test("같은 이름의 진행 중 견적이 여러 개면 금액과 관계없이
   assert.deepEqual(m.candidates, ["est_a", "est_b"]);
 });
 
+test("예약금 20,000원 확인 견적에 250,000원 입금: 같은 이름 과거 완료 견적이 있어도 진행 중 견적 잔금으로 연결", () => {
+  const past = kim({ estimateId: "est_old", depositPaid: 20000, balancePaid: 180000, paymentStatus: "completed" });
+  const live = kim({ estimateId: "est_live", depositPaid: 20000, paymentStatus: "deposit_paid" });
+  const m = matchBankSms(sms(250000), [past, live]);
+  assert.equal(m.status, "matched");
+  if (m.status === "matched") {
+    assert.equal(m.estimateId, "est_live");
+    assert.equal(m.kind, "balance");
+    assert.equal(m.expectedAmount, 180000);
+    assert.match(m.note, /차액 \+70,000원/);
+  }
+  const exact = matchBankSms(sms(180000), [past, live]);
+  assert.equal(exact.status === "matched" && exact.estimateId, "est_live");
+});
+
 test("입금 문자가 아니면 제외", () => {
   assert.equal(matchBankSms({ amount: 5000, depositorName: "", looksLikeDeposit: false }, [kim()]).status, "ignored");
 });
