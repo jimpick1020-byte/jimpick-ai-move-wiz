@@ -49,7 +49,7 @@ export function paymentReview(records: PaymentEvidence[], _paymentStatus: string
  * 같은 견적·같은 종류·같은 금액의 확인 대기/확인 기록이 어떤 경로(은행 문자, 직접 등록,
  * 이전 고객 신고)로든 있으면 새 기록을 만들지 않아 같은 입금이 두 번 집계되지 않습니다.
  */
-export function claimAlreadyRecorded(records: PaymentEvidence[], kind: "deposit" | "balance", amount: number): boolean {
+export function claimAlreadyRecorded(records: Pick<PaymentEvidence, "amount" | "status" | "paymentKind">[], kind: "deposit" | "balance", amount: number): boolean {
   return records.some((r) => r.paymentKind === kind && r.amount === amount && ["pending_review", "confirmed"].includes(r.status));
 }
 /** Fixed full classes so Tailwind always generates them (no dynamic class names). 예약금=밝은 주황, 잔금=밝은 파랑. */

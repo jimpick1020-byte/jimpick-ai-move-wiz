@@ -28,8 +28,36 @@ test("결제완료 견적은 잔금 매칭 대상이 아님", () => {
   assert.equal(matchBankSms(sms(180000), [kim({ depositPaid: 20000, balancePaid: 180000, paymentStatus: "completed" })]).status, "unmatched");
 });
 
-test("금액이 다르면 확인 필요", () => {
-  assert.equal(matchBankSms(sms(150000), [kim({ depositPaid: 20000 })]).status, "review");
+test("이름이 맞는 견적이 하나면 잔금보다 많이 입금돼도 연결하고 차액을 안내", () => {
+  const m = matchBankSms(sms(1200000), [kim({ total: 850000, depositPaid: 80000, paymentStatus: "deposit_paid" })]);
+  assert.equal(m.status, "matched");
+  if (m.status === "matched") {
+    assert.equal(m.kind, "balance");
+    assert.equal(m.estimateId, "est_a");
+    assert.equal(m.expectedAmount, 770000);
+    assert.match(m.note, /예정 잔금 770,000원/);
+    assert.match(m.note, /실제 입금 1,200,000원/);
+    assert.match(m.note, /차액 \+430,000원/);
+  }
+});
+
+test("이름이 맞는 견적이 하나면 잔금보다 적게 입금돼도 연결하고 차액을 안내", () => {
+  const m = matchBankSms(sms(500000), [kim({ total: 850000, depositPaid: 80000, paymentStatus: "deposit_paid" })]);
+  assert.equal(m.status, "matched");
+  if (m.status === "matched") {
+    assert.equal(m.kind, "balance");
+    assert.equal(m.expectedAmount, 770000);
+    assert.match(m.note, /차액 -270,000원/);
+  }
+});
+
+test("같은 이름의 진행 중 견적이 여러 개면 금액과 관계없이 확인 필요", () => {
+  const m = matchBankSms(sms(1200000), [
+    kim({ total: 850000, depositPaid: 80000, paymentStatus: "deposit_paid" }),
+    kim({ estimateId: "est_b", total: 500000, depositPaid: 50000, paymentStatus: "deposit_paid" }),
+  ]);
+  assert.equal(m.status, "review");
+  assert.deepEqual(m.candidates, ["est_a", "est_b"]);
 });
 
 test("입금 문자가 아니면 제외", () => {
