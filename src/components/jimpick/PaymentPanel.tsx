@@ -50,6 +50,25 @@ export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: 
     } catch (error) { toast.error("확인 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요." }); }
     finally { locked.current = false; setBusy(false); }
   };
+  // 예정 잔금보다 많이 입금된 경우: 사장님이 추가요금을 반영한 최종 계약금액을 확인한 뒤에만 결제완료합니다.
+  // 입금액만으로 계약금액을 자동 변경하지 않습니다.
+  const confirmOverpaid = async (r: ReceiptRow) => {
+    if (locked.current || !r.id) return;
+    const finalTotal = Number(String(finalTotals[r.id] ?? total + (r.amount - remain)).replace(/[^0-9]/g, ""));
+    if (!finalTotal || finalTotal <= 0) { toast.error("최종 계약금액을 입력해 주세요."); return; }
+    const receivedSum = row.depositPaid + r.amount;
+    if (finalTotal < receivedSum) { toast.error("최종 계약금액이 실제 받은 금액보다 적습니다.", { description: `받은 금액 합계 ${won(receivedSum)} 이상이어야 합니다.` }); return; }
+    locked.current = true; setBusy(true);
+    try {
+      const t = await updateTotal({ data: { estimateId, total: finalTotal } });
+      if (!t.ok) { toast.error("금액 저장 실패", { description: t.error ?? "" }); return; }
+      const result = await savePayment({ data: { estimateId, status: "completed", note, method: "bank_transfer", receiptId: r.id } });
+      if (!result.ok) { toast.error("확인 실패", { description: result.error }); return; }
+      cancel(); onSaved?.(); window.dispatchEvent(new Event("jimpick:payment-updated"));
+      toast.success("최종 계약금액을 반영하고 결제완료했습니다");
+    } catch (error) { toast.error("확인 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요." }); }
+    finally { locked.current = false; setBusy(false); }
+  };
   const run = async (selected?: PaymentMethod, receiptId?: string, successMsg = "결제 확인을 저장했습니다") => {
     if (locked.current) return;
     locked.current = true; setBusy(true);
