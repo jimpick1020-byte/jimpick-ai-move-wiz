@@ -16,36 +16,44 @@ export const Route = createFileRoute("/api/public/hooks/bank-sms")({
       POST: async ({ request }) => {
         const url = new URL(request.url);
         const key = String(request.headers.get("x-jimpick-key") ?? url.searchParams.get("k") ?? "").trim();
-        if (!/^[0-9a-f]{48}$/.test(key)) return json({ ok: false, error: "권한이 없습니다." }, 401);
+        if (!/^[0-9a-f]{48}$/.test(key)) {
+          console.warn("[bank-sms] rejected: key format");
+          return json({ ok: false, error: "권한이 없습니다." }, 401);
+        }
         const { sha256Hex, ingestBankSms } = await import("@/lib/bank-sms.server");
+        const { extractForwardedText } = await import("@/lib/bank-sms-match");
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: owner } = await supabaseAdmin.from("bank_sms_ingest_tokens").select("company_id").eq("token_hash", await sha256Hex(key)).maybeSingle();
-        if (!owner) return json({ ok: false, error: "권한이 없습니다." }, 401);
+        if (!owner) {
+          console.warn("[bank-sms] rejected: unknown or replaced key");
+          return json({ ok: false, error: "권한이 없습니다." }, 401);
+        }
 
         let text = "", eventId: string | null = null, sender: string | null = null, receivedAt: string | null = null;
         const type = request.headers.get("content-type") ?? "";
         try {
-          if (type.includes("application/json")) {
-            const b = (await request.json()) as Record<string, unknown>;
-            text = String(b["text"] ?? b["message"] ?? b["body"] ?? b["content"] ?? "");
-            eventId = (b["eventId"] ?? b["id"] ?? b["messageId"] ?? null) as string | null;
-            sender = (b["from"] ?? b["sender"] ?? null) as string | null;
-            receivedAt = (b["receivedAt"] ?? b["sentStamp"] ?? b["timestamp"] ?? null) as string | null;
-            if (typeof receivedAt === "number") receivedAt = new Date(receivedAt).toISOString();
-          } else if (type.includes("form")) {
+          if (type.includes("form")) {
             const f = await request.formData();
             text = String(f.get("text") ?? f.get("message") ?? f.get("body") ?? "");
             eventId = (f.get("eventId") ?? f.get("id")) as string | null;
             sender = f.get("from") as string | null;
           } else {
-            text = await request.text();
+            // JSON 이든 text/plain 으로 온 JSON 이든 같은 규칙으로 읽습니다.
+            const parsed = extractForwardedText(await request.text());
+            ({ text, eventId, sender, receivedAt } = parsed);
           }
         } catch {
+          console.warn("[bank-sms] rejected: unreadable body", type);
           return json({ ok: false, error: "요청 내용을 읽지 못했습니다." }, 400);
         }
-        if (!text.trim()) return json({ ok: false, error: "문자 내용이 없습니다." }, 400);
-        const result = await ingestBankSms(supabaseAdmin, owner.company_id, { rawText: text, eventId: eventId ? String(eventId) : null, sender, receivedAt, channel: "forward" });
+        // 키가 맞는 요청은 내용과 관계없이 수신 시각을 남겨 화면에서 연결 여부를 확인할 수 있게 합니다.
         await supabaseAdmin.from("bank_sms_ingest_tokens").update({ last_received_at: new Date().toISOString() }).eq("company_id", owner.company_id);
+        if (!text.trim()) {
+          console.warn("[bank-sms] rejected: empty text", type);
+          return json({ ok: false, error: "문자 내용이 없습니다." }, 400);
+        }
+        const result = await ingestBankSms(supabaseAdmin, owner.company_id, { rawText: text, eventId: eventId ? String(eventId) : null, sender, receivedAt, channel: "forward" });
+        console.log("[bank-sms] processed", JSON.stringify({ id: result.id ?? null, ok: result.ok, duplicated: result.duplicated ?? false, match: result.matchStatus ?? null, estimate: result.estimateId ?? null, kind: result.kind ?? null }));
         return json({ ok: result.ok, duplicated: result.duplicated ?? false, matchStatus: result.matchStatus ?? null }, result.ok ? 200 : 500);
       },
     },
