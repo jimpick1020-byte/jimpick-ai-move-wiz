@@ -2,7 +2,7 @@ import { PaymentSmsButton } from "./PaymentSmsButton";
 import { DepositPanel } from "./DepositPanel";
 import { addressWithBuilding } from "@/lib/address-label";
 import { StaffSendScreen } from "./StaffSendScreen";
-import { paymentReview, PAYMENT_REVIEW_BORDER } from "@/lib/payment-review";
+import { paymentReview, paymentDiffNote, PAYMENT_REVIEW_BORDER } from "@/lib/payment-review";
 import { clearAppBadge, unreadReceiptCount, updateAppBadge } from "@/lib/app-badge";
 import { isWaitingHistoryTarget } from "@/lib/history-focus";
 import { homeReservationStageOf, HOME_STAGE_LABEL, type HomeReservationStage } from "@/lib/home-reservation-stage";
@@ -6659,6 +6659,12 @@ export function History() {
                             <div className="mt-1 text-sm font-bold text-foreground" data-payment-review-text>
                               계좌이체 확인 필요 · {review.amount.toLocaleString("ko-KR")}원
                               {review.receipts.map((r, i) => <div key={r.id ?? i} className="break-words text-sm font-semibold">{r.paymentKind === "balance" ? "잔금" : r.paymentKind === "deposit" ? "예약금" : "계좌 입금"} 입금 · 입금자 {r.depositorName || "이름 미확인"} · {r.amount.toLocaleString("ko-KR")}원 · 확인 필요</div>)}
+                              {(() => {
+                                // 잔금 확인 대기 금액이 예정 잔금과 다르면 차액을 안내합니다 (계약금액은 바꾸지 않습니다).
+                                if (review.kind !== "balance" || !ts.row) return null;
+                                const note = paymentDiffNote("balance", remainingPayment(ts.row.total, ts.row.depositPaid, ts.row.balancePaid), review.amount);
+                                return note ? <div className="break-words text-sm font-semibold text-[#1D4ED8]" data-payment-diff>{note}</div> : null;
+                              })()}
                             </div>
                           )}
                         </div>

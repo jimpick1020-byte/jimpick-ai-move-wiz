@@ -51,3 +51,9 @@ describe("deposit orange / balance blue border", () => {
   test("balance border is thick bright blue", () => assert.equal(PAYMENT_REVIEW_BORDER.balance, "border-4 border-[#3B82F6]"));
   test("balance auto-calculates after 80000 deposit on 1030000 total", () => assert.equal(remainingPayment(1030000, 80000, 0), 950000));
 });
+
+test("잔금 예정 180,000원에 250,000원 입금이면 차액 +70,000원 안내, 같은 금액이면 안내 없음", async () => {
+  const { paymentDiffNote } = await import("./payment-review");
+  assert.equal(paymentDiffNote("balance", 180000, 250000), "예정 잔금 180,000원 / 실제 입금 250,000원 / 차액 +70,000원");
+  assert.equal(paymentDiffNote("balance", 180000, 180000), null);
+});
