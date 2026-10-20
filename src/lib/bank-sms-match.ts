@@ -45,21 +45,32 @@ export function matchBankSms(
     .filter((c) => !c.contractCancelled && !["completed", "canceled", "refunded"].includes(c.paymentStatus))
     .map((c) => ({ c, due: customerPaymentDue(c.total, c.depositPaid, c.balancePaid, c.paymentStatus) }))
     .filter((x) => x.due.amount > 0);
+  const won = (n: number) => n.toLocaleString("ko-KR");
+  const hitOf = (hit: { c: MatchCandidate; due: { kind: "deposit" | "balance"; amount: number } }, note: string): BankSmsMatch => ({
+    status: "matched",
+    estimateId: hit.c.estimateId,
+    kind: hit.due.kind,
+    candidates: [hit.c.estimateId],
+    note,
+    expectedAmount: hit.due.amount,
+  });
   const byName = open.filter((x) => isSameName(sms.depositorName, x.c.customerName));
   const exact = byName.filter((x) => x.due.amount === sms.amount);
   if (exact.length === 1) {
     const hit = exact[0]!;
-    return {
-      status: "matched",
-      estimateId: hit.c.estimateId,
-      kind: hit.due.kind,
-      candidates: [hit.c.estimateId],
-      note: `${hit.due.kind === "balance" ? "잔금" : "예약금"} ${sms.amount.toLocaleString("ko-KR")}원과 일치`,
-    };
+    return hitOf(hit, `${hit.due.kind === "balance" ? "잔금" : "예약금"} ${won(sms.amount)}원과 일치`);
   }
   if (exact.length > 1) return { status: "review", candidates: exact.map((x) => x.c.estimateId), note: `같은 이름·금액 견적이 ${exact.length}건입니다. 직접 선택해 주세요.` };
+  // 이름이 맞는 진행 중 견적이 하나면 금액이 달라도 연결합니다 (짐 증가 등 추가 입금).
+  // 차액은 안내 문구로 보여 주고, 최종 금액 반영·결제완료는 사장님이 직접 확인합니다.
+  if (byName.length === 1) {
+    const hit = byName[0]!;
+    const label = hit.due.kind === "balance" ? "잔금" : "예약금";
+    const diff = sms.amount - hit.due.amount;
+    return hitOf(hit, `예정 ${label} ${won(hit.due.amount)}원 / 실제 입금 ${won(sms.amount)}원 / 차액 ${diff > 0 ? "+" : "-"}${won(Math.abs(diff))}원`);
+  }
+  if (byName.length > 1) return { status: "review", candidates: byName.map((x) => x.c.estimateId), note: `같은 이름의 진행 중 견적이 ${byName.length}건입니다. 직접 선택해 주세요.` };
   const byAmount = open.filter((x) => x.due.amount === sms.amount);
-  if (byName.length) return { status: "review", candidates: byName.map((x) => x.c.estimateId), note: "입금자명은 같지만 금액이 받을 금액과 다릅니다." };
   if (byAmount.length) return { status: "review", candidates: byAmount.map((x) => x.c.estimateId), note: "금액은 같지만 입금자명이 고객명과 다릅니다." };
   return { status: "unmatched", candidates: [], note: "연결할 견적을 찾지 못했습니다." };
 }
