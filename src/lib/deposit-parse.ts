@@ -70,37 +70,9 @@ export function parseDepositSms(rawInput: string): ParsedDeposit {
   const bank = BANKS.find((b) => compact.includes(b)) ?? "";
 
   // ── 시각 ──
-  let depositedAt: string | null = null;
-  const now = new Date();
-  const md = compact.match(/(\d{1,2})[\/\.\-](\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
-  const ymd = compact.match(/(20\d{2})[\.\-\/](\d{1,2})[\.\-\/](\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
-  try {
-    if (ymd) {
-      const d = new Date(
-        Number(ymd[1]),
-        Number(ymd[2]) - 1,
-        Number(ymd[3]),
-        Number(ymd[4] ?? 0),
-        Number(ymd[5] ?? 0),
-      );
-      if (!Number.isNaN(d.getTime())) depositedAt = d.toISOString();
-    } else if (md) {
-      const d = new Date(
-        now.getFullYear(),
-        Number(md[1]) - 1,
-        Number(md[2]),
-        Number(md[3] ?? 0),
-        Number(md[4] ?? 0),
-      );
-      // 12월 문자를 1월에 붙여 읽는 경우를 막습니다
-      if (!Number.isNaN(d.getTime())) {
-        if (d.getTime() - now.getTime() > 1000 * 60 * 60 * 24 * 2) d.setFullYear(now.getFullYear() - 1);
-        depositedAt = d.toISOString();
-      }
-    }
-  } catch {
-    depositedAt = null;
-  }
+  // 은행 문자의 날짜·시각은 한국시간입니다. 서버(UTC)에서도 같은 결과가 나오도록 한국시간으로 계산합니다.
+  // 계좌번호(302-****-1642-11)의 숫자 조각을 날짜로 읽지 않도록 앞뒤가 숫자·-·*인 경우는 제외합니다.
+  const depositedAt = parseKstDate(compact, nowMs);
 
   // ── 입금자 이름 ──
   // 한글 2~5자 낱말 중, 은행·거래 용어가 아닌 것을 이름으로 봅니다.
