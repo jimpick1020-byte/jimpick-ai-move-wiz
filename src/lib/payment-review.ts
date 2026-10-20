@@ -57,3 +57,11 @@ export const PAYMENT_REVIEW_BORDER = {
   deposit: "border-4 border-[#FF8A00]",
   balance: "border-4 border-[#3B82F6]",
 } as const;
+
+/** 확인 대기 입금액이 예정 금액과 다를 때 카드에 보여 줄 안내. 같으면 null (금액은 바꾸지 않고 안내만 합니다). */
+export function paymentDiffNote(kind: "deposit" | "balance", expected: number, actual: number): string | null {
+  if (expected <= 0 || actual <= 0 || expected === actual) return null;
+  const won = (n: number) => n.toLocaleString("ko-KR");
+  const diff = actual - expected;
+  return `예정 ${kind === "balance" ? "잔금" : "예약금"} ${won(expected)}원 / 실제 입금 ${won(actual)}원 / 차액 ${diff > 0 ? "+" : "-"}${won(Math.abs(diff))}원`;
+}
