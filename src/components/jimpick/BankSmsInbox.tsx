@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { groupBankSmsMonths, bankSmsMonthIsOpen } from "@/lib/bank-sms-months";
+import { bankSmsForwardUrl } from "@/lib/bank-sms-match";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/jimpick";
@@ -84,7 +85,8 @@ export function BankSmsScreen() {
     try {
       const r = await makeToken();
       if (!r.ok || !r.token) { toast.error(r.error ?? "주소를 만들지 못했습니다"); return; }
-      setNewUrl(`${window.location.origin}/api/public/hooks/bank-sms?k=${r.token}`);
+      // 미리보기 주소는 외부 요청을 앱에 전달하지 않으므로(Unauthorized) 항상 운영 주소로 만듭니다.
+      setNewUrl(bankSmsForwardUrl(r.token));
       setToken({ exists: true, lastReceivedAt: null });
     } catch { toast.error("주소를 만들지 못했습니다"); }
   });

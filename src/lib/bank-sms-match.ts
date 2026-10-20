@@ -10,6 +10,34 @@
  */
 import { customerPaymentDue } from "./customer-payment";
 import { isSameName } from "./deposit-parse";
+import { publicUrl } from "./app-url";
+
+/** 문자 전달 앱에 등록할 주소. 어느 화면에서 만들어도 항상 운영 주소입니다 (미리보기 주소는 외부 요청을 막습니다). */
+export function bankSmsForwardUrl(token: string): string {
+  return publicUrl(`/api/public/hooks/bank-sms?k=${encodeURIComponent(token)}`);
+}
+
+/** 전달 앱이 보낸 본문에서 문자 원문을 꺼냅니다. JSON인데 text/plain으로 오거나, 치환되지 않은 {{body}}가 오면 걸러냅니다. */
+export function extractForwardedText(raw: string): { text: string; eventId: string | null; sender: string | null; receivedAt: string | null } {
+  let text = String(raw ?? "");
+  let eventId: string | null = null, sender: string | null = null, receivedAt: string | null = null;
+  const t = text.trim();
+  if (t.startsWith("{")) {
+    try {
+      const b = JSON.parse(t) as Record<string, unknown>;
+      text = String(b["text"] ?? b["message"] ?? b["body"] ?? b["content"] ?? "");
+      const id = b["eventId"] ?? b["id"] ?? b["messageId"];
+      eventId = id == null || id === "" ? null : String(id);
+      const from = b["from"] ?? b["sender"];
+      sender = from == null || from === "" ? null : String(from);
+      const at = b["receivedAt"] ?? b["sentStamp"] ?? b["timestamp"];
+      receivedAt = typeof at === "number" ? new Date(at).toISOString() : at ? String(at) : null;
+    } catch { /* JSON이 아니면 원문 그대로 씁니다 */ }
+  }
+  if (/^\s*\{\{\s*\w+\s*\}\}\s*$/.test(text)) text = "";
+  if (sender && /^\{\{.*\}\}$/.test(sender)) sender = null;
+  return { text, eventId, sender, receivedAt };
+}
 
 export interface MatchCandidate {
   estimateId: string;
