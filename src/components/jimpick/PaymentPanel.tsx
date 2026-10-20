@@ -6,7 +6,9 @@ import { Check } from "lucide-react";
 import { setPaymentState, confirmOwnerBankBalance, PAYMENT_STATUS_CHOICES, PAYMENT_STATUS_LABEL, normalizePaymentStatus, type PaymentStatus } from "@/lib/payment.functions";
 import { PAYMENT_METHOD_LABEL, PAYMENT_METHODS, completedPaymentLabel, normalizePaymentMethod, paymentSummaryParts, remainingPayment, type PaymentMethod } from "@/lib/payment-method";
 import { bankReceipt, pendingReceipt } from "@/lib/payment-review";
-import type { TermsStatusRow } from "@/lib/terms.functions";
+import { updateEstimateTotal, type TermsStatusRow } from "@/lib/terms.functions";
+
+type ReceiptRow = NonNullable<TermsStatusRow["paymentReceipts"]>[number];
 
 const won = (n: number) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
 export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: string; total: number; row: TermsStatusRow; onSaved?: () => void }) {
@@ -20,6 +22,8 @@ export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: 
   const [method, setMethod] = useState<PaymentMethod | null>(null);
   const savePayment = useServerFn(setPaymentState);
   const confirmBank = useServerFn(confirmOwnerBankBalance);
+  const updateTotal = useServerFn(updateEstimateTotal);
+  const [finalTotals, setFinalTotals] = useState<Record<string, string>>({});
   const remain = remainingPayment(total, row.depositPaid, row.balancePaid);
   const summary = paymentSummaryParts(total, row.depositPaid, row.balancePaid);
   const receipts = (row.paymentReceipts ?? []).filter((r) => r.amount > 0 && ["pending_review", "confirmed"].includes(r.status) && r.paymentKind === "balance" && bankReceipt(r))
@@ -46,14 +50,14 @@ export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: 
     } catch (error) { toast.error("확인 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요." }); }
     finally { locked.current = false; setBusy(false); }
   };
-  const run = async (selected?: PaymentMethod, receiptId?: string) => {
+  const run = async (selected?: PaymentMethod, receiptId?: string, successMsg = "결제 확인을 저장했습니다") => {
     if (locked.current) return;
     locked.current = true; setBusy(true);
     try {
       const result = await savePayment({ data: { estimateId, status: selected ? "completed" : status, note, method: selected, receiptId, approvalNumber: selected === "card" ? approval : undefined } });
       if (!result.ok) { toast.error("확인 실패", { description: result.error }); return; }
       cancel(); onSaved?.(); window.dispatchEvent(new Event("jimpick:payment-updated"));
-      toast.success("결제 확인을 저장했습니다");
+      toast.success(successMsg);
     } catch (error) { toast.error("저장 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요." }); }
     finally { locked.current = false; setBusy(false); }
   };
