@@ -65,6 +65,8 @@ export function DepositPanel({
       if (r.ok) {
         setRows((old) => old.map((row) => row.id === id ? { ...row, status: "confirmed", confirmedAt: new Date().toISOString() } : row));
         toast.success(`입금 ${won(r.paid ?? 0)} 확인 완료`);
+        if (r.smsSent) toast.success("고객에게 예약금 안내 문자를 보냈습니다");
+        else if (r.smsError) toast.error("고객 안내 문자를 보내지 못했습니다", { description: r.smsError });
         onSaved?.();
         window.dispatchEvent(new Event("jimpick:payment-updated"));
       } else toast.error("확인 실패", { description: r.error ?? "" });

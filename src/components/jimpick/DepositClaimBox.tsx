@@ -52,6 +52,8 @@ export function DepositClaimBox({
       const r = await confirmDeposit({ data: { id: claimId, note: "고객 입금 알림 · 통장 확인" } });
       if (r.ok) {
         toast.success(`예약금 ${won(r.paid ?? 0)} 확인 완료`);
+        if (r.smsSent) toast.success("고객에게 예약금 안내 문자를 보냈습니다");
+        else if (r.smsError) toast.error("고객 안내 문자를 보내지 못했습니다", { description: r.smsError });
         setAsk(false);
         onSaved?.();
         window.dispatchEvent(new Event("jimpick:payment-updated"));
