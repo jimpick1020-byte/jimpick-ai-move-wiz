@@ -358,7 +358,7 @@ export const confirmDeposit = createServerFn({ method: "POST" })
     async ({
       data,
       context,
-    }): Promise<{ ok: boolean; error?: string; paid?: number; confirmedAt?: string }> => {
+    }): Promise<{ ok: boolean; error?: string; paid?: number; confirmedAt?: string; smsSent?: boolean; smsError?: string }> => {
       const { data: receipt } = await context.supabase.from("deposit_records").select("estimate_id,payment_kind,source,payment_method").eq("id", data.id).eq("user_id", context.userId).maybeSingle();
       if (!receipt) return { ok: false, error: "입금 기록을 찾지 못했습니다." };
       if (receipt.payment_kind === "balance" && (!receipt.payment_method || receipt.payment_method === "bank_transfer")) {
