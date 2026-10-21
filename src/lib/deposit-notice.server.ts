@@ -16,12 +16,14 @@ export async function sendDepositConfirmedSms(companyId: string, receiptId: stri
   const { sendViaAligo, readCreds } = await import("./reminder-send.server");
   const { data: rec } = await supabaseAdmin
     .from("deposit_records")
-    .select("id,estimate_id,payment_kind,status,amount,notified_at")
+    .select("id,estimate_id,payment_kind,status,amount,notified_at,confirmed_at")
     .eq("id", receiptId).eq("user_id", companyId).maybeSingle();
   if (!rec) return { sent: false, error: "입금 기록을 찾지 못했습니다." };
   if (rec.payment_kind !== "deposit") return { sent: false, skipped: "not_deposit" };
   if (rec.status !== "confirmed") return { sent: false, skipped: "not_confirmed" };
   if (rec.notified_at) return { sent: false, skipped: "already" };
+  // 과거에 이미 확인된 예약금은 다시 눌러도 보내지 않습니다(지금 확인한 건만).
+  if (!rec.confirmed_at || Date.now() - new Date(String(rec.confirmed_at)).getTime() > 2 * 60_000) return { sent: false, skipped: "already" };
 
   const key = depositNoticeKey(String(rec.estimate_id));
   // 같은 견적에 이미 접수된 예약금 안내가 있으면 다시 보내지 않습니다.
