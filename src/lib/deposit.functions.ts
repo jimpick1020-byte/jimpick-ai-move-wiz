@@ -368,7 +368,20 @@ export const confirmDeposit = createServerFn({ method: "POST" })
       }
       const { data: result, error } = await context.supabase.rpc("confirm_payment_receipt", { _receipt_id: data.id });
       if (error) return { ok: false, error: "입금 확인을 저장하지 못했습니다." };
-      return result as { ok: boolean; error?: string; paid?: number; confirmedAt?: string };
+      const res = result as { ok: boolean; error?: string; paid?: number; confirmedAt?: string; smsSent?: boolean; smsError?: string };
+      const { shouldSendDepositNotice } = await import("./deposit-notice");
+      if (shouldSendDepositNotice(receipt.payment_kind, res.ok)) {
+        try {
+          const { sendDepositConfirmedSms } = await import("./deposit-notice.server");
+          const sms = await sendDepositConfirmedSms(context.userId, data.id);
+          if (sms.error) console.error("[deposit-notice]", data.id, sms.error);
+          return { ...res, smsSent: sms.sent, smsError: sms.error };
+        } catch (e) {
+          console.error("[deposit-notice] 오류", e instanceof Error ? e.message : e);
+          return { ...res, smsSent: false, smsError: "고객 안내 문자 발송 중 오류가 났습니다." };
+        }
+      }
+      return res;
     },
   );
 
