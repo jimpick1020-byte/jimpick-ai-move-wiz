@@ -4,7 +4,8 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { groupBankSmsMonths, bankSmsMonthIsOpen } from "@/lib/bank-sms-months";
 import { bankSmsForwardUrl } from "@/lib/bank-sms-match";
 import { toast } from "sonner";
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card } from "./ui";
 import {
-  listBankSms, linkBankSms, ignoreBankSms, createBankSmsToken, getBankSmsTokenStatus,
+  listBankSms, linkBankSms, ignoreBankSms, deleteBankSms, createBankSmsToken, getBankSmsTokenStatus,
   type BankSmsRow,
 } from "@/lib/bank-sms.functions";
 
@@ -34,6 +35,8 @@ export function BankSmsScreen() {
   const list = useServerFn(listBankSms);
   const link = useServerFn(linkBankSms);
   const ignore = useServerFn(ignoreBankSms);
+  const remove = useServerFn(deleteBankSms);
+  const [deleteTarget, setDeleteTarget] = useState<BankSmsRow | null>(null);
   const makeToken = useServerFn(createBankSmsToken);
   const tokenStatus = useServerFn(getBankSmsTokenStatus);
   const [rows, setRows] = useState<BankSmsRow[]>([]);
@@ -79,6 +82,20 @@ export function BankSmsScreen() {
   const goHistory = (estimateId: string) => {
     try { sessionStorage.setItem("jp_waiting_history_target", estimateId); } catch { /* 저장소 제한 */ }
     setScreen("history");
+  };
+
+  const doDelete = () => {
+    const target = deleteTarget; if (!target) return;
+    return guard(`delete-${target.id}`, async () => {
+      try {
+        const result = await remove({ data: { id: target.id } });
+        if (!result.ok) { toast.error(result.error ?? "삭제하지 못했습니다"); return; }
+        setRows((prev) => prev.filter((row) => row.id !== target.id));
+        setDeleteTarget(null);
+        await load();
+        toast.success("받은 문자 목록에서 삭제했습니다");
+      } catch { toast.error("삭제하지 못했습니다. 다시 시도해 주세요."); }
+    });
   };
 
   const doToken = () => guard("token", async () => {
@@ -129,6 +146,7 @@ export function BankSmsScreen() {
                <div className="mt-0.5 text-[12px] text-muted-foreground">{new Date(r.receivedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} · {r.channel === "forward" ? "자동 전달" : "직접 등록"}{r.bank ? ` · ${r.bank}` : ""}</div>
               <div className="mt-1.5 whitespace-pre-wrap break-all rounded-md bg-muted p-2 text-[12px]">{r.rawText}</div>
               {r.matchNote && <div className="mt-1 text-[12px] text-muted-foreground">{r.matchNote}</div>}
+              <div className="flex justify-end"><Button variant="ghost" size="icon" title="문자 삭제" aria-label={`${r.depositorName || "이름 미확인"} ${won(r.amount)} 문자 삭제`} disabled={busy !== null} onClick={() => setDeleteTarget(r)} className="text-destructive"><Trash2 className="size-4" /></Button></div>
               {r.matchStatus === "matched" && r.matchedEstimateId && (
                  <Button variant="outline" className="mt-2 w-full" onClick={() => { if (r.matchedEstimateId) goHistory(r.matchedEstimateId); }}>견적 내역에서 확인</Button>
               )}
@@ -150,6 +168,13 @@ export function BankSmsScreen() {
           </section>;
         })}
       </div>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open && busy === null) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>받은 문자를 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription>{deleteTarget?.depositorName || "이름 미확인"} · {won(deleteTarget?.amount ?? 0)}<br />문자 목록에서만 제거됩니다. 연결된 견적과 입금 기록, 입금 확인 상태는 그대로 유지됩니다.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel disabled={busy !== null}>취소</AlertDialogCancel><AlertDialogAction disabled={busy !== null} onClick={(event) => { event.preventDefault(); void doDelete(); }}>{busy ? "삭제 중…" : "삭제"}</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MobileShell>
   );
 }

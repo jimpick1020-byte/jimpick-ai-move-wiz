@@ -12,6 +12,8 @@ import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, 
 import { useApp, ITEM_CATALOG, type Estimate } from "@/lib/jimpick";
 import { formatTel } from "@/lib/format-input";
 import { createComposerGate, intakeSmsHref } from "@/lib/intake-sms";
+import { prepareIntakeMmsImage, type IntakeMmsMessage } from "@/lib/intake-mms";
+import { IntakeMmsComposer } from "./IntakeMmsComposer";
 import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   deleteIntakeRequest, cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
@@ -103,7 +105,9 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
   const [p, setP] = useState(formatTel(phone));
   const [busy, setBusy] = useState<string | null>(null);
   const actionLock = useRef(false);
-  const composerGate = useRef(createComposerGate());
+  const [mms, setMms] = useState<IntakeMmsMessage | null>(null);
+  const [mmsFile, setMmsFile] = useState<File | null>(null);
+  const [mmsImageError, setMmsImageError] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [rowId, setRowId] = useState<string | undefined>(requestId);
   const { patchDraft, setScreen } = useApp();
@@ -133,13 +137,12 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
   // 휴대전화 기본 문자 앱을 엽니다. 열기만 해서는 발송 완료로 저장하지 않습니다.
   const [smsOpened, setSmsOpened] = useState(false);
   const sms = () => run("sms", async () => {
-    const opened = await composerGate.current(async () => {
-      const request = await ensure(); if (!request) return null;
-      const prepared = await sendIntakeSms({ data: { id: request.id } });
-      if (!prepared.ok || !prepared.to || !prepared.body) throw new Error(prepared.error ?? "문자 내용을 만들지 못했습니다.");
-      return intakeSmsHref(prepared.to, prepared.body);
-    }, href => { window.location.href = href; });
-    if (opened) setSmsOpened(true);
+    const request = await ensure(); if (!request) return;
+    const prepared = await sendIntakeSms({ data: { id: request.id } });
+    if (!prepared.ok || !prepared.to || !prepared.body) throw new Error(prepared.error ?? "문자 내용을 만들지 못했습니다.");
+    setMms({ to: prepared.to, body: prepared.body }); setSmsOpened(false); setMmsImageError(null); setMmsFile(null);
+    try { setMmsFile(await prepareIntakeMmsImage()); }
+    catch (error) { setMmsImageError(error instanceof Error ? error.message : "안내 그림을 준비하지 못했습니다."); }
   });
   const smsSent = () => run("smsSent", async () => {
     const link = await linkOf("sms"); if (link) { setSmsOpened(false); toast.success("문자 보냄을 기록했습니다."); }
@@ -233,6 +236,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
             {row && !closed && <ActionBtn icon={Ban} onClick={cancel} busy={busy === "cancel"} danger>링크 취소</ActionBtn>}
           </div>
         )}
+        {mms && <IntakeMmsComposer message={mms} file={mmsFile} imageError={mmsImageError} onOpened={() => setSmsOpened(true)} />}
         {hasSub && sub && (
           <div className="rounded-2xl bg-[#F7F8F5] p-3 text-sm space-y-1">
             <div className="font-black">고객 입력 내용</div>
@@ -263,7 +267,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
             {row.status === "submitted" && <ActionBtn icon={CheckCircle2} onClick={confirm} busy={busy === "confirm"}>사전정보 확정</ActionBtn>}
           </div>
         )}
-        <p className="text-[11px] text-[#9CA3AF]">「문자로 보내기」는 이 휴대폰의 기본 문자 앱을 엽니다. 보낸 뒤 「문자 보냄 확인」을 눌러 주세요.</p>
+        <p className="text-[11px] text-[#9CA3AF]">실제로 보낸 뒤에만 「문자 보냄 확인」을 눌러 주세요.</p>
       </div>
     </div>
   );

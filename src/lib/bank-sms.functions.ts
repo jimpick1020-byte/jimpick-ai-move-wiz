@@ -35,6 +35,7 @@ export const listBankSms = createServerFn({ method: "POST" })
       .from("bank_sms_messages")
       .select("id,channel,raw_text,received_at,depositor_name,amount,bank,match_status,match_note,candidate_estimate_ids,matched_estimate_id,payment_kind,deposit_record_id")
       .eq("company_id", context.userId)
+      .is("deleted_at", null)
       .order("received_at", { ascending: false })
       .limit(200);
     if (error) throw new Error("입금 문자를 불러오지 못했습니다.");
@@ -73,7 +74,7 @@ export const linkBankSms = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), estimateId: z.string().min(1).max(80) }).parse(d))
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
-    const { data: msg } = await context.supabase.from("bank_sms_messages").select("id,depositor_name,amount,deposited_at,raw_text,match_status,deposit_record_id").eq("id", data.id).eq("company_id", context.userId).maybeSingle();
+    const { data: msg } = await context.supabase.from("bank_sms_messages").select("id,depositor_name,amount,deposited_at,raw_text,match_status,deposit_record_id").eq("id", data.id).eq("company_id", context.userId).is("deleted_at", null).maybeSingle();
     if (!msg) return { ok: false, error: "문자를 찾지 못했습니다." };
     if (msg.deposit_record_id) return { ok: true };
     if (!(Number(msg.amount) > 0)) return { ok: false, error: "금액을 읽지 못한 문자는 연결할 수 없습니다." };
@@ -95,8 +96,18 @@ export const ignoreBankSms = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("bank_sms_messages").update({ match_status: "ignored", match_note: "사장님이 제외" }).eq("id", data.id).eq("company_id", context.userId).is("deposit_record_id", null);
+    const { error } = await context.supabase.from("bank_sms_messages").update({ match_status: "ignored", match_note: "사장님이 제외" }).eq("id", data.id).eq("company_id", context.userId).is("deleted_at", null).is("deposit_record_id", null);
     return { ok: !error };
+  });
+
+/** Inbox-only deletion: the locked-down RPC never touches receipts or deduplication. */
+export const deleteBankSms = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
+    const { data: result, error } = await context.supabase.rpc("hide_bank_sms", { p_message_id: data.id });
+    if (error) return { ok: false, error: "문자를 삭제하지 못했습니다. 다시 시도해 주세요." };
+    return result as { ok: boolean; error?: string };
   });
 
 /** 자동 전달 주소용 비밀 열쇠를 새로 만듭니다 (원문은 이번 한 번만 보여 줍니다) */
