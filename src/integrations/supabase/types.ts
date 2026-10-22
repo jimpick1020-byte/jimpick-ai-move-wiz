@@ -62,6 +62,8 @@ export type Database = {
           company_id: string
           created_at: string
           dedupe_key: string
+          deleted_at: string | null
+          deleted_by: string | null
           deposit_record_id: string | null
           deposited_at: string | null
           depositor_name: string | null
@@ -85,6 +87,8 @@ export type Database = {
           company_id: string
           created_at?: string
           dedupe_key: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           deposit_record_id?: string | null
           deposited_at?: string | null
           depositor_name?: string | null
@@ -108,6 +112,8 @@ export type Database = {
           company_id?: string
           created_at?: string
           dedupe_key?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           deposit_record_id?: string | null
           deposited_at?: string | null
           depositor_name?: string | null
@@ -1941,6 +1947,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      hide_bank_sms: { Args: { p_message_id: string }; Returns: Json }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
       list_worker_contacts: { Args: never; Returns: Json }
       mark_reminder_viewed: { Args: { _token: string }; Returns: Json }

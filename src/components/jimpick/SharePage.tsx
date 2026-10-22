@@ -367,6 +367,11 @@ export function SharePage() {
         </div>
       );
     }
+    // Balance review comes from bank receipts; no customer claim or explanatory frame.
+    if (due.kind === "balance") return <div className="space-y-2">
+      {confirmedDeposit}
+      <div className="flex items-center justify-between py-2 text-base font-bold text-foreground"><span>잔금</span><span>{won(due.amount)}</span></div>
+    </div>;
     const pending = link?.ok ? link.depositClaimPending === true : claimSent;
     if (pending) {
       return (
@@ -391,12 +396,10 @@ export function SharePage() {
             disabled={claiming}
             className="w-full rounded-[14px] bg-[#B45309] py-3.5 text-[17px] font-black text-white disabled:opacity-50"
           >
-            {claiming ? "알리는 중…" : due.kind === "balance" ? `잔금 ${won(due.amount)} 입금했습니다` : "입금했습니다"}
+            {claiming ? "알리는 중…" : "입금했습니다"}
           </button>
           <div className="mt-1.5 text-center text-[14px] font-semibold text-[#8A6D1B]">
-            {due.kind === "balance"
-              ? "업체가 잔금 입금을 확인한 후 결제가 완료됩니다."
-              : "업체가 예약금 입금을 확인한 후 예약이 확정됩니다."}
+            업체가 예약금 입금을 확인한 후 예약이 확정됩니다.
           </div>
           {errorBox}
         </div>

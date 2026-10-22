@@ -218,6 +218,13 @@
       "when": 1792413898431,
       "tag": "0030_bank_sms_inbox",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792647436870,
+      "tag": "0031_soft_delete_bank_sms_list",
+      "breakpoints": true
     }
   ]
 }
