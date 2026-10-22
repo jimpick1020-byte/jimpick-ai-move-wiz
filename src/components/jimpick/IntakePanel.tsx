@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, Settings2, Plus, GripVertical, Trash2 } from "lucide-react";
-import { useApp, ITEM_CATALOG, type Estimate } from "@/lib/jimpick";
+import { useApp, type Estimate } from "@/lib/jimpick";
 import { formatTel } from "@/lib/format-input";
 import { createComposerGate, intakeSmsHref } from "@/lib/intake-sms";
 import { prepareIntakeMmsImage, type IntakeMmsMessage } from "@/lib/intake-mms";
@@ -18,12 +18,12 @@ import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   deleteIntakeRequest, cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
   listIntakeDrafts, listIntakeRequests, loadIntakeDraft, markIntakeSeen, removeIntakeItem, saveIntakeItemSetting, saveIntakeOrder, sendIntakeSms,
-  removeCustomerSelectedItem, setIntakeVisit, prepareVisitSms, confirmVisitSmsSent,
+  setIntakeVisit, prepareVisitSms, confirmVisitSmsSent,
   type IntakeItem, type IntakeRow,
 } from "@/lib/intake.functions";
 import { Button } from "@/components/ui/button";
 import { canManageIntakeItems, createCustomerIntakeItem } from "@/lib/intake.functions";
-import { VISIT_TIMES, INTAKE_ROOMS, floorText, intakeItemName, intakeStatusLabel, requestStatusLabel, strictFloor, type IntakeForm } from "@/lib/intake";
+import { VISIT_TIMES, INTAKE_ROOMS, intakeStatusLabel, requestStatusLabel, type IntakeForm } from "@/lib/intake";
 
 /** 고객이 아직 이름을 넣기 전에는 전화번호로 구분합니다 */
 export function intakeDisplayName(r: Pick<IntakeRow, "customer_name">): string {
@@ -190,25 +190,12 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
     setScreen("step1");
   });
 
-  const sub = row?.submission as IntakeForm | undefined;
-  const hasSub = !!sub && !!sub.customerName;
-  const nameOf = (id: string) => ITEM_CATALOG.find(item => item.id === id)?.name ?? intakeItemName(id) ?? id;
-  const removeSelected = async (room: string, itemId: string) => {
-    if (!row || busy) return;
-    setBusy("remove"); setErr(null);
-    try {
-      const result = await removeCustomerSelectedItem({ data: { requestId: row.id, room: room as (typeof INTAKE_ROOMS)[number], itemId } });
-      if (!result.ok) { setErr(result.error || "품목을 삭제하지 못했습니다."); return; }
-      await reloadIntakeRequests();
-      toast.success("이 고객의 선택 품목을 삭제했습니다.");
-    } catch (error) { setErr(error instanceof Error ? error.message : "품목을 삭제하지 못했습니다."); }
-    finally { setBusy(null); }
-  };
   const t = (v: string | null | undefined) => (v ? new Date(v).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "-");
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40" onClick={(e) => { e.stopPropagation(); onClose(); }}>
-      <div className="w-full max-w-md max-h-[92vh] overflow-auto rounded-t-3xl bg-white p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+    <>
+      <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+        <div className="w-full max-w-md max-h-[92vh] overflow-auto rounded-t-3xl bg-white p-5 pb-8 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-black text-[#25282D]">고객 사전정보 요청</h2>
           <Button variant="ghost" type="button" onClick={onClose} aria-label="닫기" className="p-2"><X className="w-5 h-5" /></Button>
@@ -236,40 +223,26 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
             {row && !closed && <ActionBtn icon={Ban} onClick={cancel} busy={busy === "cancel"} danger>링크 취소</ActionBtn>}
           </div>
         )}
-        {mms && <IntakeMmsComposer message={mms} file={mmsFile} imageError={mmsImageError} onOpened={() => setSmsOpened(true)} />}
-        {hasSub && sub && (
-          <div className="rounded-2xl bg-[#F7F8F5] p-3 text-sm space-y-1">
-            <div className="font-black">고객 입력 내용</div>
-            <div>{sub.customerName} · {sub.phone}</div>
-            <div>이사 {sub.moveDate || "-"} {sub.moveTime}</div>
-            {sub.fromSize && <div>출발지 평수(참고) {sub.fromSize}</div>}
-            <div>출발 {sub.fromAddress} {sub.fromDetail} ({floorText(strictFloor(`${sub.fromDetail} ${sub.fromAddress}`))}){sub.fromZip ? ` · 우편 ${sub.fromZip}` : ""}</div>
-            <div>도착 {sub.toAddress} {sub.toDetail} ({floorText(strictFloor(`${sub.toDetail} ${sub.toAddress}`))}){sub.toZip ? ` · 우편 ${sub.toZip}` : ""}</div>
-            <div className="text-[#6B7280]">엘리베이터·사다리차: 방문 후 결정 · 폐기물 처리비: 방문 후 확인</div>
-            {Object.entries(sub.rooms ?? {}).map(([room, picks]) => {
-              const list = Object.entries(picks);
-              if (!list.length) return null;
-              return (
-                <div key={room}><b>{room}</b>{" "}
-                  {list.map(([id, pk]) => (
-                    <span key={id} className={`inline-flex items-center gap-1 ${pk.disposal ? "text-destructive" : ""}`}>{nameOf(id)}{pk.disposal ? "(폐기)" : ""} {pk.qty}
-                      <Button variant="ghost" size="icon" disabled={!!busy} className="size-8 text-destructive" aria-label={`${room} ${nameOf(id)} 선택 삭제`} onClick={() => void removeSelected(room, id)}><Trash2 className="size-4" /></Button>
-                    </span>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        )}
         {row && (row.status === "submitted" || row.status === "confirmed") && (
           <div className="grid grid-cols-1 gap-2">
             <ActionBtn icon={ArrowRight} onClick={openDraft} busy={busy === "draft"} primary>견적 초안으로 이동 · 내용 수정</ActionBtn>
             {row.status === "submitted" && <ActionBtn icon={CheckCircle2} onClick={confirm} busy={busy === "confirm"}>사전정보 확정</ActionBtn>}
           </div>
         )}
-        <p className="text-[11px] text-[#9CA3AF]">실제로 보낸 뒤에만 「문자 보냄 확인」을 눌러 주세요.</p>
       </div>
     </div>
+    {mms && (
+      <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50" onClick={(e) => { e.stopPropagation(); setMms(null); }}>
+        <div className="w-full max-w-md max-h-[92vh] overflow-auto rounded-t-3xl bg-white p-5 pb-8 space-y-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-black text-[#25282D]">사전정보 그림 문자 준비</h3>
+            <Button variant="ghost" type="button" onClick={() => setMms(null)} aria-label="닫기" className="p-2"><X className="w-5 h-5" /></Button>
+          </div>
+          <IntakeMmsComposer message={mms} file={mmsFile} imageError={mmsImageError} onOpened={() => setSmsOpened(true)} />
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
