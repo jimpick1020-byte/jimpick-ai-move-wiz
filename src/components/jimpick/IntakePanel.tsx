@@ -190,25 +190,12 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
     setScreen("step1");
   });
 
-  const sub = row?.submission as IntakeForm | undefined;
-  const hasSub = !!sub && !!sub.customerName;
-  const nameOf = (id: string) => ITEM_CATALOG.find(item => item.id === id)?.name ?? intakeItemName(id) ?? id;
-  const removeSelected = async (room: string, itemId: string) => {
-    if (!row || busy) return;
-    setBusy("remove"); setErr(null);
-    try {
-      const result = await removeCustomerSelectedItem({ data: { requestId: row.id, room: room as (typeof INTAKE_ROOMS)[number], itemId } });
-      if (!result.ok) { setErr(result.error || "품목을 삭제하지 못했습니다."); return; }
-      await reloadIntakeRequests();
-      toast.success("이 고객의 선택 품목을 삭제했습니다.");
-    } catch (error) { setErr(error instanceof Error ? error.message : "품목을 삭제하지 못했습니다."); }
-    finally { setBusy(null); }
-  };
   const t = (v: string | null | undefined) => (v ? new Date(v).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "-");
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40" onClick={(e) => { e.stopPropagation(); onClose(); }}>
-      <div className="w-full max-w-md max-h-[92vh] overflow-auto rounded-t-3xl bg-white p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+    <>
+      <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+        <div className="w-full max-w-md max-h-[92vh] overflow-auto rounded-t-3xl bg-white p-5 pb-8 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-black text-[#25282D]">고객 사전정보 요청</h2>
           <Button variant="ghost" type="button" onClick={onClose} aria-label="닫기" className="p-2"><X className="w-5 h-5" /></Button>
