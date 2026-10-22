@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, Settings2, Plus, GripVertical, Trash2 } from "lucide-react";
-import { useApp, ITEM_CATALOG, type Estimate } from "@/lib/jimpick";
+import { useApp, type Estimate } from "@/lib/jimpick";
 import { formatTel } from "@/lib/format-input";
 import { createComposerGate, intakeSmsHref } from "@/lib/intake-sms";
 import { prepareIntakeMmsImage, type IntakeMmsMessage } from "@/lib/intake-mms";
@@ -18,12 +18,12 @@ import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   deleteIntakeRequest, cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
   listIntakeDrafts, listIntakeRequests, loadIntakeDraft, markIntakeSeen, removeIntakeItem, saveIntakeItemSetting, saveIntakeOrder, sendIntakeSms,
-  removeCustomerSelectedItem, setIntakeVisit, prepareVisitSms, confirmVisitSmsSent,
+  setIntakeVisit, prepareVisitSms, confirmVisitSmsSent,
   type IntakeItem, type IntakeRow,
 } from "@/lib/intake.functions";
 import { Button } from "@/components/ui/button";
 import { canManageIntakeItems, createCustomerIntakeItem } from "@/lib/intake.functions";
-import { VISIT_TIMES, INTAKE_ROOMS, floorText, intakeItemName, intakeStatusLabel, requestStatusLabel, strictFloor, type IntakeForm } from "@/lib/intake";
+import { VISIT_TIMES, INTAKE_ROOMS, intakeStatusLabel, requestStatusLabel, type IntakeForm } from "@/lib/intake";
 
 /** 고객이 아직 이름을 넣기 전에는 전화번호로 구분합니다 */
 export function intakeDisplayName(r: Pick<IntakeRow, "customer_name">): string {

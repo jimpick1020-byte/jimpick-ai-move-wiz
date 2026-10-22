@@ -27,7 +27,7 @@ export function IntakeMmsComposer({ message, file, imageError, onOpened }: { mes
     catch (error) { if (!(error instanceof DOMException && error.name === "AbortError")) toast.error("그림과 문구를 함께 공유하지 못했습니다. 그림을 저장해 직접 첨부해 주세요."); }
     finally { lock.current = false; setSharing(false); }
   };
-  return <section className="space-y-3 border-t border-border pt-4" aria-label="사전정보 그림 문자 준비">
+  return <section className="space-y-3" aria-label="사전정보 그림 문자 준비">
     <div className="flex items-center justify-between gap-2"><span className="select-text font-bold">{formatTel(message.to)}</span><Button variant="outline" size="sm" onClick={() => void copy(message.to)}><Copy className="size-4" />번호 복사</Button></div>
     {url && <img src={url} alt="달력과 초록 캐릭터, 집이 있는 사전정보 안내 그림" className="aspect-[1200/630] w-full object-contain" />}
     {imageError && <p role="alert" className="text-sm text-destructive">{imageError}</p>}
