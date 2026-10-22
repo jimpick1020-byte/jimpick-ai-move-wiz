@@ -368,7 +368,10 @@ export function SharePage() {
       );
     }
     // Balance review comes from bank receipts; no customer claim or explanatory frame.
-    if (due.kind === "balance") return confirmedDeposit;
+    if (due.kind === "balance") return <div className="space-y-2">
+      {confirmedDeposit}
+      <div className="flex items-center justify-between py-2 text-base font-bold text-foreground"><span>잔금</span><span>{won(due.amount)}</span></div>
+    </div>;
     const pending = link?.ok ? link.depositClaimPending === true : claimSent;
     if (pending) {
       return (
