@@ -236,40 +236,26 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
             {row && !closed && <ActionBtn icon={Ban} onClick={cancel} busy={busy === "cancel"} danger>링크 취소</ActionBtn>}
           </div>
         )}
-        {mms && <IntakeMmsComposer message={mms} file={mmsFile} imageError={mmsImageError} onOpened={() => setSmsOpened(true)} />}
-        {hasSub && sub && (
-          <div className="rounded-2xl bg-[#F7F8F5] p-3 text-sm space-y-1">
-            <div className="font-black">고객 입력 내용</div>
-            <div>{sub.customerName} · {sub.phone}</div>
-            <div>이사 {sub.moveDate || "-"} {sub.moveTime}</div>
-            {sub.fromSize && <div>출발지 평수(참고) {sub.fromSize}</div>}
-            <div>출발 {sub.fromAddress} {sub.fromDetail} ({floorText(strictFloor(`${sub.fromDetail} ${sub.fromAddress}`))}){sub.fromZip ? ` · 우편 ${sub.fromZip}` : ""}</div>
-            <div>도착 {sub.toAddress} {sub.toDetail} ({floorText(strictFloor(`${sub.toDetail} ${sub.toAddress}`))}){sub.toZip ? ` · 우편 ${sub.toZip}` : ""}</div>
-            <div className="text-[#6B7280]">엘리베이터·사다리차: 방문 후 결정 · 폐기물 처리비: 방문 후 확인</div>
-            {Object.entries(sub.rooms ?? {}).map(([room, picks]) => {
-              const list = Object.entries(picks);
-              if (!list.length) return null;
-              return (
-                <div key={room}><b>{room}</b>{" "}
-                  {list.map(([id, pk]) => (
-                    <span key={id} className={`inline-flex items-center gap-1 ${pk.disposal ? "text-destructive" : ""}`}>{nameOf(id)}{pk.disposal ? "(폐기)" : ""} {pk.qty}
-                      <Button variant="ghost" size="icon" disabled={!!busy} className="size-8 text-destructive" aria-label={`${room} ${nameOf(id)} 선택 삭제`} onClick={() => void removeSelected(room, id)}><Trash2 className="size-4" /></Button>
-                    </span>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        )}
         {row && (row.status === "submitted" || row.status === "confirmed") && (
           <div className="grid grid-cols-1 gap-2">
             <ActionBtn icon={ArrowRight} onClick={openDraft} busy={busy === "draft"} primary>견적 초안으로 이동 · 내용 수정</ActionBtn>
             {row.status === "submitted" && <ActionBtn icon={CheckCircle2} onClick={confirm} busy={busy === "confirm"}>사전정보 확정</ActionBtn>}
           </div>
         )}
-        <p className="text-[11px] text-[#9CA3AF]">실제로 보낸 뒤에만 「문자 보냄 확인」을 눌러 주세요.</p>
       </div>
     </div>
+    {mms && (
+      <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50" onClick={(e) => { e.stopPropagation(); setMms(null); }}>
+        <div className="w-full max-w-md max-h-[92vh] overflow-auto rounded-t-3xl bg-white p-5 pb-8 space-y-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-black text-[#25282D]">사전정보 그림 문자 준비</h3>
+            <Button variant="ghost" type="button" onClick={() => setMms(null)} aria-label="닫기" className="p-2"><X className="w-5 h-5" /></Button>
+          </div>
+          <IntakeMmsComposer message={mms} file={mmsFile} imageError={mmsImageError} onOpened={() => setSmsOpened(true)} />
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
