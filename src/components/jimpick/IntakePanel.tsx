@@ -12,7 +12,6 @@ import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, 
 import { useApp, type Estimate } from "@/lib/jimpick";
 import { formatTel } from "@/lib/format-input";
 import { createComposerGate, intakeSmsHref } from "@/lib/intake-sms";
-import { canShareIntakeMms, intakeMmsPayload, prepareIntakeMmsImage } from "@/lib/intake-mms";
 import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   deleteIntakeRequest, cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
@@ -132,23 +131,18 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
   };
   // 휴대전화 기본 문자 앱을 엽니다. 열기만 해서는 발송 완료로 저장하지 않습니다.
   const [smsOpened, setSmsOpened] = useState(false);
-  // 그림·문구를 휴대폰 공유창으로 바로 연결합니다. 공유만 해서는 발송 완료로 저장하지 않습니다.
+  const smsComposerGate = useRef(createComposerGate());
+  // 현재 입력 번호와 고객별 안내문을 문자 작성 화면에만 전달합니다.
   const sms = () => run("sms", async () => {
-    const request = await ensure(); if (!request) return;
-    const prepared = await sendIntakeSms({ data: { id: request.id } });
-    if (!prepared.ok || !prepared.to || !prepared.body) throw new Error(prepared.error ?? "문자 내용을 만들지 못했습니다.");
-    const file = await prepareIntakeMmsImage();
-    if (canShareIntakeMms(navigator, file, prepared.body)) {
-      try { await navigator.share(intakeMmsPayload(file, prepared.body)); setSmsOpened(true); }
-      catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return; // 사장님이 공유창을 닫음
-        throw new Error("그림과 문구를 함께 공유하지 못했습니다. 고객 번호를 확인해 직접 보내 주세요.");
-      }
-    } else {
-      toast("이 기기는 그림과 문구 동시 공유를 지원하지 않습니다. 문자 앱을 열었으니 그림은 직접 첨부해 주세요.");
-      window.location.href = intakeSmsHref(prepared.to, prepared.body);
+    await smsComposerGate.current(async () => {
+      const request = await ensure(); if (!request) return null;
+      const prepared = await sendIntakeSms({ data: { id: request.id } });
+      if (!prepared.ok || !prepared.body) throw new Error(prepared.error ?? "문자 내용을 만들지 못했습니다.");
+      return intakeSmsHref(p, prepared.body);
+    }, (href) => {
+      window.location.href = href;
       setSmsOpened(true);
-    }
+    });
   });
   const smsSent = () => run("smsSent", async () => {
     const link = await linkOf("sms"); if (link) { setSmsOpened(false); toast.success("문자 보냄을 기록했습니다."); }
