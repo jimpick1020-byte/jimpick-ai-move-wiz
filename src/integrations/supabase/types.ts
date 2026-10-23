@@ -1242,6 +1242,7 @@ export type Database = {
           favorite_item_ids: string[]
           id: string
           intake_item_settings: Json
+          item_layout: Json
           item_name_overrides: Json
           marketing_accepted: boolean | null
           marketing_accepted_at: string | null
@@ -1267,6 +1268,7 @@ export type Database = {
           favorite_item_ids?: string[]
           id: string
           intake_item_settings?: Json
+          item_layout?: Json
           item_name_overrides?: Json
           marketing_accepted?: boolean | null
           marketing_accepted_at?: string | null
@@ -1292,6 +1294,7 @@ export type Database = {
           favorite_item_ids?: string[]
           id?: string
           intake_item_settings?: Json
+          item_layout?: Json
           item_name_overrides?: Json
           marketing_accepted?: boolean | null
           marketing_accepted_at?: string | null

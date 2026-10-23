@@ -232,6 +232,13 @@
       "when": 1792744977662,
       "tag": "0032_item_name_overrides",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792749195876,
+      "tag": "0033_add_item_layout_to_profiles",
+      "breakpoints": true
     }
   ]
 }

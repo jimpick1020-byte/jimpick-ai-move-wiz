@@ -1,11 +1,13 @@
-import { useEffect, useRef, type ReactNode } from "react";
-import { Check, Minus, MoreHorizontal, Plus, Search, X } from "lucide-react";
+import { Fragment, useEffect, useRef, type ReactNode } from "react";
+import { Check, GripVertical, Minus, MoreHorizontal, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ItemArt } from "@/lib/jimpick-art";
 import { matchesQuery } from "@/lib/item-search";
 import { displayGroupOf } from "@/lib/item-classify";
 import { pickerItemLabel } from "@/lib/picker-item-label";
 import { favoriteCardTapQuantity } from "@/lib/room-item-state";
+import { effectiveCat5, effectiveGroup, groupRank, type ItemLayout } from "@/lib/item-families";
+import { useItemDrag, type DropTarget } from "@/lib/use-item-drag";
 import { DisposalX } from "./EstimateSheet";
 import { PrimaryButton, TextInput } from "./ui";
 
@@ -78,15 +80,19 @@ export function FullScreenItemFrame({ title, onClose, children, footer, level = 
   </div>;
 }
 
-export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highlight, onTap, onQuantity, onMenu, onRemove, categoryMode, onImageTap, favoriteMode = false }: {
+export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highlight, onTap, onQuantity, onMenu, onRemove, categoryMode, onImageTap, favoriteMode = false, dragHandleDown, dragging = false }: {
   item: PickerItem; qty: number; disposed: boolean; busy: boolean; selectedMode: boolean; highlight?: boolean;
   onTap: () => void; onQuantity: (qty: number) => void; onMenu: () => void; onRemove: () => void; categoryMode?: boolean; onImageTap?: () => void; favoriteMode?: boolean;
+  /** 이동 손잡이를 눌렀을 때 — 있으면 손잡이를 표시합니다 */
+  dragHandleDown?: (event: React.PointerEvent) => void;
+  dragging?: boolean;
 }) {
   const label = pickerItemLabel(item.id, item.name);
   const sizeMatch = /[({]\s*([^(){}]+?)\s*[)}]/.exec(item.baseName || item.name || "");
   const sizeLabel = sizeMatch?.[1];
-  return <div data-picker-card={item.id} onClick={favoriteMode ? () => { if (!busy) onTap(); } : undefined} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-lg border px-1.5 pb-1.5 pt-1 transition-shadow ${qty > 0 ? "jp-item-card-selected" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""}`}>
+  return <div data-picker-card={item.id} onClick={favoriteMode ? () => { if (!busy) onTap(); } : undefined} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-lg border px-1.5 pb-1.5 pt-1 transition-shadow ${qty > 0 ? "jp-item-card-selected" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""} ${dragging ? "opacity-40" : ""}`}>
     <Button variant="outline" size="icon" disabled={busy} className="absolute left-1 top-1 z-10 size-6 rounded-full text-muted-foreground" onClick={(event) => { event.stopPropagation(); onMenu(); }} aria-label={`${label} 품목 관리`} title="품목 관리"><MoreHorizontal className="size-4" /></Button>
+    {dragHandleDown && <button type="button" disabled={busy} onPointerDown={dragHandleDown} onClick={(event) => event.stopPropagation()} aria-label={`${label} 눌러서 자리 이동`} title="눌러서 자리 이동" className="absolute left-1/2 top-0.5 z-10 -translate-x-1/2 touch-none rounded-full p-1 text-muted-foreground active:text-auth-primary"><GripVertical className="size-4" /></button>}
     {selectedMode ? <Button variant="ghost" size="icon" disabled={busy} className="absolute right-1 top-1 z-10 size-7 text-destructive" onClick={onRemove} aria-label={`${label} 삭제`}><X className="size-4" /></Button> : qty > 0 && <span data-item-selected className="jp-item-check pointer-events-none absolute right-1 top-1 z-10 grid size-6 place-items-center rounded-full"><Check className="size-4" /></span>}
     <Button variant="ghost" disabled={busy} className="jp-picker-face h-auto min-h-0 w-full touch-manipulation select-none flex-col gap-0.5 whitespace-normal p-0" onClick={(event) => { if (favoriteMode) event.stopPropagation(); onTap(); }} aria-pressed={qty > 0} aria-label={`${label} 선택`}>
       <span className="relative inline-flex w-full shrink-0" onClick={!favoriteMode && onImageTap ? (event) => { event.stopPropagation(); onImageTap(); } : undefined}>
@@ -103,21 +109,34 @@ export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highli
   </div>;
 }
 
-export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites, picked, quantities, disposal, cats, tab, query, busy, onTab, onQuery, onClose, onAdd, onEdit, onTap, onImageTap, onQuantity, onMenu, onRemove }: {
+export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites, picked, quantities, disposal, cats, tab, query, busy, onTab, onQuery, onClose, onAdd, onEdit, onTap, onImageTap, onQuantity, onMenu, onRemove, layout, onMoveItem }: {
   highlightId?: string | null; mode: ItemListMode; roomName: string; catalog: PickerItem[]; favorites: PickerItem[]; picked: PickerItem[];
   quantities: Record<string, number>; disposal?: Record<string, boolean>; cats: readonly string[]; tab: string; query: string; busy: boolean;
   onTab: (tab: string) => void; onQuery: (query: string) => void; onClose: () => void; onAdd: () => void; onEdit: () => void;
   onTap: (item: PickerItem) => void; onImageTap?: (item: PickerItem) => void; onQuantity: (item: PickerItem, qty: number) => void; onMenu: (id: string) => void; onRemove: (item: PickerItem) => void;
+  /** 사장님이 직접 옮긴 배치 — 자동 분류보다 우선합니다 */
+  layout?: ItemLayout;
+  /** 드래그로 옮겼을 때 — 저장에 실패하면 부르는 쪽에서 되돌립니다 */
+  onMoveItem?: (itemId: string, target: DropTarget) => void;
 }) {
   const title = mode === "category" ? "카테고리 품목" : mode === "favorites" ? "자주 담는 품목" : `${roomName} 선택 품목`;
   const source = mode === "category" ? catalog : mode === "favorites" ? favorites : picked;
-  const shown = source.filter((item) => matchesQuery(query, item.name, item.sub, item.group, displayGroupOf(item.baseName || item.name, item.group)) && (mode !== "category" || item.cat5 === tab));
+  const layoutMap = layout ?? {};
+  const shown = source.filter((item) => matchesQuery(query, item.name, item.sub, item.group, effectiveGroup(item, layoutMap)) && (mode !== "category" || effectiveCat5(item, layoutMap) === tab));
   const groups: { label: string; items: PickerItem[] }[] = [];
   if (mode === "category") for (const item of shown) {
-    const label = displayGroupOf(item.baseName || item.name, item.group);
+    const label = effectiveGroup(item, layoutMap);
     const hit = groups.find((g) => g.label === label);
     if (hit) hit.items.push(item); else groups.push({ label, items: [item] });
   }
+  groups.sort((a, b) => groupRank(a.label) - groupRank(b.label) || a.label.localeCompare(b.label, "ko"));
+  for (const g of groups) g.items.sort((a, b) => (layoutMap[a.id]?.order ?? 5000) - (layoutMap[b.id]?.order ?? 5000));
+  const listRef = useRef<HTMLDivElement>(null);
+  const drag = useItemDrag({
+    containerRef: listRef,
+    enabled: mode === "category" && !query.trim() && !!onMoveItem && !busy,
+    onDrop: (itemId, target) => onMoveItem?.(itemId, target),
+  });
   useEffect(() => {
     if (!highlightId) return;
     const t = setTimeout(() => document.querySelector(`[data-picker-card="${CSS.escape(highlightId)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 60);
@@ -125,7 +144,7 @@ export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites,
   }, [highlightId, tab]);
   const kinds = Object.values(quantities).filter((qty) => qty > 0).length;
   const count = Object.values(quantities).reduce((sum, qty) => sum + qty, 0);
-  const card = (item: PickerItem) => <ItemPickerCard key={item.id} item={item} highlight={highlightId === item.id} qty={quantities[item.id] || 0} disposed={!!disposal?.[item.id]} busy={busy} selectedMode={mode === "picked"} categoryMode={mode === "category"} favoriteMode={mode === "favorites"} onTap={() => mode === "favorites" ? onQuantity(item, favoriteCardTapQuantity(quantities[item.id] || 0)) : onTap(item)} onImageTap={onImageTap ? () => onImageTap(item) : undefined} onQuantity={(qty) => onQuantity(item, qty)} onMenu={() => onMenu(item.id)} onRemove={() => onRemove(item)} />;
+  const card = (item: PickerItem) => <ItemPickerCard key={item.id} item={item} highlight={highlightId === item.id} qty={quantities[item.id] || 0} disposed={!!disposal?.[item.id]} busy={busy} selectedMode={mode === "picked"} categoryMode={mode === "category"} favoriteMode={mode === "favorites"} dragging={drag.dragId === item.id} dragHandleDown={mode === "category" && onMoveItem && !query.trim() ? drag.onHandleDown(item.id) : undefined} onTap={() => mode === "favorites" ? onQuantity(item, favoriteCardTapQuantity(quantities[item.id] || 0)) : onTap(item)} onImageTap={onImageTap ? () => onImageTap(item) : undefined} onQuantity={(qty) => onQuantity(item, qty)} onMenu={() => onMenu(item.id)} onRemove={() => onRemove(item)} />;
   return <FullScreenItemFrame title={title} onClose={onClose} footer={<><p className="mb-2 text-sm font-bold">선택 {kinds}종 · {count}개{busy ? " · 저장 중…" : ""}</p><PrimaryButton disabled={busy} onClick={onClose}>{mode === "picked" ? "변경 완료" : "선택 완료"}</PrimaryButton></>}>
     <div className="shrink-0 space-y-2 border-b border-border px-4 py-2">
       {mode === "category" && <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1">{cats.map((cat) => <Button key={cat} variant="ghost" data-category={cat} data-selected={tab === cat} className="jp-category-tab shrink-0 rounded-2xl font-black" onClick={() => onTab(cat)}>{cat}</Button>)}</div>}
@@ -136,12 +155,19 @@ export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites,
       </div>
       {mode === "category" && <div className="flex justify-end"><button type="button" onClick={onAdd} className="text-sm font-bold text-auth-primary">+ 목록에 없는 품목 추가</button></div>}
     </div>
-    <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pb-24 pt-3 [-webkit-overflow-scrolling:touch]" data-expanded-item-list>
+    <div ref={listRef} className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pb-24 pt-3 [-webkit-overflow-scrolling:touch]" data-expanded-item-list>
       {mode === "category"
-        ? <div className="space-y-3">{groups.map((g) => <section key={g.label} data-item-group={g.label}>
-          <span className="mb-1.5 inline-block rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-muted-foreground">{g.label}</span>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">{g.items.map((item) => card(item))}</div>
-        </section>)}</div>
+        ? <div className="space-y-3">{groups.map((g) => {
+          const dropHere = drag.dragId && drag.target?.group === g.label;
+          return <section key={g.label} data-item-group={g.label} className={dropHere ? "rounded-xl ring-2 ring-auth-primary ring-offset-1" : ""}>
+          <span className={`mb-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ${dropHere ? "bg-auth-primary text-auth-primary-foreground" : "bg-muted text-muted-foreground"}`}>{g.label}{dropHere ? " — 여기에 놓기" : ""}</span>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">{g.items.map((item, idx) => {
+            const barBefore = dropHere && drag.target?.beforeId === item.id;
+            const barEnd = dropHere && drag.target?.beforeId === null && idx === g.items.length - 1;
+            return <Fragment key={item.id}>{barBefore && <div className="col-span-full h-1 rounded-full bg-auth-primary" />}{card(item)}{barEnd && <div className="col-span-full h-1 rounded-full bg-auth-primary" />}</Fragment>;
+          })}</div>
+        </section>;
+        })}</div>
         : <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3" data-flat-order={mode} data-picked-order={mode === "picked" ? "1" : undefined}>{shown.map((item) => card(item))}</div>}
       {shown.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">{query ? "검색 결과가 없습니다" : "등록된 품목이 없습니다"}</p>}
     </div>

@@ -1,0 +1,2 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS item_layout jsonb NOT NULL DEFAULT '{}'::jsonb;
+COMMENT ON COLUMN public.profiles.item_layout IS '업체별 품목 배치 덮어쓰기: { [itemId]: { cat5?, group?, order? } } — 사장님이 직접 옮긴 분류·묶음·순서. 자동 분류보다 우선합니다.';

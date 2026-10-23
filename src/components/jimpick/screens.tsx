@@ -19,6 +19,7 @@ import { calcDeposit, calcBalance } from "@/lib/deposit-rule";
 import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate, seoulMonthKey } from "@/lib/estimate-sort";
 import { publicUrl } from "@/lib/app-url";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -246,6 +247,17 @@ import { itemSubgroup, sortByGroup, itemSubRank } from "@/lib/item-groups";
 import { splitItemNames, matchesQuery } from "@/lib/item-search";
 import { mergeItemCatalog } from "@/lib/item-catalog-merge";
 import { ITEM_KINDS, kindOf, guessKind } from "@/lib/item-kinds";
+import {
+  itemFamily,
+  effectiveCat5,
+  effectiveGroup,
+  groupRank,
+  buildMovePatch,
+  ITEM_FAMILIES,
+  type ItemLayout,
+} from "@/lib/item-families";
+import { useItemDrag, type DropTarget } from "@/lib/use-item-drag";
+import { getItemLayout, saveItemLayout } from "@/lib/favorite-items.functions";
 import { shrinkPhoto } from "@/lib/photo-shrink";
 
 /** 공간별 품목 접기·펼치기 상태를 기억하는 자리 */
@@ -270,45 +282,7 @@ import {
 } from "lucide-react";
 import houseImg from "@/assets/step6-house.png";
 
-/** 이름이 비슷한 품목은 기존 소분류가 달라도 한 제목 아래 연속 배치합니다. */
-const ITEM_FAMILIES: { match: RegExp; label: string; rank: number }[] = [
-  // 「화분받침대」처럼 침대가 아닌 물건은 침대 묶음에 들어오지 않게 합니다
-  { match: /화분|식물|받침대/, label: "생활·기타", rank: 80 },
-  { match: /침대|매트리스|토퍼|헤드보드|평상/, label: "침대·매트리스", rank: 10 },
-  { match: /옷장|장롱|붙박이장|행거|드레스룸|이불장/, label: "옷장·행거", rank: 11 },
-  { match: /서랍장|드레서|체스트|협탁|화장대|경대/, label: "서랍장·화장대·협탁", rank: 12 },
-  { match: /소파|리클라이너|안락의자|빈백|흔들의자/, label: "소파·안락의자", rank: 20 },
-  { match: /거실테이블|소파테이블|티테이블|커피테이블|네스팅|콘솔테이블/, label: "거실 테이블", rank: 21 },
-  { match: /tv장|거실장|아트월|장식장|진열장|사이드보드/i, label: "거실장·진열장", rank: 22 },
-  { match: /책상|데스크/, label: "책상", rank: 30 },
-  { match: /책장|선반/, label: "책장·선반", rank: 31 },
-  { match: /수납장|캐비닛|정리함|수납벤치|신발장|신발 정리대/, label: "수납장", rank: 32 },
-  { match: /식탁|다이닝|홈바테이블/, label: "식탁", rank: 40 },
-  { match: /의자|벤치|스툴/, label: "의자", rank: 41 },
-  { match: /찬장|그릇장|주방.*수납|팬트리|레인지대|전자레인지선반|주방트롤리/, label: "주방 수납", rank: 42 },
-  { match: /냉장고|냉동고|와인셀러/, label: "냉장고", rank: 50 },
-  { match: /세탁기|건조기|워시타워|스타일러|의류건조/, label: "세탁·의류가전", rank: 51 },
-  { match: /에어컨|공기청정기|제습기|가습기|선풍기|히터|실링팬|오일히터/, label: "냉난방·공기", rank: 52 },
-  { match: /tv|티비|모니터|스피커|서브우퍼|오디오|프로젝터|피아노|오르간|게임|턴테이블/i, label: "TV·영상·음향", rank: 53 },
-  { match: /청소기|스팀청소/, label: "청소가전", rank: 54 },
-  { match: /전자레인지|오븐|에어프라이어|가스레인지|인덕션|전기레인지|밥솥|커피|믹서|토스터|전기포트|식기세척기|정수기|제빙기|렌지후드|음식물/, label: "주방가전", rank: 55 },
-];
-
-function itemFamily(name: string, fallback: string) {
-  const found = ITEM_FAMILIES.find(({ match }) => match.test(name));
-  return found ?? { label: fallback || "기타", rank: 90 };
-}
-
-/** 품목 원본은 유지하고 공간 선택창에서만 큰 종류 제목으로 묶습니다. */
-function roomPickerKind(name: string, fallback: string) {
-  const family = itemFamily(name, fallback);
-  if (family.rank === 10) return "침대";
-  if ([11, 12, 31, 32, 42].includes(family.rank)) return "수납가구";
-  if ([20, 21, 22].includes(family.rank)) return "거실가구";
-  if ([50, 55].includes(family.rank)) return "주방가전";
-  if (family.rank >= 80) return "생활용품";
-  return family.label;
-}
+/** 품목 묶음 분류는 @/lib/item-families 의 공통 분류표를 사용합니다. */
 
 
 export function Splash() {
@@ -2518,6 +2492,69 @@ export function Step6() {
   );
 
   const [nameOverrides, setNameOverrides] = useState<Record<string, string>>({});
+  /** 사장님이 직접 옮긴 품목 배치(분류·묶음·순서) — 자동 분류보다 우선, 새로고침 후에도 유지 */
+  const [itemLayout, setItemLayout] = useState<ItemLayout>({});
+  useEffect(() => {
+    if (customerFlow) return;
+    let alive = true;
+    getItemLayout()
+      .then((r) => { if (alive && r.ok) setItemLayout(r.layout as ItemLayout); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [customerFlow]);
+
+  /**
+   * 드래그·분류 이동 저장 — 먼저 화면에 반영하고, 서버 저장에 실패하면 이전 배치로 되돌립니다.
+   * 공간(방) 선택은 건드리지 않고 품목의 분류·묶음·순서만 바꿉니다.
+   */
+  const persistItemMove = async (patch: ItemLayout, movedId: string, label: string, opts?: { silent?: boolean }) => {
+    const prev = itemLayout;
+    setItemLayout((cur) => {
+      const next = { ...cur };
+      for (const [id, entry] of Object.entries(patch)) next[id] = { ...next[id], ...entry };
+      return next;
+    });
+    const r = await saveItemLayout({ data: { patch } }).catch(() => ({ ok: false as const, error: "네트워크 연결을 확인해 주세요" }));
+    if (!r.ok) {
+      setItemLayout(prev);
+      toast.error(r.error || "자리 이동을 저장하지 못했습니다. 이전 위치로 되돌렸습니다.");
+      return false;
+    }
+    // 직접 추가한 품목은 서버 품목 기록의 분류도 함께 맞춥니다
+    const entry = patch[movedId];
+    if (movedId.startsWith("ci_") && entry?.cat5) {
+      const nm = catalog.find((c) => c.id === movedId)?.name || itemNameById(movedId) || label;
+      void updateItemIcon({
+        data: { itemId: movedId, name: nm, cat: entry.cat5 === "운동·레저용품" ? "운동·레저" : entry.cat5, subgroup: entry.group },
+      }).then(() => refreshCompanyItems()).catch(() => {});
+    }
+    if (!opts?.silent) toast.success(`「${label}」의 자리를 옮겼습니다`);
+    return true;
+  };
+
+  /** 드래그로 놓은 자리를 저장할 배치 조각으로 바꿉니다 */
+  const handleItemDrop = (itemId: string, target: DropTarget, cat5: string) => {
+    const groupItems = catalog
+      .filter((i) => i.id !== itemId && effectiveCat5(i, itemLayout) === cat5 && effectiveGroup(i, itemLayout) === target.group)
+      .slice()
+      .sort(
+        (a, b) =>
+          (itemLayout[a.id]?.order ?? 5000) - (itemLayout[b.id]?.order ?? 5000) ||
+          itemSubRank(a.baseName || a.name) - itemSubRank(b.baseName || b.name) ||
+          a.name.localeCompare(b.name, "ko"),
+      );
+    const patch = buildMovePatch(itemId, { cat5, group: target.group }, groupItems.map((i) => i.id), target.index, itemLayout);
+    const nm = catalog.find((c) => c.id === itemId)?.name || itemNameById(itemId) || "품목";
+    void persistItemMove(patch, itemId, nm);
+  };
+
+  /** 공간 선택 화면의 카드 드래그 — 손잡이를 눌러 끌어 같은 탭 안에서 자리를 바꿉니다 */
+  const roomListRef = useRef<HTMLDivElement>(null);
+  const roomDrag = useItemDrag({
+    containerRef: roomListRef,
+    enabled: !customerFlow && !qd.trim(),
+    onDrop: (id, t) => handleItemDrop(id, t, tab),
+  });
   const [renameItem, setRenameItem] = useState<{ id: string; name: string } | null>(null);
   const [renameSaving, setRenameSaving] = useState(false);
   const submitRename = async () => {
@@ -2588,8 +2625,8 @@ export function Step6() {
 
   /** 품목이 하나도 없는 카테고리 탭은 감춥니다 (박스 품목 제거 후 빈 탭 방지) */
   const visibleCats = useMemo(
-    () => customerFlow ? ["가구", "가전", "주방"] : CATS5.filter((c) => catalog.some((i) => i.cat5 === c)),
-    [catalog],
+    () => customerFlow ? ["가구", "가전", "주방"] : CATS5.filter((c) => catalog.some((i) => effectiveCat5(i, itemLayout) === c)),
+    [catalog, itemLayout],
   );
 
   /** 화면을 좌우로 드래그하면 앞·뒤 단계로 넘어갑니다 */
@@ -2861,7 +2898,7 @@ export function Step6() {
     force?: boolean;
   } | null>(null);
   /** 품목 그룹(자리) 이동 창 */
-  const [groupMove, setGroupMove] = useState<{ id: string; name: string } | null>(null);
+  const [groupMove, setGroupMove] = useState<{ id: string; name: string; cat5: string; group: string } | null>(null);
   /** 비슷한 이름의 기존 품목이 있을 때 물어봅니다 */
   const [iconSimilar, setIconSimilar] = useState<{ id: string; name: string } | null>(null);
   const [iconBusy, setIconBusy] = useState(false);
@@ -3289,15 +3326,17 @@ export function Step6() {
 
   // 검색어가 있으면 전체에서, 없으면 현재 탭에서 보여 주고 같은 종류끼리 정렬합니다.
   const items = catalog
-    .filter((i) => (qd.trim() ? matchesQuery(qd, i.name, i.sub, i.cat5) : i.cat5 === tab))
+    .filter((i) => (qd.trim() ? matchesQuery(qd, i.name, i.sub, i.cat5) : effectiveCat5(i, itemLayout) === tab))
     .slice()
     .sort((a, b) => {
-      const af = itemFamily(a.name, a.sub || "기타");
-      const bf = itemFamily(b.name, b.sub || "기타");
+      const ag = effectiveGroup(a, itemLayout);
+      const bg = effectiveGroup(b, itemLayout);
       return (
-        af.rank - bf.rank ||
-        af.label.localeCompare(bf.label, "ko") ||
-        itemSubRank(a.name) - itemSubRank(b.name) ||
+        groupRank(ag) - groupRank(bg) ||
+        ag.localeCompare(bg, "ko") ||
+        // 사장님이 드래그로 정한 순서가 있으면 그대로 따릅니다
+        (itemLayout[a.id]?.order ?? 5000) - (itemLayout[b.id]?.order ?? 5000) ||
+        itemSubRank(a.baseName || a.name) - itemSubRank(b.baseName || b.name) ||
         // 직접 만든 3D 품목은 같은 세부 종류 안에서 맨 앞(최근 생성이 먼저)
         newFirst(a.id) - newFirst(b.id) ||
         a.name.localeCompare(b.name, "ko")
@@ -3673,7 +3712,7 @@ export function Step6() {
                 <Button variant="ghost" size="sm" onClick={() => { setListTab(tab); setManualOpen(true); }} className="text-auth-primary"><Plus /> 목록에 없는 품목 추가</Button>
               </div>}
             </div>
-            <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pt-3 pb-8 space-y-4 [-webkit-overflow-scrolling:touch]" data-room-item-list {...tabSwipe}>
+            <div ref={roomListRef} className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pt-3 pb-8 space-y-4 [-webkit-overflow-scrolling:touch]" data-room-item-list {...tabSwipe}>
                 {/* 자주 담는 품목 — 검색 없이 눌러서 바로 담습니다 */}
                 {!customerFlow && <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -3721,32 +3760,42 @@ export function Step6() {
                 </div>
 
                 }
-                {/* 소분류로 묶어서 3D 카드로 보여줍니다 */}
+                {/* 같은 종류끼리 묶어서 3D 카드로 보여줍니다 — 손잡이를 눌러 끌면 자리를 바꿀 수 있습니다 */}
                 <div className="space-y-4">
-                  {[...new Set(items.map((i) => roomPickerKind(i.name, i.sub || "기타")))].map((g) => (
-                    <div key={g}>
+                  {[...new Set(items.map((i) => effectiveGroup(i, itemLayout)))].map((g) => {
+                    const groupItems = items.filter((i) => effectiveGroup(i, itemLayout) === g);
+                    const dropHere = !!roomDrag.dragId && roomDrag.target?.group === g;
+                    return (
+                    <div key={g} data-item-group={g} className={dropHere ? "rounded-xl ring-2 ring-[#FF8A00] ring-offset-1" : ""}>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2.5 py-1 rounded-xl text-[12px] font-black text-white bg-gradient-to-b from-[#7FB6FF] to-[#2A6FD6] shadow-[0_2px_0_#1F5AB0]">
-                          {g}
+                        <span className={`px-2.5 py-1 rounded-xl text-[12px] font-black shadow-[0_2px_0_#1F5AB0] ${dropHere ? "bg-gradient-to-b from-[#FFA94D] to-[#FF8A00] text-white" : "text-white bg-gradient-to-b from-[#7FB6FF] to-[#2A6FD6]"}`}>
+                          {g}{dropHere ? " — 여기에 놓기" : ""}
                         </span>
                         <span className="flex-1 h-px bg-[#E5E7EB]" />
                       </div>
                       <div className="grid grid-cols-3 gap-2">
-                        {items
-                          .filter((i) => roomPickerKind(i.name, i.sub || "기타") === g)
-                          .map((it) => {
+                        {groupItems.map((it, idx) => {
                             const qty = room.items[it.id] || 0;
                             const disposed = qty > 0 && !!room.disposal?.[it.id];
+                            const barBefore = dropHere && roomDrag.target?.beforeId === it.id;
+                            const barEnd = dropHere && roomDrag.target?.beforeId === null && idx === groupItems.length - 1;
                             return (
-                              <ItemPickerCard key={it.id} item={it} qty={qty} disposed={disposed} busy={itemWriteBusy}
+                              <Fragment key={it.id}>
+                                {barBefore && <div className="col-span-full h-1 rounded-full bg-[#FF8A00]" />}
+                                <ItemPickerCard item={it} qty={qty} disposed={disposed} busy={itemWriteBusy}
                                 selectedMode={false} categoryMode onMenu={() => setItemMenu(it.id)} onRemove={() => setQty(it.id, 0)}
+                                dragging={roomDrag.dragId === it.id}
+                                dragHandleDown={!customerFlow && !qd.trim() ? roomDrag.onHandleDown(it.id) : undefined}
                                 onTap={() => customerFlow ? setQty(it.id, qty > 0 ? 0 : 1) : cardTap(room.name, it.id, () => setQty(it.id, qty + 1))}
                                 onQuantity={(next) => setQty(it.id, next)} />
+                                {barEnd && <div className="col-span-full h-1 rounded-full bg-[#FF8A00]" />}
+                              </Fragment>
                             );
                           })}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                   {items.length === 0 && !noResult && (
                     <p className="py-3 text-center text-[13px] font-bold text-[#9AA4B2]">
                       검색 결과가 없습니다
@@ -3811,6 +3860,8 @@ export function Step6() {
               })}
               onQuantity={(item, qty) => setQtyInRoom(room.name, item.id, Math.max(0, qty))}
               onRemove={(item) => setConfirmRemove({ id: item.id, name: item.name, room: room.name })}
+              layout={itemLayout}
+              onMoveItem={customerFlow ? undefined : (id, t) => handleItemDrop(id, t, listTab)}
             />}
             {manualOpen && <ManualItemForm category={listTab} onClose={() => setManualOpen(false)} onSave={saveManualItem} />}
 
@@ -3853,6 +3904,42 @@ export function Step6() {
                         쉼표 또는 줄바꿈으로 여러 품목을 입력할 수 있습니다.
                       </p>
                     </Field>
+
+                    {/* 저장될 위치 — 이름으로 자동 지정하고, 사장님이 바꿀 수 있습니다 */}
+                    {(() => {
+                      const kind = kindOf(iconGen.kind);
+                      const cat5 = cat5For(kind.cat, kind.cat);
+                      const unsure = iconGen.kind === "기타" && !!iconGen.name.trim();
+                      return (
+                        <div>
+                          <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">저장될 위치</div>
+                          <p className="mb-2 text-[13px] font-black text-[#25282D]">
+                            {cat5} &gt; {iconGen.kind}
+                          </p>
+                          {unsure && (
+                            <p className="mb-2 rounded-xl border border-[#FDE68A] bg-[#FFFBEB] px-3 py-2 text-[12px] font-bold text-[#92610A]">
+                              이름만으로는 위치를 정하기 어렵습니다. 아래에서 알맞은 종류를 골라 주세요.
+                            </p>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            {ITEM_KINDS.map((k) => (
+                              <button
+                                key={k.label}
+                                type="button"
+                                onClick={() => setIconGen((f) => (f ? { ...f, kind: k.label } : f))}
+                                className={`rounded-2xl px-3 py-2 text-[13px] font-black ${
+                                  iconGen.kind === k.label
+                                    ? "bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white shadow-[0_3px_0_#285C99]"
+                                    : "border border-[#E5E7EB] bg-white text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
+                                }`}
+                              >
+                                {k.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* 품목 사진 — 촬영하거나 갤러리에서 고릅니다 */}
                     <div>
@@ -4199,19 +4286,23 @@ export function Step6() {
                     >
                       품목정보 보기
                     </button>
-                    {itemMenu.startsWith("ci_") && (
+                    {!customerFlow && (
                       <button
+                        data-item-move-cat
                         onClick={() => {
-                          const nm =
-                            catalog.find((c) => c.id === itemMenu)?.name ||
-                            itemNameById(itemMenu) ||
-                            "품목";
-                          setGroupMove({ id: itemMenu, name: nm });
+                          const it = catalog.find((c) => c.id === itemMenu);
+                          const nm = it?.name || itemNameById(itemMenu) || "품목";
+                          setGroupMove({
+                            id: itemMenu,
+                            name: nm,
+                            cat5: effectiveCat5(it || { id: itemMenu, name: nm }, itemLayout),
+                            group: effectiveGroup(it || { id: itemMenu, name: nm }, itemLayout),
+                          });
                           setItemMenu(null);
                         }}
                         className="w-full rounded-2xl border border-[#CFE0F7] bg-white py-3.5 font-black text-[14px] text-[#2A6FD6] shadow-[0_3px_0_#EAF2FC]"
                       >
-                        품목 그룹 이동
+                        분류 이동
                       </button>
                     )}
                     {itemMenu.startsWith("ci_ai_") && (
@@ -4283,53 +4374,82 @@ export function Step6() {
               </div>
             )}
 
-            {/* 품목 그룹 이동 — 저장해서 새로고침 후에도 유지합니다 */}
+            {/* 분류 이동 — 대분류와 묶음을 골라 저장합니다. 새로고침 후에도 유지되고, 견적에서 고른 공간은 그대로입니다 */}
             {groupMove && (
               <div className="absolute inset-0 z-30 flex items-end justify-center">
                 <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => setGroupMove(null)} />
                 <div className="relative max-h-[80%] w-full overflow-auto rounded-t-3xl bg-white p-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
                   <div className="text-[16px] font-black text-[#25282D]">
-                    「{groupMove.name}」 품목 그룹 이동
+                    「{groupMove.name}」 분류 이동
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {ITEM_KINDS.map((k) => (
-                      <button
-                        key={k.label}
-                        onClick={async () => {
-                          const kind = kindOf(k.label);
-                          const saved = await updateItemIcon({
-                            data: {
-                              itemId: groupMove.id,
-                              name: groupMove.name,
-                              cat: kind.cat,
-                              subgroup: kind.label,
-                            },
-                          });
-                          if (!saved.ok) {
-                            toast.error(saved.error || "자리 이동을 저장하지 못했습니다");
-                            return;
-                          }
-                          updateDraft({
-                            customItems: (draft.customItems || []).map((c) =>
-                              c.id === groupMove.id
-                                ? { ...c, cat: kind.cat, subgroup: kind.label }
-                                : c,
-                            ),
-                          });
-                          setTab(cat5For(kind.cat, kind.cat));
-                          setGroupMove(null);
-                          tap("success");
-                          toast.success(`「${groupMove.name}」을(를) ${kind.label} 그룹으로 옮겼습니다`);
-                        }}
-                        className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2 text-[13px] font-black text-[#25282D] shadow-[0_3px_0_#F7F8F5]"
-                      >
-                        {k.label}
-                      </button>
-                    ))}
+                  <p className="mt-1 text-[12.5px] font-bold text-[#9AA4B2]">
+                    저장될 위치: {groupMove.cat5} &gt; {groupMove.group}
+                  </p>
+                  <div className="mt-3">
+                    <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">대분류</div>
+                    <div className="flex flex-wrap gap-2">
+                      {CATS5.map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => setGroupMove((g) => (g ? { ...g, cat5: c } : g))}
+                          className={`rounded-2xl px-3 py-2 text-[13px] font-black ${
+                            groupMove.cat5 === c
+                              ? "bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white shadow-[0_3px_0_#285C99]"
+                              : "border border-[#E5E7EB] bg-white text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">묶음</div>
+                    <div className="flex flex-wrap gap-2">
+                      {[...new Set([
+                        ...ITEM_FAMILIES.map((f) => f.label),
+                        ...catalog.filter((i) => effectiveCat5(i, itemLayout) === groupMove.cat5).map((i) => effectiveGroup(i, itemLayout)),
+                      ])].map((label) => (
+                        <button
+                          key={label}
+                          onClick={() => setGroupMove((g) => (g ? { ...g, group: label } : g))}
+                          className={`rounded-2xl px-3 py-2 text-[13px] font-black ${
+                            groupMove.group === label
+                              ? "bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white shadow-[0_3px_0_#285C99]"
+                              : "border border-[#E5E7EB] bg-white text-[#6B7280] shadow-[0_3px_0_#F7F8F5]"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <button
+                    onClick={async () => {
+                      const target = groupMove;
+                      const ok = await persistItemMove({ [target.id]: { cat5: target.cat5, group: target.group } }, target.id, target.name);
+                      if (!ok) return;
+                      if (target.id.startsWith("ci_")) {
+                        updateDraft({
+                          customItems: (draft.customItems || []).map((c) =>
+                            c.id === target.id
+                              ? { ...c, cat: target.cat5 === "운동·레저용품" ? "운동·레저" : target.cat5, subgroup: target.group }
+                              : c,
+                          ),
+                        });
+                      }
+                      setTab(target.cat5);
+                      setListTab(target.cat5);
+                      setGroupMove(null);
+                      tap("success");
+                    }}
+                    className="mt-4 w-full rounded-2xl bg-gradient-to-b from-[#5B93D6] to-[#3578C8] py-3.5 text-[14px] font-black text-white shadow-[0_4px_0_#285C99] active:translate-y-[2px] active:shadow-none"
+                  >
+                    이 위치로 저장
+                  </button>
+                  <button
                     onClick={() => setGroupMove(null)}
-                    className="mt-3 w-full py-3 text-[14px] font-bold text-[#94A3B8]"
+                    className="mt-2 w-full py-3 text-[14px] font-bold text-[#94A3B8]"
                   >
                     닫기
                   </button>
