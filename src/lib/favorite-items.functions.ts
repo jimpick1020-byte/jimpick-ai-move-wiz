@@ -140,7 +140,7 @@ export const saveItemLayout = createServerFn({ method: "POST" })
     }
     const { error } = await context.supabase
       .from("profiles")
-      .update({ item_layout: next })
+      .update({ item_layout: next as unknown as import("@/integrations/supabase/types").Json })
       .eq("id", context.userId);
     if (error) return { ok: false, error: error.message };
     return { ok: true };
