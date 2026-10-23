@@ -83,19 +83,21 @@ export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highli
   onTap: () => void; onQuantity: (qty: number) => void; onMenu: () => void; onRemove: () => void; categoryMode?: boolean; onImageTap?: () => void; favoriteMode?: boolean;
 }) {
   const label = pickerItemLabel(item.id, item.name);
-  return <div data-picker-card={item.id} onClick={favoriteMode ? () => { if (!busy) onTap(); } : undefined} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-lg border px-1.5 pb-1 pt-1 transition-shadow ${qty > 0 ? "jp-item-card-selected ring-1 ring-auth-primary" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""}`}>
+  const sizeMatch = /[({]\s*([^(){}]+?)\s*[)}]/.exec(item.name || "");
+  const sizeLabel = sizeMatch?.[1];
+  return <div data-picker-card={item.id} onClick={favoriteMode ? () => { if (!busy) onTap(); } : undefined} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-lg border px-1.5 pb-1.5 pt-1 transition-shadow ${qty > 0 ? "jp-item-card-selected" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""}`}>
     <Button variant="outline" size="icon" disabled={busy} className="absolute left-1 top-1 z-10 size-6 rounded-full text-muted-foreground" onClick={(event) => { event.stopPropagation(); onMenu(); }} aria-label={`${label} 품목 관리`} title="품목 관리"><MoreHorizontal className="size-4" /></Button>
-    {selectedMode ? <Button variant="ghost" size="icon" disabled={busy} className="absolute right-1 top-1 z-10 size-7 text-destructive" onClick={onRemove} aria-label={`${label} 삭제`}><X className="size-4" /></Button> : qty > 0 && <span data-item-selected className="pointer-events-none absolute right-1 top-1 z-10 grid size-5 place-items-center rounded-full bg-auth-primary text-auth-primary-foreground"><Check className="size-3.5" /></span>}
+    {selectedMode ? <Button variant="ghost" size="icon" disabled={busy} className="absolute right-1 top-1 z-10 size-7 text-destructive" onClick={onRemove} aria-label={`${label} 삭제`}><X className="size-4" /></Button> : qty > 0 && <span data-item-selected className="jp-item-check pointer-events-none absolute right-1 top-1 z-10 grid size-6 place-items-center rounded-full"><Check className="size-4" /></span>}
     <Button variant="ghost" disabled={busy} className="jp-picker-face h-auto min-h-0 w-full touch-manipulation select-none flex-col gap-0.5 whitespace-normal p-0" onClick={(event) => { if (favoriteMode) event.stopPropagation(); onTap(); }} aria-pressed={qty > 0} aria-label={`${label} 선택`}>
       <span className="relative inline-flex w-full shrink-0" onClick={!favoriteMode && onImageTap ? (event) => { event.stopPropagation(); onImageTap(); } : undefined}>
         <span className={disposed ? "jp-picker-art opacity-60" : "jp-picker-art"}><ItemArt id={item.id} name={label} size={96} /></span>
         {disposed && <DisposalX />}
       </span>
-      <span className="line-clamp-2 h-8 w-full shrink-0 break-all text-center text-[13px] font-black leading-4" title={label}>{label}</span>
+      <span className="line-clamp-2 min-h-8 w-full shrink-0 break-all text-center text-[13px] font-black leading-4" title={label}>{label}</span>
     </Button>
     {qty > 0 ? <div className="mt-auto flex w-full items-center justify-between gap-1" onClick={favoriteMode ? (event) => event.stopPropagation() : undefined}>
       <Button variant="outline" size="icon" disabled={busy} className="size-7 shrink-0 rounded-full text-foreground" onClick={() => onQuantity(qty - 1)} aria-label={`${label} 감소`}><Minus className="size-3.5" /></Button>
-      <span className="text-sm font-black tabular-nums" data-item-quantity>{qty}</span>
+      <span className="min-w-0 truncate text-center text-[13px] font-black tabular-nums" data-item-quantity>{sizeLabel ? `${sizeLabel} · ${qty}개` : `${qty}개`}</span>
       <Button variant={favoriteMode ? "outline" : "default"} size="icon" disabled={busy} className={`size-7 shrink-0 rounded-full ${favoriteMode ? "" : "bg-auth-primary text-auth-primary-foreground"}`} onClick={() => onQuantity(qty + 1)} aria-label={`${label} 증가`}><Plus className="size-3.5" /></Button>
     </div> : null}
   </div>;
@@ -138,9 +140,9 @@ export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites,
       {mode === "category"
         ? <div className="space-y-3">{groups.map((g) => <section key={g.label} data-item-group={g.label}>
           <span className="mb-1.5 inline-block rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-muted-foreground">{g.label}</span>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">{g.items.map((item) => card(item))}</div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">{g.items.map((item) => card(item))}</div>
         </section>)}</div>
-        : <div className="grid grid-cols-3 gap-2 sm:gap-3" data-flat-order={mode} data-picked-order={mode === "picked" ? "1" : undefined}>{shown.map((item) => card(item))}</div>}
+        : <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3" data-flat-order={mode} data-picked-order={mode === "picked" ? "1" : undefined}>{shown.map((item) => card(item))}</div>}
       {shown.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">{query ? "검색 결과가 없습니다" : "등록된 품목이 없습니다"}</p>}
     </div>
   </FullScreenItemFrame>;

@@ -36,6 +36,7 @@ import {
   type Estimate,
 } from "@/lib/jimpick";
 import { registerCustomIcons } from "@/lib/jimpick-icon3d";
+import { ItemArt } from "@/lib/jimpick-art";
 import {
   TERMS_EFFECTIVE_AT,
   TERMS_FULL,
@@ -101,6 +102,30 @@ const SUMMARY_ICONS = [Handshake, FileSignature, PackageOpen, CircleDollarSign, 
 
 function Row({ children }: { children: React.ReactNode }) {
   return <div className="flex items-center gap-2.5 py-3.5">{children}</div>;
+}
+
+/** 고객 견적서의 읽기 전용 품목 카드 — 사장님 화면과 같은 그림·이름·규격·수량을 보여줍니다. */
+function CustomerItemGrid({ items }: { items: { id: string; room: string; name: string; qty: number }[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      {items.map((it, i) => {
+        const sizeMatch = /[({]\s*([^(){}]+?)\s*[)}]/.exec(it.name || "");
+        const sizeLabel = sizeMatch?.[1];
+        return (
+          <div key={`${it.room}-${it.id}-${i}`} className="flex flex-col items-center rounded-2xl border-2 border-[#E5E7EB] bg-white px-1.5 pb-1.5 pt-1">
+            <span className="flex aspect-square w-full items-center justify-center p-1.5">
+              <ItemArt id={it.id} name={it.name} size={96} />
+            </span>
+            <span className="line-clamp-2 min-h-8 w-full break-all text-center text-[13px] font-black leading-4 text-[#25282D]" title={it.name}>{it.name}</span>
+            <span className="mt-0.5 text-center text-[12px] font-bold text-[#6B7280]">
+              {sizeLabel ? `${sizeLabel} · ${it.qty}개` : `${it.qty}개`}
+            </span>
+            <span className="text-center text-[11px] text-[#9CA3AF]">{it.room}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function SharePage() {
@@ -412,7 +437,7 @@ export function SharePage() {
       .filter(([, qty]) => qty > 0)
       .map(([itemId, qty]) => {
         const catalog = ITEM_CATALOG.find((i) => i.id === itemId);
-        return { room: room.name, name: catalog?.name || itemNameById(itemId) || itemId, qty };
+        return { id: itemId, room: room.name, name: catalog?.name || itemNameById(itemId) || itemId, qty };
       }),
   );
   const enabledOptions = (estimate?.options ?? []).filter((o) => o.enabled);
@@ -554,17 +579,7 @@ export function SharePage() {
               {selectedItems.length === 0 ? (
                 <div className="text-[16px] text-[#6B7280]">선택된 품목이 없습니다.</div>
               ) : (
-                selectedItems.map((it, i) => (
-                  <div
-                    key={`${it.room}-${it.name}-${i}`}
-                    className="flex justify-between text-[16px]"
-                  >
-                    <span className="text-[#6B7280]">{it.room}</span>
-                    <span className="font-medium">
-                      {it.name} × {it.qty}
-                    </span>
-                  </div>
-                ))
+                <CustomerItemGrid items={selectedItems} />
               )}
             </Card>
             {enabledOptions.length > 0 && (
@@ -774,18 +789,8 @@ export function SharePage() {
             {selectedItems.length === 0 ? (
               <div className="text-[16px] text-[#6B7280]">선택된 품목이 없습니다.</div>
             ) : (
-              <div className="max-h-60 space-y-1 overflow-auto">
-                {selectedItems.map((it, i) => (
-                  <div
-                    key={`${it.room}-${it.name}-${i}`}
-                    className="flex justify-between text-[16px]"
-                  >
-                    <span className="text-[#6B7280]">{it.room}</span>
-                    <span className="font-medium">
-                      {it.name} × {it.qty}
-                    </span>
-                  </div>
-                ))}
+              <div className="max-h-80 overflow-auto">
+                <CustomerItemGrid items={selectedItems} />
               </div>
             )}
           </Card>
