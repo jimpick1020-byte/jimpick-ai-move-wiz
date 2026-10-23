@@ -60,6 +60,43 @@ const BLOCKED = [
   "prompt", "ignore", "system", "http", "www", "<", ">",
 ];
 
+/**
+ * 품목 이름에 적힌 특징을 그림 지시로 옮깁니다.
+ * 「6단 서랍장」은 서랍 6단, 「4도어 냉장고」는 문 4개가 실제 그림에 나와야 하고,
+ * 통돌이세탁기와 드럼세탁기, 전기 건조기와 빨래건조대처럼 다른 물건을 섞지 않습니다.
+ */
+export function itemVisualDetails(name: string): string[] {
+  const n = (name || "").replace(/\s+/g, "");
+  const details: string[] = [];
+  const drawer = n.match(/(\d+)\s*단/);
+  if (drawer && /서랍|수납장|체스트|드레서/.test(n))
+    details.push(`a chest of drawers with exactly ${drawer[1]} visible drawers stacked vertically`);
+  const door = n.match(/(\d+)\s*도어/);
+  if (door && /냉장고/.test(n))
+    details.push(`a refrigerator with exactly ${door[1]} doors`);
+  if (/양문형/.test(n)) details.push("a side-by-side refrigerator with two tall doors");
+  if (/2층|이층|벙커/.test(n) && /침대|벙커/.test(n))
+    details.push("a bunk bed with two stacked sleeping levels and a ladder");
+  if (/통돌이/.test(n))
+    details.push("a top-loading washing machine with the lid on top, not a front-loading drum machine");
+  if (/드럼세탁|드럼\s*세탁/.test(n))
+    details.push("a front-loading drum washing machine with a round glass door on the front");
+  if (/빨래\s*건조대|건조대|빨래걸이/.test(n))
+    details.push("a foldable clothes drying rack with hanging rails — a rack, NOT an electric appliance");
+  if (/슬라이딩/.test(n) && /옷장/.test(n)) details.push("a wardrobe with sliding doors");
+  if (/모션|전동침대|전동\s*침대/.test(n)) details.push("an adjustable motion bed with a raised head section");
+  if (/돌침대/.test(n)) details.push("a stone bed with a solid stone slab top");
+  if (/흙침대/.test(n)) details.push("a clay bed with an earthy brown slab top");
+  if (/수납침대|수납\s*침대/.test(n)) details.push("a storage bed with drawers under the mattress");
+  if (/김치냉장고|김치스탠드|김치스텐드/.test(n)) details.push("a kimchi refrigerator");
+  if (/뚜껑형/.test(n)) details.push("a chest-type appliance with a top-opening lid");
+  if (/스탠드\s*에어컨|스탠드에어컨/.test(n)) details.push("a tall floor-standing air conditioner");
+  if (/벽걸이\s*에어컨|벽걸이에어컨/.test(n)) details.push("a wall-mounted air conditioner indoor unit");
+  if (/로봇청소기/.test(n)) details.push("a round flat robot vacuum cleaner");
+  if (/스타일러|의류관리기/.test(n)) details.push("a tall slim clothing care cabinet with a door");
+  return details;
+}
+
 export interface IconResult {
   ok: boolean;
   error?: string;
