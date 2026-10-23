@@ -120,7 +120,9 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
         image = await shrinkPhoto(new File([await response.blob()], "item.png", { type: "image/png" }));
       }
       if (multi) {
-        await onSave(autos.map(({ name: n, c }) => ({ name: n, cat: (c.cat || cat) as ItemMainCat, volume: 0, photo: multiImages[n] || (source === "ai" ? "" : image), photoSource: multiImages[n] ? "ai" : source === "ai" ? "default" : source, favorite: false, group: c.cat ? c.group : "기타", rooms: c.rooms, keywords: c.keywords })));
+        // 한 품목용 AI 그림을 다른 품목에 나눠 쓰지 않습니다: 개별 그림이 없으면 기본 상자.
+        const box = source === "ai" && autos.some(({ name: n }) => !multiImages[n]) ? await shrinkPhoto(new File([await (await fetch(boxImage)).blob()], "item.png", { type: "image/png" })) : "";
+        await onSave(autos.map(({ name: n, c }) => ({ name: n, cat: (c.cat || cat) as ItemMainCat, volume: 0, photo: multiImages[n] || (source === "ai" ? box : image), photoSource: multiImages[n] ? "ai" : source === "ai" ? "default" : source, favorite: false, group: c.cat ? c.group : "기타", rooms: c.rooms, keywords: c.keywords })));
       } else if (finalCat) {
         await onSave([{ name: names[0], cat: finalCat, volume: 0, photo: image, photoSource: source, favorite, group: finalGroup, rooms: finalRooms, keywords: auto.keywords }]);
       }
@@ -136,7 +138,7 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
       <PrimaryButton disabled={invalid} onClick={() => void save()}>{busy ? "저장 중…" : multi ? `${names.length}개 저장` : "이대로 저장"}</PrimaryButton>
     </div>}>
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
-      <Field label="품목 이름"><textarea value={name} maxLength={400} rows={2} disabled={busy || generating} onChange={(e) => setName(e.target.value)} placeholder="여러 개는 쉼표나 줄바꿈으로 나눠 주세요" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-base" /></Field>
+      <Field label="품목 이름"><textarea value={name} maxLength={400} rows={2} disabled={busy || generating} onChange={(e) => { const v = e.target.value; setName(v); if (previewName && v.trim() !== previewName) { runId.current++; setPreview(""); setPreviewReady(false); setPreviewName(""); setGenerationTried(false); } }} placeholder="여러 개는 쉼표나 줄바꿈으로 나눠 주세요" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-base" /></Field>
       {multi && <section className="space-y-2" data-multi-items>
         <p className="text-sm font-black">품목 {names.length}개로 나눠 저장합니다</p>
         <div className="grid grid-cols-2 gap-2">{autos.map(({ name: n, c }) => <div key={n} className="rounded-xl border border-border bg-muted p-3 text-sm">
