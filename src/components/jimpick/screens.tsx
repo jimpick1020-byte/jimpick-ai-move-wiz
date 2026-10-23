@@ -2517,6 +2517,30 @@ export function Step6() {
     [companyItems, selectedCustomItems],
   );
 
+  const [nameOverrides, setNameOverrides] = useState<Record<string, string>>({});
+  const [renameItem, setRenameItem] = useState<{ id: string; name: string } | null>(null);
+  const [renameSaving, setRenameSaving] = useState(false);
+  const submitRename = async () => {
+    if (!renameItem || renameSaving) return;
+    const name = cleanItemName(renameItem.name);
+    if (!name) { toast.error("품목 이름을 입력해 주세요"); return; }
+    if (name.length > ITEM_NAME_MAX) { toast.error(`품목 이름은 ${ITEM_NAME_MAX}자 이내로 입력해 주세요`); return; }
+    if (!/[가-힣]/.test(name)) { toast.error("한글이 포함된 이름을 입력해 주세요"); return; }
+    setRenameSaving(true);
+    try {
+      const r = await saveItemNameOverride({ data: { itemId: renameItem.id, name } });
+      if (!r.ok) { toast.error(r.error || "이름을 저장하지 못했습니다"); return; }
+      setNameOverrides((m) => ({ ...m, [renameItem.id]: name }));
+      // 현재 작성 중인 견적에도 즉시 반영합니다(이미 보낸 견적 기록은 건드리지 않음).
+      updateDraft({ itemNames: { ...(draft.itemNames || {}), [renameItem.id]: name } });
+      toast.success("품목 이름을 저장했습니다");
+      setRenameItem(null);
+    } catch {
+      toast.error("이름을 저장하지 못했습니다");
+    } finally {
+      setRenameSaving(false);
+    }
+  };
   // 기본 품목과 현재 업체의 영구 생성 품목을 안정적인 ID로 병합합니다.
   const catalog = useMemo(
     () =>
