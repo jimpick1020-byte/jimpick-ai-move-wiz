@@ -30,6 +30,8 @@ export function useItemDrag(opts: {
     const card = e.currentTarget as HTMLElement;
     const pointerId = e.pointerId;
     let active = false;
+    const isTouch = e.pointerType === 'touch';
+    let touchId: number | null = null;
     let ended = false;
     let x = e.clientX;
     let y = e.clientY;
@@ -112,12 +114,15 @@ export function useItemDrag(opts: {
       cancelAnimationFrame(frame);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointercancel', cancel);
+      window.removeEventListener('pointercancel', pointerCancel);
       window.removeEventListener('blur', cancel);
       document.removeEventListener('touchmove', touchMove);
+      document.removeEventListener('touchend', touchEnd);
+      document.removeEventListener('touchcancel', touchEnd);
+      document.removeEventListener('contextmenu', menu);
       document.removeEventListener('touchstart', extraTouch);
       document.removeEventListener('keydown', key);
-      card.removeEventListener('lostpointercapture', cancel);
+      card.removeEventListener('lostpointercapture', lost);
       container?.removeEventListener('scroll', scroll);
       if (card.hasPointerCapture(pointerId)) card.releasePointerCapture(pointerId);
       cleanupRef.current = null;
@@ -144,22 +149,38 @@ export function useItemDrag(opts: {
       event.stopPropagation();
       dirty = true;
     };
+    // Android may cancel the pointer stream (pan, long-press menu, lost capture) right after
+    // activation; once lifted, touch events keep driving the drag until the finger lifts.
+    const touchOf = (event: TouchEvent) => [...event.changedTouches].find((t) => touchId === null || t.identifier === touchId) ?? null;
     const touchMove = (event: TouchEvent) => {
-      if (active && event.cancelable) event.preventDefault();
+      if (!active) return;
+      if (event.cancelable) event.preventDefault();
+      const t = touchOf(event);
+      if (t) { x = t.clientX; y = t.clientY; dirty = true; }
     };
+    const touchEnd = (event: TouchEvent) => { if (touchOf(event)) finish(active); };
+    const menu = (event: Event) => { if (active || !ended) event.preventDefault(); };
     const up = (event: PointerEvent) => { if (event.pointerId === pointerId) finish(true); };
     const cancel = () => finish(false);
+    // After activation a pointer cancel is not a user cancel: touch events take over.
+    const pointerCancel = (event: PointerEvent) => { if (event.pointerId === pointerId && !(active && isTouch)) cancel(); };
     const extraTouch = (event: TouchEvent) => { if (event.touches.length > 1) cancel(); };
+    const firstTouch = (event: TouchEvent) => { if (touchId === null && event.touches.length === 1) touchId = event.touches[0].identifier; };
+    const lost = () => { if (!(active && isTouch)) cancel(); };
     const key = (event: KeyboardEvent) => { if (event.key === 'Escape') cancel(); };
     const scroll = () => { if (!active) cancel(); };
     window.addEventListener('pointermove', move, { passive: false });
     window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', cancel);
+    window.addEventListener('pointercancel', pointerCancel);
     window.addEventListener('blur', cancel);
     document.addEventListener('touchmove', touchMove, { passive: false });
+    document.addEventListener('touchend', touchEnd);
+    document.addEventListener('touchcancel', touchEnd);
+    document.addEventListener('contextmenu', menu);
     document.addEventListener('touchstart', extraTouch, { passive: true });
+    if (isTouch) card.addEventListener('touchstart', firstTouch, { passive: true, once: true });
     document.addEventListener('keydown', key);
-    card.addEventListener('lostpointercapture', cancel);
+    card.addEventListener('lostpointercapture', lost);
     container?.addEventListener('scroll', scroll, { passive: true });
     cleanupRef.current = cancel;
   };
