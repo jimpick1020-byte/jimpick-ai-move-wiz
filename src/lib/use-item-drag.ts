@@ -40,6 +40,8 @@ export function useItemDrag(opts: {
     const startX = x, startY = y;
     const container = opts.containerRef.current;
     const startScroll = container?.scrollTop ?? 0;
+    // Fixed at start: the lifted card's transform must not grow the scrollable area.
+    const maxScroll = container ? container.scrollHeight - container.clientHeight : 0;
     let markedSection: HTMLElement | null = null;
     let markedCard: HTMLElement | null = null;
     let markedEnd = false;
@@ -86,7 +88,7 @@ export function useItemDrag(opts: {
         const clamped = Math.max(-1, Math.min(1, depth));
         if (clamped) {
           const before = container.scrollTop;
-          container.scrollTop = before + Math.sign(clamped) * clamped * clamped * 0.9 * dt;
+          container.scrollTop = Math.max(0, Math.min(maxScroll, before + Math.sign(clamped) * clamped * clamped * 0.9 * dt));
           if (container.scrollTop !== before) dirty = true;
         }
       }
