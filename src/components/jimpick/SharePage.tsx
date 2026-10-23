@@ -412,7 +412,7 @@ export function SharePage() {
       .filter(([, qty]) => qty > 0)
       .map(([itemId, qty]) => {
         const catalog = ITEM_CATALOG.find((i) => i.id === itemId);
-        return { room: room.name, name: catalog?.name || itemNameById(itemId) || itemId, qty };
+        return { id: itemId, room: room.name, name: catalog?.name || itemNameById(itemId) || itemId, qty };
       }),
   );
   const enabledOptions = (estimate?.options ?? []).filter((o) => o.enabled);
@@ -554,17 +554,7 @@ export function SharePage() {
               {selectedItems.length === 0 ? (
                 <div className="text-[16px] text-[#6B7280]">선택된 품목이 없습니다.</div>
               ) : (
-                selectedItems.map((it, i) => (
-                  <div
-                    key={`${it.room}-${it.name}-${i}`}
-                    className="flex justify-between text-[16px]"
-                  >
-                    <span className="text-[#6B7280]">{it.room}</span>
-                    <span className="font-medium">
-                      {it.name} × {it.qty}
-                    </span>
-                  </div>
-                ))
+                <CustomerItemGrid items={selectedItems} />
               )}
             </Card>
             {enabledOptions.length > 0 && (
@@ -774,18 +764,8 @@ export function SharePage() {
             {selectedItems.length === 0 ? (
               <div className="text-[16px] text-[#6B7280]">선택된 품목이 없습니다.</div>
             ) : (
-              <div className="max-h-60 space-y-1 overflow-auto">
-                {selectedItems.map((it, i) => (
-                  <div
-                    key={`${it.room}-${it.name}-${i}`}
-                    className="flex justify-between text-[16px]"
-                  >
-                    <span className="text-[#6B7280]">{it.room}</span>
-                    <span className="font-medium">
-                      {it.name} × {it.qty}
-                    </span>
-                  </div>
-                ))}
+              <div className="max-h-80 overflow-auto">
+                <CustomerItemGrid items={selectedItems} />
               </div>
             )}
           </Card>
