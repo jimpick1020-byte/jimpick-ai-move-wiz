@@ -2551,11 +2551,11 @@ export function Step6() {
     void persistItemMove(patch, itemId, nm);
   };
 
-  /** 공간 선택 화면의 카드 드래그 — 손잡이를 눌러 끌어 같은 탭 안에서 자리를 바꿉니다 */
+  /** 공간 선택 화면의 카드 드래그 — 카드를 길게 눌러 같은 탭 안에서 자리를 바꿉니다 */
   const roomListRef = useRef<HTMLDivElement>(null);
   const roomDrag = useItemDrag({
     containerRef: roomListRef,
-    enabled: !customerFlow && !qd.trim(),
+    enabled: !customerFlow && !qd.trim() && !itemWriteBusy,
     onDrop: (id, t) => handleItemDrop(id, t, tab),
   });
   const [renameItem, setRenameItem] = useState<{ id: string; name: string } | null>(null);
@@ -3769,7 +3769,7 @@ export function Step6() {
                 </div>
 
                 }
-                {/* 같은 종류끼리 묶어서 3D 카드로 보여줍니다 — 손잡이를 눌러 끌면 자리를 바꿀 수 있습니다 */}
+                {/* 같은 종류끼리 묶어서 3D 카드로 보여줍니다 — 카드를 길게 눌러 끌면 자리를 바꿀 수 있습니다 */}
                 <div className="space-y-4">
                   {[...new Set(items.map((i) => effectiveGroup(i, itemLayout)))].map((g) => {
                     const groupItems = items.filter((i) => effectiveGroup(i, itemLayout) === g);
@@ -3794,7 +3794,7 @@ export function Step6() {
                                 <ItemPickerCard item={it} qty={qty} disposed={disposed} busy={itemWriteBusy}
                                 selectedMode={false} categoryMode onMenu={() => setItemMenu(it.id)} onRemove={() => setQty(it.id, 0)}
                                 dragging={roomDrag.dragId === it.id}
-                                dragHandleDown={!customerFlow && !qd.trim() ? roomDrag.onHandleDown(it.id) : undefined}
+                                dragCardDown={!customerFlow && !qd.trim() ? roomDrag.onCardDown(it.id) : undefined}
                                 onTap={() => customerFlow ? setQty(it.id, qty > 0 ? 0 : 1) : cardTap(room.name, it.id, () => setQty(it.id, qty + 1))}
                                 onQuantity={(next) => setQty(it.id, next)} />
                                 {barEnd && <div className="col-span-full h-1 rounded-full bg-[#FF8A00]" />}
