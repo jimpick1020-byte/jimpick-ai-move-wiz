@@ -138,3 +138,19 @@ export function buildMovePatch(
   });
   return patch;
 }
+
+/** Resolve the rendered anchor, not an index into a separately sorted catalog. */
+export function buildAnchoredMovePatch(
+  itemId: string,
+  target: { cat5: string; group: string; beforeId: string | null },
+  displayed: LayoutItem[],
+  layout: ItemLayout,
+): ItemLayout {
+  const ids = displayed.filter((i) => effectiveCat5(i, layout) === target.cat5 && effectiveGroup(i, layout) === target.group).map((i) => i.id);
+  const remaining = ids.filter((id) => id !== itemId);
+  const index = target.beforeId === null ? remaining.length : remaining.indexOf(target.beforeId);
+  if (index < 0) return {};
+  const next = [...remaining.slice(0, index), itemId, ...remaining.slice(index)];
+  if (ids.length === next.length && ids.every((id, i) => id === next[i])) return {};
+  return buildMovePatch(itemId, target, remaining, index, layout);
+}

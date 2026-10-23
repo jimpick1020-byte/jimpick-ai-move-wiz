@@ -109,6 +109,7 @@ export function useItemDrag(opts: {
     };
     const finish = (save: boolean) => {
       if (ended) return;
+      if (save && active) updateTarget();
       ended = true;
       reservation.cancel();
       cancelAnimationFrame(frame);
@@ -116,11 +117,12 @@ export function useItemDrag(opts: {
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', pointerCancel);
       window.removeEventListener('blur', cancel);
-      document.removeEventListener('touchmove', touchMove);
+      document.removeEventListener('touchmove', touchMove, true);
       document.removeEventListener('touchend', touchEnd);
-      document.removeEventListener('touchcancel', touchEnd);
+      document.removeEventListener('touchcancel', cancel);
       document.removeEventListener('contextmenu', menu);
       document.removeEventListener('touchstart', extraTouch);
+      card.removeEventListener('touchstart', firstTouch);
       document.removeEventListener('keydown', key);
       card.removeEventListener('lostpointercapture', lost);
       container?.removeEventListener('scroll', scroll);
@@ -155,12 +157,16 @@ export function useItemDrag(opts: {
     const touchMove = (event: TouchEvent) => {
       if (!active) return;
       if (event.cancelable) event.preventDefault();
+      event.stopPropagation();
       const t = touchOf(event);
       if (t) { x = t.clientX; y = t.clientY; dirty = true; }
     };
-    const touchEnd = (event: TouchEvent) => { if (touchOf(event)) finish(active); };
+    const touchEnd = (event: TouchEvent) => {
+      const t = touchOf(event);
+      if (t) { x = t.clientX; y = t.clientY; finish(active); }
+    };
     const menu = (event: Event) => { if (active || !ended) event.preventDefault(); };
-    const up = (event: PointerEvent) => { if (event.pointerId === pointerId) finish(true); };
+    const up = (event: PointerEvent) => { if (event.pointerId === pointerId && !isTouch) { x = event.clientX; y = event.clientY; finish(true); } };
     const cancel = () => finish(false);
     // After activation a pointer cancel is not a user cancel: touch events take over.
     const pointerCancel = (event: PointerEvent) => { if (event.pointerId === pointerId && !(active && isTouch)) cancel(); };
@@ -173,9 +179,9 @@ export function useItemDrag(opts: {
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', pointerCancel);
     window.addEventListener('blur', cancel);
-    document.addEventListener('touchmove', touchMove, { passive: false });
+    document.addEventListener('touchmove', touchMove, { passive: false, capture: true });
     document.addEventListener('touchend', touchEnd);
-    document.addEventListener('touchcancel', touchEnd);
+    document.addEventListener('touchcancel', cancel);
     document.addEventListener('contextmenu', menu);
     document.addEventListener('touchstart', extraTouch, { passive: true });
     if (isTouch) card.addEventListener('touchstart', firstTouch, { passive: true, once: true });

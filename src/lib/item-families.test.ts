@@ -6,6 +6,7 @@ import {
   effectiveGroup,
   layoutSort,
   buildMovePatch,
+  buildAnchoredMovePatch,
   type ItemLayout,
   type LayoutItem,
 } from "./item-families";
@@ -50,6 +51,19 @@ describe("품목 묶음 분류", () => {
 });
 
 describe("배치 덮어쓰기", () => {
+  const sofas: LayoutItem[] = [{ id: "stone", name: "돌 소파", cat5: "가구" }, { id: "other", name: "흙 소파", cat5: "가구" }, { id: "bean", name: "빈백", cat5: "가구" }];
+  it("빈백을 돌 소파 앞으로 이동한 화면 순서와 저장 순서가 일치합니다", () => {
+    const patch = buildAnchoredMovePatch("bean", { cat5: "가구", group: "소파", beforeId: "stone" }, sofas, {});
+    assert.deepEqual(layoutSort(sofas, patch).map((i) => i.id), ["bean", "stone", "other"]);
+    assert.equal(patch.bean.order, 0);
+    assert.equal(patch.stone.order, 10);
+  });
+  it("같은 자리 놓기는 저장할 이동을 만들지 않습니다", () => {
+    assert.deepEqual(buildAnchoredMovePatch("bean", { cat5: "가구", group: "소파", beforeId: null }, sofas, {}), {});
+  });
+  it("유효하지 않은 대상에는 이동을 저장하지 않습니다", () => {
+    assert.deepEqual(buildAnchoredMovePatch("bean", { cat5: "가구", group: "소파", beforeId: "missing" }, sofas, {}), {});
+  });
   const items: LayoutItem[] = [
     { id: "a", name: "침대(퀸)", cat5: "가구" },
     { id: "b", name: "서랍장", cat5: "가구" },
