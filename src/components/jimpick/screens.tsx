@@ -248,7 +248,6 @@ import { splitItemNames, matchesQuery } from "@/lib/item-search";
 import { mergeItemCatalog } from "@/lib/item-catalog-merge";
 import { ITEM_KINDS, kindOf, guessKind } from "@/lib/item-kinds";
 import {
-  itemFamily,
   effectiveCat5,
   effectiveGroup,
   groupRank,
