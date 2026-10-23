@@ -138,10 +138,17 @@ export const saveItemLayout = createServerFn({ method: "POST" })
     for (const [id, entry] of Object.entries(data.patch)) {
       next[id] = { ...next[id], ...entry };
     }
-    const { error } = await context.supabase
+    const { data: saved, error } = await context.supabase
       .from("profiles")
       .update({ item_layout: next as unknown as import("@/integrations/supabase/types").Json })
-      .eq("id", context.userId);
+      .eq("id", context.userId)
+      .select("item_layout")
+      .maybeSingle();
     if (error) return { ok: false, error: error.message };
+    const persisted = cleanLayout(saved?.item_layout);
+    if (!saved || Object.entries(data.patch).some(([id, entry]) =>
+      Object.entries(entry).some(([key, value]) => persisted[id]?.[key as keyof ItemLayoutEntryInput] !== value))) {
+      return { ok: false, error: "품목 순서 저장을 확인하지 못했습니다. 다시 시도해 주세요." };
+    }
     return { ok: true };
   });

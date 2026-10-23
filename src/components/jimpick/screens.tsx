@@ -251,7 +251,7 @@ import {
   effectiveCat5,
   effectiveGroup,
   groupRank,
-  buildMovePatch,
+  buildAnchoredMovePatch,
   ITEM_FAMILIES,
   type ItemLayout,
 } from "@/lib/item-families";
@@ -2497,6 +2497,7 @@ export function Step6() {
   const [nameOverrides, setNameOverrides] = useState<Record<string, string>>({});
   /** 사장님이 직접 옮긴 품목 배치(분류·묶음·순서) — 자동 분류보다 우선, 새로고침 후에도 유지 */
   const [itemLayout, setItemLayout] = useState<ItemLayout>({});
+  const itemMoveLock = useRef(false);
   useEffect(() => {
     if (customerFlow) return;
     let alive = true;
@@ -2511,6 +2512,8 @@ export function Step6() {
    * 공간(방) 선택은 건드리지 않고 품목의 분류·묶음·순서만 바꿉니다.
    */
   const persistItemMove = async (patch: ItemLayout, movedId: string, label: string, opts?: { silent?: boolean }) => {
+    if (itemMoveLock.current || !Object.keys(patch).length) return false;
+    itemMoveLock.current = true;
     const prev = itemLayout;
     setItemLayout((cur) => {
       const next = { ...cur };
@@ -2518,6 +2521,7 @@ export function Step6() {
       return next;
     });
     const r = await saveItemLayout({ data: { patch } }).catch(() => ({ ok: false as const, error: "네트워크 연결을 확인해 주세요" }));
+    itemMoveLock.current = false;
     if (!r.ok) {
       setItemLayout(prev);
       toast.error(r.error || "자리 이동을 저장하지 못했습니다. 이전 위치로 되돌렸습니다.");
@@ -2537,16 +2541,8 @@ export function Step6() {
 
   /** 드래그로 놓은 자리를 저장할 배치 조각으로 바꿉니다 */
   const handleItemDrop = (itemId: string, target: DropTarget, cat5: string) => {
-    const groupItems = catalog
-      .filter((i) => i.id !== itemId && effectiveCat5(i, itemLayout) === cat5 && effectiveGroup(i, itemLayout) === target.group)
-      .slice()
-      .sort(
-        (a, b) =>
-          (itemLayout[a.id]?.order ?? 5000) - (itemLayout[b.id]?.order ?? 5000) ||
-          itemSubRank(itemBaseName(a)) - itemSubRank(itemBaseName(b)) ||
-          a.name.localeCompare(b.name, "ko"),
-      );
-    const patch = buildMovePatch(itemId, { cat5, group: target.group }, groupItems.map((i) => i.id), target.index, itemLayout);
+    const patch = buildAnchoredMovePatch(itemId, { cat5, group: target.group, beforeId: target.beforeId }, items, itemLayout);
+    if (!Object.keys(patch).length) return;
     const nm = catalog.find((c) => c.id === itemId)?.name || itemNameById(itemId) || "품목";
     void persistItemMove(patch, itemId, nm);
   };
