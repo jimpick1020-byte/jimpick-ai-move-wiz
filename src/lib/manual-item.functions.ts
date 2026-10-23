@@ -35,6 +35,12 @@ export const createManualItem = createServerFn({ method: "POST" })
     const isPng = data.photo.startsWith("data:image/png");
     const bytes = Uint8Array.from(atob(data.photo.split(",")[1]), (ch) => ch.charCodeAt(0));
     if (bytes.length < 100 || (isPng ? bytes[0] !== 137 || bytes[1] !== 80 : bytes[0] !== 255 || bytes[1] !== 216)) return { ok: false, error: "사진 파일을 확인해 주세요." };
+    if (data.photoSource === "ai") {
+      // AI 그림은 이름과 같은 물건인지 확인된 것만 이 품목 ID에 저장합니다.
+      const { verifyItemImage } = await import("./item-image-verify.server");
+      const check = await verifyItemImage(name, data.photo);
+      if (!check.ok) return { ok: false, error: check.error };
+    }
     const subgroup = data.group || itemSubgroup(name, data.cat);
     const inserted = await context.supabase.from("item_icons").insert({
       id, user_id: context.userId, created_by: context.userId, item_id: itemId, name, norm_name: norm,
