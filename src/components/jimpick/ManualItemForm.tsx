@@ -38,6 +38,9 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
   const [photo, setPhoto] = useState("");
   const [preview, setPreview] = useState("");
   const [previewReady, setPreviewReady] = useState(false);
+  // 미리보기가 어떤 이름으로 만들어졌는지: 이름이 바뀌면 이전 그림은 쓰지 않습니다.
+  const [previewName, setPreviewName] = useState("");
+  const runId = useRef(0);
   const [generating, setGenerating] = useState(false);
   const [generationTried, setGenerationTried] = useState(false);
   const [generationError, setGenerationError] = useState("");
@@ -66,11 +69,12 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
   const generate = async () => {
     if (lock.current) return;
     if (!name.trim()) { setGenerationError("품목 이름을 먼저 입력해 주세요"); return; }
-    lock.current = true; setGenerating(true); setGenerationTried(true); setGenerationError(""); setPreview(""); setPreviewReady(false);
+    const forName = name.trim(); const run = ++runId.current;
+    lock.current = true; setGenerating(true); setGenerationTried(true); setGenerationError(""); setPreview(""); setPreviewReady(false); setPreviewName(forName);
     try {
       const { data } = await supabase.auth.getSession();
       if (!data.session) throw new Error("로그인이 필요합니다.");
-      await streamImage("/api/item-image-preview", { name: name.trim() }, (image, final) => { setPreview(image); setPreviewReady(final); }, undefined, { Authorization: `Bearer ${data.session.access_token}` });
+      await streamImage("/api/item-image-preview", { name: forName }, (image, final) => { if (run !== runId.current) return; setPreview(image); setPreviewReady(final); }, undefined, { Authorization: `Bearer ${data.session.access_token}` });
     } catch (cause) { setPreviewReady(false); setGenerationError(cause instanceof Error ? cause.message : "이미지 생성에 실패했습니다."); }
     finally { lock.current = false; setGenerating(false); }
   };
@@ -107,7 +111,7 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
       // 화면에 보이는 것이 곧 저장되는 것: 완성된 AI 미리보기가 있으면 그것을 먼저 씁니다.
       let image = "";
       let source: "ai" | "upload" | "default" = "default";
-      if (preview && previewReady) { image = await previewToJpeg(preview); source = "ai"; }
+      if (preview && previewReady && previewName === name.trim()) { image = await previewToJpeg(preview); source = "ai"; }
       else if (photo) { image = photo; source = photoIsAi.current ? "ai" : "upload"; }
       if (generationTried && !image) throw new Error("이미지 생성이 끝난 뒤 저장해 주세요.");
       if (!image) {
@@ -116,7 +120,7 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
         image = await shrinkPhoto(new File([await response.blob()], "item.png", { type: "image/png" }));
       }
       if (multi) {
-        await onSave(autos.map(({ name: n, c }) => ({ name: n, cat: (c.cat || cat) as ItemMainCat, volume: 0, photo: multiImages[n] || image, photoSource: multiImages[n] ? "ai" : source, favorite: false, group: c.cat ? c.group : "기타", rooms: c.rooms, keywords: c.keywords })));
+        await onSave(autos.map(({ name: n, c }) => ({ name: n, cat: (c.cat || cat) as ItemMainCat, volume: 0, photo: multiImages[n] || (source === "ai" ? "" : image), photoSource: multiImages[n] ? "ai" : source === "ai" ? "default" : source, favorite: false, group: c.cat ? c.group : "기타", rooms: c.rooms, keywords: c.keywords })));
       } else if (finalCat) {
         await onSave([{ name: names[0], cat: finalCat, volume: 0, photo: image, photoSource: source, favorite, group: finalGroup, rooms: finalRooms, keywords: auto.keywords }]);
       }
