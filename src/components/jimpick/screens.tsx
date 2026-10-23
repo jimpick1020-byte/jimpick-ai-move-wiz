@@ -2595,6 +2595,7 @@ export function Step6() {
           group: c.subgroup,
           emoji: "📦",
           extra: c.extra,
+          baseName: undefined as string | undefined,
         })),
       ].filter(
         (i) => !(draft.hiddenItems || []).includes(i.id) && !(catalogHidden || []).includes(i.id),
