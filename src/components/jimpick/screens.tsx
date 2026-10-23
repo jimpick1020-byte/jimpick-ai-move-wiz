@@ -282,6 +282,10 @@ import {
 import houseImg from "@/assets/step6-house.png";
 
 /** 품목 묶음 분류는 @/lib/item-families 의 공통 분류표를 사용합니다. */
+/** 이름을 수정한 품목은 원래 이름 기준으로 규격·정렬을 정합니다 */
+function itemBaseName(i: { name: string; baseName?: string }): string {
+  return i.baseName || i.name;
+}
 
 
 export function Splash() {
@@ -2539,7 +2543,7 @@ export function Step6() {
       .sort(
         (a, b) =>
           (itemLayout[a.id]?.order ?? 5000) - (itemLayout[b.id]?.order ?? 5000) ||
-          itemSubRank(a.baseName || a.name) - itemSubRank(b.baseName || b.name) ||
+          itemSubRank(itemBaseName(a)) - itemSubRank(itemBaseName(b)) ||
           a.name.localeCompare(b.name, "ko"),
       );
     const patch = buildMovePatch(itemId, { cat5, group: target.group }, groupItems.map((i) => i.id), target.index, itemLayout);
@@ -3341,7 +3345,7 @@ export function Step6() {
         ag.localeCompare(bg, "ko") ||
         // 사장님이 드래그로 정한 순서가 있으면 그대로 따릅니다
         (itemLayout[a.id]?.order ?? 5000) - (itemLayout[b.id]?.order ?? 5000) ||
-        itemSubRank(a.baseName || a.name) - itemSubRank(b.baseName || b.name) ||
+        itemSubRank(itemBaseName(a)) - itemSubRank(itemBaseName(b)) ||
         // 직접 만든 3D 품목은 같은 세부 종류 안에서 맨 앞(최근 생성이 먼저)
         newFirst(a.id) - newFirst(b.id) ||
         a.name.localeCompare(b.name, "ko")
