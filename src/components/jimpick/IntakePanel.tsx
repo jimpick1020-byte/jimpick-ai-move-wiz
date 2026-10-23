@@ -12,8 +12,7 @@ import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, 
 import { useApp, type Estimate } from "@/lib/jimpick";
 import { formatTel } from "@/lib/format-input";
 import { createComposerGate, intakeSmsHref } from "@/lib/intake-sms";
-import { prepareIntakeMmsImage, type IntakeMmsMessage } from "@/lib/intake-mms";
-import { IntakeMmsComposer } from "./IntakeMmsComposer";
+import { canShareIntakeMms, intakeMmsPayload, prepareIntakeMmsImage } from "@/lib/intake-mms";
 import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   deleteIntakeRequest, cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
@@ -105,9 +104,6 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
   const [p, setP] = useState(formatTel(phone));
   const [busy, setBusy] = useState<string | null>(null);
   const actionLock = useRef(false);
-  const [mms, setMms] = useState<IntakeMmsMessage | null>(null);
-  const [mmsFile, setMmsFile] = useState<File | null>(null);
-  const [mmsImageError, setMmsImageError] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [rowId, setRowId] = useState<string | undefined>(requestId);
   const { patchDraft, setScreen } = useApp();
@@ -136,13 +132,23 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
   };
   // 휴대전화 기본 문자 앱을 엽니다. 열기만 해서는 발송 완료로 저장하지 않습니다.
   const [smsOpened, setSmsOpened] = useState(false);
+  // 그림·문구를 휴대폰 공유창으로 바로 연결합니다. 공유만 해서는 발송 완료로 저장하지 않습니다.
   const sms = () => run("sms", async () => {
     const request = await ensure(); if (!request) return;
     const prepared = await sendIntakeSms({ data: { id: request.id } });
     if (!prepared.ok || !prepared.to || !prepared.body) throw new Error(prepared.error ?? "문자 내용을 만들지 못했습니다.");
-    setMms({ to: prepared.to, body: prepared.body }); setSmsOpened(false); setMmsImageError(null); setMmsFile(null);
-    try { setMmsFile(await prepareIntakeMmsImage()); }
-    catch (error) { setMmsImageError(error instanceof Error ? error.message : "안내 그림을 준비하지 못했습니다."); }
+    const file = await prepareIntakeMmsImage();
+    if (canShareIntakeMms(navigator, file, prepared.body)) {
+      try { await navigator.share(intakeMmsPayload(file, prepared.body)); setSmsOpened(true); }
+      catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return; // 사장님이 공유창을 닫음
+        throw new Error("그림과 문구를 함께 공유하지 못했습니다. 고객 번호를 확인해 직접 보내 주세요.");
+      }
+    } else {
+      toast("이 기기는 그림과 문구 동시 공유를 지원하지 않습니다. 문자 앱을 열었으니 그림은 직접 첨부해 주세요.");
+      window.location.href = intakeSmsHref(prepared.to, prepared.body);
+      setSmsOpened(true);
+    }
   });
   const smsSent = () => run("smsSent", async () => {
     const link = await linkOf("sms"); if (link) { setSmsOpened(false); toast.success("문자 보냄을 기록했습니다."); }
@@ -231,17 +237,6 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
         )}
       </div>
     </div>
-    {mms && (
-      <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50" onClick={(e) => { e.stopPropagation(); setMms(null); }}>
-        <div className="w-full max-w-md max-h-[92vh] overflow-auto rounded-t-3xl bg-white p-5 pb-8 space-y-4" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-black text-[#25282D]">사전정보 그림 문자 준비</h3>
-            <Button variant="ghost" type="button" onClick={() => setMms(null)} aria-label="닫기" className="p-2"><X className="w-5 h-5" /></Button>
-          </div>
-          <IntakeMmsComposer message={mms} file={mmsFile} imageError={mmsImageError} onOpened={() => setSmsOpened(true)} />
-        </div>
-      </div>
-    )}
     </>
   );
 }
