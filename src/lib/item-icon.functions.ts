@@ -343,10 +343,14 @@ export const generateItemIcon = createServerFn({ method: "POST" })
     const key = process.env["LOVABLE_API_KEY"];
     if (!key) return { ok: false, error: "이미지 생성 키가 설정되지 않았습니다." };
 
+    const visualDetails = itemVisualDetails(name);
     const prompt = [
       `A single 3D rendered app icon of one Korean household moving item: "${name}".`,
       data.photo
         ? "Redraw the object shown in the reference photo as this icon, keeping its real shape, proportion and colour."
+        : "",
+      visualDetails.length
+        ? `The item must clearly show: ${visualDetails.join("; ")}. Do not draw a different kind of object.`
         : "",
       "Style: soft glossy 3D render, white and light-grey body with small blue (#2A6FD6) accents,",
       "isometric three-quarter view, centered, one object only, plain pure white background,",
