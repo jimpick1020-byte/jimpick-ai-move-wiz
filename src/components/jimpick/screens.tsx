@@ -3170,6 +3170,11 @@ export function Step6() {
             failed += 1;
             continue;
           }
+          // 고른 「저장될 위치」에 정확히 들어가도록 배치도 함께 저장합니다
+          if (res.itemId) {
+            const k5 = cat5For(kind.cat, kind.cat);
+            void persistItemMove({ [res.itemId]: { cat5: k5, group: kind.label } }, res.itemId, name, { silent: true });
+          }
           mark(i, { state: "done" });
           if (res.reused) reused += 1;
           else made += 1;
