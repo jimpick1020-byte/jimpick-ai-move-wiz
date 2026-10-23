@@ -141,20 +141,23 @@
   --item-card-fill: oklch(1 0 0);
   --item-card-text: oklch(0.2 0 0);
   --item-card-border: oklch(0.9 0 0);
-  --item-card-selected-fill: var(--item-card-fill);
+--item-card-selected-fill: var(--item-card-fill);
   --item-card-shadow: 0 4px 0 var(--background), inset 0 1px 0 var(--card);
   --item-card-selected-shadow: 0 5px 0 var(--border), inset 0 1px 0 var(--card);
+  --item-select: oklch(0.72 0.17 55);
+  --item-select-foreground: oklch(1 0 0);
 }
 
-.jp-item-card { height: 150px; background: var(--item-card-fill); color: var(--item-card-text); border-color: var(--item-card-border); border-radius: 16px; box-shadow: var(--item-card-shadow); }
+.jp-item-card { min-height: 150px; background: var(--item-card-fill); color: var(--item-card-text); border-color: var(--item-card-border); border-width: 2px; border-radius: 16px; box-shadow: var(--item-card-shadow); }
 .jp-item-card .jp-picker-face, .jp-item-card .jp-picker-face:hover { background: var(--item-card-fill); color: var(--item-card-text); }
-.jp-picker-art { display: flex; align-items: center; justify-content: center; width: min(100%, 80px); margin-inline: auto; aspect-ratio: 1; padding: 8px; box-sizing: border-box; }
+.jp-picker-art { display: flex; align-items: center; justify-content: center; width: 100%; margin-inline: auto; aspect-ratio: 1; padding: 6px; box-sizing: border-box; }
 .jp-picker-art > span { width: 100% !important; height: 100% !important; min-width: 0; overflow: visible; }
 .jp-picker-art img { width: 100%; height: 100%; object-fit: contain; object-position: center; margin: 0; transform: none !important; }
 .jp-scan-outline-auto { color: var(--scan-outline-auto); }
 .jp-scan-outline-check { color: var(--scan-outline-check); }
 .jp-scan-outline-label { fill: var(--scan-label-fill); stroke: var(--scan-label-stroke); font-weight: 700; }
-.jp-item-card-selected { background: var(--item-card-selected-fill); border-color: var(--auth-primary); box-shadow: var(--item-card-selected-shadow); }
+.jp-item-card-selected { background: var(--item-card-selected-fill); border-color: var(--item-select); box-shadow: var(--item-card-selected-shadow); }
+.jp-item-check { background: var(--item-select); color: var(--item-select-foreground); }
 
 .dark {
   --worker-male: oklch(0.76 0.13 250);
