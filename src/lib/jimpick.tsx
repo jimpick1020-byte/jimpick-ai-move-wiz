@@ -142,6 +142,8 @@ export interface Estimate {
   sizeTab?: string;
   customItems: CustomItem[];
   hiddenItems: string[];
+  /** 사장님이 수정한 품목 이름(작성 당시 고정). 품목 ID는 그대로입니다. */
+  itemNames?: Record<string, string>;
   /** 최근 선택한 품목 id (최신순, 품목 화면 위쪽에 표시) */
   recentItems?: string[];
   options: OptionItem[];

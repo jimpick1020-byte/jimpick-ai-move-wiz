@@ -5111,6 +5111,7 @@ export function Result() {
       items: Object.entries(r.items).map(([id, qty]) => ({
         id,
         name:
+          draft.itemNames?.[id] ||
           ITEM_CATALOG.find((c) => c.id === id)?.name ||
           (draft.customItems || []).find((c) => c.id === id)?.name ||
           itemNameById(id) ||
