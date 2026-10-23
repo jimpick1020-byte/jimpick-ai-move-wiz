@@ -19,8 +19,9 @@ export const Route = createFileRoute("/api/item-image-preview")({
     if (!key) return failure("이미지 생성 연결이 준비되지 않았습니다.", 503);
     try {
       const { generateImage } = await import("@/lib/item-image-gateway.server");
+      const { buildItemImagePrompt } = await import("@/lib/item-image-prompt");
       const upstream = await generateImage({ baseURL: "https://ai.gateway.lovable.dev", apiKey: key, model: "openai/gpt-image-2.5-sunburst", format: "openai" },
-        `Create a single isolated household item icon depicting: ${name}. Soft glossy 3D illustration, isometric view, centered entire object, no cropping, no text, no logos, on a clean white background, consistent moving inventory card style.`, body.stream !== false, request.signal);
+        buildItemImagePrompt(name), body.stream !== false, request.signal);
       if (!upstream.ok) return failure(upstream.status === 429 ? "이미지 생성 요청이 많습니다. 잠시 후 다시 시도해 주세요." : "이미지 생성에 실패했습니다. 다시 시도해 주세요.", upstream.status === 429 ? 429 : 502);
       // Preview only: never insert item rows or upload an unapproved image.
       return new Response(upstream.body, { headers: { "Content-Type": upstream.headers.get("Content-Type") || "text/event-stream", "Cache-Control": "no-store", "X-Accel-Buffering": "no" } });
