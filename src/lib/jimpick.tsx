@@ -1120,6 +1120,8 @@ export interface BrowseItem {
   sub: string;
   emoji: string;
   extra?: number;
+  /** 이름 수정 전 원래 이름 (규격·분류는 원래 이름 기준) */
+  baseName?: string;
 }
 
 /**

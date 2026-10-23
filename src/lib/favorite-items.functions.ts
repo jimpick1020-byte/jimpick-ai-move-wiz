@@ -76,3 +76,72 @@ export const saveItemNameOverride = createServerFn({ method: "POST" })
     if (error) return { ok: false, error: error.message };
     return { ok: true, name };
   });
+
+/** ─── 품목 배치(분류·묶음·순서) — 사장님이 직접 옮긴 값을 계정별로 저장합니다 ─── */
+
+export interface ItemLayoutEntryInput {
+  cat5?: string;
+  group?: string;
+  order?: number;
+}
+
+const layoutEntrySchema = z.object({
+  cat5: z.string().min(1).max(20).optional(),
+  group: z.string().min(1).max(30).optional(),
+  order: z.number().min(-100000).max(100000).optional(),
+});
+
+const layoutSchema = z.object({
+  patch: z.record(z.string().min(1).max(80), layoutEntrySchema),
+});
+
+function cleanLayout(raw: unknown): Record<string, ItemLayoutEntryInput> {
+  const out: Record<string, ItemLayoutEntryInput> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== "object") continue;
+    const e = v as Record<string, unknown>;
+    const entry: ItemLayoutEntryInput = {};
+    if (typeof e.cat5 === "string" && e.cat5.trim()) entry.cat5 = e.cat5.slice(0, 20);
+    if (typeof e.group === "string" && e.group.trim()) entry.group = e.group.slice(0, 30);
+    if (typeof e.order === "number" && Number.isFinite(e.order)) entry.order = e.order;
+    if (Object.keys(entry).length) out[id] = entry;
+  }
+  return out;
+}
+
+/** 저장된 품목 배치를 읽습니다 (계정별) */
+export const getItemLayout = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ ok: boolean; error?: string; layout: Record<string, ItemLayoutEntryInput> }> => {
+    const { data, error } = await context.supabase
+      .from("profiles")
+      .select("item_layout")
+      .eq("id", context.userId)
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message, layout: {} };
+    return { ok: true, layout: cleanLayout(data?.item_layout) };
+  });
+
+/**
+ * 품목 배치를 저장합니다 — 기존 값 위에 바뀐 품목만 덮어씁니다(병합).
+ * 저장에 실패하면 ok:false 를 돌려주므로 화면에서 이전 위치로 되돌릴 수 있습니다.
+ */
+export const saveItemLayout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => layoutSchema.parse(input))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
+    const { data: row, error: readError } = await context.supabase
+      .from("profiles").select("item_layout").eq("id", context.userId).maybeSingle();
+    if (readError) return { ok: false, error: readError.message };
+    const next = { ...cleanLayout(row?.item_layout) };
+    for (const [id, entry] of Object.entries(data.patch)) {
+      next[id] = { ...next[id], ...entry };
+    }
+    const { error } = await context.supabase
+      .from("profiles")
+      .update({ item_layout: next as unknown as import("@/integrations/supabase/types").Json })
+      .eq("id", context.userId);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  });
