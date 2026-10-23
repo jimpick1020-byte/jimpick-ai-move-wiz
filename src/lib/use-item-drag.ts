@@ -15,7 +15,7 @@ export function useItemDrag(opts: {
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   // Kept for callers; drop hints are rendered through data attributes instead.
-  const target: DropTarget | null = null;
+  const target = null as DropTarget | null;
   const cleanupRef = useRef<(() => void) | null>(null);
   const onDropRef = useRef(opts.onDrop);
   onDropRef.current = opts.onDrop;
