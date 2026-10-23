@@ -206,6 +206,10 @@ import {
   getFavoriteItems,
   saveFavoriteItems,
   FAVORITE_LIMIT,
+  getItemNameOverrides,
+  saveItemNameOverride,
+  cleanItemName,
+  ITEM_NAME_MAX,
 } from "@/lib/favorite-items.functions";
 import {
   uploadCert,
