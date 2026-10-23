@@ -15,6 +15,17 @@ describe("통신사 문자 작성", () => {
     assert.throws(() => intakeSmsHref("", "body"));
     assert.throws(() => intakeSmsHref("02-123-4567", "body"));
   });
+  test("현재 입력 번호와 한글·줄바꿈·고객별 링크를 손실 없이 전달", () => {
+    const link = "https://example.test/intake/customer-token?preview=v2&label=%ED%95%9C%EA%B8%80";
+    const body = intakeSmsText({ link });
+    const uri = new URL(intakeSmsHref("010-9876-5432", body));
+    assert.equal(uri.protocol, "sms:");
+    assert.equal(uri.pathname, "01098765432");
+    assert.equal(uri.searchParams.get("body"), body);
+    assert.ok(body.includes("\n\n"));
+    assert.ok(body.endsWith(link));
+    assert.equal([...uri.searchParams.keys()].join(","), "body");
+  });
   test("준비 중 두 번 클릭과 열기 직후 재클릭은 앱 한 번만 열림", async () => {
     let time = 1000; const gate = createComposerGate(() => time);
     let prepared = 0; const opened: string[] = [];
