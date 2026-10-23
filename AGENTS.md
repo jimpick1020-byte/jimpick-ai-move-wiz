@@ -37,3 +37,4 @@
 - History opens receipt-review months by default; SMS groups use Asia/Seoul; archive deletion reuses authenticated soft-delete and refreshes only after success to preserve payments and SMS.
 - Bank SMS are stored first in bank_sms_messages (deduped by event ID or text hash, never name/account/estimate), then matched via bank-sms-match into one pending deposit_records row; detection never completes payment. Forward URLs use publicUrl (preview blocks external POSTs) and SMS dates parse as Asia/Seoul (worker is UTC).
 - Bank SMS inbox deletion uses the owner-scoped security-invoker hide_bank_sms RPC and list-only deleted_at filtering; retained originals and dedupe keys prevent replay without touching receipt or payment state.
+- AI item images are checked by item-image-verify against the item name before createManualItem stores them, and prompts come from item-image-prompt; this prevents a mismatched picture being linked to an item ID.
