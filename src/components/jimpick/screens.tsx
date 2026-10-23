@@ -206,6 +206,10 @@ import {
   getFavoriteItems,
   saveFavoriteItems,
   FAVORITE_LIMIT,
+  getItemNameOverrides,
+  saveItemNameOverride,
+  cleanRenamedItem,
+  ITEM_NAME_MAX,
 } from "@/lib/favorite-items.functions";
 import {
   uploadCert,
@@ -2513,6 +2517,30 @@ export function Step6() {
     [companyItems, selectedCustomItems],
   );
 
+  const [nameOverrides, setNameOverrides] = useState<Record<string, string>>({});
+  const [renameItem, setRenameItem] = useState<{ id: string; name: string } | null>(null);
+  const [renameSaving, setRenameSaving] = useState(false);
+  const submitRename = async () => {
+    if (!renameItem || renameSaving) return;
+    const name = cleanRenamedItem(renameItem.name);
+    if (!name) { toast.error("품목 이름을 입력해 주세요"); return; }
+    if (name.length > ITEM_NAME_MAX) { toast.error(`품목 이름은 ${ITEM_NAME_MAX}자 이내로 입력해 주세요`); return; }
+    if (!/[가-힣]/.test(name)) { toast.error("한글이 포함된 이름을 입력해 주세요"); return; }
+    setRenameSaving(true);
+    try {
+      const r = await saveItemNameOverride({ data: { itemId: renameItem.id, name } });
+      if (!r.ok) { toast.error(r.error || "이름을 저장하지 못했습니다"); return; }
+      setNameOverrides((m) => ({ ...m, [renameItem.id]: name }));
+      // 현재 작성 중인 견적에도 즉시 반영합니다(이미 보낸 견적 기록은 건드리지 않음).
+      updateDraft({ itemNames: { ...(draft.itemNames || {}), [renameItem.id]: name } });
+      toast.success("품목 이름을 저장했습니다");
+      setRenameItem(null);
+    } catch {
+      toast.error("이름을 저장하지 못했습니다");
+    } finally {
+      setRenameSaving(false);
+    }
+  };
   // 기본 품목과 현재 업체의 영구 생성 품목을 안정적인 ID로 병합합니다.
   const catalog = useMemo(
     () =>
@@ -2534,9 +2562,29 @@ export function Step6() {
         })),
       ].filter(
         (i) => !(draft.hiddenItems || []).includes(i.id) && !(catalogHidden || []).includes(i.id),
-      ),
-    [persistentCustomItems, draft.hiddenItems, catalogHidden, customerFlow],
+      ).map((i) => {
+        // 사장님이 수정한 이름만 바꾸고 ID·분류·규격(원래 이름 기준)은 그대로 둡니다.
+        const renamed = customerFlow ? undefined : nameOverrides[i.id] || draft.itemNames?.[i.id];
+        return renamed && renamed !== i.name ? { ...i, name: renamed, baseName: i.name } : i;
+      }),
+    [persistentCustomItems, draft.hiddenItems, catalogHidden, customerFlow, nameOverrides, draft.itemNames],
   );
+
+  // 계정별 수정 이름을 불러오고, 작성 중인 견적의 선택 품목에 이름을 함께 저장합니다.
+  useEffect(() => {
+    if (customerFlow) return;
+    let alive = true;
+    getItemNameOverrides().then((r) => { if (alive && r.ok) setNameOverrides(r.names); }).catch(() => {});
+    return () => { alive = false; };
+  }, [customerFlow]);
+  useEffect(() => {
+    if (customerFlow || draft.status !== "작성중") return;
+    const selected = new Set(draft.rooms.flatMap((r) => Object.keys(r.items).filter((id) => (r.items[id] || 0) > 0)));
+    const next = { ...(draft.itemNames || {}) };
+    let changed = false;
+    for (const id of selected) if (nameOverrides[id] && next[id] !== nameOverrides[id]) { next[id] = nameOverrides[id]; changed = true; }
+    if (changed) updateDraft({ itemNames: next });
+  }, [customerFlow, draft.status, draft.rooms, draft.itemNames, nameOverrides]);
 
   /** 품목이 하나도 없는 카테고리 탭은 감춥니다 (박스 품목 제거 후 빈 탭 방지) */
   const visibleCats = useMemo(
@@ -4061,6 +4109,30 @@ export function Step6() {
               </div>
             )}
 
+            {/* 품목 이름 수정 창 */}
+            {renameItem && (
+              <div className="fixed inset-0 z-[90] flex items-center justify-center px-5" role="dialog" aria-modal="true" aria-label="품목 이름 수정">
+                <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => !renameSaving && setRenameItem(null)} />
+                <form
+                  className="relative w-full max-w-sm rounded-3xl bg-white p-5"
+                  onSubmit={(e) => { e.preventDefault(); void submitRename(); }}
+                >
+                  <div className="text-[16px] font-black text-[#25282D]">이름 수정</div>
+                  <input
+                    autoFocus
+                    value={renameItem.name}
+                    maxLength={ITEM_NAME_MAX}
+                    onChange={(e) => setRenameItem({ ...renameItem, name: e.target.value })}
+                    aria-label="품목 이름"
+                    className="mt-3 h-12 w-full rounded-xl border border-[#CBD5E1] px-3 text-[16px] font-bold text-[#25282D] outline-none focus:border-[#FF8A00]"
+                  />
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button type="button" disabled={renameSaving} onClick={() => setRenameItem(null)} className="rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#25282D]">취소</button>
+                    <button type="submit" disabled={renameSaving || !cleanRenamedItem(renameItem.name)} className="rounded-2xl bg-[#FF8A00] py-3 font-black text-[14px] text-white disabled:opacity-40">{renameSaving ? "저장 중…" : "저장"}</button>
+                  </div>
+                </form>
+              </div>
+            )}
             {/* 직접 추가한 품목의 작은 메뉴 */}
             {itemMenu && (
               <div className="absolute inset-0 z-20 flex items-end justify-center">
@@ -4078,6 +4150,19 @@ export function Step6() {
                     {itemMenu.startsWith("ci_") ? "직접 추가한 품목" : "품목 관리"}
                   </p>
                   <div className="mt-3 space-y-2">
+                    {!customerFlow && (
+                      <button
+                        data-item-rename
+                        onClick={() => {
+                          const nm = catalog.find((c) => c.id === itemMenu)?.name || itemNameById(itemMenu) || "";
+                          setRenameItem({ id: itemMenu, name: nm });
+                          setItemMenu(null);
+                        }}
+                        className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3.5 font-black text-[14px] text-[#25282D] shadow-[0_3px_0_#F7F8F5]"
+                      >
+                        이름 수정
+                      </button>
+                    )}
                     {room && (itemMenu in room.items) && (
                       <button
                         onClick={() => {
@@ -5111,6 +5196,7 @@ export function Result() {
       items: Object.entries(r.items).map(([id, qty]) => ({
         id,
         name:
+          draft.itemNames?.[id] ||
           ITEM_CATALOG.find((c) => c.id === id)?.name ||
           (draft.customItems || []).find((c) => c.id === id)?.name ||
           itemNameById(id) ||

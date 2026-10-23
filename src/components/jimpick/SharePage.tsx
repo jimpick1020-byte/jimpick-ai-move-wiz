@@ -437,7 +437,7 @@ export function SharePage() {
       .filter(([, qty]) => qty > 0)
       .map(([itemId, qty]) => {
         const catalog = ITEM_CATALOG.find((i) => i.id === itemId);
-        return { id: itemId, room: room.name, name: catalog?.name || itemNameById(itemId) || itemId, qty };
+        return { id: itemId, room: room.name, name: estimate?.itemNames?.[itemId] || catalog?.name || itemNameById(itemId) || itemId, qty };
       }),
   );
   const enabledOptions = (estimate?.options ?? []).filter((o) => o.enabled);

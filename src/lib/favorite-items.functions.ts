@@ -34,3 +34,45 @@ export const saveFavoriteItems = createServerFn({ method: "POST" })
     if (error) return { ok: false, error: error.message };
     return { ok: true };
   });
+
+/** 품목 이름 수정 — 업체 계정별, 품목 ID는 그대로 두고 이름만 바꿉니다. */
+export const ITEM_NAME_MAX = 40;
+export function cleanRenamedItem(raw: string): string {
+  return raw.replace(/\s+/g, " ").trim();
+}
+
+export const getItemNameOverrides = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ ok: boolean; error?: string; names: Record<string, string> }> => {
+    const { data, error } = await context.supabase
+      .from("profiles")
+      .select("item_name_overrides")
+      .eq("id", context.userId)
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message, names: {} };
+    const raw = (data?.item_name_overrides ?? {}) as Record<string, unknown>;
+    const names: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw)) if (typeof v === "string" && v.trim()) names[k] = v;
+    return { ok: true, names };
+  });
+
+const renameSchema = z.object({
+  itemId: z.string().min(1).max(80),
+  name: z.string().max(200),
+});
+
+export const saveItemNameOverride = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => renameSchema.parse(input))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string; name?: string }> => {
+    const name = cleanRenamedItem(data.name);
+    if (!name) return { ok: false, error: "품목 이름을 입력해 주세요" };
+    if (name.length > ITEM_NAME_MAX) return { ok: false, error: `품목 이름은 ${ITEM_NAME_MAX}자 이내로 입력해 주세요` };
+    const { data: row, error: readError } = await context.supabase
+      .from("profiles").select("item_name_overrides").eq("id", context.userId).maybeSingle();
+    if (readError) return { ok: false, error: readError.message };
+    const next = { ...((row?.item_name_overrides ?? {}) as Record<string, string>), [data.itemId]: name };
+    const { error } = await context.supabase.from("profiles").update({ item_name_overrides: next }).eq("id", context.userId);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, name };
+  });
