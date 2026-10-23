@@ -14,7 +14,8 @@ export function useItemDrag(opts: {
   onDrop: (itemId: string, target: DropTarget) => void;
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
-  const [target, setTarget] = useState<DropTarget | null>(null);
+  // Kept for callers; drop hints are rendered through data attributes instead.
+  const target = null as DropTarget | null;
   const cleanupRef = useRef<(() => void) | null>(null);
   const onDropRef = useRef(opts.onDrop);
   onDropRef.current = opts.onDrop;
@@ -34,17 +35,32 @@ export function useItemDrag(opts: {
     let y = e.clientY;
     let dropTarget: DropTarget | null = null;
     let frame = 0;
+    let dirty = false;
+    let last = 0;
+    const startX = x, startY = y;
     const container = opts.containerRef.current;
-    const updateTarget = () => {
-      const section = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-item-group]');
-      if (!section || !container?.contains(section)) {
-        dropTarget = null;
-        setTarget(null);
-        return;
+    const startScroll = container?.scrollTop ?? 0;
+    // Fixed at start: the lifted card's transform must not grow the scrollable area.
+    const maxScroll = container ? container.scrollHeight - container.clientHeight : 0;
+    let markedSection: HTMLElement | null = null;
+    let markedCard: HTMLElement | null = null;
+    let markedEnd = false;
+    // Drop hints are DOM attributes, not React state, so the list never re-renders while moving.
+    const mark = (section: HTMLElement | null, before: HTMLElement | null, end: boolean) => {
+      if (markedSection !== section) { markedSection?.removeAttribute('data-drop-group'); section?.setAttribute('data-drop-group', 'true'); markedSection = section; }
+      if (markedCard !== before || markedEnd !== end) {
+        markedCard?.removeAttribute('data-drop-before'); markedCard?.removeAttribute('data-drop-after');
+        if (before) before.setAttribute(end ? 'data-drop-after' : 'data-drop-before', 'true');
+        markedCard = before; markedEnd = end;
       }
+    };
+    const updateTarget = () => {
+      const hit = document.elementFromPoint(x, y);
+      const section = hit?.closest<HTMLElement>('[data-item-group]');
+      if (!section || !container?.contains(section)) { dropTarget = null; mark(null, null, false); return; }
       const cards = [...section.querySelectorAll<HTMLElement>('[data-picker-card]')]
         .filter((n) => n.dataset.pickerCard && n.dataset.pickerCard !== itemId);
-      const at = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-picker-card]');
+      const at = hit?.closest<HTMLElement>('[data-picker-card]');
       let index = cards.length;
       if (at && at !== card) {
         const rect = at.getBoundingClientRect();
@@ -52,19 +68,32 @@ export function useItemDrag(opts: {
         const hitIndex = cards.indexOf(at);
         if (hitIndex >= 0) index = hitIndex + (before ? 0 : 1);
       }
-      dropTarget = { group: section.dataset.itemGroup || '', index, beforeId: cards[index]?.dataset.pickerCard || null };
-      setTarget(dropTarget);
+      const beforeEl = cards[index] ?? null;
+      dropTarget = { group: section.dataset.itemGroup || '', index, beforeId: beforeEl?.dataset.pickerCard || null };
+      mark(section, beforeEl ?? cards[cards.length - 1] ?? null, !beforeEl);
     };
-    const scrollFrame = () => {
+    const place = () => {
+      const dy = y - startY + ((container?.scrollTop ?? 0) - startScroll);
+      card.style.transform = `translate3d(${x - startX}px, ${dy}px, 0) scale(1.03)`;
+    };
+    const tick = (now: number) => {
       if (!active || ended) return;
+      const dt = last ? Math.min(32, now - last) : 16;
+      last = now;
       if (container) {
         const rect = container.getBoundingClientRect();
-        const edge = Math.min(60, rect.height / 4);
-        const speed = y < rect.top + edge ? -Math.min(14, (rect.top + edge - y) / 4)
-          : y > rect.bottom - edge ? Math.min(14, (y - rect.bottom + edge) / 4) : 0;
-        if (speed) { container.scrollTop += speed; updateTarget(); }
+        const edge = Math.min(72, rect.height / 4);
+        // Eased speed proportional to depth into the edge zone, scaled by frame time.
+        const depth = y < rect.top + edge ? -(rect.top + edge - y) / edge : y > rect.bottom - edge ? (y - rect.bottom + edge) / edge : 0;
+        const clamped = Math.max(-1, Math.min(1, depth));
+        if (clamped) {
+          const before = container.scrollTop;
+          container.scrollTop = Math.max(0, Math.min(maxScroll, before + Math.sign(clamped) * clamped * clamped * 0.9 * dt));
+          if (container.scrollTop !== before) dirty = true;
+        }
       }
-      frame = requestAnimationFrame(scrollFrame);
+      if (dirty) { dirty = false; place(); updateTarget(); }
+      frame = requestAnimationFrame(tick);
     };
     const suppressClick = () => {
       // Capture the trailing click before image, selection or quantity handlers see it.
@@ -92,7 +121,9 @@ export function useItemDrag(opts: {
       container?.removeEventListener('scroll', scroll);
       if (card.hasPointerCapture(pointerId)) card.releasePointerCapture(pointerId);
       cleanupRef.current = null;
-      setDragId(null); setTarget(null);
+      mark(null, null, false);
+      card.style.transform = ''; card.style.transition = ''; card.style.pointerEvents = ''; card.style.willChange = '';
+      if (active) setDragId(null);
       if (active) suppressClick();
       if (save && active && dropTarget) onDropRef.current(itemId, dropTarget);
     };
@@ -100,8 +131,10 @@ export function useItemDrag(opts: {
       active = true;
       setDragId(itemId);
       try { card.setPointerCapture(pointerId); } catch { /* Touch may have already ended. */ }
-      updateTarget();
-      frame = requestAnimationFrame(scrollFrame);
+      // Let hit-testing see the cards underneath the lifted card.
+      card.style.pointerEvents = 'none'; card.style.transition = 'none'; card.style.willChange = 'transform';
+      place(); updateTarget();
+      frame = requestAnimationFrame(tick);
     });
     const move = (event: PointerEvent) => {
       if (event.pointerId !== pointerId) return;
@@ -109,7 +142,7 @@ export function useItemDrag(opts: {
       if (!active) { if (reservation.move(x, y)) finish(false); return; }
       if (event.cancelable) event.preventDefault();
       event.stopPropagation();
-      updateTarget();
+      dirty = true;
     };
     const touchMove = (event: TouchEvent) => {
       if (active && event.cancelable) event.preventDefault();
