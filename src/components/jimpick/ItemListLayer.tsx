@@ -10,7 +10,7 @@ import { DisposalX } from "./EstimateSheet";
 import { PrimaryButton, TextInput } from "./ui";
 
 export type ItemListMode = "category" | "favorites" | "picked";
-export interface PickerItem { id: string; name: string; cat5?: string; sub?: string; group?: string }
+export interface PickerItem { id: string; name: string; cat5?: string; sub?: string; group?: string; baseName?: string }
 
 /** A same-page history entry; closing never navigates to another app screen. */
 export function FullScreenItemFrame({ title, onClose, children, footer, level = "list" }: {
@@ -83,7 +83,7 @@ export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highli
   onTap: () => void; onQuantity: (qty: number) => void; onMenu: () => void; onRemove: () => void; categoryMode?: boolean; onImageTap?: () => void; favoriteMode?: boolean;
 }) {
   const label = pickerItemLabel(item.id, item.name);
-  const sizeMatch = /[({]\s*([^(){}]+?)\s*[)}]/.exec(item.name || "");
+  const sizeMatch = /[({]\s*([^(){}]+?)\s*[)}]/.exec(item.baseName || item.name || "");
   const sizeLabel = sizeMatch?.[1];
   return <div data-picker-card={item.id} onClick={favoriteMode ? () => { if (!busy) onTap(); } : undefined} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-lg border px-1.5 pb-1.5 pt-1 transition-shadow ${qty > 0 ? "jp-item-card-selected" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""}`}>
     <Button variant="outline" size="icon" disabled={busy} className="absolute left-1 top-1 z-10 size-6 rounded-full text-muted-foreground" onClick={(event) => { event.stopPropagation(); onMenu(); }} aria-label={`${label} 품목 관리`} title="품목 관리"><MoreHorizontal className="size-4" /></Button>
@@ -111,10 +111,10 @@ export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites,
 }) {
   const title = mode === "category" ? "카테고리 품목" : mode === "favorites" ? "자주 담는 품목" : `${roomName} 선택 품목`;
   const source = mode === "category" ? catalog : mode === "favorites" ? favorites : picked;
-  const shown = source.filter((item) => matchesQuery(query, item.name, item.sub, item.group, displayGroupOf(item.name, item.group)) && (mode !== "category" || item.cat5 === tab));
+  const shown = source.filter((item) => matchesQuery(query, item.name, item.sub, item.group, displayGroupOf(item.baseName || item.name, item.group)) && (mode !== "category" || item.cat5 === tab));
   const groups: { label: string; items: PickerItem[] }[] = [];
   if (mode === "category") for (const item of shown) {
-    const label = displayGroupOf(item.name, item.group);
+    const label = displayGroupOf(item.baseName || item.name, item.group);
     const hit = groups.find((g) => g.label === label);
     if (hit) hit.items.push(item); else groups.push({ label, items: [item] });
   }
