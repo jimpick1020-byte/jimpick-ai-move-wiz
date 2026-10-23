@@ -4109,6 +4109,30 @@ export function Step6() {
               </div>
             )}
 
+            {/* 품목 이름 수정 창 */}
+            {renameItem && (
+              <div className="fixed inset-0 z-[90] flex items-center justify-center px-5" role="dialog" aria-modal="true" aria-label="품목 이름 수정">
+                <div className="absolute inset-0 bg-[#25282D]/45" onClick={() => !renameSaving && setRenameItem(null)} />
+                <form
+                  className="relative w-full max-w-sm rounded-3xl bg-white p-5"
+                  onSubmit={(e) => { e.preventDefault(); void submitRename(); }}
+                >
+                  <div className="text-[16px] font-black text-[#25282D]">이름 수정</div>
+                  <input
+                    autoFocus
+                    value={renameItem.name}
+                    maxLength={ITEM_NAME_MAX}
+                    onChange={(e) => setRenameItem({ ...renameItem, name: e.target.value })}
+                    aria-label="품목 이름"
+                    className="mt-3 h-12 w-full rounded-xl border border-[#CBD5E1] px-3 text-[16px] font-bold text-[#25282D] outline-none focus:border-[#FF8A00]"
+                  />
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button type="button" disabled={renameSaving} onClick={() => setRenameItem(null)} className="rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#25282D]">취소</button>
+                    <button type="submit" disabled={renameSaving || !cleanItemName(renameItem.name)} className="rounded-2xl bg-[#FF8A00] py-3 font-black text-[14px] text-white disabled:opacity-40">{renameSaving ? "저장 중…" : "저장"}</button>
+                  </div>
+                </form>
+              </div>
+            )}
             {/* 직접 추가한 품목의 작은 메뉴 */}
             {itemMenu && (
               <div className="absolute inset-0 z-20 flex items-end justify-center">
@@ -4126,6 +4150,19 @@ export function Step6() {
                     {itemMenu.startsWith("ci_") ? "직접 추가한 품목" : "품목 관리"}
                   </p>
                   <div className="mt-3 space-y-2">
+                    {!customerFlow && (
+                      <button
+                        data-item-rename
+                        onClick={() => {
+                          const nm = catalog.find((c) => c.id === itemMenu)?.name || itemNameById(itemMenu) || "";
+                          setRenameItem({ id: itemMenu, name: nm });
+                          setItemMenu(null);
+                        }}
+                        className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-3.5 font-black text-[14px] text-[#25282D] shadow-[0_3px_0_#F7F8F5]"
+                      >
+                        이름 수정
+                      </button>
+                    )}
                     {room && (itemMenu in room.items) && (
                       <button
                         onClick={() => {
