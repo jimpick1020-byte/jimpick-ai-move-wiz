@@ -1,46 +1,35 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { reserveItemPress } from "./item-drag-gesture";
-
-afterEach(() => vi.useRealTimers());
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 describe("item long press", () => {
-  it("starts only after a stationary 500ms press", () => {
-    vi.useFakeTimers();
-    const start = vi.fn();
-    reserveItemPress(10, 10, start);
-    vi.advanceTimersByTime(499);
-    expect(start).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1);
-    expect(start).toHaveBeenCalledTimes(1);
+  it("starts only after a stationary 500ms press", async () => {
+    let calls = 0;
+    reserveItemPress(10, 10, () => calls++);
+    await wait(450); assert.equal(calls, 0);
+    await wait(100); assert.equal(calls, 1);
   });
-  it("a short tap cannot start movement", () => {
-    vi.useFakeTimers();
-    const start = vi.fn();
-    const press = reserveItemPress(10, 10, start);
-    vi.advanceTimersByTime(150); press.cancel();
-    vi.advanceTimersByTime(500);
-    expect(start).not.toHaveBeenCalled();
+  it("a short tap cannot start movement", async () => {
+    let calls = 0;
+    const press = reserveItemPress(10, 10, () => calls++);
+    await wait(100); press.cancel(); await wait(500);
+    assert.equal(calls, 0);
   });
-  it("scrolling before activation cancels the reservation", () => {
-    vi.useFakeTimers();
-    const start = vi.fn();
-    const press = reserveItemPress(10, 10, start);
-    expect(press.move(10, 19)).toBe(true);
-    vi.advanceTimersByTime(500);
-    expect(start).not.toHaveBeenCalled();
+  it("scrolling before activation cancels the reservation", async () => {
+    let calls = 0;
+    const press = reserveItemPress(10, 10, () => calls++);
+    assert.equal(press.move(10, 19), true);
+    await wait(550); assert.equal(calls, 0);
   });
-  it("small finger jitter does not cancel a long press", () => {
-    vi.useFakeTimers();
-    const start = vi.fn();
-    const press = reserveItemPress(10, 10, start);
-    expect(press.move(13, 13)).toBe(false);
-    vi.advanceTimersByTime(500);
-    expect(start).toHaveBeenCalledTimes(1);
+  it("small finger jitter does not cancel a long press", async () => {
+    let calls = 0;
+    const press = reserveItemPress(10, 10, () => calls++);
+    assert.equal(press.move(13, 13), false);
+    await wait(550); assert.equal(calls, 1);
   });
-  it("cancelled touch never starts movement", () => {
-    vi.useFakeTimers();
-    const start = vi.fn();
-    reserveItemPress(10, 10, start).cancel();
-    vi.advanceTimersByTime(1000);
-    expect(start).not.toHaveBeenCalled();
+  it("cancelled touch never starts movement", async () => {
+    let calls = 0;
+    reserveItemPress(10, 10, () => calls++).cancel();
+    await wait(550); assert.equal(calls, 0);
   });
 });
