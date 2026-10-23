@@ -208,7 +208,7 @@ import {
   FAVORITE_LIMIT,
   getItemNameOverrides,
   saveItemNameOverride,
-  cleanItemName,
+  cleanRenamedItem,
   ITEM_NAME_MAX,
 } from "@/lib/favorite-items.functions";
 import {
@@ -2522,7 +2522,7 @@ export function Step6() {
   const [renameSaving, setRenameSaving] = useState(false);
   const submitRename = async () => {
     if (!renameItem || renameSaving) return;
-    const name = cleanItemName(renameItem.name);
+    const name = cleanRenamedItem(renameItem.name);
     if (!name) { toast.error("품목 이름을 입력해 주세요"); return; }
     if (name.length > ITEM_NAME_MAX) { toast.error(`품목 이름은 ${ITEM_NAME_MAX}자 이내로 입력해 주세요`); return; }
     if (!/[가-힣]/.test(name)) { toast.error("한글이 포함된 이름을 입력해 주세요"); return; }
@@ -4128,7 +4128,7 @@ export function Step6() {
                   />
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <button type="button" disabled={renameSaving} onClick={() => setRenameItem(null)} className="rounded-2xl border border-[#E5E7EB] bg-white py-3 font-black text-[14px] text-[#25282D]">취소</button>
-                    <button type="submit" disabled={renameSaving || !cleanItemName(renameItem.name)} className="rounded-2xl bg-[#FF8A00] py-3 font-black text-[14px] text-white disabled:opacity-40">{renameSaving ? "저장 중…" : "저장"}</button>
+                    <button type="submit" disabled={renameSaving || !cleanRenamedItem(renameItem.name)} className="rounded-2xl bg-[#FF8A00] py-3 font-black text-[14px] text-white disabled:opacity-40">{renameSaving ? "저장 중…" : "저장"}</button>
                   </div>
                 </form>
               </div>

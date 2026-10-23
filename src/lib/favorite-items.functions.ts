@@ -37,7 +37,7 @@ export const saveFavoriteItems = createServerFn({ method: "POST" })
 
 /** 품목 이름 수정 — 업체 계정별, 품목 ID는 그대로 두고 이름만 바꿉니다. */
 export const ITEM_NAME_MAX = 40;
-export function cleanItemName(raw: string): string {
+export function cleanRenamedItem(raw: string): string {
   return raw.replace(/\s+/g, " ").trim();
 }
 
@@ -65,7 +65,7 @@ export const saveItemNameOverride = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => renameSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string; name?: string }> => {
-    const name = cleanItemName(data.name);
+    const name = cleanRenamedItem(data.name);
     if (!name) return { ok: false, error: "품목 이름을 입력해 주세요" };
     if (name.length > ITEM_NAME_MAX) return { ok: false, error: `품목 이름은 ${ITEM_NAME_MAX}자 이내로 입력해 주세요` };
     const { data: row, error: readError } = await context.supabase
