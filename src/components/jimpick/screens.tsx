@@ -2538,9 +2538,29 @@ export function Step6() {
         })),
       ].filter(
         (i) => !(draft.hiddenItems || []).includes(i.id) && !(catalogHidden || []).includes(i.id),
-      ),
-    [persistentCustomItems, draft.hiddenItems, catalogHidden, customerFlow],
+      ).map((i) => {
+        // 사장님이 수정한 이름만 바꾸고 ID·분류·규격(원래 이름 기준)은 그대로 둡니다.
+        const renamed = customerFlow ? undefined : nameOverrides[i.id] || draft.itemNames?.[i.id];
+        return renamed && renamed !== i.name ? { ...i, name: renamed, baseName: i.name } : i;
+      }),
+    [persistentCustomItems, draft.hiddenItems, catalogHidden, customerFlow, nameOverrides, draft.itemNames],
   );
+
+  // 계정별 수정 이름을 불러오고, 작성 중인 견적의 선택 품목에 이름을 함께 저장합니다.
+  useEffect(() => {
+    if (customerFlow) return;
+    let alive = true;
+    getItemNameOverrides().then((r) => { if (alive && r.ok) setNameOverrides(r.names); }).catch(() => {});
+    return () => { alive = false; };
+  }, [customerFlow]);
+  useEffect(() => {
+    if (customerFlow || draft.status !== "작성중") return;
+    const selected = new Set(draft.rooms.flatMap((r) => Object.keys(r.items).filter((id) => (r.items[id] || 0) > 0)));
+    const next = { ...(draft.itemNames || {}) };
+    let changed = false;
+    for (const id of selected) if (nameOverrides[id] && next[id] !== nameOverrides[id]) { next[id] = nameOverrides[id]; changed = true; }
+    if (changed) updateDraft({ itemNames: next });
+  }, [customerFlow, draft.status, draft.rooms, draft.itemNames, nameOverrides]);
 
   /** 품목이 하나도 없는 카테고리 탭은 감춥니다 (박스 품목 제거 후 빈 탭 방지) */
   const visibleCats = useMemo(
