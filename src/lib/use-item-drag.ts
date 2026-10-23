@@ -1,22 +1,13 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
+import { reserveItemPress } from "./item-drag-gesture";
 
-/**
- * 품목 카드 「이동 손잡이」 드래그.
- *
- * - 손잡이에만 touch-action:none 을 주어 목록 스크롤·카드 선택·수량 버튼과 충돌하지 않게 합니다.
- * - 8px 이상 움직여야 드래그가 시작되므로 손잡이를 살짝 눌러도 아무 일도 일어나지 않습니다.
- * - 드래그 중 손가락 아래의 묶음([data-item-group])과 카드([data-picker-card])를 읽어
- *   들어갈 자리를 화면에 표시하고, 놓으면 onDrop 으로 알립니다.
- */
 export interface DropTarget {
-  /** 대상 묶음 제목 */
   group: string;
-  /** 그 묶음 안에서 들어갈 자리 (옮기는 카드 제외) */
   index: number;
-  /** 이 카드 앞에 넣습니다 (끝에 넣을 때는 null) */
   beforeId: string | null;
 }
 
+/** Native scrolling remains available until the stationary long press activates. */
 export function useItemDrag(opts: {
   containerRef: RefObject<HTMLElement | null>;
   enabled: boolean;
@@ -24,79 +15,120 @@ export function useItemDrag(opts: {
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [target, setTarget] = useState<DropTarget | null>(null);
-  const stateRef = useRef<{ id: string; startX: number; startY: number; active: boolean } | null>(null);
-  const targetRef = useRef<DropTarget | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
   const onDropRef = useRef(opts.onDrop);
   onDropRef.current = opts.onDrop;
+  useEffect(() => () => cleanupRef.current?.(), []);
+  useEffect(() => { if (!opts.enabled) cleanupRef.current?.(); }, [opts.enabled]);
 
-  const onHandleDown = (itemId: string) => (e: ReactPointerEvent) => {
-    if (!opts.enabled) return;
-    e.preventDefault();
-    e.stopPropagation();
-    stateRef.current = { id: itemId, startX: e.clientX, startY: e.clientY, active: false };
-
-    const move = (ev: PointerEvent) => {
-      const s = stateRef.current;
-      if (!s) return;
-      if (!s.active && Math.hypot(ev.clientX - s.startX, ev.clientY - s.startY) > 8) s.active = true;
-      if (!s.active) return;
-      setDragId(s.id);
-
-      // 화면 가장자리에 가까우면 목록을 따라 스크롤합니다
-      const c = opts.containerRef.current;
-      if (c) {
-        const r = c.getBoundingClientRect();
-        if (ev.clientY < r.top + 60) c.scrollTop -= 14;
-        else if (ev.clientY > r.bottom - 60) c.scrollTop += 14;
-      }
-
-      const el = document.elementFromPoint(ev.clientX, ev.clientY);
-      const section = el?.closest?.("[data-item-group]") as HTMLElement | null;
-      if (!section) {
-        targetRef.current = null;
+  const onCardDown = (itemId: string) => (e: ReactPointerEvent) => {
+    if (!opts.enabled || e.button !== 0 || !e.isPrimary) return;
+    const hit = e.target instanceof Element ? e.target : null;
+    if (hit?.closest('[data-item-drag-exclude]')) return;
+    cleanupRef.current?.();
+    const card = e.currentTarget as HTMLElement;
+    const pointerId = e.pointerId;
+    let active = false;
+    let ended = false;
+    let x = e.clientX;
+    let y = e.clientY;
+    let dropTarget: DropTarget | null = null;
+    let frame = 0;
+    const container = opts.containerRef.current;
+    const updateTarget = () => {
+      const section = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-item-group]');
+      if (!section || !container?.contains(section)) {
+        dropTarget = null;
         setTarget(null);
         return;
       }
-      const group = section.getAttribute("data-item-group") || "";
-      const cards = [...section.querySelectorAll("[data-picker-card]")]
-        .map((n) => n.getAttribute("data-picker-card")!)
-        .filter((id) => id && id !== s.id);
-      const card = el?.closest?.("[data-picker-card]") as HTMLElement | null;
-      const cardId = card?.getAttribute("data-picker-card");
-      if (card && cardId && cardId !== s.id) {
-        const rect = card.getBoundingClientRect();
-        const midY = rect.top + rect.height / 2;
-        const sameRow = Math.abs(ev.clientY - midY) < rect.height / 2;
-        const before =
-          ev.clientY < rect.top + rect.height * 0.4 ||
-          (sameRow && ev.clientX < rect.left + rect.width / 2);
-        let idx = cards.indexOf(cardId);
-        if (!before) idx += 1;
-        const next = { group, index: idx, beforeId: before ? cardId : null };
-        targetRef.current = next;
-        setTarget(next);
-      } else {
-        const next = { group, index: cards.length, beforeId: null };
-        targetRef.current = next;
-        setTarget(next);
+      const cards = [...section.querySelectorAll<HTMLElement>('[data-picker-card]')]
+        .filter((n) => n.dataset.pickerCard && n.dataset.pickerCard !== itemId);
+      const at = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-picker-card]');
+      let index = cards.length;
+      if (at && at !== card) {
+        const rect = at.getBoundingClientRect();
+        const before = y < rect.top + rect.height * 0.4 || x < rect.left + rect.width / 2;
+        const hitIndex = cards.indexOf(at);
+        if (hitIndex >= 0) index = hitIndex + (before ? 0 : 1);
       }
+      dropTarget = { group: section.dataset.itemGroup || '', index, beforeId: cards[index]?.dataset.pickerCard || null };
+      setTarget(dropTarget);
     };
-    const up = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      window.removeEventListener("pointercancel", up);
-      const s = stateRef.current;
-      const t = targetRef.current;
-      stateRef.current = null;
-      targetRef.current = null;
-      setDragId(null);
-      setTarget(null);
-      if (s?.active && t) onDropRef.current(s.id, t);
+    const scrollFrame = () => {
+      if (!active || ended) return;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const edge = Math.min(60, rect.height / 4);
+        const speed = y < rect.top + edge ? -Math.min(14, (rect.top + edge - y) / 4)
+          : y > rect.bottom - edge ? Math.min(14, (y - rect.bottom + edge) / 4) : 0;
+        if (speed) { container.scrollTop += speed; updateTarget(); }
+      }
+      frame = requestAnimationFrame(scrollFrame);
     };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-    window.addEventListener("pointercancel", up);
+    const suppressClick = () => {
+      // Capture the trailing click before image, selection or quantity handlers see it.
+      const swallow = (event: MouseEvent) => {
+        if (event.target instanceof Node && card.contains(event.target)) {
+          event.preventDefault(); event.stopImmediatePropagation();
+        }
+      };
+      document.addEventListener('click', swallow, true);
+      setTimeout(() => document.removeEventListener('click', swallow, true), 700);
+    };
+    const finish = (save: boolean) => {
+      if (ended) return;
+      ended = true;
+      reservation.cancel();
+      cancelAnimationFrame(frame);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+      window.removeEventListener('blur', cancel);
+      document.removeEventListener('touchmove', touchMove);
+      document.removeEventListener('touchstart', extraTouch);
+      document.removeEventListener('keydown', key);
+      card.removeEventListener('lostpointercapture', cancel);
+      container?.removeEventListener('scroll', scroll);
+      if (card.hasPointerCapture(pointerId)) card.releasePointerCapture(pointerId);
+      cleanupRef.current = null;
+      setDragId(null); setTarget(null);
+      if (active) suppressClick();
+      if (save && active && dropTarget) onDropRef.current(itemId, dropTarget);
+    };
+    const reservation = reserveItemPress(x, y, () => {
+      active = true;
+      setDragId(itemId);
+      try { card.setPointerCapture(pointerId); } catch { /* Touch may have already ended. */ }
+      updateTarget();
+      frame = requestAnimationFrame(scrollFrame);
+    });
+    const move = (event: PointerEvent) => {
+      if (event.pointerId !== pointerId) return;
+      x = event.clientX; y = event.clientY;
+      if (!active) { if (reservation.move(x, y)) finish(false); return; }
+      if (event.cancelable) event.preventDefault();
+      event.stopPropagation();
+      updateTarget();
+    };
+    const touchMove = (event: TouchEvent) => {
+      if (active && event.cancelable) event.preventDefault();
+    };
+    const up = (event: PointerEvent) => { if (event.pointerId === pointerId) finish(true); };
+    const cancel = () => finish(false);
+    const extraTouch = (event: TouchEvent) => { if (event.touches.length > 1) cancel(); };
+    const key = (event: KeyboardEvent) => { if (event.key === 'Escape') cancel(); };
+    const scroll = () => { if (!active) cancel(); };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+    window.addEventListener('blur', cancel);
+    document.addEventListener('touchmove', touchMove, { passive: false });
+    document.addEventListener('touchstart', extraTouch, { passive: true });
+    document.addEventListener('keydown', key);
+    card.addEventListener('lostpointercapture', cancel);
+    container?.addEventListener('scroll', scroll, { passive: true });
+    cleanupRef.current = cancel;
   };
-
-  return { dragId, target, onHandleDown };
+  return { dragId, target, onCardDown };
 }

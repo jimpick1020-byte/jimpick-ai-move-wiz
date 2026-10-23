@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, type ReactNode } from "react";
-import { Check, GripVertical, Minus, MoreHorizontal, Plus, Search, X } from "lucide-react";
+import { Check, Minus, MoreHorizontal, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ItemArt } from "@/lib/jimpick-art";
 import { matchesQuery } from "@/lib/item-search";
@@ -80,20 +80,19 @@ export function FullScreenItemFrame({ title, onClose, children, footer, level = 
   </div>;
 }
 
-export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highlight, onTap, onQuantity, onMenu, onRemove, categoryMode, onImageTap, favoriteMode = false, dragHandleDown, dragging = false }: {
+export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highlight, onTap, onQuantity, onMenu, onRemove, categoryMode, onImageTap, favoriteMode = false, dragCardDown, dragging = false }: {
   item: PickerItem; qty: number; disposed: boolean; busy: boolean; selectedMode: boolean; highlight?: boolean;
   onTap: () => void; onQuantity: (qty: number) => void; onMenu: () => void; onRemove: () => void; categoryMode?: boolean; onImageTap?: () => void; favoriteMode?: boolean;
-  /** 이동 손잡이를 눌렀을 때 — 있으면 손잡이를 표시합니다 */
-  dragHandleDown?: (event: React.PointerEvent) => void;
+  /** 카드 그림·이름·빈 영역을 길게 누르면 이동합니다 */
+  dragCardDown?: (event: React.PointerEvent) => void;
   dragging?: boolean;
 }) {
   const label = pickerItemLabel(item.id, item.name);
   const sizeMatch = /[({]\s*([^(){}]+?)\s*[)}]/.exec(item.baseName || item.name || "");
   const sizeLabel = sizeMatch?.[1];
-  return <div data-picker-card={item.id} onClick={favoriteMode ? () => { if (!busy) onTap(); } : undefined} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-lg border px-1.5 pb-1.5 pt-1 transition-shadow ${qty > 0 ? "jp-item-card-selected" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""} ${dragging ? "opacity-40" : ""}`}>
-    <Button variant="outline" size="icon" disabled={busy} className="absolute left-1 top-1 z-10 size-6 rounded-full text-muted-foreground" onClick={(event) => { event.stopPropagation(); onMenu(); }} aria-label={`${label} 품목 관리`} title="품목 관리"><MoreHorizontal className="size-4" /></Button>
-    {dragHandleDown && <button type="button" disabled={busy} onPointerDown={dragHandleDown} onClick={(event) => event.stopPropagation()} aria-label={`${label} 눌러서 자리 이동`} title="눌러서 자리 이동" className="absolute left-1/2 top-0.5 z-10 -translate-x-1/2 touch-none rounded-full p-1 text-muted-foreground active:text-auth-primary"><GripVertical className="size-4" /></button>}
-    {selectedMode ? <Button variant="ghost" size="icon" disabled={busy} className="absolute right-1 top-1 z-10 size-7 text-destructive" onClick={onRemove} aria-label={`${label} 삭제`}><X className="size-4" /></Button> : qty > 0 && <span data-item-selected className="jp-item-check pointer-events-none absolute right-1 top-1 z-10 grid size-6 place-items-center rounded-full"><Check className="size-4" /></span>}
+  return <div data-picker-card={item.id} data-item-draggable={!!dragCardDown} data-item-dragging={dragging} onPointerDown={!busy ? dragCardDown : undefined} onContextMenu={dragCardDown ? (event) => event.preventDefault() : undefined} onDragStart={dragCardDown ? (event) => event.preventDefault() : undefined} onClickCapture={dragging ? (event) => { event.preventDefault(); event.stopPropagation(); } : undefined} onClick={favoriteMode ? () => { if (!busy) onTap(); } : undefined} className={`jp-item-card relative flex min-w-0 flex-col items-center rounded-lg border px-1.5 pb-1.5 pt-1 transition-shadow ${qty > 0 ? "jp-item-card-selected" : ""} ${highlight ? "ring-2 ring-auth-primary ring-offset-1" : ""} ${dragging ? "jp-item-card-dragging" : ""}`}>
+    <Button data-item-drag-exclude variant="outline" size="icon" disabled={busy} className="absolute left-1 top-1 z-10 size-6 rounded-full text-muted-foreground" onClick={(event) => { event.stopPropagation(); onMenu(); }} aria-label={`${label} 품목 관리`} title="품목 관리"><MoreHorizontal className="size-4" /></Button>
+    {selectedMode ? <Button data-item-drag-exclude variant="ghost" size="icon" disabled={busy} className="absolute right-1 top-1 z-10 size-7 text-destructive" onClick={onRemove} aria-label={`${label} 삭제`}><X className="size-4" /></Button> : qty > 0 && <span data-item-selected className="jp-item-check pointer-events-none absolute right-1 top-1 z-10 grid size-6 place-items-center rounded-full"><Check className="size-4" /></span>}
     <Button variant="ghost" disabled={busy} className="jp-picker-face h-auto min-h-0 w-full touch-manipulation select-none flex-col gap-0.5 whitespace-normal p-0" onClick={(event) => { if (favoriteMode) event.stopPropagation(); onTap(); }} aria-pressed={qty > 0} aria-label={`${label} 선택`}>
       <span className="relative inline-flex w-full shrink-0" onClick={!favoriteMode && onImageTap ? (event) => { event.stopPropagation(); onImageTap(); } : undefined}>
         <span className={disposed ? "jp-picker-art opacity-60" : "jp-picker-art"}><ItemArt id={item.id} name={label} size={96} /></span>
@@ -101,7 +100,7 @@ export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highli
       </span>
       <span className="line-clamp-2 min-h-8 w-full shrink-0 break-all text-center text-[13px] font-black leading-4" title={label}>{label}</span>
     </Button>
-    {qty > 0 ? <div className="mt-auto flex w-full items-center justify-between gap-1" onClick={favoriteMode ? (event) => event.stopPropagation() : undefined}>
+    {qty > 0 ? <div data-item-drag-exclude className="mt-auto flex w-full items-center justify-between gap-1" onClick={favoriteMode ? (event) => event.stopPropagation() : undefined}>
       <Button variant="outline" size="icon" disabled={busy} className="size-7 shrink-0 rounded-full text-foreground" onClick={() => onQuantity(qty - 1)} aria-label={`${label} 감소`}><Minus className="size-3.5" /></Button>
       <span className="min-w-0 truncate text-center text-[13px] font-black tabular-nums" data-item-quantity>{sizeLabel ? `${sizeLabel} · ${qty}개` : `${qty}개`}</span>
       <Button variant={favoriteMode ? "outline" : "default"} size="icon" disabled={busy} className={`size-7 shrink-0 rounded-full ${favoriteMode ? "" : "bg-auth-primary text-auth-primary-foreground"}`} onClick={() => onQuantity(qty + 1)} aria-label={`${label} 증가`}><Plus className="size-3.5" /></Button>
@@ -144,7 +143,7 @@ export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites,
   }, [highlightId, tab]);
   const kinds = Object.values(quantities).filter((qty) => qty > 0).length;
   const count = Object.values(quantities).reduce((sum, qty) => sum + qty, 0);
-  const card = (item: PickerItem) => <ItemPickerCard key={item.id} item={item} highlight={highlightId === item.id} qty={quantities[item.id] || 0} disposed={!!disposal?.[item.id]} busy={busy} selectedMode={mode === "picked"} categoryMode={mode === "category"} favoriteMode={mode === "favorites"} dragging={drag.dragId === item.id} dragHandleDown={mode === "category" && onMoveItem && !query.trim() ? drag.onHandleDown(item.id) : undefined} onTap={() => mode === "favorites" ? onQuantity(item, favoriteCardTapQuantity(quantities[item.id] || 0)) : onTap(item)} onImageTap={onImageTap ? () => onImageTap(item) : undefined} onQuantity={(qty) => onQuantity(item, qty)} onMenu={() => onMenu(item.id)} onRemove={() => onRemove(item)} />;
+  const card = (item: PickerItem) => <ItemPickerCard key={item.id} item={item} highlight={highlightId === item.id} qty={quantities[item.id] || 0} disposed={!!disposal?.[item.id]} busy={busy} selectedMode={mode === "picked"} categoryMode={mode === "category"} favoriteMode={mode === "favorites"} dragging={drag.dragId === item.id} dragCardDown={mode === "category" && onMoveItem && !query.trim() ? drag.onCardDown(item.id) : undefined} onTap={() => mode === "favorites" ? onQuantity(item, favoriteCardTapQuantity(quantities[item.id] || 0)) : onTap(item)} onImageTap={onImageTap ? () => onImageTap(item) : undefined} onQuantity={(qty) => onQuantity(item, qty)} onMenu={() => onMenu(item.id)} onRemove={() => onRemove(item)} />;
   return <FullScreenItemFrame title={title} onClose={onClose} footer={<><p className="mb-2 text-sm font-bold">선택 {kinds}종 · {count}개{busy ? " · 저장 중…" : ""}</p><PrimaryButton disabled={busy} onClick={onClose}>{mode === "picked" ? "변경 완료" : "선택 완료"}</PrimaryButton></>}>
     <div className="shrink-0 space-y-2 border-b border-border px-4 py-2">
       {mode === "category" && <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1">{cats.map((cat) => <Button key={cat} variant="ghost" data-category={cat} data-selected={tab === cat} className="jp-category-tab shrink-0 rounded-2xl font-black" onClick={() => onTab(cat)}>{cat}</Button>)}</div>}
