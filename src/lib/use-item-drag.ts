@@ -30,6 +30,7 @@ export function useItemDrag(opts: {
     const card = e.currentTarget as HTMLElement;
     const pointerId = e.pointerId;
     let active = false;
+    let moved = false;
     const isTouch = e.pointerType === 'touch';
     let touchId: number | null = null;
     let ended = false;
@@ -132,7 +133,7 @@ export function useItemDrag(opts: {
       card.style.transform = ''; card.style.transition = ''; card.style.pointerEvents = ''; card.style.willChange = '';
       if (active) setDragId(null);
       if (active) suppressClick();
-      if (save && active && dropTarget) onDropRef.current(itemId, dropTarget);
+      if (save && active && moved && dropTarget) onDropRef.current(itemId, dropTarget);
     };
     const reservation = reserveItemPress(x, y, () => {
       active = true;
@@ -146,6 +147,7 @@ export function useItemDrag(opts: {
     const move = (event: PointerEvent) => {
       if (event.pointerId !== pointerId) return;
       x = event.clientX; y = event.clientY;
+      if (active && Math.hypot(x - startX, y - startY) > 8) moved = true;
       if (!active) { if (reservation.move(x, y)) finish(false); return; }
       if (event.cancelable) event.preventDefault();
       event.stopPropagation();
@@ -159,7 +161,7 @@ export function useItemDrag(opts: {
       if (event.cancelable) event.preventDefault();
       event.stopPropagation();
       const t = touchOf(event);
-      if (t) { x = t.clientX; y = t.clientY; dirty = true; }
+      if (t) { x = t.clientX; y = t.clientY; if (Math.hypot(x - startX, y - startY) > 8) moved = true; dirty = true; }
     };
     const touchEnd = (event: TouchEvent) => {
       const t = touchOf(event);
