@@ -208,7 +208,7 @@ export function HomeContractCalendar({
               <span
                 className={`relative z-10 flex h-7 items-center justify-center rounded-full text-[15px] font-bold tabular-nums ${
                   selected
-                    ? "w-7 border-2 border-calendar-selected bg-white text-[#111827]"
+                    ? "w-7 shrink-0 border-4 border-home-calendar-highlight bg-card text-card-foreground"
                     : `min-w-7 px-1 ${dow === 0 ? "text-[#FF4D4F]" : dow === 6 ? "text-[#1671E8]" : "text-[#111827]"} ${isToday ? "ring-1 ring-[#1671E8]" : ""}`
                 }`}
               >
