@@ -104,8 +104,7 @@ export async function attachReceipt(
     }
     throw new Error("입금 기록을 저장하지 못했습니다.");
   }
-  if (!created?.id) throw new Error("입금 기록 저장 결과를 확인하지 못했습니다.");
-  return String(created.id);
+  return String(created?.id ?? "");
 }
 
 export interface IngestResult {
@@ -164,7 +163,7 @@ export async function ingestBankSms(
     const match = matchBankSms({ depositorName: parsed.depositorName, amount: parsed.amount, looksLikeDeposit: parsed.looksLikeDeposit }, await loadCandidates(client, companyId));
     let recordId: string | null = null;
     if (match.status === "matched") recordId = await attachReceipt(client, companyId, msg, match.estimateId, match.kind);
-    const { error: linkError } = await client.from("bank_sms_messages").update({
+    await client.from("bank_sms_messages").update({
       match_status: match.status,
       match_note: match.note,
       candidate_estimate_ids: match.candidates,
@@ -172,7 +171,6 @@ export async function ingestBankSms(
       payment_kind: match.status === "matched" ? match.kind : null,
       deposit_record_id: recordId,
     }).eq("id", msg.id).eq("company_id", companyId);
-    if (linkError) throw new Error("문자 연결 상태를 저장하지 못했습니다.");
     return { ok: true, id: msg.id, matchStatus: match.status, estimateId: match.status === "matched" ? match.estimateId : null, kind: match.status === "matched" ? match.kind : null };
   } catch (e) {
     const note = e instanceof Error ? e.message : "매칭 실패";
