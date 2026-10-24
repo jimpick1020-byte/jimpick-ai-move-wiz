@@ -3,7 +3,7 @@ import { requireActiveEntitlement } from './entitlement.functions';
 import { z } from 'zod';
 import { editedSheet, sheetRoomsOf } from './sheet-edit';
 import { formatDraftPhones } from './format-input';
-import type { Estimate } from './jimpick';
+import { calcEstimate, type Estimate } from './jimpick';
 
 /** Only explicit owner saves change the current shared sheet; consent/payment audit is untouched. */
 export const syncEditedSheet = createServerFn({ method: 'POST' })
@@ -19,13 +19,11 @@ export const syncEditedSheet = createServerFn({ method: 'POST' })
       .is('deleted_at', null).is('cancelled_at', null).order('sheet_version', { ascending: false }).limit(1).maybeSingle();
     if (readError) return { ok: false, error: '고객 견적서를 읽지 못했습니다. 편집본은 보존되었습니다.' };
     if (!row) return { ok: true };
-    const { total, parts } = draft.sheetSnapshot || { total: draft.total, parts: [] };
     const { error } = await context.supabase.from('estimate_terms').update({
       customer_name: draft.customerName, contact_phone: draft.phone, move_date: draft.moveDate || null,
       company_phone: draft.staffPhone || null, total: draft.total,
-      sheet_snapshot: JSON.stringify({ draft, rooms: sheetRoomsOf(draft), parts: draft.sheetSnapshot?.parts || (await import('./jimpick')).calcEstimate(draft).parts, total: draft.total }),
+      sheet_snapshot: JSON.stringify({ draft, rooms: sheetRoomsOf(draft), parts: calcEstimate(draft).parts, total: draft.total }),
     }).eq('id', row.id).eq('user_id', context.userId);
-    void total; void parts;
     if (error) return { ok: false, error: '편집본은 저장했지만 고객 견적서 반영에 실패했습니다. 다시 저장해 주세요.' };
     try {
       const { syncMoveReminder } = await import('./reminder.server');

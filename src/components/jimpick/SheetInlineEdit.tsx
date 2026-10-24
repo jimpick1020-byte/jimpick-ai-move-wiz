@@ -20,6 +20,8 @@ export function SheetInlineEdit({ children, fields, draft, onSave, label }: {
     const patch: Record<string, unknown> = {};
     for (const f of fields) {
       const value = values[f.key]?.trim() ?? '';
+      if (value === String(draft[f.key] ?? '').trim()) continue;
+      if (!value && (f.key === 'totalOverride' || f.key === 'transportOverride')) { patch[f.key] = null; continue; }
       if (f.key === 'customerName' && !value) { setError('고객 이름을 입력해 주세요.'); return; }
       if (f.type === 'number' && (!value || !Number.isFinite(Number(value)) || Number(value) < 0)) { setError('0 이상의 숫자를 입력해 주세요.'); return; }
       patch[f.key] = f.type === 'number' ? Number(value) : value;

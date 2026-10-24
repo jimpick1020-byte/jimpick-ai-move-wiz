@@ -413,7 +413,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
               {draft.memo?.trim() || "미입력"}
             </p>
           </div>
-        )}
+        ))}
 
         {/* 특약사항 — 입력한 내용이 있을 때만 */}
         {(draft.specialTerms?.trim() || save) && inline("특약사항", [field("specialTerms", "특약사항")], (
@@ -423,7 +423,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
               {draft.specialTerms?.trim() || "미입력"}
             </p>
           </div>
-        )}
+        ))}
 
         {/* 차량 · 이사 유형 */}
         {inline("차량·이사 유형", [field("truck5t", "5톤 트럭 대수", "number"), field("truck1t", "1톤 트럭 대수", "number"), { key: "moveType", label: "이사 유형", choices: ["포장이사", "반포장이사", "일반이사", "보관이사", "사무실이사"] }], (
@@ -461,7 +461,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
               </div>
             )}
           </div>
-        )}
+        ))}
 
         {/* 공간별 품목 */}
         {rooms.length > 0 && (
