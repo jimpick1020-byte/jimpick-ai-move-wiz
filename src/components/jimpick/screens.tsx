@@ -265,6 +265,10 @@ import { shrinkPhoto } from "@/lib/photo-shrink";
 const ROOM_OPEN_KEY = "jimpick_step6_open_rooms";
 import { disposalItems } from "@/lib/jimpick";
 import { EstimateSheet, DisposalX, type SheetRoom } from "./EstimateSheet";
+import { AiScanMenu } from "./AiScanMenu";
+import { editedSheet, sheetRoomsOf } from "@/lib/sheet-edit";
+import { syncEditedSheet } from "@/lib/sheet-edit.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { printSheet } from "@/lib/sheet-export";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
 import { checkSendable, type MissingField } from "@/lib/send-check";
@@ -1920,7 +1924,7 @@ export function Step3() {
   };
   const swipe = useSwipeNav(
     () => setScreen("step2"),
-     () => setScreen("scan"),
+     () => setScreen(customerFlow ? "scan" : "step6"),
   );
   return (
     <MobileShell className="jp-estimate-flow jp-tone-3 jp-redesign">
@@ -2026,7 +2030,7 @@ export function Step3() {
         })}
       </div>
       <BottomButtonBar>
-         <PrimaryButton className="jp-next-btn" onClick={() => setScreen("scan")}>{customerFlow ? "다음: 집 평수 선택" : "다음: AI 연속촬영"}</PrimaryButton>
+         <PrimaryButton className="jp-next-btn" onClick={() => setScreen(customerFlow ? "scan" : "step6")}>{customerFlow ? "다음: 집 평수 선택" : "다음: 공간별 품목"}</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
@@ -2632,7 +2636,7 @@ export function Step6() {
 
   /** 화면을 좌우로 드래그하면 앞·뒤 단계로 넘어갑니다 */
   const swipe = useSwipeNav(
-    () => setScreen("scan"),
+    () => setScreen("step3"),
     () => setScreen("step4"),
   );
   /** 품목 목록에서 좌우로 드래그하면 분류 탭이 넘어갑니다 */
@@ -3514,7 +3518,8 @@ export function Step6() {
   return (
     <MobileShell className="jp-estimate-flow jp-tone-4 jp-redesign">
       <StepHero step={4} total={customerFlow ? 4 : 6} title="직접 선택" pose="boxes"
-        bubble="방을 선택하고 이삿짐 품목을 확인해 주세요." onBack={() => setScreen("scan")} />
+        bubble="방을 선택하고 이삿짐 품목을 확인해 주세요." onBack={() => setScreen("step3")} />
+      <AiScanMenu />
 
       {/* 평수 선택 — 예전처럼 한 줄을 좌우로 밀어서 봅니다 */}
       <div className="bg-white border-b border-[#E5E7EB] px-4 py-3">
@@ -5326,22 +5331,27 @@ export function Result() {
   }, [sheetOpen]);
 
   /** 공간별 품목 — 담긴 방만, 담긴 순서대로 */
-  const sheetRooms: SheetRoom[] = draft.rooms
-    .map((r) => ({
-      name: r.name,
-      items: Object.entries(r.items).map(([id, qty]) => ({
-        id,
-        name:
-          draft.itemNames?.[id] ||
-          ITEM_CATALOG.find((c) => c.id === id)?.name ||
-          (draft.customItems || []).find((c) => c.id === id)?.name ||
-          itemNameById(id) ||
-          id,
-        qty,
-        disposal: !!r.disposal?.[id],
-      })),
-    }))
-    .filter((r) => r.items.length > 0);
+  const sheetRooms: SheetRoom[] = sheetRoomsOf(draft);
+  const persistSheetDraft = useServerFn(saveEstimateDraft);
+  const syncSheet = useServerFn(syncEditedSheet);
+  const sheetSaveLock = useRef(false);
+  const sheetDraftRef = useRef(draft);
+  sheetDraftRef.current = draft;
+  const saveInlineSheet = async (patch: Partial<Estimate>) => {
+    if (sheetSaveLock.current) throw new Error('저장 중입니다. 잠시 후 다시 시도해 주세요.');
+    sheetSaveLock.current = true;
+    try {
+      const next = editedSheet(sheetDraftRef.current, patch);
+      const revision = nextRevision();
+      const saved = await persistSheetDraft({ data: { estimateId: next.id, payload: JSON.stringify(next), revision } });
+      if (!saved.ok || saved.stale) throw new Error(saved.error || '저장 내용이 변경되었습니다. 다시 저장해 주세요.');
+      const synced = await syncSheet({ data: { estimateId: next.id, revision } });
+      if (!synced.ok) throw new Error(synced.error || '고객 견적서에 반영하지 못했습니다.');
+      sheetDraftRef.current = next;
+      updateDraft(next);
+      saveDraft();
+    } finally { sheetSaveLock.current = false; }
+  };
 
   const [adjust, setAdjust] = useState(0);
   const calc = calcEstimate(draft);
@@ -6134,6 +6144,7 @@ export function Result() {
             ) : (
               <EstimateSheet
                 ref={sheetRef}
+                onSave={saveInlineSheet}
                 draft={draft}
                 rooms={sheetRooms}
                 parts={parts}

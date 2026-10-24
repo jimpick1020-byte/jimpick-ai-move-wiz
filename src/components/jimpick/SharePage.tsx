@@ -56,7 +56,7 @@ import {
   type TermsLinkInfo,
 } from "@/lib/terms.functions";
 
-import { EstimateSheet, type SheetRoom } from "./EstimateSheet";
+import { EstimateSheet, DisposalX, type SheetRoom } from "./EstimateSheet";
 import { useForceLightPage } from "./InAppBrowserNotice";
 import { printSheet } from "@/lib/sheet-export";
 
@@ -106,7 +106,7 @@ function Row({ children }: { children: React.ReactNode }) {
 }
 
 /** 고객 견적서의 읽기 전용 품목 카드 — 사장님 화면과 같은 그림·이름·규격·수량을 보여줍니다. */
-function CustomerItemGrid({ items }: { items: { id: string; room: string; name: string; qty: number }[] }) {
+function CustomerItemGrid({ items }: { items: { id: string; room: string; name: string; qty: number; disposal?: boolean }[] }) {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {items.map((it, i) => {
@@ -114,8 +114,9 @@ function CustomerItemGrid({ items }: { items: { id: string; room: string; name: 
         const sizeLabel = sizeMatch?.[1];
         return (
           <div key={`${it.room}-${it.id}-${i}`} className="flex flex-col items-center rounded-2xl border-2 border-[#E5E7EB] bg-white px-1.5 pb-1.5 pt-1">
-            <span className="flex aspect-square w-full items-center justify-center p-1.5">
+            <span className="relative flex aspect-square w-full items-center justify-center p-1.5">
               <ItemArt id={it.id} name={it.name} size={96} />
+              {it.disposal && <DisposalX />}
             </span>
             <span className="line-clamp-2 min-h-8 w-full break-all text-center text-[13px] font-black leading-4 text-[#25282D]" title={it.name}>{it.name}</span>
             <span className="mt-0.5 text-center text-[12px] font-bold text-[#6B7280]">
@@ -438,7 +439,7 @@ export function SharePage() {
       .filter(([, qty]) => qty > 0)
       .map(([itemId, qty]) => {
         const catalog = ITEM_CATALOG.find((i) => i.id === itemId);
-        return { id: itemId, room: room.name, name: estimate?.itemNames?.[itemId] || catalog?.name || itemNameById(itemId) || itemId, qty };
+        return { id: itemId, room: room.name, name: estimate?.itemNames?.[itemId] || catalog?.name || itemNameById(itemId) || itemId, qty, disposal: !!room.disposal?.[itemId] };
       }),
   );
   const enabledOptions = (estimate?.options ?? []).filter((o) => o.enabled);

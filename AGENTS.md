@@ -40,3 +40,6 @@
 - AI item images are checked by item-image-verify against the item name before createManualItem stores them, and prompts come from item-image-prompt; this prevents a mismatched picture being linked to an item ID.
 - Options snapshot the selected catalog ID, image URL and entered name in the existing options JSON and render through OptionArt; this preserves matching owner/customer/PDF art without changing pricing or historic records.
 - Native sheet printing temporarily marks only the printable ancestor branch, resets scrolling/fixed constraints and uses normal-flow pagination until afterprint; this prevents paper-size-dependent clipping and retains on-screen layout afterward.
+
+- Explicit owner inline sheet saves persist draft revisions before updating the latest owned customer snapshot; payment and consent audit fields are never written, preserving existing tokens and read-only customer views.
+- Sheet disposal uses room/item IDs and pointer tap timing with movement cancellation; shared rendering overlays an X without changing image sources or quantities.
