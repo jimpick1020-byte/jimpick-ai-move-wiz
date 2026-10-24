@@ -114,14 +114,22 @@ export function parseDepositSms(rawInput: string, nowMs: number = Date.now()): P
   // ── 입금자 이름 ──
   // 한글 2~5자 낱말 중, 은행·거래 용어가 아닌 것을 이름으로 봅니다.
   let depositorName = "";
-  const afterDeposit = compact.match(/입금\s*[0-9,\.]*\s*원?\s*([가-힣]{2,5})/);
-  const beforeDeposit = compact.match(/([가-힣]{2,5})\s*(?:님)?\s*[0-9,\.]*\s*원?\s*입금/);
-  // 「… 윤창익 잔액728,375원」처럼 잔액 바로 앞의 낱말도 입금자 이름인 경우가 많습니다.
-  const beforeBalance = compact.match(/([가-힣]{2,5})\s*(?:님)?\s*잔액/);
-  const cand = (afterDeposit?.[1] ?? beforeDeposit?.[1] ?? beforeBalance?.[1] ?? "").trim();
-  if (cand && !STOP.has(cand)) depositorName = cand;
+  // 이름은 6자 이상일 수도 있으므로 낱말 전체(2~10자)를 읽고, 은행·거래 용어가 아닌 첫 후보를 씁니다.
+  const namePatterns = [
+    /입금\s*[0-9,\.]*\s*원?\s*([가-힣]{2,10})/,
+    /([가-힣]{2,10})\s*(?:님)?\s*[0-9,\.]*\s*원?\s*입금/,
+    // 「… 윤창익 잔액728,375원」처럼 잔액 바로 앞의 낱말도 입금자 이름인 경우가 많습니다.
+    /([가-힣]{2,10})\s*(?:님)?\s*잔액/,
+  ];
+  for (const re of namePatterns) {
+    const cand = (compact.match(re)?.[1] ?? "").trim();
+    if (cand && !STOP.has(cand)) {
+      depositorName = cand;
+      break;
+    }
+  }
   if (!depositorName) {
-    const words = [...compact.matchAll(/[가-힣]{2,5}/g)].map((m) => m[0]);
+    const words = [...compact.matchAll(/[가-힣]{2,10}/g)].map((m) => m[0]);
     depositorName =
       words.find(
         (w) =>

@@ -44,3 +44,9 @@ test("이름을 찾지 못하는 문자는 추측하지 않고 빈 값으로 둠
   const p = parseDepositSms("메시지 [Web발신] 농협 입금50,000원 10/23 12:00 잔액100,000원", Date.parse("2026-10-23T03:00:00Z"));
   assert.equal(p.depositorName, "");
 });
+
+test("6자 이상 이름도 마지막 글자가 잘리지 않음", () => {
+  const p = parseDepositSms("메시지 NH농협 [Web발신] 농협 입금350,000원 10/24 19:30 302-****-1642-11 자동연결시험 잔액728,375원", Date.parse("2026-10-24T10:00:00Z"));
+  assert.equal(p.depositorName, "자동연결시험");
+  assert.equal(p.amount, 350000);
+});
