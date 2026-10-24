@@ -1,7 +1,6 @@
 import { PaymentSmsButton } from "./PaymentSmsButton";
 import { OptionAddDialog } from "./OptionAddDialog";
 import { OptionArt } from "./OptionArt";
-import { icon3dFor } from "@/lib/jimpick-icon3d";
 import { DepositPanel } from "./DepositPanel";
 import { addressWithBuilding } from "@/lib/address-label";
 import { StaffSendScreen } from "./StaffSendScreen";
