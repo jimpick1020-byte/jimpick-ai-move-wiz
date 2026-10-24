@@ -15,22 +15,30 @@
 const PRINT_CSS = `
 @media print {
   @page { size: A4 portrait; margin: 10mm; }
-  html, body { background: #fff !important; }
-  body * { visibility: hidden !important; }
-  #jp-print-area, #jp-print-area * { visibility: visible !important; }
-  #jp-print-area {
-    position: absolute !important;
-    left: 0; top: 0; width: 100% !important;
-    max-height: none !important; overflow: visible !important;
+  html, body { background: var(--card) !important; }
+  body .jp-print-hidden { display: none !important; }
+  html, body, body .jp-print-ancestor {
+    display: block !important; position: static !important;
+    width: auto !important; max-width: none !important; min-width: 0 !important;
+    height: auto !important; min-height: 0 !important; max-height: none !important;
+    overflow: visible !important; contain: none !important; transform: none !important;
+    padding: 0 !important; margin: 0 !important;
+    border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
   }
-  /* 표·공간 행·비용 상자가 페이지 사이에서 잘리지 않게 합니다 */
+  #jp-print-area {
+    position: static !important; width: 100% !important;
+    height: auto !important; min-height: 0 !important;
+    max-height: none !important; overflow: visible !important; display: block !important;
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+  /* 긴 영역은 여러 페이지로 이어지고 개별 옵션 행만 함께 출력합니다. */
+  #jp-print-area > div > div { break-inside: auto !important; }
   #jp-print-area tr,
-  #jp-print-area table,
-  #jp-print-area .jp-avoid-break,
-  #jp-print-area [class*="rounded-[14px]"] {
+  #jp-print-area .jp-option-row {
     break-inside: avoid;
     page-break-inside: avoid;
   }
+  #jp-print-area p { orphans: 2; widows: 2; }
   /* 그림이 반으로 잘리지 않게 */
   #jp-print-area img { break-inside: avoid; page-break-inside: avoid; }
 }
@@ -75,16 +83,42 @@ async function waitImages(el: HTMLElement): Promise<void> {
  * 인쇄 대화상자에서 「PDF로 저장」을 고르면 파일로 남습니다.
  */
 export async function printSheet(el: HTMLElement): Promise<void> {
+  if (document.querySelector(".jp-print-ancestor")) return;
   ensureStyle();
   await waitImages(el);
+  await document.fonts.ready;
   const prev = el.id;
   el.id = "jp-print-area";
+  const ancestors: Element[] = [];
+  const hidden: Element[] = [];
+  let child: Element = el;
+  let parent = child.parentElement;
+  while (parent) {
+    parent.classList.add("jp-print-ancestor");
+    ancestors.push(parent);
+    for (const sibling of parent.children) {
+      if (sibling !== child && !sibling.classList.contains("jp-print-hidden")) {
+        sibling.classList.add("jp-print-hidden");
+        hidden.push(sibling);
+      }
+    }
+    child = parent;
+    parent = parent.parentElement;
+  }
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    el.id = prev;
+    ancestors.forEach((node) => node.classList.remove("jp-print-ancestor"));
+    hidden.forEach((node) => node.classList.remove("jp-print-hidden"));
+    window.removeEventListener("afterprint", cleanup);
+  };
+  window.addEventListener("afterprint", cleanup, { once: true });
   try {
     window.print();
-  } finally {
-    // 인쇄 대화상자가 닫힌 뒤 원래대로 돌려 놓습니다
-    window.setTimeout(() => {
-      el.id = prev;
-    }, 1000);
+  } catch (error) {
+    cleanup();
+    throw error;
   }
 }
