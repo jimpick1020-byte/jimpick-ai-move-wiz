@@ -98,3 +98,20 @@ test("전달 본문: text/plain으로 온 JSON도 문자 원문을 꺼내고, �
   assert.equal(extractForwardedText('{"sender":"{{sender}}","body":"{{body}}"}').text, "");
   assert.equal(extractForwardedText("농협 입금180,000원").text, "농협 입금180,000원");
 });
+
+test("실제 수신 원문(윤창익 630,000원): 추출 이름으로 진행 중 견적 하나에 잔금 자동 연결", async () => {
+  const { parseDepositSms } = await import("./deposit-parse");
+  const raw = '{ "sender": "메시지", "body": "메시지 ⁨NH농협⁩ [Web발신] 농협 입금630,000원 10/23 11:26 302-****-1642-11 윤창익 잔액728,375원" }';
+  const p = parseDepositSms(raw, Date.parse("2026-10-23T03:00:00Z"));
+  assert.equal(p.depositorName, "윤창익");
+  const m = matchBankSms(
+    { depositorName: p.depositorName, amount: p.amount, looksLikeDeposit: p.looksLikeDeposit },
+    [{ estimateId: "est_yoon", customerName: "윤창익", total: 700000, depositPaid: 70000, balancePaid: 0, paymentStatus: "deposit_paid" }],
+  );
+  assert.equal(m.status, "matched");
+  if (m.status === "matched") {
+    assert.equal(m.kind, "balance");
+    assert.equal(m.estimateId, "est_yoon");
+    assert.equal(m.expectedAmount, 630000);
+  }
+});
