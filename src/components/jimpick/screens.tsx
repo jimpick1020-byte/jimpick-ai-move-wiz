@@ -1,4 +1,7 @@
 import { PaymentSmsButton } from "./PaymentSmsButton";
+import { OptionAddDialog } from "./OptionAddDialog";
+import { OptionArt } from "./OptionArt";
+import { icon3dFor } from "@/lib/jimpick-icon3d";
 import { DepositPanel } from "./DepositPanel";
 import { addressWithBuilding } from "@/lib/address-label";
 import { StaffSendScreen } from "./StaffSendScreen";
@@ -4690,7 +4693,25 @@ export function Step6() {
 
 // ============ Options & Storage ============
 export function OptionsScreen() {
-  const { draft, updateDraft, setScreen, setResultFrom } = useApp();
+  const { draft, updateDraft, patchDraft, companyItems, catalogHidden, setScreen, setResultFrom } = useApp();
+  const [addingOption, setAddingOption] = useState(false);
+  const [optionNames, setOptionNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let alive = true;
+    getItemNameOverrides().then((result) => { if (alive && result.ok) setOptionNames(result.names); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const optionCatalog = useMemo(() => {
+    const custom = mergeItemCatalog(companyItems, draft.customItems);
+    return [...ITEM_CATALOG, ...custom.filter((item) => item.active !== false)]
+      .filter((item) => !catalogHidden.includes(item.id) && !draft.hiddenItems.includes(item.id))
+      .map((item) => ({
+        id: item.id,
+        name: optionNames[item.id] || draft.itemNames?.[item.id] || item.name,
+        aliases: [item.name, draft.itemNames?.[item.id] || ""],
+        icon: ("icon" in item && typeof item.icon === "string" ? item.icon : undefined) || icon3dFor(item.id, item.name),
+      }));
+  }, [companyItems, draft.customItems, draft.hiddenItems, draft.itemNames, catalogHidden, optionNames]);
   const days = useMemo(
     () => storageDays(draft.storageStart, draft.storageEnd),
     [draft.storageStart, draft.storageEnd],
@@ -4724,7 +4745,7 @@ export function OptionsScreen() {
                   }}
                   className="w-5 h-5"
                 />
-                <ItemArt name={o.name} size={44} />
+                <OptionArt option={o} size={44} />
                 {o.name}
               </label>
               <button
@@ -4770,23 +4791,15 @@ export function OptionsScreen() {
             )}
           </Card>
         ))}
-        <button
-          onClick={() => {
-            const name = prompt("추가할 옵션 품목 이름");
-            if (!name) return;
-            const price = Number((prompt("추가 금액 (원)", "0") || "").replace(/[^\d]/g, "")) || 0;
-            updateDraft({
-              options: [
-                ...draft.options,
-                { id: `op_${Date.now()}`, name, enabled: true, price, separate: false },
-              ],
-            });
-            tap("success");
-          }}
-          className="w-full py-4 rounded-2xl border-2 border-dashed border-[#3578C8] text-[#25282D] font-bold flex items-center justify-center gap-2"
+        <Button
+          variant="outline"
+          onClick={() => setAddingOption(true)}
+          className="h-auto w-full py-4 border-2 border-dashed border-ring text-foreground font-bold gap-2"
         >
           <Plus className="w-5 h-5" /> 옵션 품목 직접 추가
-        </button>
+        </Button>
+        {addingOption && <OptionAddDialog catalog={optionCatalog} onClose={() => setAddingOption(false)}
+          onAdd={(option) => { patchDraft((current) => ({ options: [...current.options, option] })); tap("soft"); }} />}
         <Card className="space-y-2">
           <div className="font-bold">특약사항</div>
           <textarea

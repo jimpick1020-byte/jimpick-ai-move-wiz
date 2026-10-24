@@ -54,6 +54,9 @@ export function isDisposal(room: { disposal?: Record<string, boolean> } | null |
 export interface OptionItem {
   id: string;
   name: string;
+  /** 옵션 추가 당시 선택한 카탈로그 ID와 영구 그림 경로 (구 기록은 생략 가능). */
+  catalogItemId?: string;
+  imageUrl?: string;
   enabled: boolean;
   price: number;
   /** 별도(견적 합계에서 제외) */

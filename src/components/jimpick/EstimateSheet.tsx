@@ -31,6 +31,7 @@ import {
 import type { Estimate } from "@/lib/jimpick";
 import { won, sideConditionText, LADDER_SEPARATE_TEXT } from "@/lib/jimpick";
 import { ItemArt } from "@/lib/jimpick-art";
+import { OptionArt } from "./OptionArt";
 import { BankAccountActions } from "./BankAccountActions";
 import {
   TERMS_EFFECTIVE_AT,
@@ -488,8 +489,11 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
             <div className="mb-1.5 text-[17px] font-black text-[#25282D]">추가 작업</div>
             {addedWork.map((o) => (
-              <div key={o.id} className="flex items-start justify-between gap-3 py-1.5">
-                <span className="min-w-0 break-words text-[16px] text-[#25282D]">{o.name}</span>
+              <div key={o.id} className="jp-option-row flex items-center justify-between gap-3 py-1.5">
+                <span className="flex min-w-0 items-center gap-2 text-[16px] text-foreground">
+                  <OptionArt option={o} size={44} />
+                  <span className="min-w-0 break-words">{o.name}</span>
+                </span>
                 <span className="shrink-0 text-right text-[16px] font-bold tabular-nums text-[#25282D]">
                   {o.separate ? "별도" : won(o.price)}
                 </span>
