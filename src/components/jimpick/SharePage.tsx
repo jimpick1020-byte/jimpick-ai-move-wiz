@@ -37,6 +37,7 @@ import {
 } from "@/lib/jimpick";
 import { registerCustomIcons } from "@/lib/jimpick-icon3d";
 import { ItemArt } from "@/lib/jimpick-art";
+import { OptionArt } from "./OptionArt";
 import {
   TERMS_EFFECTIVE_AT,
   TERMS_FULL,
@@ -587,7 +588,7 @@ export function SharePage() {
                 <div className="text-[17px] font-black">추가 옵션</div>
                 {enabledOptions.map((o) => (
                   <div key={o.id} className="flex justify-between text-[16px]">
-                    <span>{o.name}</span>
+                    <span className="flex min-w-0 items-center gap-2"><OptionArt option={o} /><span className="break-words">{o.name}</span></span>
                     <span className="font-medium">포함</span>
                   </div>
                 ))}
@@ -800,7 +801,7 @@ export function SharePage() {
               <div className="text-[17px] font-black">추가 옵션</div>
               {enabledOptions.map((o) => (
                 <div key={o.id} className="flex justify-between text-[16px]">
-                  <span>{o.name}</span>
+                  <span className="flex min-w-0 items-center gap-2"><OptionArt option={o} /><span className="break-words">{o.name}</span></span>
                   <span className="font-medium">{o.separate ? "별도" : won(o.price)}</span>
                 </div>
               ))}
