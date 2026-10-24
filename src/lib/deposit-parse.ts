@@ -72,7 +72,7 @@ export function parseDepositSms(rawInput: string, nowMs: number = Date.now()): P
   const raw = String(rawInput ?? "");
   // 전달 앱이 문자를 JSON({"sender":"메시지","body":"..."})으로 감싸 보낸 경우 본문만 꺼냅니다.
   // 보이지 않는 방향 제어 문자(⁦⁩ 등)도 제거합니다.
-  let text = raw.replace(/ /g, " ").replace(/[⁦-⁩‪-‮]/g, "").trim();
+  let text = raw.replace(/\u00a0/g, " ").replace(/[\u2066-\u2069\u202a-\u202e]/g, "").trim();
   if (text.startsWith("{")) {
     try {
       const b = JSON.parse(text) as Record<string, unknown>;
