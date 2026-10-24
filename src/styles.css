@@ -21,6 +21,7 @@
 @theme inline {
   --color-payment-review: var(--payment-review);
   --color-calendar-selected: var(--calendar-selected);
+  --color-home-calendar-highlight: var(--home-calendar-highlight);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -79,6 +80,7 @@
 }
 
 :root {
+  --home-calendar-highlight: #FF3B30;
   --payment-review: #FF8A00;
   --scan-outline-auto: oklch(0.62 0.15 150);
   --scan-outline-check: oklch(0.75 0.16 75);
