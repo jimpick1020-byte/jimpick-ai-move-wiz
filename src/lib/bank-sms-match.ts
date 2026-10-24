@@ -85,7 +85,6 @@ export function matchBankSms(
     expectedAmount: hit.due.amount,
   });
   const byName = open.filter((x) => isSameName(sms.depositorName, x.c.customerName));
-  if (byName.length > 1) return { status: "review", candidates: byName.map((x) => x.c.estimateId), note: `같은 이름의 진행 중 견적이 ${byName.length}건입니다. 직접 선택해 주세요.` };
   const exact = byName.filter((x) => x.due.amount === sms.amount);
   if (exact.length === 1) {
     const hit = exact[0];

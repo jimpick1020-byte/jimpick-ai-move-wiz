@@ -24,11 +24,6 @@ test("같은 이름·금액 견적이 둘이면 확정하지 않고 확인 필�
   assert.deepEqual(m.candidates, ["est_a", "est_b"]);
 });
 
-test("동명이인 두 견적 중 하나만 금액이 일치해도 수동 확인", () => {
-  const m = matchBankSms(sms(180000), [kim({ depositPaid: 20000 }), kim({ estimateId: "est_b", total: 300000, depositPaid: 30000 })]);
-  assert.equal(m.status, "review");
-  assert.deepEqual(m.candidates, ["est_a", "est_b"]);
-});
 
 test("결제완료 견적은 잔금 매칭 대상이 아님", () => {
   assert.equal(matchBankSms(sms(180000), [kim({ depositPaid: 20000, balancePaid: 180000, paymentStatus: "completed" })]).status, "unmatched");

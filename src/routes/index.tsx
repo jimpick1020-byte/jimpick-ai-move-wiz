@@ -29,7 +29,6 @@ import { ErrorLogScreen } from "@/components/jimpick/errors";
 import { BankSmsScreen } from "@/components/jimpick/BankSmsInbox";
 import { JimpickErrorBoundary } from "@/components/jimpick/ErrorBoundary";
 import { logAppError } from "@/lib/error-log.functions";
-import { usePaymentUpdates } from "@/lib/use-payment-updates";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -78,7 +77,6 @@ function Screens() {
 
 function Router() {
   const { screen, loggedIn } = useApp();
-  usePaymentUpdates(loggedIn);
 
   // 화면에서 잡히지 않은 오류(통신 실패 등)도 기록합니다. 개인정보는 서버에서 지웁니다.
   useEffect(() => {
