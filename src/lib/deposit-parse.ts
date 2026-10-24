@@ -31,7 +31,7 @@ const STOP = new Set([
   "입금","출금","이체","잔액","잔고","거래","통장","계좌","원","웹발신","발신","확인","승인",
   "누적","한도","송금","자동","현금","체크","카드","결제","취소","합계","금액","수수료","은행",
   "잔액조회","보통예금","기업자유","예금","적금","알림","안내","네이버","페이","머니",
-  // 문자 전달 앱 이름(본문 앞에 붙는 「메시지」 등)은 사람 이름이 아닙니다.
+  // 문자 전달 앱이 본문 앞에 붙이는 앱 이름(「메시지」 등)은 사람 이름이 아닙니다.
   "메시지","문자","문자메시지",
   ...BANKS,
 ]);
@@ -70,7 +70,16 @@ export function parseKstDate(text: string, nowMs: number = Date.now()): string |
 
 export function parseDepositSms(rawInput: string, nowMs: number = Date.now()): ParsedDeposit {
   const raw = String(rawInput ?? "");
-  const text = raw.replace(/\u00a0/g, " ").trim();
+  // 전달 앱이 문자를 JSON({"sender":"메시지","body":"..."})으로 감싸 보낸 경우 본문만 꺼냅니다.
+  // 보이지 않는 방향 제어 문자(⁦⁩ 등)도 제거합니다.
+  let text = raw.replace(/ /g, " ").replace(/[⁦-⁩‪-‮]/g, "").trim();
+  if (text.startsWith("{")) {
+    try {
+      const b = JSON.parse(text) as Record<string, unknown>;
+      const inner = b["text"] ?? b["message"] ?? b["body"] ?? b["content"];
+      if (typeof inner === "string" && inner.trim()) text = inner.trim();
+    } catch { /* JSON이 아니면 원문 그대로 씁니다 */ }
+  }
   const compact = text.replace(/\[Web발신\]|\[web발신\]/g, " ");
 
   const looksLikeDeposit = /입금|이체|받음|보냈어요|보냈습니다|received/i.test(compact) && !/출금|결제|승인/.test(compact);
@@ -107,7 +116,9 @@ export function parseDepositSms(rawInput: string, nowMs: number = Date.now()): P
   let depositorName = "";
   const afterDeposit = compact.match(/입금\s*[0-9,\.]*\s*원?\s*([가-힣]{2,5})/);
   const beforeDeposit = compact.match(/([가-힣]{2,5})\s*(?:님)?\s*[0-9,\.]*\s*원?\s*입금/);
-  const cand = (afterDeposit?.[1] ?? beforeDeposit?.[1] ?? "").trim();
+  // 「… 윤창익 잔액728,375원」처럼 잔액 바로 앞의 낱말도 입금자 이름인 경우가 많습니다.
+  const beforeBalance = compact.match(/([가-힣]{2,5})\s*(?:님)?\s*잔액/);
+  const cand = (afterDeposit?.[1] ?? beforeDeposit?.[1] ?? beforeBalance?.[1] ?? "").trim();
   if (cand && !STOP.has(cand)) depositorName = cand;
   if (!depositorName) {
     const words = [...compact.matchAll(/[가-힣]{2,5}/g)].map((m) => m[0]);
