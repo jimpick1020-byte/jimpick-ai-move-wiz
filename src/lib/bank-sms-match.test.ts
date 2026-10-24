@@ -24,6 +24,7 @@ test("같은 이름·금액 견적이 둘이면 확정하지 않고 확인 필�
   assert.deepEqual(m.candidates, ["est_a", "est_b"]);
 });
 
+
 test("결제완료 견적은 잔금 매칭 대상이 아님", () => {
   assert.equal(matchBankSms(sms(180000), [kim({ depositPaid: 20000, balancePaid: 180000, paymentStatus: "completed" })]).status, "unmatched");
 });

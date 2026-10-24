@@ -104,7 +104,7 @@ export async function attachReceipt(
     }
     throw new Error("입금 기록을 저장하지 못했습니다.");
   }
-  return String(created!.id);
+  return String(created?.id ?? "");
 }
 
 export interface IngestResult {

@@ -87,14 +87,16 @@ export function matchBankSms(
   const byName = open.filter((x) => isSameName(sms.depositorName, x.c.customerName));
   const exact = byName.filter((x) => x.due.amount === sms.amount);
   if (exact.length === 1) {
-    const hit = exact[0]!;
+    const hit = exact[0];
+    if (!hit) return { status: "unmatched", candidates: [], note: "연결할 견적을 찾지 못했습니다." };
     return hitOf(hit, `${hit.due.kind === "balance" ? "잔금" : "예약금"} ${won(sms.amount)}원과 일치`);
   }
   if (exact.length > 1) return { status: "review", candidates: exact.map((x) => x.c.estimateId), note: `같은 이름·금액 견적이 ${exact.length}건입니다. 직접 선택해 주세요.` };
   // 이름이 맞는 진행 중 견적이 하나면 금액이 달라도 연결합니다 (짐 증가 등 추가 입금).
   // 차액은 안내 문구로 보여 주고, 최종 금액 반영·결제완료는 사장님이 직접 확인합니다.
   if (byName.length === 1) {
-    const hit = byName[0]!;
+    const hit = byName[0];
+    if (!hit) return { status: "unmatched", candidates: [], note: "연결할 견적을 찾지 못했습니다." };
     const label = hit.due.kind === "balance" ? "잔금" : "예약금";
     const diff = sms.amount - hit.due.amount;
     return hitOf(hit, `예정 ${label} ${won(hit.due.amount)}원 / 실제 입금 ${won(sms.amount)}원 / 차액 ${diff > 0 ? "+" : "-"}${won(Math.abs(diff))}원`);
