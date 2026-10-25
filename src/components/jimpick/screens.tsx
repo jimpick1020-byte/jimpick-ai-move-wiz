@@ -265,7 +265,8 @@ import { shrinkPhoto } from "@/lib/photo-shrink";
 const ROOM_OPEN_KEY = "jimpick_step6_open_rooms";
 import { disposalItems } from "@/lib/jimpick";
 import { EstimateSheet, DisposalX, type SheetRoom } from "./EstimateSheet";
-import { AiScanMenu } from "./AiScanMenu";
+import { Switch } from "@/components/ui/switch";
+import { afterWorkConditions, beforeItemSelection } from "@/lib/ai-scan-setting";
 import { editedSheet, sheetRoomsOf } from "@/lib/sheet-edit";
 import { syncEditedSheet } from "@/lib/sheet-edit.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -1843,7 +1844,7 @@ function FloorStepper({
 }
 
 export function Step3() {
-  const { draft, updateDraft, setScreen, customerFlow } = useApp();
+  const { draft, updateDraft, setScreen, customerFlow, aiScanEnabled } = useApp();
   const ladderUnit = getPricing().ladder;
 
   /** 출발지/도착지 작업 방식(계단·엘리베이터)을 각각 독립적으로 설정합니다. 한쪽을 바꿔도 반대편은 그대로 둡니다. */
@@ -1924,7 +1925,7 @@ export function Step3() {
   };
   const swipe = useSwipeNav(
     () => setScreen("step2"),
-     () => setScreen(customerFlow ? "scan" : "step6"),
+     () => setScreen(customerFlow ? "scan" : afterWorkConditions(aiScanEnabled)),
   );
   return (
     <MobileShell className="jp-estimate-flow jp-tone-3 jp-redesign">
@@ -2030,7 +2031,7 @@ export function Step3() {
         })}
       </div>
       <BottomButtonBar>
-         <PrimaryButton className="jp-next-btn" onClick={() => setScreen(customerFlow ? "scan" : "step6")}>{customerFlow ? "다음: 집 평수 선택" : "다음: 공간별 품목"}</PrimaryButton>
+         <PrimaryButton className="jp-next-btn" onClick={() => setScreen(customerFlow ? "scan" : afterWorkConditions(aiScanEnabled))}>{customerFlow ? "다음: 집 평수 선택" : aiScanEnabled ? "다음: AI 촬영" : "다음: 공간별 품목"}</PrimaryButton>
       </BottomButtonBar>
     </MobileShell>
   );
@@ -2329,7 +2330,9 @@ export function Step6() {
     companyItems,
     refreshCompanyItems,
     customerFlow,
+    aiScanEnabled,
   } = useApp();
+  const useScan = !customerFlow && aiScanEnabled;
   const [size, setSize] = useState<string>(() => {
     if (draft.sizeTab) return draft.sizeTab;
     const n = draft.rooms.length;
@@ -2636,7 +2639,7 @@ export function Step6() {
 
   /** 화면을 좌우로 드래그하면 앞·뒤 단계로 넘어갑니다 */
   const swipe = useSwipeNav(
-    () => setScreen("step3"),
+    () => setScreen(beforeItemSelection(useScan)),
     () => setScreen("step4"),
   );
   /** 품목 목록에서 좌우로 드래그하면 분류 탭이 넘어갑니다 */
@@ -3518,8 +3521,7 @@ export function Step6() {
   return (
     <MobileShell className="jp-estimate-flow jp-tone-4 jp-redesign">
       <StepHero step={4} total={customerFlow ? 4 : 6} title="직접 선택" pose="boxes"
-        bubble="방을 선택하고 이삿짐 품목을 확인해 주세요." onBack={() => setScreen("step3")} />
-      <AiScanMenu />
+        bubble="방을 선택하고 이삿짐 품목을 확인해 주세요." onBack={() => setScreen(beforeItemSelection(useScan))} />
 
       {/* 평수 선택 — 예전처럼 한 줄을 좌우로 밀어서 봅니다 */}
       <div className="bg-white border-b border-[#E5E7EB] px-4 py-3">
@@ -7629,7 +7631,7 @@ function SmsTemplateCard() {
 }
 
 export function SettingsScreen() {
-  const { logout, setScreen, draft } = useApp();
+  const { logout, setScreen, draft, aiScanEnabled, setAiScanEnabled } = useApp();
   const { entitlement: settingsEnt } = useEntitlement();
   const [pricing, setPricing] = useState<Pricing>(DEFAULT_PRICING);
   useEffect(() => setPricing(getPricing()), []);
@@ -7642,6 +7644,12 @@ export function SettingsScreen() {
     <MobileShell>
       <TopBar title="설정" onBack={() => setScreen("home")} />
       <div className="p-4 space-y-3 flex-1 overflow-auto pb-24">
+        <div className="flex items-center justify-between gap-4 border-b border-border px-1 py-4">
+          <label htmlFor="ai-scan-enabled" className="font-bold text-foreground">AI 촬영 사용</label>
+          <Switch id="ai-scan-enabled" checked={aiScanEnabled} onCheckedChange={(enabled) => {
+            if (!setAiScanEnabled(enabled)) toast.error("설정을 저장하지 못했습니다. 다시 시도해 주세요.");
+          }} />
+        </div>
         {/* 서비스 최고관리자 전용 메뉴 — 서버에서 확인한 권한만 사용합니다 */}
         {settingsEnt?.isSuperAdmin && (
           <button

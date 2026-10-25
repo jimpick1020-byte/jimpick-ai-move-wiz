@@ -777,9 +777,14 @@ export function SharePage() {
                 <span className="font-bold">{Math.floor(Number(estimate.kitchenStaff))}명</span>
               </div>
             )}
-            {estimate.memo && (
-              <div className="rounded-xl bg-[#F7F8F5] p-3">
+            {estimate.memo?.trim() && (
+              <div className="whitespace-pre-wrap break-words rounded-xl bg-[#F7F8F5] p-3">
                 <span className="font-semibold">고객 메모:</span> {estimate.memo}
+              </div>
+            )}
+            {estimate.specialTerms?.trim() && (
+              <div className="whitespace-pre-wrap break-words rounded-xl bg-muted p-3 text-foreground">
+                <span className="font-semibold">특약사항:</span> {estimate.specialTerms}
               </div>
             )}
           </Card>

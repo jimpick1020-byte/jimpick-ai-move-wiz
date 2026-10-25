@@ -6,6 +6,8 @@ import type { ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 import { CharacterImg, type CharacterPose } from "./CharacterGuide";
 import { tap } from "@/lib/feedback";
+import { useAppSafe } from "@/lib/jimpick";
+import { ownerStepProgress } from "@/lib/ai-scan-setting";
 
 export function StepProgress({ current, total }: { current: number; total: number }) {
   return (
@@ -22,6 +24,10 @@ export function StepProgress({ current, total }: { current: number; total: numbe
 export function StepHero({ step, total, title, bubble, pose, onBack }: {
   step: number; total: number; title: string; bubble: string; pose: CharacterPose; onBack?: () => void;
 }) {
+  const app = useAppSafe();
+  const progress = app && !app.customerFlow && total === 6 ? ownerStepProgress(app.screen, app.aiScanEnabled) : null;
+  const currentStep = progress && progress.current > 0 ? progress.current : step;
+  const totalSteps = progress && progress.current > 0 ? progress.total : total;
   return (
     <header className="jp-step-hero">
       <div className="flex items-center gap-2">
@@ -30,10 +36,10 @@ export function StepHero({ step, total, title, bubble, pose, onBack }: {
             <ChevronLeft className="h-6 w-6" strokeWidth={2.4} />
           </button>
         )}
-        <div className="min-w-0 flex-1"><StepProgress current={step} total={total} /></div>
+        <div className="min-w-0 flex-1"><StepProgress current={currentStep} total={totalSteps} /></div>
         {onBack && <span aria-hidden className="w-11 shrink-0" />}
       </div>
-      <h1 className="jp-hero-title"><span>{step}단계</span> {title}</h1>
+      <h1 className="jp-hero-title"><span>{currentStep}단계</span> {title}</h1>
       <div className="jp-hero-stage">
         <p className="jp-hero-bubble">{bubble}</p>
         <CharacterImg pose={pose} size={168} priority className="jp-hero-char" />

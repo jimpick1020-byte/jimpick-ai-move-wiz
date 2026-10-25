@@ -14,7 +14,7 @@
 - The company subscription price has one source of truth in `PLANS` at KRW 30,000 monthly; Toss charges and renewal displays must read that value to prevent price drift.
 - The Step6 room picker keeps its base list mounted behind history-backed ItemListLayer views and RoomPickedStrip; all read draft rooms and disposal maps and use one locked immediate-save path, preserving scroll and preventing divergent selections.
 - Owner picker drag uses direct transforms and DOM drop hints, resolves release anchors against the displayed array, cancels on touchcancel, and serializes verified saves only for changed positions; this keeps long lists smooth and prevents stale/no-op success without changing estimate data.
-- Owner default Step3/Step6 navigation skips optional scan; AiScanMenu explicitly opens the preserved scan screen, keeping saved scan data independent of default navigation.
+- Owner scan navigation and sequential progress use ai-scan-setting helpers with a post-hydration account-scoped device preference; settings alone controls inclusion, keeping existing scans independent of the writing flow.
 - Favorite-card selection behavior is isolated by ItemListLayer mode and uses the existing quantity-save callback; this prevents changes to category and picked views or separate selection state.
 - Manual company items reuse item_icons and the existing stable image route through an authenticated owner-scoped insert before narrow storage upload; this preserves catalog IDs and avoids duplicate item tables.
 - Worker contacts live in company-owned profiles, change only through locked security-invoker RPCs and are disabled (never hard-deleted) via disable_worker_contact; assignments store contact IDs in draft JSON, keeping one source and past records intact.
