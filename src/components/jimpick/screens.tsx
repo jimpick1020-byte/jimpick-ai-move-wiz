@@ -2330,7 +2330,9 @@ export function Step6() {
     companyItems,
     refreshCompanyItems,
     customerFlow,
+    aiScanEnabled,
   } = useApp();
+  const useScan = !customerFlow && aiScanEnabled;
   const [size, setSize] = useState<string>(() => {
     if (draft.sizeTab) return draft.sizeTab;
     const n = draft.rooms.length;
