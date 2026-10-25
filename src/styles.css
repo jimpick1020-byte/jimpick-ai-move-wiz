@@ -80,6 +80,7 @@
 }
 
 :root {
+  --sheet-disposal: #FF3B30;
   --home-calendar-highlight: #FF3B30;
   --payment-review: #FF8A00;
   --scan-outline-auto: oklch(0.62 0.15 150);
@@ -588,3 +589,6 @@ html.jp-force-light, html.jp-force-light body { color-scheme: light only; backgr
 :root { --jp-quantity-selection: var(--intake-selection); --jp-quantity-ring: 0 0 0 2px var(--jp-quantity-selection); }
 .jp-redesign .jp-quantity-card { transition: none; }
 .jp-redesign .jp-quantity-card[data-quantity-selected="true"] { border-color: var(--jp-quantity-selection); box-shadow: var(--jp-quantity-ring); }
+
+.jp-sheet-inline { color: var(--foreground); background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
+@media print { .jp-sheet-inline { display: none !important; } }

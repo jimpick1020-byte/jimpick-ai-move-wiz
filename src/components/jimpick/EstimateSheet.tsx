@@ -32,6 +32,8 @@ import type { Estimate } from "@/lib/jimpick";
 import { won, sideConditionText, LADDER_SEPARATE_TEXT } from "@/lib/jimpick";
 import { ItemArt } from "@/lib/jimpick-art";
 import { OptionArt } from "./OptionArt";
+import { SheetInlineEdit, type SheetField } from "./SheetInlineEdit";
+import { SheetItemEdit } from "./SheetItemEdit";
 import { BankAccountActions } from "./BankAccountActions";
 import {
   TERMS_EFFECTIVE_AT,
@@ -52,6 +54,7 @@ function ymd(v: string | number | Date): string {
 }
 
 export interface SheetRoom {
+  id?: string;
   name: string;
   items: { id: string; name: string; qty: number; disposal?: boolean }[];
 }
@@ -60,7 +63,7 @@ export interface SheetRoom {
 export function DisposalX() {
   return (
     <svg viewBox="0 0 24 24" aria-label="폐기물" className="pointer-events-none absolute inset-0 h-full w-full p-0.5">
-      <path d="M4 4L20 20M20 4L4 20" stroke="#DC2626" strokeWidth="3.4" strokeLinecap="round" />
+      <path d="M4 4L20 20M20 4L4 20" stroke="var(--sheet-disposal)" strokeWidth="3.4" strokeLinecap="round" />
     </svg>
   );
 }
@@ -197,6 +200,7 @@ export interface EstimateSheetProps {
   depositClaimSlot?: React.ReactNode;
   /** 고객이 약관을 펼쳐 볼 때 한 번 알려 줍니다 (열람 기록용) */
   onTermsOpen?: () => void;
+  onSave?: (patch: Partial<Estimate>) => Promise<void>;
 }
 
 export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(function EstimateSheet(
@@ -217,10 +221,14 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     paidDeposit = 0,
     depositClaimSlot,
     onTermsOpen,
+    onSave,
   },
 
   ref,
 ) {
+  const save = forCustomer ? undefined : onSave;
+  const inline = (label: string, fields: SheetField[], children: ReactNode) => <SheetInlineEdit label={label} fields={fields} draft={{ ...draft, transportOverride: draft.transportOverride ?? transport, totalOverride: draft.totalOverride ?? total }} onSave={save}>{children}</SheetInlineEdit>;
+  const field = (key: keyof Estimate, label: string, type: SheetField['type'] = 'text'): SheetField => ({ key, label, type });
   const transport = parts
     .filter((p) => !["옵션 비용", "보관료", "사다리차 비용", "폐기물 처리비"].includes(p.label))
     .reduce((s, p) => s + p.amount, 0);
@@ -306,6 +314,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           )}
 
           {/* 고객 · 이사일 */}
+          {inline("고객정보·일정", [field("customerName", "고객 이름"), field("phone", "고객 전화번호"), field("moveDate", "이사일", "date"), field("sizeTab", "평수")], (
           <div className="mt-3 space-y-2 border-t border-[#E5E7EB] pt-3">
             <div className="flex min-w-0 items-center gap-2">
               <User className="h-[19px] w-[19px] shrink-0 text-[#25282D]" strokeWidth={2} />
@@ -350,10 +359,12 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
               </span>
             </div>
           </div>
+          ))}
         </div>
 
         {/* 시작 시간 · 이동 거리 · 예상 이동시간 */}
-        <div className="flex divide-x divide-[#E5E7EB] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+        {inline("시작 시간·이동 거리", [field("moveTime", "시작 시간", "text"), field("distanceKm", "이동 거리 (km)", "number"), field("durationMin", "예상 이동시간 (분)", "number")], (
+<div className="flex divide-x divide-[#E5E7EB] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
           <Stat
             icon={<Clock className="h-[19px] w-[19px]" strokeWidth={2} />}
             label="시작 시간"
@@ -374,9 +385,11 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             />
           )}
         </div>
+        ))}
 
         {/* 출발지 · 도착지 */}
-        <div className="divide-y divide-[#E5E7EB] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+        {inline("주소·작업 조건", [field("fromAddress", "출발 주소", "text"), field("fromDetail", "출발 상세주소", "text"), field("fromFloor", "출발 층수", "number"), field("toAddress", "도착 주소", "text"), field("toDetail", "도착 상세주소", "text"), field("toFloor", "도착 층수", "number")], (
+<div className="divide-y divide-[#E5E7EB] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
           <AddressRow
             label="출발지"
             value={`${draft.fromAddress} ${draft.fromDetail || ""}`.trim()}
@@ -390,29 +403,31 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             />
           )}
         </div>
+        ))}
 
         {/* 고객 메모 — 입력한 내용이 있을 때만 */}
-        {draft.memo?.trim() && (
+        {(draft.memo?.trim() || save) && inline("고객 메모", [field("memo", "고객 메모")], (
           <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
             <div className="mb-1.5 text-[17px] font-black text-[#25282D]">고객 메모</div>
             <p className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[#6B7280]">
-              {draft.memo.trim()}
+              {draft.memo?.trim() || "미입력"}
             </p>
           </div>
-        )}
+        ))}
 
         {/* 특약사항 — 입력한 내용이 있을 때만 */}
-        {draft.specialTerms?.trim() && (
+        {(draft.specialTerms?.trim() || save) && inline("특약사항", [field("specialTerms", "특약사항")], (
           <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
             <div className="mb-1.5 text-[17px] font-black text-[#25282D]">특약사항</div>
             <p className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[#6B7280]">
-              {draft.specialTerms.trim()}
+              {draft.specialTerms?.trim() || "미입력"}
             </p>
           </div>
-        )}
+        ))}
 
         {/* 차량 · 이사 유형 */}
-        <div className="flex divide-x divide-[#E5E7EB] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+        {inline("차량·이사 유형", [field("truck5t", "5톤 트럭 대수", "number"), field("truck1t", "1톤 트럭 대수", "number"), { key: "moveType", label: "이사 유형", choices: ["포장이사", "반포장이사", "일반이사", "보관이사", "사무실이사"] }], (
+<div className="flex divide-x divide-[#E5E7EB] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
           <Stat
             icon={<Truck className="h-[19px] w-[19px]" strokeWidth={2} />}
             label="차량"
@@ -424,9 +439,10 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             value={draft.moveType || "미정"}
           />
         </div>
+        ))}
 
         {/* 작업 인원 — 실제 저장값이 0명인 항목은 표시하지 않습니다 */}
-        {hasWorkers && (
+        {(hasWorkers || save) && inline("작업 인원", [field("workers", "남자 작업자", "number"), field("kitchenStaff", "주방 작업자", "number")], (
           <div className="jp-avoid-break rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
             <div className="mb-1.5 flex items-center gap-1.5">
               <User className="h-[20px] w-[20px] text-[#25282D]" strokeWidth={2} />
@@ -445,7 +461,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
               </div>
             )}
           </div>
-        )}
+        ))}
 
         {/* 공간별 품목 */}
         {rooms.length > 0 && (
@@ -462,20 +478,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                   </div>
                   <div className="flex min-w-0 flex-1 flex-wrap gap-x-3 gap-y-2 border-l border-[#E5E7EB] pl-2.5">
                     {r.items.map((it) => (
-                      <div key={it.id} className="flex min-w-0 items-center gap-1.5">
-                        <span className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-[#F7F8F5]">
-                          <ItemArt id={it.id} name={it.name} size={40} />
-                          {it.disposal && <DisposalX />}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate text-[16px] font-medium text-[#25282D]">
-                            {it.name}
-                          </span>
-                          <span className="block text-[16px] font-bold text-[#25282D]">
-                            {it.qty}
-                          </span>
-                        </span>
-                      </div>
+                      <SheetItemEdit key={it.id} item={it} roomId={r.id || draft.rooms.find(room => room.name === r.name)?.id || ""} draft={draft} onSave={save} />
                     ))}
                   </div>
                 </div>
@@ -489,7 +492,8 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
             <div className="mb-1.5 text-[17px] font-black text-[#25282D]">추가 작업</div>
             {addedWork.map((o) => (
-              <div key={o.id} className="jp-option-row flex items-center justify-between gap-3 py-1.5">
+              <SheetInlineEdit key={o.id} label={`${o.name} 옵션`} draft={{ ...draft, customerName: o.name, total: o.price, sizeTab: o.separate ? '별도' : '합계 포함' }} fields={[field('customerName', '옵션 이름'), field('total', '옵션 금액', 'number'), { key: 'sizeTab', label: '금액 처리', choices: ['합계 포함', '별도'] }]} onSave={save ? patch => save({ options: draft.options.map(option => option.id === o.id ? { ...option, name: patch.customerName ?? option.name, price: patch.total ?? option.price, separate: patch.sizeTab === undefined ? option.separate : patch.sizeTab === '별도' } : option) }) : undefined}>
+<div className="jp-option-row flex items-center justify-between gap-3 py-1.5">
                 <span className="flex min-w-0 items-center gap-2 text-[16px] text-foreground">
                   <OptionArt option={o} size={44} />
                   <span className="min-w-0 break-words">{o.name}</span>
@@ -498,12 +502,14 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                   {o.separate ? "별도" : won(o.price)}
                 </span>
               </div>
+              </SheetInlineEdit>
             ))}
           </div>
         )}
 
         {/* 비용 상세 */}
-        <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+        {inline("금액", [field('transportOverride', '기본 운송비', 'number'), field('ladderFromPrice', '출발 사다리차 비용', 'number'), field('ladderToPrice', '도착 사다리차 비용', 'number'), field('discount', '할인금액', 'number'), field('totalOverride', '총 견적금액', 'number')], (
+<div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
           <div className="mb-1.5 flex items-center gap-1.5">
             <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#3578C8] text-[13px] font-black text-white">
               ₩
@@ -527,6 +533,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             </span>
           </div>
         </div>
+        ))}
 
         {/* 입금 계좌 — 입력한 것만 적습니다 */}
         {hasBank && (

@@ -1624,6 +1624,7 @@ interface Ctx extends AppState {
   patchDraft: (make: (current: Estimate) => Partial<Estimate>) => void;
   resetDraft: () => void;
   saveDraft: () => void;
+  commitSavedSheet: (draft: Estimate) => void;
   /** 서버에서 받은 견적(고객 사전정보 초안)을 견적 내역에 넣거나 최신으로 바꿉니다 */
   upsertServerEstimates: (list: Estimate[]) => void;
   deleteEstimate: (id: string) => void;
@@ -1662,7 +1663,7 @@ export function CustomerFlowProvider({ children, draft, updateDraft, setScreen, 
     estimates: [], currentRoomId: "", catalogHidden: [], authUser: null, authChecking: false,
     draftSaveState: "idle", draftSavedAt: null, companyItems: draft.customItems,
     patchDraft: (make) => updateDraft(make(draft)), refreshCompanyItems: async () => draft.customItems,
-    retryAuthCheck: () => {}, login: () => {}, logout: async () => {}, resetDraft: () => {}, saveDraft: () => {},
+    retryAuthCheck: () => {}, login: () => {}, logout: async () => {}, resetDraft: () => {}, saveDraft: () => {}, commitSavedSheet: () => {},
     upsertServerEstimates: () => {}, deleteEstimate: () => {}, loadEstimate: () => {}, loadEstimateToStep1: () => {}, applyCustomerName: () => {},
     openEstimate: () => {}, openEstimateToStep1: () => {}, setResultFrom: () => {}, hideCatalogItem: () => {}, setCurrentRoom: () => {},
     restoreStepSnapshot: () => false, finishToHome: () => {},
@@ -2008,6 +2009,12 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     },
     updateDraft: (patch) => setState((s) => ({ ...s, draft: formatDraftPhones({ ...s.draft, ...patch }) })),
     patchDraft: (make) => setState((s) => ({ ...s, draft: formatDraftPhones({ ...s.draft, ...make(s.draft) }) })),
+    commitSavedSheet: (draft) => setState((s) => {
+      if (s.draft.id !== draft.id) return s;
+      const saved = formatDraftPhones(draft);
+      return { ...s, draft: saved, estimates: s.estimates.some(e => e.id === saved.id)
+        ? s.estimates.map(e => e.id === saved.id ? saved : e) : [saved, ...s.estimates] };
+    }),
     resetDraft: () =>
       setState((s) => ({
         ...s,
