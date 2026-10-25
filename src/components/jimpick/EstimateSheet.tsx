@@ -492,7 +492,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
             <div className="mb-1.5 text-[17px] font-black text-[#25282D]">추가 작업</div>
             {addedWork.map((o) => (
-              <SheetInlineEdit key={o.id} label={`${o.name} 옵션`} draft={{ ...draft, customerName: o.name, total: o.price, sizeTab: o.separate ? '별도' : '합계 포함' }} fields={[field('customerName', '옵션 이름'), field('total', '옵션 금액', 'number'), { key: 'sizeTab', label: '금액 처리', choices: ['합계 포함', '별도'] }]} onSave={save ? patch => save({ options: draft.options.map(option => option.id === o.id ? { ...option, name: String(patch.customerName), price: Number(patch.total), separate: patch.sizeTab === '별도' } : option) }) : undefined}>
+              <SheetInlineEdit key={o.id} label={`${o.name} 옵션`} draft={{ ...draft, customerName: o.name, total: o.price, sizeTab: o.separate ? '별도' : '합계 포함' }} fields={[field('customerName', '옵션 이름'), field('total', '옵션 금액', 'number'), { key: 'sizeTab', label: '금액 처리', choices: ['합계 포함', '별도'] }]} onSave={save ? patch => save({ options: draft.options.map(option => option.id === o.id ? { ...option, name: patch.customerName ?? option.name, price: patch.total ?? option.price, separate: patch.sizeTab === undefined ? option.separate : patch.sizeTab === '별도' } : option) }) : undefined}>
 <div className="jp-option-row flex items-center justify-between gap-3 py-1.5">
                 <span className="flex min-w-0 items-center gap-2 text-[16px] text-foreground">
                   <OptionArt option={o} size={44} />

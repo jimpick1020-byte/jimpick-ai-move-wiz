@@ -15,7 +15,7 @@ export function editedSheet(draft: Estimate, patch: Partial<Estimate>) {
   const { total, parts } = calcEstimate(next);
   next.total = total;
   next.deposit = calcDeposit(total);
-  if (next.sheetSnapshot) next.sheetSnapshot = { ...next.sheetSnapshot, total, parts, rooms: sheetRoomsOf(next) };
+  next.sheetSnapshot = { sheetNo: next.sheetNo || '', version: next.sheetVersion || 1, confirmedAt: next.sheetConfirmedAt || 0, ...next.sheetSnapshot, total, parts, rooms: sheetRoomsOf(next) };
   return next;
 }
 
