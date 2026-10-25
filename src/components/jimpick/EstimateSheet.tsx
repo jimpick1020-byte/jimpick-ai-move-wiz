@@ -29,7 +29,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { Estimate } from "@/lib/jimpick";
-import { won, sideConditionText, LADDER_SEPARATE_TEXT } from "@/lib/jimpick";
+import { won, sideConditionText, LADDER_SEPARATE_TEXT, usesStorage, storageDays, storageFeeOf } from "@/lib/jimpick";
 import { ItemArt } from "@/lib/jimpick-art";
 import { OptionArt } from "./OptionArt";
 import { SheetInlineEdit, type SheetField } from "./SheetInlineEdit";
