@@ -507,6 +507,35 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           </div>
         )}
 
+        {/* 보관 정보 — 보관을 선택한 견적에만 표시합니다 (보관료가 0원이어도 표시) */}
+        {usesStorage(draft) && inline("보관 정보", [field("storageStart", "보관 시작일", "date"), field("storageEnd", "보관 종료일", "date"), field("storageDaily", "하루 보관료", "number")], (
+          <div className="jp-avoid-break rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <Package className="h-[20px] w-[20px] text-[#25282D]" strokeWidth={2} />
+              <span className="text-[17px] font-black text-[#25282D]">보관 정보</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 py-1.5">
+              <span className="shrink-0 text-[16px] text-[#6B7280]">보관 기간</span>
+              <span className="min-w-0 text-right text-[16px] font-bold text-[#25282D]">
+                {draft.storageStart ? ymd(draft.storageStart) : "-"} ~ {draft.storageEnd ? ymd(draft.storageEnd) : "-"}
+                ({Math.max(0, storageDays(draft.storageStart, draft.storageEnd))}일)
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 py-1.5">
+              <span className="shrink-0 text-[16px] text-[#6B7280]">하루 보관료</span>
+              <span className="min-w-0 text-right text-[16px] font-bold tabular-nums text-[#25282D]">
+                {won(Math.max(0, Number(draft.storageDaily) || 0))}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 py-1.5">
+              <span className="shrink-0 text-[16px] text-[#6B7280]">총 보관료</span>
+              <span className="min-w-0 text-right text-[16px] font-bold tabular-nums text-[#25282D]">
+                {won(storageFeeOf(draft))}
+              </span>
+            </div>
+          </div>
+        ))}
+
         {/* 비용 상세 */}
         {inline("금액", [field('transportOverride', '기본 운송비', 'number'), field('ladderFromPrice', '출발 사다리차 비용', 'number'), field('ladderToPrice', '도착 사다리차 비용', 'number'), field('discount', '할인금액', 'number'), field('totalOverride', '총 견적금액', 'number')], (
 <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
