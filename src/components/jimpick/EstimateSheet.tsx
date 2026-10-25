@@ -236,9 +236,11 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
   const ladderCost = parts
     .filter((p) => p.label === "사다리차 비용")
     .reduce((s, p) => s + p.amount, 0);
-  const extraWork = parts
-    .filter((p) => ["옵션 비용", "보관료"].includes(p.label))
+  const optionFee = parts
+    .filter((p) => p.label === "옵션 비용")
     .reduce((s, p) => s + p.amount, 0);
+  /** 보관료는 저장된 실제 총 보관료를 그대로 보여 줍니다 */
+  const storageFee = storageFeeOf(draft);
   const discount = Math.max(0, draft.discount ?? 0);
   /** 입금이 확인된 금액이 있으면 그 금액이 실제 예약금입니다 */
   const paid = Math.max(0, paidDeposit ?? 0);
@@ -547,7 +549,8 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           </div>
           <MoneyRow label="기본 운송비" amount={transport} />
           <MoneyRow label="사다리차 비용" amount={ladderCost} />
-          <MoneyRow label="추가 작업비" amount={extraWork} />
+          <MoneyRow label="추가 작업비" amount={optionFee} />
+          {usesStorage(draft) && <MoneyRow label="보관비" amount={storageFee} />}
           <MoneyRow label="할인금액" amount={discount} tone="minus" />
           {(deposit > 0 || discount > 0) && (
             <div className="my-1.5 border-t border-dashed border-[#E5E7EB]" />
