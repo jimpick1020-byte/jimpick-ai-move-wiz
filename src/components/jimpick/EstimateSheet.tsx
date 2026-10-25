@@ -406,21 +406,21 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         ))}
 
         {/* 고객 메모 — 입력한 내용이 있을 때만 */}
-        {(draft.memo?.trim() || save) && inline("고객 메모", [field("memo", "고객 메모")], (
+        {draft.memo?.trim() && inline("고객 메모", [field("memo", "고객 메모")], (
           <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
             <div className="mb-1.5 text-[17px] font-black text-[#25282D]">고객 메모</div>
             <p className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[#6B7280]">
-              {draft.memo?.trim() || "미입력"}
+              {draft.memo}
             </p>
           </div>
         ))}
 
         {/* 특약사항 — 입력한 내용이 있을 때만 */}
-        {(draft.specialTerms?.trim() || save) && inline("특약사항", [field("specialTerms", "특약사항")], (
+        {draft.specialTerms?.trim() && inline("특약사항", [field("specialTerms", "특약사항")], (
           <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
             <div className="mb-1.5 text-[17px] font-black text-[#25282D]">특약사항</div>
             <p className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[#6B7280]">
-              {draft.specialTerms?.trim() || "미입력"}
+              {draft.specialTerms}
             </p>
           </div>
         ))}

@@ -567,7 +567,7 @@ export function RoomScanScreen() {
       />
       <div className="flex-1 overflow-auto pb-28">
         <StepHero step={4} total={6} title="AI 연속촬영" pose="camera"
-          bubble="방 전체가 보이도록 천천히 촬영해 주세요." onBack={() => setScreen("step6")} />
+          bubble="방 전체가 보이도록 천천히 촬영해 주세요." onBack={() => setScreen("step3")} />
         {!online && (
           <div className="mx-4 mt-3 rounded-xl bg-[#FDECEC] px-3 py-2 text-[13px] font-bold text-[#C62828]">
             인터넷이 끊겼습니다. 찍은 사진은 기기에 보관되며 연결되면 다시 올릴 수 있습니다.

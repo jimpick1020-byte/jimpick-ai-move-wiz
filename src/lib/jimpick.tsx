@@ -12,6 +12,7 @@ import { usePersistentItemCatalog } from "./use-persistent-item-catalog";
 import { FEATURED_HOUSEHOLD_100 } from "./featured-household-100";
 import { saveSafeSnapshot } from "./safe-state";
 import { formatDraftPhones } from "./format-input";
+import { DEFAULT_AI_SCAN_ENABLED, aiScanSettingKey, parseAiScanSetting } from "./ai-scan-setting";
 
 // ============ Types ============
 export type MoveType = "포장이사" | "반포장이사" | "일반이사" | "보관이사" | "사무실이사";
@@ -1601,6 +1602,8 @@ export interface CustomerFlow {
 }
 
 interface Ctx extends AppState {
+  aiScanEnabled: boolean;
+  setAiScanEnabled: (enabled: boolean) => boolean;
   customerFlow?: CustomerFlow;
   authUser: { id: string; email?: string } | null;
   authChecking: boolean;
@@ -1659,6 +1662,7 @@ export function CustomerFlowProvider({ children, draft, updateDraft, setScreen, 
   children: ReactNode; draft: Estimate; updateDraft: Ctx["updateDraft"]; setScreen: Ctx["setScreen"]; flow: CustomerFlow;
 }) {
   const value: Ctx = {
+    aiScanEnabled: false, setAiScanEnabled: () => false,
     draft, updateDraft, setScreen, customerFlow: flow, loggedIn: false, savedId: "", screen: "step1",
     estimates: [], currentRoomId: "", catalogHidden: [], authUser: null, authChecking: false,
     draftSaveState: "idle", draftSavedAt: null, companyItems: draft.customItems,
@@ -1725,6 +1729,13 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
   const [authRetry, setAuthRetry] = useState(0);
   const [authUserId, setAuthUserId] = useState("");
   const [authUser, setAuthUser] = useState<Ctx["authUser"]>(null);
+  const [scanPreference, setScanPreference] = useState({ userId: "", enabled: DEFAULT_AI_SCAN_ENABLED });
+  const aiScanEnabled = scanPreference.userId === authUserId && scanPreference.enabled;
+  useEffect(() => {
+    if (!authUserId) { setScanPreference({ userId: "", enabled: false }); return; }
+    try { setScanPreference({ userId: authUserId, enabled: parseAiScanSetting(localStorage.getItem(aiScanSettingKey(authUserId))) }); }
+    catch { setScanPreference({ userId: authUserId, enabled: false }); }
+  }, [authUserId]);
   const companyCatalog = usePersistentItemCatalog(
     hydrated && state.loggedIn && authChecked,
     authUserId,
@@ -1850,12 +1861,12 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       setState((prev) => {
         if (!prev.loggedIn) return prev;
         // 이전 버전의 방문기록에 삭제된 AI 화면이 남아 있어도 일반 견적 흐름으로 복구합니다.
-        return { ...prev, screen: (s as string) === "ai" ? "step6" : (s ?? "home") };
+        return { ...prev, screen: (s as string) === "ai" || (s === "scan" && !aiScanEnabled) ? "step6" : (s ?? "home") };
       });
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, [hydrated]);
+  }, [hydrated, aiScanEnabled]);
 
   /**
    * 작성 중인 견적 자동 임시저장.
@@ -1958,6 +1969,15 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
 
   const ctx: Ctx = {
     ...state,
+    aiScanEnabled,
+    setAiScanEnabled: (enabled) => {
+      if (!authUserId) return false;
+      try {
+        localStorage.setItem(aiScanSettingKey(authUserId), String(enabled));
+        setScanPreference({ userId: authUserId, enabled });
+        return true;
+      } catch { return false; }
+    },
     authUser,
     authChecking: !hydrated || !authChecked,
     draftSaveState: autosave.state,
