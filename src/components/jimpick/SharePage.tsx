@@ -31,6 +31,8 @@ import {
   calcEstimate,
   loadEstimateFromStorage,
   won,
+  roundUpOptionPrice,
+
   workConditionSummary,
   LADDER_SEPARATE_TEXT,
   type Estimate,
@@ -461,7 +463,7 @@ export function SharePage() {
         도착지: estimate?.toAddress ?? "",
         차량: estimate ? { "1톤": estimate.truck1t, "5톤": estimate.truck5t } : null,
         품목: selectedItems,
-        옵션: enabledOptions.map((o) => ({ 이름: o.name, 금액: o.price, 별도: o.separate })),
+        옵션: enabledOptions.map((o) => ({ 이름: o.name, 금액: roundUpOptionPrice(o.price), 별도: o.separate })),
         총견적금액: link?.total ?? localCalc?.total ?? estimate?.total ?? 0,
         확인시각: new Date().toISOString(),
       },
@@ -808,7 +810,7 @@ export function SharePage() {
               {enabledOptions.map((o) => (
                 <div key={o.id} className="flex justify-between text-[16px]">
                   <span className="flex min-w-0 items-center gap-2"><OptionArt option={o} /><span className="break-words">{o.name}</span></span>
-                  <span className="font-medium">{o.separate ? "별도" : won(o.price)}</span>
+                  <span className="font-medium">{o.separate ? "별도" : won(roundUpOptionPrice(o.price))}</span>
                 </div>
               ))}
             </Card>

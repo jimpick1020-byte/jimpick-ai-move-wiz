@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Icon3D } from "@/lib/jimpick-icon3d";
 import { createOption, findOptionCandidates, type OptionCatalogItem } from "@/lib/option-catalog";
-import type { OptionItem } from "@/lib/jimpick";
+import { roundUpOptionPrice, type OptionItem } from "@/lib/jimpick";
 
 export function OptionAddDialog({ catalog, onAdd, onClose }: {
   catalog: OptionCatalogItem[]; onAdd: (option: OptionItem) => void; onClose: () => void;
@@ -40,7 +40,7 @@ export function OptionAddDialog({ catalog, onAdd, onClose }: {
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>취소</Button>
           <Button disabled={!name.trim() || (candidates.length > 1 && !selected)} onClick={() => {
-            onAdd(createOption(name, Number(price) || 0, selected)); onClose();
+            onAdd(createOption(name, roundUpOptionPrice(Number(price) || 0), selected)); onClose();
           }}>추가</Button>
         </div>
       </DialogContent>

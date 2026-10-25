@@ -81,6 +81,8 @@ import {
   calcEstimate,
   guessCategory,
   won,
+  roundUpOptionPrice,
+
   roomSummary,
   frequentItemIds,
   formatMoveDateTime,
@@ -4769,14 +4771,16 @@ export function OptionsScreen() {
               <div className="mt-3 space-y-2">
                 <MoneyInput
                   value={o.price}
-                  step={1000}
+                  step={10000}
                   placeholder="추가 금액 입력"
+                  normalize={roundUpOptionPrice}
                   onChange={(n) =>
                     updateDraft({
                       options: draft.options.map((x, j) => (j === i ? { ...x, price: n } : x)),
                     })
                   }
                 />
+
                 <label className="flex items-center gap-2 text-sm font-semibold text-[#25282D]">
                   <input
                     type="checkbox"
@@ -5467,7 +5471,8 @@ export function Result() {
         : undefined,
       options: draft.options
         .filter((o) => o.enabled)
-        .map((o) => `${o.name} · ${o.separate ? "별도" : won(o.price)}`),
+        .map((o) => `${o.name} · ${o.separate ? "별도" : won(roundUpOptionPrice(o.price))}`),
+
       memo: draft.memo || undefined,
       totalText: won(total),
     });
@@ -5558,7 +5563,7 @@ export function Result() {
       kitchenStaff: draft.kitchenStaff ?? 0,
       extraItems: draft.options
         .filter((o) => o.enabled)
-        .map((o) => `${o.name} · ${o.separate ? "별도" : won(o.price)}`),
+        .map((o) => `${o.name} · ${o.separate ? "별도" : won(roundUpOptionPrice(o.price))}`),
       memo: draft.memo ?? "",
       url,
     });
@@ -5931,7 +5936,7 @@ export function Result() {
                 .filter((o) => o.enabled)
                 .map((o) => (
                   <div key={o.id}>
-                    ➕ {o.name} · {o.separate ? "별도" : won(o.price)}
+                    ➕ {o.name} · {o.separate ? "별도" : won(roundUpOptionPrice(o.price))}
                   </div>
                 ))}
               {draft.memo && <div className="text-[#6B7280]">메모: {draft.memo}</div>}
