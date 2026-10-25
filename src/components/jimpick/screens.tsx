@@ -4868,7 +4868,7 @@ export function OptionsScreen() {
 
 // ============ Result ============
 export function Result() {
-  const { draft, setScreen, saveDraft, updateDraft, estimates, finishToHome, resultFrom } =
+  const { draft, setScreen, saveDraft, commitSavedSheet, updateDraft, estimates, finishToHome, resultFrom } =
     useApp();
   /**
    * 견적 상세 상단 뒤로가기 화살표를 누르면 6단계(옵션)로 돌아갑니다.
@@ -5345,11 +5345,10 @@ export function Result() {
       const revision = nextRevision();
       const saved = await persistSheetDraft({ data: { estimateId: next.id, payload: JSON.stringify(next), revision } });
       if (!saved.ok || saved.stale) throw new Error(saved.error || '저장 내용이 변경되었습니다. 다시 저장해 주세요.');
+      sheetDraftRef.current = next;
+      commitSavedSheet(next);
       const synced = await syncSheet({ data: { estimateId: next.id, revision } });
       if (!synced.ok) throw new Error(synced.error || '고객 견적서에 반영하지 못했습니다.');
-      sheetDraftRef.current = next;
-      updateDraft(next);
-      saveDraft();
     } finally { sheetSaveLock.current = false; }
   };
 
