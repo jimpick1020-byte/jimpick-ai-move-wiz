@@ -5471,7 +5471,8 @@ export function Result() {
         : undefined,
       options: draft.options
         .filter((o) => o.enabled)
-        .map((o) => `${o.name} · ${o.separate ? "별도" : won(o.price)}`),
+        .map((o) => `${o.name} · ${o.separate ? "별도" : won(roundUpOptionPrice(o.price))}`),
+
       memo: draft.memo || undefined,
       totalText: won(total),
     });
@@ -5562,7 +5563,7 @@ export function Result() {
       kitchenStaff: draft.kitchenStaff ?? 0,
       extraItems: draft.options
         .filter((o) => o.enabled)
-        .map((o) => `${o.name} · ${o.separate ? "별도" : won(o.price)}`),
+        .map((o) => `${o.name} · ${o.separate ? "별도" : won(roundUpOptionPrice(o.price))}`),
       memo: draft.memo ?? "",
       url,
     });
@@ -5935,7 +5936,7 @@ export function Result() {
                 .filter((o) => o.enabled)
                 .map((o) => (
                   <div key={o.id}>
-                    ➕ {o.name} · {o.separate ? "별도" : won(o.price)}
+                    ➕ {o.name} · {o.separate ? "별도" : won(roundUpOptionPrice(o.price))}
                   </div>
                 ))}
               {draft.memo && <div className="text-[#6B7280]">메모: {draft.memo}</div>}
