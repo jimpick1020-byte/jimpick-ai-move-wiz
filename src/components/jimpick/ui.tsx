@@ -244,6 +244,7 @@ export function MoneyInput({
   inputClassName = "",
   allowNegative = false,
   disabled = false,
+  normalize,
 }: {
   value: number;
   onChange: (n: number) => void;
@@ -256,7 +257,10 @@ export function MoneyInput({
   allowNegative?: boolean;
   /** 입력칸과 ± 버튼을 함께 잠급니다 */
   disabled?: boolean;
+  /** 입력을 마쳤을 때 금액을 바꾸는 규칙 (예: 만 원 단위로 올림) */
+  normalize?: (n: number) => number;
 }) {
+
   const timers = useRef<{ t?: ReturnType<typeof setTimeout>; i?: ReturnType<typeof setInterval> }>(
     {},
   );
@@ -317,8 +321,16 @@ export function MoneyInput({
             const n = Number(t.replace(/[^\d]/g, "")) || 0;
             onChange(neg ? -n : allowNegative ? n : Math.max(0, n));
           }}
+          onBlur={() => {
+            if (!normalize) return;
+            const n = normalize(valueRef.current);
+            if (n === valueRef.current) return;
+            valueRef.current = n;
+            onChange(n);
+          }}
           className={`pr-8 text-right font-bold tabular-nums ${inputClassName}`}
         />
+
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[#6B7280]">원</span>
       </div>
       <button

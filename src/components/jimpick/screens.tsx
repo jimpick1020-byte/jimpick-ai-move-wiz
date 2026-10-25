@@ -81,6 +81,8 @@ import {
   calcEstimate,
   guessCategory,
   won,
+  roundUpOptionPrice,
+
   roomSummary,
   frequentItemIds,
   formatMoveDateTime,
@@ -4769,14 +4771,16 @@ export function OptionsScreen() {
               <div className="mt-3 space-y-2">
                 <MoneyInput
                   value={o.price}
-                  step={1000}
+                  step={10000}
                   placeholder="추가 금액 입력"
+                  normalize={roundUpOptionPrice}
                   onChange={(n) =>
                     updateDraft({
                       options: draft.options.map((x, j) => (j === i ? { ...x, price: n } : x)),
                     })
                   }
                 />
+
                 <label className="flex items-center gap-2 text-sm font-semibold text-[#25282D]">
                   <input
                     type="checkbox"

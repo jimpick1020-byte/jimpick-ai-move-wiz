@@ -1377,6 +1377,14 @@ const num = (v: unknown) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+/** 옵션 비용은 만 원 단위로 올려서 계산합니다 (155,000 → 160,000). */
+export const OPTION_PRICE_UNIT = 10000;
+export function roundUpOptionPrice(v: unknown): number {
+  const n = Math.max(0, num(v));
+  return Math.ceil(n / OPTION_PRICE_UNIT) * OPTION_PRICE_UNIT;
+}
+
+
 /** 보관 일수 (시작일·종료일 기준). 종료일이 빠르면 -1 */
 export function storageDays(start: string, end: string): number {
   if (!start || !end) return 0;
@@ -1447,9 +1455,11 @@ export function calcEstimate(
   const overridden = e.transportOverride !== null && e.transportOverride !== undefined;
   const transport = overridden ? num(e.transportOverride) : autoTransport;
 
+  /** 옵션 비용은 각 항목을 만 원 단위로 올려서 더합니다. */
   const optionFee = e.options
     .filter((o) => o.enabled && !o.separate)
-    .reduce((s, o) => s + Math.max(0, num(o.price)), 0);
+    .reduce((s, o) => s + roundUpOptionPrice(o.price), 0);
+
   const storageFee = storageFeeOf(e);
   const extras = (e.extraCharges ?? []).reduce((s2, x) => s2 + num(x.amount), 0);
 
