@@ -1,6 +1,6 @@
 // 예약금 입금 확인 후 고객 안내 문자(알리고) — 사장님이 확인 버튼을 누른 뒤에만, 영수 1건당 1회.
 import { formatTel } from "./format-input";
-import { paymentText } from "./customer-payment";
+import { depositConfirmedText } from "./deposit-notice";
 import { depositNoticeKey } from "./deposit-notice";
 
 export interface DepositNoticeResult {
@@ -53,7 +53,7 @@ export async function sendDepositConfirmedSms(companyId: string, receiptId: stri
   };
 
   const { data: terms } = await supabaseAdmin.from("estimate_terms")
-    .select("customer_name,contact_phone,deposit_paid,sheet_version")
+    .select("customer_name,contact_phone,deposit_paid,total,move_date,access_token,sheet_version")
     .eq("user_id", companyId).eq("estimate_id", rec.estimate_id).is("deleted_at", null)
     .order("sheet_version", { ascending: false }).limit(1).maybeSingle();
   const to = String(terms?.contact_phone ?? "").replace(/[^0-9]/g, "");
@@ -62,10 +62,15 @@ export async function sendDepositConfirmedSms(companyId: string, receiptId: stri
   const creds = readCreds();
   if (!creds) return fail("문자 발송 설정(알리고 인증정보)이 없어 발송하지 않았습니다.", "no_creds", to);
 
-  const { data: profile } = await supabaseAdmin.from("profiles").select("phone").eq("id", companyId).maybeSingle();
+  const { data: profile } = await supabaseAdmin.from("profiles").select("phone,sms_template").eq("id", companyId).maybeSingle();
   const companyPhone = formatTel(String(profile?.phone ?? ""));
   const amount = Number(terms.deposit_paid ?? rec.amount ?? 0) || Number(rec.amount ?? 0);
-  const text = [paymentText(String(terms.customer_name).trim(), amount, "deposit", true), companyPhone && `문의: ${companyPhone}`].filter(Boolean).join("\n");
+  const text = depositConfirmedText({
+    name: String(terms.customer_name).trim(), deposit: amount, total: Number(terms.total ?? 0),
+    moveDate: String(terms.move_date ?? ""), template: String(profile?.sms_template ?? ""),
+    link: terms.access_token ? `${String(process.env["PUBLIC_APP_URL"] || "https://jimpick-ai-move-wiz.lovable.app").trim().replace(/\/$/, "")}/share/${encodeURIComponent(String(rec.estimate_id))}?t=${encodeURIComponent(String(terms.access_token))}&card=deposit` : "",
+    phone: companyPhone,
+  });
   const msgType = new TextEncoder().encode(text).length > 90 ? "LMS" : "SMS";
 
   const usage = supabaseAdmin as unknown as { rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: Record<string, unknown> | null }> };
