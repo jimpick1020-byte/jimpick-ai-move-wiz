@@ -80,6 +80,10 @@
 }
 
 :root {
+  --customer-sheet-frame: #2685FF;
+  --customer-sheet-frame-shadow: 0 0 14px 2px color-mix(in srgb, var(--customer-sheet-frame) 12%, transparent);
+  --customer-sheet-frame-light: color-mix(in srgb, var(--customer-sheet-frame) 55%, var(--card));
+  --customer-sheet-frame-light-shadow: 0 0 7px 2px color-mix(in srgb, var(--customer-sheet-frame) 26%, transparent);
   --sheet-disposal: #FF3B30;
   --home-calendar-highlight: #FF3B30;
   --payment-review: #FF8A00;
@@ -592,3 +596,56 @@ html.jp-force-light, html.jp-force-light body { color-scheme: light only; backgr
 
 .jp-sheet-inline { color: var(--foreground); background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
 @media print { .jp-sheet-inline { display: none !important; } }
+
+/* Decoration only: no layout changes or touch handlers on the customer sheet. */
+.jp-customer-sheet-frame {
+  position: relative;
+  border-radius: 14px;
+  outline: 1px solid var(--customer-sheet-frame);
+  box-shadow: var(--customer-sheet-frame-shadow);
+}
+.jp-customer-sheet-frame::before,
+.jp-customer-sheet-frame::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+.jp-customer-sheet-frame::before {
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--customer-sheet-frame-light-shadow);
+  animation: jp-customer-sheet-breathe 4s ease-in-out infinite;
+}
+.jp-customer-sheet-frame::after {
+  top: 0;
+  left: 0;
+  width: 44px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--customer-sheet-frame-light);
+  box-shadow: var(--customer-sheet-frame-light-shadow);
+  offset-path: inset(0 round 14px);
+  offset-anchor: center;
+  animation: jp-customer-sheet-sweep 4s linear infinite, jp-customer-sheet-breathe 4s ease-in-out infinite;
+}
+@keyframes jp-customer-sheet-sweep {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
+@keyframes jp-customer-sheet-breathe {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jp-customer-sheet-frame::before,
+  .jp-customer-sheet-frame::after { animation: none; }
+  .jp-customer-sheet-frame::before { opacity: 0.2; }
+  .jp-customer-sheet-frame::after { display: none; }
+}
+@media print {
+  .jp-customer-sheet-frame { box-shadow: none !important; }
+  .jp-customer-sheet-frame::before,
+  .jp-customer-sheet-frame::after { display: none !important; animation: none !important; box-shadow: none !important; }
+}
