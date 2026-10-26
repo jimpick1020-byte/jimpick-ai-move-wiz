@@ -43,3 +43,4 @@
 
 - Explicit owner inline sheet saves persist draft revisions before updating the latest owned customer snapshot; payment and consent audit fields are never written, preserving existing tokens and read-only customer views.
 - Sheet disposal uses room/item IDs and pointer tap timing with movement cancellation; shared rendering overlays an X without changing image sources or quantities.
+- Customer sheet decoration belongs to SharePage wrappers and pointer-transparent CSS pseudo-elements, not EstimateSheet; this isolates owner/export content and preserves layout and interaction.

@@ -665,7 +665,7 @@ export function SharePage() {
       {/* 이 기기에 견적 원본이 없을 때 — 링크로 받아 온 값만으로 보여 줍니다 */}
       {/* 사장님이 보낸 견적서 원본 — 사장님 화면과 똑같이 보입니다 */}
       {openSheet && sentSheet && (
-        <div className="mt-4 overflow-hidden rounded-[14px]">
+        <div className="jp-customer-sheet-frame mt-4 rounded-[14px]">
           <EstimateSheet
             ref={sheetRef}
             draft={sentSheet.draft}
@@ -688,7 +688,7 @@ export function SharePage() {
       )}
 
       {openSheet && !sentSheet && !(estimate && localCalc) && hasData && (
-        <div className="mt-4">
+        <div className="jp-customer-sheet-frame mt-4">
           <Card className="space-y-2 text-[16px]">
             <div className="text-[17px] font-black">견적서 요약</div>
             <div className="flex items-center justify-between gap-3">
@@ -728,7 +728,7 @@ export function SharePage() {
       )}
 
       {openSheet && !sentSheet && estimate && localCalc && (
-        <div className="mt-4 space-y-4">
+        <div className="jp-customer-sheet-frame mt-4 space-y-4">
           <Card className="space-y-2 text-[16px]">
             <div className="text-[17px] font-black">이사 정보</div>
             <div className="flex items-center gap-2">
