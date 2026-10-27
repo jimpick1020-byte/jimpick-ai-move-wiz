@@ -1,0 +1,8 @@
+// 견적잇 외부 Cloudflare 배포용 설정.
+// 빌드할 때마다 dist/server/wrangler.json 에 이 값이 합쳐집니다.
+// - name: Cloudflare 에 표시될 서비스 이름 (무료 workers.dev 시험 주소에도 사용)
+// - nodejs_compat: 문자 발송·주소 검색 등 서버 기능이 쓰는 Node 내장 모듈 호환 모드
+{
+  "name": "gyejeokkit",
+  "compatibility_flags": ["nodejs_compat"],
+}
