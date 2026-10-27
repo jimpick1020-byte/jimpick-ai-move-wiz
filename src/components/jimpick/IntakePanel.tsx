@@ -160,9 +160,9 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
   });
   const kakao = () => run("kakao", async () => {
     const link = await linkOf("kakao"); if (!link) return;
-    const text = "[JIMPICK 짐픽] 고객님, 방문견적 전 기본정보 입력을 부탁드립니다.";
+    const text = "[견적잇] 고객님, 방문견적 전 기본정보 입력을 부탁드립니다.";
     if (navigator.share) {
-      try { await navigator.share({ title: "짐픽 사전정보 입력", text, url: link }); } catch { /* 사장님이 공유창을 닫음 */ }
+      try { await navigator.share({ title: "견적잇 사전정보 입력", text, url: link }); } catch { /* 사장님이 공유창을 닫음 */ }
     } else {
       await navigator.clipboard.writeText(`${text}\n${link}`);
       toast("이 기기에는 공유창이 없어 링크를 복사했습니다. 카카오톡에 붙여 넣어 주세요.");
