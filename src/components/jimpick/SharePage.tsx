@@ -647,10 +647,6 @@ export function SharePage() {
       {isDeposit && hasData && (
         <div className="mt-4 space-y-2 border-y border-border py-5 text-[16px] text-foreground">
           {customerName && <p className="font-bold">{customerName} 고객님, 예약금 입금 및 예약 내용을 확인해 주세요.</p>}
-          {(link.depositPaid ?? 0) > 0 && <p>예약금: {won(link.depositPaid ?? 0)}</p>}
-          {total > 0 && <p>총 견적금액: {won(total)}</p>}
-          {total > 0 && <p>잔금: {won(Math.max(0, total - (link.depositPaid ?? 0)))}</p>}
-          {moveDate && <p>이사일: {moveDate}</p>}
         </div>
       )}
 
