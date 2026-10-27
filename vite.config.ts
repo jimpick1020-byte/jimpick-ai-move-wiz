@@ -13,6 +13,13 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  nitro: {
+    cloudflare: {
+      // 외부 Cloudflare 배포 시 서버 기능이 쓰는 Node 내장 모듈 호환 모드
+      nodeCompat: true,
+      deployConfig: true,
+    },
+  },
   vite: {
     resolve: {
       // AI 부품이 끌고 오는 Vercel 전용 부품은 공개 서버 시작을 막으므로 빈 대체품을 씁니다.
