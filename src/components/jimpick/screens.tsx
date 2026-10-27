@@ -400,7 +400,7 @@ export function Splash() {
 
             <img
               src={charC}
-              alt="JIMPICK 캐릭터"
+              alt="견적잇 캐릭터"
               className="w-full max-w-[220px] jp-float jp-soft-blink [image-rendering:auto]"
             />
           </div>
@@ -6130,7 +6130,7 @@ export function Result() {
                 <Field label="예금주">
                   <TextInput
                     value={draft.bankHolder ?? ""}
-                    placeholder="예: 짐픽이사"
+                    placeholder="예: 믿음이사"
                     onChange={(e) => updateDraft({ bankHolder: e.target.value })}
                   />
                 </Field>
@@ -7475,7 +7475,7 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
           value={companyName}
           onChange={(e) => setCompanyName(e.target.value)}
           disabled={!editing}
-          placeholder="예: 짐픽 이사"
+          placeholder="예: 믿음 이사"
         />
       </Field>
       <Field label="대표자명">

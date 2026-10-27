@@ -206,7 +206,7 @@ async function chargeWithBillingKey(args: {
         customerKey: args.customerKey,
         amount: plan.price,
         orderId,
-        orderName: `짐픽 ${plan.name} 1개월`,
+        orderName: `견적잇 ${plan.name} 1개월`,
       },
     });
   } catch (e) {

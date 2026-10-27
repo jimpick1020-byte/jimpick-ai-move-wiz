@@ -80,7 +80,7 @@ export interface EstimateSmsInput {
  */
 export function buildEstimateMessage(e: EstimateSmsInput): string {
   const lines: string[] = [
-    `[JIMPICK 이사 견적]`,
+    `[견적잇 이사 견적]`,
     ``,
     `👤 ${e.customerName || "이름 미입력"} · ${formatTel(e.phone) || "연락처 미입력"}`,
     `📅 ${e.moveDateText}`,
