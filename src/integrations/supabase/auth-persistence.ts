@@ -94,11 +94,17 @@ export function rememberAwareAuthStorage(
       }
       return temporary;
     },
-    setItem(key: string, value: string): MaybePromise<void> | void {
+    async setItem(key: string, value: string): Promise<void> {
       if (isRememberMe() || persistentKeys.has(key)) {
+        // 비동기 프리뷰 저장이 끝나기 전 탭 세션을 지우면 앱 재실행 시 복구할 수 없습니다.
+        if (!base) {
+          safeSession()?.setItem(key, value);
+          return;
+        }
+        await base.setItem(key, value);
         persistentKeys.add(key);
         clearTemporary(key);
-        return base?.setItem(key, value);
+        return;
       }
       try {
         safeSession()?.setItem(key, value);

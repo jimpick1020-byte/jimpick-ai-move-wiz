@@ -8,6 +8,8 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { authHeader } from "@/lib/auth";
+import { recoverAuthSession } from "@/lib/auth-recovery";
+import { supabase } from "@/integrations/supabase/client";
 import { registerTossBilling } from "@/lib/toss.functions";
 
 export const Route = createFileRoute("/billing/callback")({
@@ -48,6 +50,16 @@ function BillingCallbackPage() {
         return;
       }
 
+      try {
+        // 카드 등록에서 돌아온 직후에도 저장 세션 갱신·검증을 먼저 마칩니다.
+        await recoverAuthSession(supabase.auth);
+      } catch {
+        if (!alive) return;
+        setState("error");
+        setMessage("로그인 확인이 지연되었습니다. 인터넷 연결을 확인한 뒤 다시 열어 주세요. 로그인 상태는 삭제하지 않았습니다.");
+        return;
+      }
+      if (!alive) return;
       const headers = await authHeader();
       if (!headers) {
         if (!alive) return;

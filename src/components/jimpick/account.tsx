@@ -54,7 +54,6 @@ export function useSession() {
 // ============ 회원가입 / 구독 계정 만들기 ============
 export function SignupScreen() {
   const { setScreen, login } = useApp();
-  const [mode, setMode] = useState<"signup" | "signin">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [company, setCompany] = useState("");
@@ -86,10 +85,7 @@ export function SignupScreen() {
     company.trim().length > 0 &&
     owner.trim().length > 0 &&
     phoneValid;
-  const canSubmit =
-    mode === "signin"
-      ? emailValid && password.length > 0
-      : requiredComplete && termsAccepted && privacyAccepted;
+  const canSubmit = requiredComplete && termsAccepted && privacyAccepted;
 
 
   const submit = async () => {
@@ -99,17 +95,17 @@ export function SignupScreen() {
       setFormError("이메일 주소를 정확히 입력해 주세요.");
       return;
     }
-    if (mode === "signup" && !passwordValid) {
+    if (!passwordValid) {
       setFormError("비밀번호 조건을 모두 충족해 주세요.");
       return;
     }
-    if (mode === "signup" && (!requiredComplete || !termsAccepted || !privacyAccepted)) {
+    if (!requiredComplete || !termsAccepted || !privacyAccepted) {
       setFormError("필수 정보와 필수 동의를 확인해 주세요.");
       return;
     }
     setBusy(true);
     try {
-      if (mode === "signup") {
+      {
         const { data, error } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
@@ -136,8 +132,7 @@ export function SignupScreen() {
         // 이때 "메일 보냈습니다" 라고 하면 거짓 안내가 되므로 로그인으로 안내합니다.
         const identities = data.user?.identities;
         if (data.user && Array.isArray(identities) && identities.length === 0) {
-          toast.error("이미 가입된 이메일입니다. 아래에서 '로그인'으로 들어가 주세요.");
-          setMode("signin");
+          toast.error("이미 가입된 이메일입니다. 이전 화면에서 로그인하거나 구글 계정으로 로그인해 주세요.");
           return;
         }
 
@@ -146,25 +141,11 @@ export function SignupScreen() {
         if (!data.session) {
           setPendingEmail(email);
           toast.success("인증 메일을 보냈습니다. 메일의 링크를 눌러 인증해 주세요.");
-          setMode("signin");
           return;
         }
 
         // 이메일 확인이 꺼져 있어 바로 세션이 생긴 경우만 로그인 처리합니다.
         toast.success("가입 완료! 한 달 무료 체험이 시작되었습니다");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: normalizedEmail,
-          password,
-        });
-        if (error) {
-          // 인증이 끝나지 않은 계정이면 '인증메일 다시 보내기' 안내를 띄웁니다.
-          if (/email not confirmed|not confirmed/i.test(error.message)) {
-            setPendingEmail(email);
-          }
-          throw error;
-        }
-        toast.success("로그인되었습니다");
       }
       login(normalizedEmail, true);
       setScreen("subscription");
@@ -203,13 +184,13 @@ export function SignupScreen() {
     event?.preventDefault();
     event?.stopPropagation();
     if (busy) return; // 연속 클릭 잠금
-    if (mode === "signup" && (!termsAccepted || !privacyAccepted)) {
+    if (!termsAccepted || !privacyAccepted) {
       setFormError("Google로 가입하려면 필수 약관에 먼저 동의해 주세요.");
       return;
     }
     setBusy(true);
     try {
-      if (mode === "signup") {
+      {
         localStorage.setItem(
           "jimpick_pending_oauth_consent",
           JSON.stringify({
@@ -237,7 +218,7 @@ export function SignupScreen() {
   return (
     <AuthShell>
       <AuthTopBar
-        title={mode === "signup" ? "업체 회원가입" : "업체 로그인"}
+        title="업체 회원가입"
         onBack={() => setScreen("login")}
       />
       <form
@@ -248,22 +229,7 @@ export function SignupScreen() {
         }}
         noValidate
       >
-        <div className="grid grid-cols-2 gap-1 rounded-md bg-auth-soft p-1">
-          {(["signup", "signin"] as const).map((m) => (
-            <Button
-              type="button"
-              variant="ghost"
-              key={m}
-              onClick={() => {
-                setMode(m);
-                setFormError("");
-              }}
-              className={`h-11 rounded-md text-base font-bold ${mode === m ? "bg-background text-auth-primary shadow-sm" : "text-auth-muted"}`}
-            >
-              {m === "signup" ? "회원가입" : "로그인"}
-            </Button>
-          ))}
-        </div>
+        <h2 className="text-base font-bold text-auth-primary">회원가입</h2>
 
         <div className="space-y-4">
           <AuthField
@@ -288,7 +254,7 @@ export function SignupScreen() {
             id="signup-password"
             label="비밀번호"
             hint={
-              mode === "signup" ? (
+              (
                 <ul className="grid gap-1" aria-live="polite">
                   <li className={hasLength ? "text-auth-primary" : ""}>• 8자 이상</li>
                   <li className={hasLetter ? "text-auth-primary" : ""}>• 영문 포함</li>
@@ -299,7 +265,7 @@ export function SignupScreen() {
                     </li>
                   )}
                 </ul>
-              ) : undefined
+              )
             }
           >
             <div className="relative">
@@ -307,12 +273,12 @@ export function SignupScreen() {
                 id="signup-password"
                 name="password"
                 type={showPassword ? "text" : "password"}
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                autoComplete="new-password"
                 placeholder="영문·숫자를 섞어 8자 이상"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                aria-invalid={mode === "signup" && !!password && !passwordValid}
-                aria-describedby={mode === "signup" ? "signup-password-hint" : undefined}
+                aria-invalid={!!password && !passwordValid}
+                aria-describedby="signup-password-hint"
                 className="pr-13"
               />
               <Button
@@ -327,7 +293,7 @@ export function SignupScreen() {
               </Button>
             </div>
           </AuthField>
-          {mode === "signup" && (
+          {(
             <>
               <AuthField id="signup-company" label="업체명">
                 <AuthInput
@@ -380,7 +346,7 @@ export function SignupScreen() {
           )}
         </div>
 
-        {mode === "signup" && (
+        {(
           <ConsentSection
             termsAccepted={termsAccepted}
             privacyAccepted={privacyAccepted}
@@ -395,12 +361,12 @@ export function SignupScreen() {
           type="button"
           variant="outline"
           onClick={google}
-          disabled={busy || (mode === "signup" && (!termsAccepted || !privacyAccepted))}
+          disabled={busy || !termsAccepted || !privacyAccepted}
           aria-busy={busy}
           className="h-[52px] w-full rounded-[14px] border-auth-border bg-background text-base font-bold text-auth-text shadow-sm hover:bg-auth-soft"
         >
           <GoogleIcon />
-          구글 계정으로 계속하기
+          구글 계정으로 로그인
         </Button>
         {googleFailed && (
           <div role="alert" className="space-y-2 rounded-[14px] border border-auth-border bg-auth-soft p-3 text-sm">
@@ -410,7 +376,7 @@ export function SignupScreen() {
               variant="outline"
               onClick={() => {
                 setGoogleFailed(false);
-                document.getElementById("signup-email")?.focus();
+                setScreen("login");
               }}
               className="h-11 w-full border-auth-primary text-auth-primary"
             >
@@ -452,13 +418,7 @@ export function SignupScreen() {
         )}
         <div className="sticky bottom-0 -mx-4 mt-auto border-t border-auth-border bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:-mx-8 sm:px-8">
           <AuthPrimaryButton type="submit" busy={busy} disabled={!canSubmit}>
-            {busy
-              ? mode === "signup"
-                ? "가입 처리 중…"
-                : "로그인 중…"
-              : mode === "signup"
-                ? "가입하고 시작하기"
-                : "로그인"}
+            {busy ? "가입 처리 중…" : "가입하고 시작하기"}
           </AuthPrimaryButton>
         </div>
       </form>
@@ -751,7 +711,7 @@ export function SubscriptionScreen() {
           <div className="text-sm text-[#6B7280]">가입하면 한 달 무료 체험이 바로 시작됩니다.</div>
         </div>
         <BottomButtonBar>
-          <PrimaryButton onClick={() => setScreen("signup")}>업체 회원가입 / 로그인</PrimaryButton>
+          <PrimaryButton onClick={() => setScreen("signup")}>업체 회원가입</PrimaryButton>
         </BottomButtonBar>
       </MobileShell>
     );
