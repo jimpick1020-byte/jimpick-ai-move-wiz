@@ -21,6 +21,6 @@ export async function prepareIntakeMmsImage(): Promise<File> {
     if (!context) throw new Error("안내 그림을 준비하지 못했습니다.");
     context.drawImage(bitmap, 0, 0);
     const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error("안내 그림을 준비하지 못했습니다.")), "image/jpeg", 0.95));
-    return new File([blob], "짐픽-사전정보-안내.jpg", { type: "image/jpeg" });
+    return new File([blob], "견적잇-사전정보-안내.jpg", { type: "image/jpeg" });
   } finally { bitmap.close(); }
 }

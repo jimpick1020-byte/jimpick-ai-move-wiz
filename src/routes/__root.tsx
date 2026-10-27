@@ -84,21 +84,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         name: "viewport",
         content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
-      { title: "JIMPICK 7.0 — AI 이사 견적 앱" },
+      { title: "견적잇 — AI 이사 견적 앱" },
       // ── 홈 화면에 추가했을 때 앱처럼 뜨게 하는 설정 ──
       { name: "theme-color", content: "#0864DC" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: "짐픽" },
+      { name: "apple-mobile-web-app-title", content: "견적잇" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
-      { name: "application-name", content: "짐픽" },
+      { name: "application-name", content: "견적잇" },
       {
         name: "description",
         content:
           "AI로 더 쉽고 정확한 이사 견적. 방별 품목, 차량, 옵션, 보관료까지 한 번에 계산합니다.",
       },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "JIMPICK 7.0 — AI 이사 견적 앱" },
+      { property: "og:title", content: "견적잇 — AI 이사 견적 앱" },
       {
         property: "og:description",
         content:
@@ -107,7 +107,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "JIMPICK 7.0 — AI 이사 견적 앱" },
+      { name: "twitter:title", content: "견적잇 — AI 이사 견적 앱" },
       {
         name: "twitter:description",
         content:
@@ -119,7 +119,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.png", type: "image/png" },
       // 홈 화면 아이콘 — iOS 는 apple-touch-icon, 안드로이드는 manifest 를 봅니다
       // iOS 는 180x180 을 그대로 씁니다 (큰 그림을 주면 홈 화면에서 흐려집니다)
       { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },

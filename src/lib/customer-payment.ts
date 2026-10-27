@@ -12,6 +12,6 @@ export function paymentText(name: string, amount: number, kind: string, confirme
   const label = kind === "balance" ? "잔금" : "예약금";
   const money = `${amount.toLocaleString("ko-KR")}원`;
   return confirmed
-    ? `[짐픽] ${name} 고객님, ${label} ${money} 계좌 입금을 확인했습니다.${completed ? " 전액 결제가 완료되었습니다. 감사합니다." : ""}`
-    : `[짐픽 입금 알림] ${name} 고객이 ${label} ${money}을 계좌로 입금했다고 신고했습니다. 실제 입금 문자를 확인해 주세요.`;
+    ? `[견적잇] ${name} 고객님, ${label} ${money} 계좌 입금을 확인했습니다.${completed ? " 전액 결제가 완료되었습니다. 감사합니다." : ""}`
+    : `[견적잇 입금 알림] ${name} 고객이 ${label} ${money}을 계좌로 입금했다고 신고했습니다. 실제 입금 문자를 확인해 주세요.`;
 }

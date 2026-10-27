@@ -571,7 +571,7 @@ function ConsentRow({
           <DialogContent className="max-h-[80dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-lg border-auth-border p-5">
             <DialogHeader>
               <DialogTitle>
-                {document === "terms" ? "JIMPICK 이용약관" : "JIMPICK 개인정보 처리방침"}
+                {document === "terms" ? "견적잇 이용약관" : "견적잇 개인정보 처리방침"}
               </DialogTitle>
               <DialogDescription>시행일 2026년 9월 13일</DialogDescription>
             </DialogHeader>
@@ -583,7 +583,7 @@ function ConsentRow({
   );
 }
 
-const TERMS_DRAFT = `제1조 목적\n본 약관은 JIMPICK이 제공하는 AI 이사 견적 작성·관리 서비스의 이용 조건을 정합니다.\n\n제2조 계정\n이용자는 정확한 업체 정보를 제공하고 계정 정보를 안전하게 관리해야 합니다.\n\n제3조 서비스 이용\n견적 결과는 입력 정보와 설정 단가를 기준으로 계산되며, 이용자는 고객에게 발송하기 전에 내용을 확인해야 합니다.\n\n제4조 금지행위\n타인의 계정 사용, 허위 정보 입력, 서비스 방해 및 관련 법령 위반 행위를 금지합니다.\n\n제5조 책임\n회사는 안정적인 서비스 제공을 위해 노력하며, 천재지변이나 외부 통신 장애 등 합리적으로 통제하기 어려운 사유에는 제한된 책임을 집니다.`;
+const TERMS_DRAFT = `제1조 목적\n본 약관은 견적잇이 제공하는 AI 이사 견적 작성·관리 서비스의 이용 조건을 정합니다.\n\n제2조 계정\n이용자는 정확한 업체 정보를 제공하고 계정 정보를 안전하게 관리해야 합니다.\n\n제3조 서비스 이용\n견적 결과는 입력 정보와 설정 단가를 기준으로 계산되며, 이용자는 고객에게 발송하기 전에 내용을 확인해야 합니다.\n\n제4조 금지행위\n타인의 계정 사용, 허위 정보 입력, 서비스 방해 및 관련 법령 위반 행위를 금지합니다.\n\n제5조 책임\n회사는 안정적인 서비스 제공을 위해 노력하며, 천재지변이나 외부 통신 장애 등 합리적으로 통제하기 어려운 사유에는 제한된 책임을 집니다.`;
 const PRIVACY_DRAFT = `1. 수집 항목\n이메일, 업체명, 담당자명, 연락처와 서비스 이용 중 이용자가 입력한 견적·고객 정보입니다.\n\n2. 이용 목적\n계정 생성과 인증, 견적 작성·보관·발송, 고객 지원, 서비스 안전성 확보에 사용합니다.\n\n3. 보유 기간\n회원 탈퇴 또는 법령상 보존 기간이 끝날 때까지 보관하며, 목적 달성 후 안전하게 파기합니다.\n\n4. 제3자 제공\n법령상 의무가 있거나 이용자가 별도로 동의한 경우를 제외하고 개인정보를 제3자에게 제공하지 않습니다.\n\n5. 이용자 권리\n이용자는 본인 정보의 열람·정정·삭제를 요청할 수 있습니다. 선택 안내 수신 동의는 언제든 철회할 수 있습니다.`;
 
 // ============ 구독 · 결제 ============
@@ -766,7 +766,7 @@ export function SubscriptionScreen() {
           <div className="font-bold">{account?.profile?.company_name || email || "내 업체"}</div>
           {entitlement?.isSuperAdmin ? (
             <div className="mt-2 inline-flex items-center rounded-full bg-[#E7F3EE] px-3 py-1 text-xs font-bold text-[#3E9B78]">
-              JIMPICK 서비스 관리자
+              견적잇 서비스 관리자
             </div>
           ) : (
             <>

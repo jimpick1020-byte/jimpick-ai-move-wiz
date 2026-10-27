@@ -2,8 +2,8 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { canShareIntakeMms, intakeMmsPayload } from "./intake-mms";
 
-const file = new File(["existing image"], "짐픽-사전정보-안내.jpg", { type: "image/jpeg" });
-const body = "[짐픽 사전정보 요청]\n\nhttps://example.test/intake/customer-specific";
+const file = new File(["existing image"], "견적잇-사전정보-안내.jpg", { type: "image/jpeg" });
+const body = "[견적잇 사전정보 요청]\n\nhttps://example.test/intake/customer-specific";
 test("MMS shares the actual image file and customer-specific text/link together", () => {
   const payload = intakeMmsPayload(file, body);
   assert.deepEqual(payload.files, [file]); assert.equal(payload.text, body);

@@ -83,7 +83,7 @@ export function ForgotPasswordScreen() {
               type="email"
               inputMode="email"
               autoComplete="email"
-              placeholder="jimpick@example.com"
+              placeholder="name@example.com"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);

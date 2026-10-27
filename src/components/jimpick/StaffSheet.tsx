@@ -81,7 +81,7 @@ export function StaffSheet() {
   return (
     <div className="min-h-[100dvh] bg-[#E9EFF8] pb-10">
       <div className="flex h-[72px] items-center gap-2 bg-[#3578C8] px-4">
-        <span className="text-[19px] font-black text-white">JIMPICK 직원용</span>
+        <span className="text-[19px] font-black text-white">견적잇 직원용</span>
       </div>
 
       <div className="mx-auto w-full max-w-[430px] space-y-3 px-3.5 py-4">

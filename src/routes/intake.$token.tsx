@@ -6,7 +6,7 @@ import { publicUrl } from "@/lib/app-url";
 export const Route = createFileRoute("/intake/$token")({
   head: () => ({
     meta: [
-      { title: "이사 사전정보 입력 | JIMPICK 짐픽" },
+      { title: "이사 사전정보 입력 | 견적잇" },
       { name: "description", content: "방문 전 이사 날짜, 주소, 작업 조건, 평수를 입력해 주세요." },
       { property: "og:title", content: "이사 사전정보 입력" },
       { property: "og:description", content: "방문 전 이사 날짜, 주소, 작업 조건, 평수를 입력해 주세요." },

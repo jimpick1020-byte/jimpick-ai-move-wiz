@@ -187,7 +187,7 @@ export const VISIT_TIMES = Array.from({ length: 11 }, (_, i) => {
 /** 방문 일정 안내 문자 (업체 휴대폰 문자 앱에 자동 입력) */
 export function visitSmsText(v: { link: string }): string {
   return [
-    "[짐픽 방문견적 안내]", "",
+    "[견적잇 방문견적 안내]", "",
     "아래 링크를 눌러 방문 날짜와 시간을 확인해 주세요.", "",
     v.link,
   ].join("\n");
@@ -393,7 +393,7 @@ export function intakeSummary(form: IntakeForm, nameOf: (id: string) => string):
 
 export function intakeSmsText(v: { link: string }): string {
   return [
-    "[짐픽 사전정보 요청]",
+    "[견적잇 사전정보 요청]",
     "",
     "방문 전 이름,이사 날짜, 주소, 작업 조건, 평수를 입력해 주세요.",
     "",
