@@ -227,7 +227,8 @@ import {
 
 // ============ Splash ============
 import charC from "@/assets/jimpick-char-c.png";
-import logoImg from "@/assets/jimpick-logo.png";
+import logoAsset from "@/assets/gyeokjeokit-logo.png.asset.json";
+const logoImg = logoAsset.url;
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { JimpickCharacter } from "./JimpickCharacter";
 
@@ -340,10 +341,8 @@ export function Splash() {
         className="flex-1 flex flex-col items-center px-8 pt-8 pb-4"
       >
         <div className="text-center">
-          <div className="flex items-baseline justify-center">
-            <span className="text-6xl font-black text-[#25282D] tracking-tight drop-shadow-[0_4px_10px_rgba(7,81,216,0.25)]">
-              JIMPICK
-            </span>
+          <div className="flex items-center justify-center">
+            <img src={logoImg} alt="견적잇" className="w-60 max-w-full object-contain drop-shadow-[0_4px_10px_rgba(7,81,216,0.25)]" />
           </div>
           <div className="text-lg font-bold text-[#25282D] mt-3">AI 이사 견적 앱</div>
           <div className="text-sm text-[#6B7280] mt-1">이사 견적, 더 쉽고 정확하게!</div>
@@ -487,8 +486,8 @@ export function Login() {
   return (
     <AuthShell>
       <header className="flex min-h-[190px] flex-col items-center justify-center bg-auth-primary px-4 text-auth-primary-foreground">
-        <img src={logoImg} alt="JIMPICK 로고" className="size-14 object-contain" />
-        <div className="mt-2 text-3xl font-black">JIMPICK</div>
+        <img src="/app-icon-512.png" alt="견적잇 로고" className="size-14 rounded-2xl object-contain" />
+        <div className="mt-2 text-3xl font-black">견적잇</div>
         <div className="mt-1 text-sm font-medium opacity-90">AI 이사 견적</div>
       </header>
       <form
@@ -500,7 +499,7 @@ export function Login() {
         noValidate
       >
         <div>
-          <h1 className="text-2xl font-bold text-auth-text">JIMPICK 로그인</h1>
+          <h1 className="text-2xl font-bold text-auth-text">견적잇 로그인</h1>
           <p className="mt-1 text-sm text-auth-muted">사장님 계정으로 로그인하세요.</p>
         </div>
         <AuthField id="login-email" label="아이디(이메일)" error={emailError}>
@@ -874,7 +873,7 @@ export function HomeScreen() {
       <div className="px-5 space-y-4 flex-1 pb-4">
         {entitlement?.isSuperAdmin && (
           <div className="inline-flex items-center rounded-full bg-[#E7F3EE] px-3 py-1 text-xs font-bold text-[#3E9B78]">
-            JIMPICK 서비스 관리자
+            견적잇 서비스 관리자
           </div>
         )}
         {!entitlement?.isSuperAdmin && blocked && (

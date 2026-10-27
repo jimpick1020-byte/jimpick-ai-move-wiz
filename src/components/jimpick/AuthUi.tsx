@@ -6,7 +6,8 @@ import {
   type ReactNode,
 } from "react";
 import { ChevronLeft, LoaderCircle } from "lucide-react";
-import logoImg from "@/assets/jimpick-logo.png";
+import logoAsset from "@/assets/gyeokjeokit-logo.png.asset.json";
+const logoImg = logoAsset.url;
 import { Button } from "@/components/ui/button";
 
 export function AuthShell({ children }: { children: ReactNode }) {
@@ -108,7 +109,7 @@ export function AuthLoadingScreen({ onRetry }: { onRetry: () => void }) {
   return (
     <main className="flex min-h-[100dvh] w-full items-center justify-center overflow-hidden bg-auth-canvas px-4">
       <div className="flex max-w-sm flex-col items-center text-center" aria-live="polite">
-        <img src={logoImg} alt="JIMPICK" className="size-16 object-contain" />
+        <img src={logoImg} alt="견적잇" className="h-16 object-contain" />
         <div
           className="mt-6 size-7 animate-spin rounded-full border-[3px] border-auth-border border-t-auth-primary"
           aria-hidden
