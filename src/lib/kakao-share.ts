@@ -158,7 +158,7 @@ export function openKakaoShare(text: string, url: string): KakaoShareOutcome | n
 /** 시스템 공유 시트 — 카카오톡을 골라 보낼 수 있고 본문이 잘리지 않습니다 */
 export async function openWebShare(
   text: string,
-  title = "JIMPICK 이사 견적 안내",
+  title = "견적잇 이사 견적 안내",
 ): Promise<KakaoShareOutcome | null> {
   if (typeof navigator === "undefined" || !navigator.share) return null;
   try {
@@ -244,7 +244,7 @@ export function buildCustomerShareText(v: {
   url: string;
   companyName?: string;
 }): string {
-  const lines = ["[JIMPICK 이사 견적 안내]", ""];
+  const lines = ["[견적잇 이사 견적 안내]", ""];
   if (v.customerName) lines.push(`고객: ${v.customerName} 고객님`);
   if (v.moveDate) lines.push(`이사 날짜: ${v.moveDate}`);
   if (v.fromArea || v.toArea)
