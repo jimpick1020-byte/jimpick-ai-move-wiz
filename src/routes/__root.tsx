@@ -11,6 +11,8 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import touchIcon from "@/assets/gyeokjeokit-icon-20261027-180.png.asset.json";
+import appIcon from "@/assets/gyeokjeokit-icon-20261027-512.png.asset.json";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerPwa } from "../lib/pwa";
 import { stripReceiptParam } from "../lib/app-url";
@@ -119,11 +121,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "icon", href: "/favicon-20261027.png", type: "image/png" },
       // 홈 화면 아이콘 — iOS 는 apple-touch-icon, 안드로이드는 manifest 를 봅니다
       // iOS 는 180x180 을 그대로 씁니다 (큰 그림을 주면 홈 화면에서 흐려집니다)
-      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
-      { rel: "icon", href: "/app-icon-512.png", type: "image/png", sizes: "512x512" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: touchIcon.url },
+      { rel: "icon", href: appIcon.url, type: "image/png", sizes: "512x512" },
       { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),

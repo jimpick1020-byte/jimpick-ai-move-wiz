@@ -227,7 +227,7 @@ import {
 
 // ============ Splash ============
 import charC from "@/assets/jimpick-char-c.png";
-import logoAsset from "@/assets/gyeokjeokit-logo.png.asset.json";
+import logoAsset from "@/assets/gyeokjeokit-logo-20261027.png.asset.json";
 const logoImg = logoAsset.url;
 import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { JimpickCharacter } from "./JimpickCharacter";
@@ -486,8 +486,7 @@ export function Login() {
   return (
     <AuthShell>
       <header className="flex min-h-[190px] flex-col items-center justify-center bg-auth-primary px-4 text-auth-primary-foreground">
-        <img src="/app-icon-512.png" alt="견적잇 로고" className="size-14 rounded-2xl object-contain" />
-        <div className="mt-2 text-3xl font-black">견적잇</div>
+        <img src={logoImg} alt="견적잇 모바일 견적서" className="h-auto w-full max-w-[320px] object-contain" />
         <div className="mt-1 text-sm font-medium opacity-90">AI 이사 견적</div>
       </header>
       <form
