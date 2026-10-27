@@ -52,7 +52,7 @@ test("영구 저장 실패 시 기존 탭 세션을 삭제하지 않는다", asy
     setItem: async () => { throw new Error("storage unavailable"); },
   });
   assert.ok(adapter);
-  await assert.rejects(adapter.setItem("auth", "renewed-session"), /storage unavailable/);
+  await assert.rejects(async () => { await adapter.setItem("auth", "renewed-session"); }, /storage unavailable/);
   assert.equal(temporary.getItem("auth"), "existing-session");
 });
 
