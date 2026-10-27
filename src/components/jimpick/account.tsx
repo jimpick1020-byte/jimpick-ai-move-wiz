@@ -229,8 +229,6 @@ export function SignupScreen() {
         }}
         noValidate
       >
-        <h2 className="text-base font-bold text-auth-primary">회원가입</h2>
-
         <div className="space-y-4">
           <AuthField
             id="signup-email"
