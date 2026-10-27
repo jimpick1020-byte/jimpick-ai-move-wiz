@@ -40,3 +40,31 @@ test("탭 한정 기존 세션은 유지 선택 시 정보 보존하여 이전",
   assert.equal(local.getItem("auth"), "temporary");
   assert.equal(temporary.getItem("auth"), null);
 });
+
+test("영구 저장 실패 시 기존 탭 세션을 삭제하지 않는다", async () => {
+  const local = storage();
+  const temporary = storage();
+  Object.assign(globalThis, { window: { sessionStorage: temporary }, localStorage: local });
+  temporary.setItem("auth", "existing-session");
+  setRememberMe(true);
+  const adapter = rememberAwareAuthStorage({
+    ...local,
+    setItem: async () => { throw new Error("storage unavailable"); },
+  });
+  assert.ok(adapter);
+  await assert.rejects(adapter.setItem("auth", "renewed-session"), /storage unavailable/);
+  assert.equal(temporary.getItem("auth"), "existing-session");
+});
+
+test("새 앱 인스턴스도 Google 영구 세션을 복구한다", async () => {
+  const local = storage();
+  Object.assign(globalThis, { window: { sessionStorage: storage() }, localStorage: local });
+  setRememberMe(true);
+  const adapter = rememberAwareAuthStorage(local);
+  assert.ok(adapter);
+  await adapter.setItem("auth", "google-session");
+  Object.assign(globalThis, { window: { sessionStorage: storage() } });
+  const reopened = rememberAwareAuthStorage(local);
+  assert.ok(reopened);
+  assert.equal(await reopened.getItem("auth"), "google-session");
+});

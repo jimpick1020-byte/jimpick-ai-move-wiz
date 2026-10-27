@@ -25,6 +25,7 @@
 - Home status grouping uses home-reservation-stage without changing contract stages; both waiting lists carry estimate_id to history and validate stored payment evidence so confirmation clears the target.
 - Telephone inputs, draft saves, company defaults and worker RPCs use formatTel for stored/display values; SMS transport alone strips separators, preserving legacy records on reads.
 - Auth persistence preserves existing durable sessions during refresh; Google sets persistence before OAuth so reopening cannot downgrade stored tokens to tab-only storage.
+- Durable auth writes must finish before temporary session cleanup, and billing return verifies restored auth before registration; asynchronous storage or upgrade redirects must not discard a valid session.
 - JimpickProvider owns the sole app auth subscription, waits for validated startup recovery, and cancels/clears private query caches before explicit sign-out; this avoids login flashes and duplicate sign-outs.
 
 - Subdirectories have their own `AGENTS.md` (e.g. `src/lib/AGENTS.md` for customer intake); read it before changing files there.
