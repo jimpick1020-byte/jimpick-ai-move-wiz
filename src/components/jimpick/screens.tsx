@@ -509,7 +509,7 @@ export function Login() {
             type="email"
             inputMode="email"
             autoComplete="username"
-            placeholder="jimpick@example.com"
+            placeholder="name@example.com"
             value={id}
             onChange={(e) => setId(e.target.value)}
             aria-invalid={!!emailError}
