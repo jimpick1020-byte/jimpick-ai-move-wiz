@@ -14,11 +14,11 @@ export const Route = createFileRoute("/billing/callback")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "카드 등록 확인 — JIMPICK" },
-      { name: "description", content: "JIMPICK 업체 구독 자동결제 카드 등록 결과를 확인합니다." },
+      { title: "카드 등록 확인 — 견적잇" },
+      { name: "description", content: "견적잇 업체 구독 자동결제 카드 등록 결과를 확인합니다." },
       { name: "robots", content: "noindex, nofollow" },
-      { property: "og:title", content: "카드 등록 확인 — JIMPICK" },
-      { property: "og:description", content: "JIMPICK 업체 구독 자동결제 카드 등록 결과입니다." },
+      { property: "og:title", content: "카드 등록 확인 — 견적잇" },
+      { property: "og:description", content: "견적잇 업체 구독 자동결제 카드 등록 결과입니다." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -89,7 +89,7 @@ function BillingCallbackPage() {
   return (
     <div className="min-h-dvh bg-[#F7F9FC] flex items-center justify-center p-5">
       <div className="w-full max-w-[420px] rounded-3xl bg-white p-6 shadow-[0_10px_30px_rgba(7,81,216,0.08)]">
-        <div className="text-[13px] font-bold tracking-wide text-[#0751D8]">JIMPICK</div>
+        <div className="text-[13px] font-bold tracking-wide text-[#0751D8]">견적잇</div>
         <h1 className="mt-2 text-[19px] font-extrabold text-[#111827]">
           {state === "loading" ? "결제 확인 중" : state === "done" ? "결제 결과를 확인했습니다" : "결제하지 못했습니다"}
         </h1>
