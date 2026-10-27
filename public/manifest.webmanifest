@@ -13,19 +13,19 @@
   "theme_color": "#0864DC",
   "icons": [
     {
-      "src": "/__l5e/assets-v1/9057c981-d989-4849-b144-ef7af2a4d4e2/gyeokjeokit-icon-20261027b-192.png",
+      "src": "/__l5e/assets-v1/b018a42a-5577-44e3-ae3d-402ea1a447b1/gyeokjeokit-icon-20261027c-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/__l5e/assets-v1/b9ea5569-ed68-43f6-baed-d31dd9fc4ceb/gyeokjeokit-icon-20261027b-512.png",
+      "src": "/__l5e/assets-v1/190ffba3-cd9e-4d85-b6fd-64974147e7a6/gyeokjeokit-icon-20261027c-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/__l5e/assets-v1/12b7a85b-ca20-4005-b193-db68c36e8456/gyeokjeokit-icon-20261027b-maskable.png",
+      "src": "/__l5e/assets-v1/c28a9656-0f7a-4704-9571-1276649b1c07/gyeokjeokit-icon-20261027c-maskable.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
