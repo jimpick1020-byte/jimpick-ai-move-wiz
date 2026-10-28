@@ -239,6 +239,13 @@
       "when": 1792749195876,
       "tag": "0033_add_item_layout_to_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793189460765,
+      "tag": "0034_migration",
+      "breakpoints": true
     }
   ]
 }

@@ -1172,6 +1172,51 @@ export type Database = {
           },
         ]
       }
+      owner_notifications: {
+        Row: {
+          body: string
+          company_id: string
+          created_at: string
+          dedupe_key: string
+          id: string
+          kind: string
+          push_error: string | null
+          pushed_at: string | null
+          read_at: string | null
+          ref_id: string
+          title: string
+          url: string
+        }
+        Insert: {
+          body?: string
+          company_id: string
+          created_at?: string
+          dedupe_key: string
+          id?: string
+          kind: string
+          push_error?: string | null
+          pushed_at?: string | null
+          read_at?: string | null
+          ref_id: string
+          title: string
+          url?: string
+        }
+        Update: {
+          body?: string
+          company_id?: string
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          kind?: string
+          push_error?: string | null
+          pushed_at?: string | null
+          read_at?: string | null
+          ref_id?: string
+          title?: string
+          url?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -1307,6 +1352,39 @@ export type Database = {
           terms_accepted_at?: string | null
           updated_at?: string
           worker_contacts?: Json
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }
