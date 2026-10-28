@@ -45,6 +45,8 @@ export interface TermsLinkInfo {
   depositPaidAt?: string | null;
   /** 고객이 「입금했습니다」를 눌렀고 사장님이 아직 확인하지 않은 상태인지 (서버 기록 기준) */
   depositClaimPending?: boolean;
+  /** 업체·관리자 로그인 기기라서 고객용 링크를 거부했는지 */
+  staffBlocked?: boolean;
 }
 
 /** 업체가 견적서·약관 문자를 보낼 때 기록합니다 */
@@ -123,6 +125,8 @@ export const publishEstimateTerms = createServerFn({ method: "POST" })
 export const getTermsLink = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ token: z.string().min(8).max(80) }).parse(d))
   .handler(async ({ data }): Promise<TermsLinkInfo> => {
+    const guard = await import("./customer-link-guard.server");
+    if (await guard.signedInAccountId()) return { ok: false, staffBlocked: true, error: guard.STAFF_BLOCK_MESSAGE };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("estimate_terms")
@@ -234,7 +238,9 @@ export const acceptTerms = createServerFn({ method: "POST" })
   .handler(
     async ({
       data,
-    }): Promise<{ ok: boolean; acceptedAt?: string; error?: string; full?: boolean }> => {
+    }): Promise<{ ok: boolean; acceptedAt?: string; error?: string; full?: boolean; staffBlocked?: boolean }> => {
+      const guard = await import("./customer-link-guard.server");
+      if (await guard.signedInAccountId()) return { ok: false, staffBlocked: true, error: guard.STAFF_BLOCK_MESSAGE };
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: row, error } = await supabaseAdmin
         .from("estimate_terms")
@@ -522,6 +528,9 @@ export const logCustomerView = createServerFn({ method: "POST" })
     if (/bot|crawler|spider|preview|facebookexternalhit|kakaotalk|slack|twitterbot|telegram|discord|whatsapp|google-inspection/i.test(agent)) {
       return { ok: false };
     }
+    // 업체·관리자 로그인 기기의 열람은 고객 열람으로 세지 않습니다.
+    const guard = await import("./customer-link-guard.server");
+    if (await guard.signedInAccountId()) return { ok: false };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row } = await supabaseAdmin
       .from("estimate_terms")

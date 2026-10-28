@@ -80,7 +80,9 @@ export function FullScreenItemFrame({ title, onClose, children, footer, level = 
   </div>;
 }
 
-export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highlight, onTap, onQuantity, onMenu, onRemove, categoryMode, onImageTap, favoriteMode = false, dragCardDown, dragging = false }: {
+export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highlight, onTap, onQuantity, onMenu, onRemove, categoryMode, onImageTap, favoriteMode = false, dragCardDown, dragging = false, onStep }: {
+  /** +·− 한 번에 1개씩: 최신 수량 기준으로 부르는 쪽에서 계산합니다 (연속 입력 누락 방지) */
+  onStep?: (delta: 1 | -1) => void;
   item: PickerItem; qty: number; disposed: boolean; busy: boolean; selectedMode: boolean; highlight?: boolean;
   onTap: () => void; onQuantity: (qty: number) => void; onMenu: () => void; onRemove: () => void; categoryMode?: boolean; onImageTap?: () => void; favoriteMode?: boolean;
   /** 카드 그림·이름·빈 영역을 길게 누르면 이동합니다 */
@@ -101,14 +103,15 @@ export function ItemPickerCard({ item, qty, disposed, busy, selectedMode, highli
       <span className="line-clamp-2 min-h-8 w-full shrink-0 break-all text-center text-[13px] font-black leading-4" title={label}>{label}</span>
     </Button>
     {qty > 0 ? <div data-item-drag-exclude className="mt-auto flex w-full items-center justify-between gap-1" onClick={favoriteMode ? (event) => event.stopPropagation() : undefined}>
-      <Button variant="outline" size="icon" disabled={busy} className="size-7 shrink-0 rounded-full text-foreground" onClick={() => onQuantity(qty - 1)} aria-label={`${label} 감소`}><Minus className="size-3.5" /></Button>
+      <Button type="button" variant="outline" size="icon" className="size-7 shrink-0 touch-manipulation rounded-full text-foreground" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); if (onStep) onStep(-1); else onQuantity(Math.max(0, qty - 1)); }} aria-label={`${label} 감소`}><Minus className="size-3.5" /></Button>
       <span className="min-w-0 truncate text-center text-[13px] font-black tabular-nums" data-item-quantity>{sizeLabel ? `${sizeLabel} · ${qty}개` : `${qty}개`}</span>
-      <Button variant={favoriteMode ? "outline" : "default"} size="icon" disabled={busy} className={`size-7 shrink-0 rounded-full ${favoriteMode ? "" : "bg-auth-primary text-auth-primary-foreground"}`} onClick={() => onQuantity(qty + 1)} aria-label={`${label} 증가`}><Plus className="size-3.5" /></Button>
+      <Button variant={favoriteMode ? "outline" : "default"} size="icon" type="button" className={`size-7 shrink-0 touch-manipulation rounded-full ${favoriteMode ? "" : "bg-auth-primary text-auth-primary-foreground"}`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); if (onStep) onStep(1); else onQuantity(qty + 1); }} aria-label={`${label} 증가`}><Plus className="size-3.5" /></Button>
     </div> : null}
   </div>;
 }
 
-export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites, picked, quantities, disposal, cats, tab, query, busy, onTab, onQuery, onClose, onAdd, onEdit, onTap, onImageTap, onQuantity, onMenu, onRemove, layout, onMoveItem }: {
+export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites, picked, quantities, disposal, cats, tab, query, busy, onTab, onQuery, onClose, onAdd, onEdit, onTap, onImageTap, onQuantity, onMenu, onRemove, layout, onMoveItem, onStep }: {
+  onStep?: (item: PickerItem, delta: 1 | -1) => void;
   highlightId?: string | null; mode: ItemListMode; roomName: string; catalog: PickerItem[]; favorites: PickerItem[]; picked: PickerItem[];
   quantities: Record<string, number>; disposal?: Record<string, boolean>; cats: readonly string[]; tab: string; query: string; busy: boolean;
   onTab: (tab: string) => void; onQuery: (query: string) => void; onClose: () => void; onAdd: () => void; onEdit: () => void;
@@ -143,7 +146,7 @@ export function ItemListLayer({ highlightId, mode, roomName, catalog, favorites,
   }, [highlightId, tab]);
   const kinds = Object.values(quantities).filter((qty) => qty > 0).length;
   const count = Object.values(quantities).reduce((sum, qty) => sum + qty, 0);
-  const card = (item: PickerItem) => <ItemPickerCard key={item.id} item={item} highlight={highlightId === item.id} qty={quantities[item.id] || 0} disposed={!!disposal?.[item.id]} busy={busy} selectedMode={mode === "picked"} categoryMode={mode === "category"} favoriteMode={mode === "favorites"} dragging={drag.dragId === item.id} dragCardDown={mode === "category" && onMoveItem && !query.trim() ? drag.onCardDown(item.id) : undefined} onTap={() => mode === "favorites" ? onQuantity(item, favoriteCardTapQuantity(quantities[item.id] || 0)) : onTap(item)} onImageTap={onImageTap ? () => onImageTap(item) : undefined} onQuantity={(qty) => onQuantity(item, qty)} onMenu={() => onMenu(item.id)} onRemove={() => onRemove(item)} />;
+  const card = (item: PickerItem) => <ItemPickerCard key={item.id} item={item} highlight={highlightId === item.id} qty={quantities[item.id] || 0} disposed={!!disposal?.[item.id]} busy={busy} selectedMode={mode === "picked"} categoryMode={mode === "category"} favoriteMode={mode === "favorites"} dragging={drag.dragId === item.id} dragCardDown={mode === "category" && onMoveItem && !query.trim() ? drag.onCardDown(item.id) : undefined} onTap={() => mode === "favorites" ? onQuantity(item, favoriteCardTapQuantity(quantities[item.id] || 0)) : onTap(item)} onImageTap={onImageTap ? () => onImageTap(item) : undefined} onQuantity={(qty) => onQuantity(item, qty)} onStep={onStep ? (delta) => onStep(item, delta) : undefined} onMenu={() => onMenu(item.id)} onRemove={() => onRemove(item)} />;
   return <FullScreenItemFrame title={title} onClose={onClose} footer={<><p className="mb-2 text-sm font-bold">선택 {kinds}종 · {count}개{busy ? " · 저장 중…" : ""}</p><PrimaryButton disabled={busy} onClick={onClose}>{mode === "picked" ? "변경 완료" : "선택 완료"}</PrimaryButton></>}>
     <div className="shrink-0 space-y-2 border-b border-border px-4 py-2">
       {mode === "category" && <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1">{cats.map((cat) => <Button key={cat} variant="ghost" data-category={cat} data-selected={tab === cat} className="jp-category-tab shrink-0 rounded-2xl font-black" onClick={() => onTab(cat)}>{cat}</Button>)}</div>}

@@ -39,3 +39,9 @@ export function withRoomDisposal(rooms: Room[], roomName: string, id: string, di
 export function pickedIdsInInputOrder(items: Record<string, number>): string[] {
   return Object.entries(items).filter(([, qty]) => qty > 0).map(([id]) => id);
 }
+
+/** +·− 한 번: 최신 수량에서 1개씩 증감하고 0 미만으로 내려가지 않습니다 */
+export function withRoomQuantityStep(rooms: Room[], roomName: string, id: string, delta: 1 | -1): Room[] {
+  const current = rooms.find((r) => r.name === roomName)?.items[id] || 0;
+  return withRoomQuantity(rooms, roomName, id, Math.max(0, current + delta));
+}

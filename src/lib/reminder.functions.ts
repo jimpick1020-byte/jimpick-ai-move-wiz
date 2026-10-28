@@ -295,6 +295,8 @@ export const markReminderViewed = createServerFn({ method: "POST" })
     if (/bot|crawler|spider|preview|facebookexternalhit|kakaotalk|slack|twitterbot|telegram|discord|whatsapp|google-inspection/i.test(getRequest().headers.get("user-agent") ?? "")) {
       return { ok: false };
     }
+    const guard = await import("./customer-link-guard.server");
+    if (await guard.signedInAccountId()) return { ok: false };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: out } = await (
       supabaseAdmin as unknown as {

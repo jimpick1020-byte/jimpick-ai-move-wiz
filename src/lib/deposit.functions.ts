@@ -167,7 +167,10 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
   .handler(
     async ({
       data,
-    }): Promise<{ ok: boolean; error?: string; already?: boolean; amount?: number }> => {
+    }): Promise<{ ok: boolean; error?: string; already?: boolean; amount?: number; staffBlocked?: boolean }> => {
+      // 업체·관리자 로그인 기기에서는 고객 대신 「입금했습니다」를 보낼 수 없습니다.
+      const guard = await import("./customer-link-guard.server");
+      if (await guard.signedInAccountId()) return { ok: false, staffBlocked: true, error: guard.STAFF_BLOCK_MESSAGE };
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: row } = await supabaseAdmin
         .from("estimate_terms")
