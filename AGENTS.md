@@ -48,5 +48,5 @@
 - External Cloudflare hosting config lives in root wrangler.jsonc (worker name gyejeokkit, nodejs_compat); nitro merges it into dist/server/wrangler.json on every build — keep it, and keep the Lovable published site live because the bank-SMS webhook and admin-key server functions only run there.
 - Brand refreshes use versioned CDN pointers for logos and install icons, a separate safely padded maskable icon, and a versioned public favicon; keep manifest identity and start URL stable so updates do not create a different installed app.
 
-- Owner notifications are created only by DB triggers (deposit_records pending inserts, intake submissions) with a per-company dedupe_key, pushed via the push-dispatch hook using VAPID web push imported into the generated service worker (public/push-sw.js); read_at is the only owner-writable field, keeping read state separate from payment confirmation.
-- Customer share-link server functions reject any request carrying a valid signed-in session (customer-link-guard.server.ts) and skip view counting for it; customers have no accounts, so the token link stays the customer credential.
+- Owner notifications come only from DB triggers with per-company dedupe keys and push via push-dispatch + public/push-sw.js; owners may change only read_at, keeping reads apart from payment confirmation.
+- Customer share-link server functions reject signed-in sessions via customer-link-guard and never count their views; the token link stays the customer credential.
