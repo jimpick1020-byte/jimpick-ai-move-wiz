@@ -41,6 +41,8 @@ export default defineConfig({
         // 빌드 결과가 dist/client 로 나가므로 서비스워커도 같은 폴더에 둡니다 (/sw.js 로 서비스됨)
         outDir: "dist/client",
         workbox: {
+          // 사장님 알림(푸시) 표시·누르면 해당 견적으로 이동
+          importScripts: ["/push-sw.js"],
           // 파일명이 해시 처리된 정적 파일만 미리 담습니다
           globDirectory: "dist/client",
           globPatterns: ["assets/**/*.{js,css,woff2}"],
