@@ -20,6 +20,7 @@ import { Route as StaffEstimateTokenRouteImport } from './routes/staff.estimate.
 import { Route as ApiPublicHooksBankSmsRouteImport } from './routes/api/public/hooks/bank-sms'
 import { Route as ApiPublicHooksCheckMoveReminderResultsRouteImport } from './routes/api/public/hooks/check-move-reminder-results'
 import { Route as ApiPublicHooksFixNoticeRouteImport } from './routes/api/public/hooks/fix-notice'
+import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
 import { Route as ApiPublicHooksSendMoveRemindersRouteImport } from './routes/api/public/hooks/send-move-reminders'
 import { Route as ApiPublicHooksSweepMoveRemindersRouteImport } from './routes/api/public/hooks/sweep-move-reminders'
 import { Route as ApiPublicItemIconFileRouteImport } from './routes/api/public/item-icon.$file'
@@ -80,6 +81,12 @@ const ApiPublicHooksFixNoticeRoute = ApiPublicHooksFixNoticeRouteImport.update({
   path: '/api/public/hooks/fix-notice',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksPushDispatchRoute =
+  ApiPublicHooksPushDispatchRouteImport.update({
+    id: '/api/public/hooks/push-dispatch',
+    path: '/api/public/hooks/push-dispatch',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksSendMoveRemindersRoute =
   ApiPublicHooksSendMoveRemindersRouteImport.update({
     id: '/api/public/hooks/send-move-reminders',
@@ -110,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/bank-sms': typeof ApiPublicHooksBankSmsRoute
   '/api/public/hooks/check-move-reminder-results': typeof ApiPublicHooksCheckMoveReminderResultsRoute
   '/api/public/hooks/fix-notice': typeof ApiPublicHooksFixNoticeRoute
+  '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/hooks/send-move-reminders': typeof ApiPublicHooksSendMoveRemindersRoute
   '/api/public/hooks/sweep-move-reminders': typeof ApiPublicHooksSweepMoveRemindersRoute
   '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
@@ -126,6 +134,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/bank-sms': typeof ApiPublicHooksBankSmsRoute
   '/api/public/hooks/check-move-reminder-results': typeof ApiPublicHooksCheckMoveReminderResultsRoute
   '/api/public/hooks/fix-notice': typeof ApiPublicHooksFixNoticeRoute
+  '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/hooks/send-move-reminders': typeof ApiPublicHooksSendMoveRemindersRoute
   '/api/public/hooks/sweep-move-reminders': typeof ApiPublicHooksSweepMoveRemindersRoute
   '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
@@ -143,6 +152,7 @@ export interface FileRoutesById {
   '/api/public/hooks/bank-sms': typeof ApiPublicHooksBankSmsRoute
   '/api/public/hooks/check-move-reminder-results': typeof ApiPublicHooksCheckMoveReminderResultsRoute
   '/api/public/hooks/fix-notice': typeof ApiPublicHooksFixNoticeRoute
+  '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/hooks/send-move-reminders': typeof ApiPublicHooksSendMoveRemindersRoute
   '/api/public/hooks/sweep-move-reminders': typeof ApiPublicHooksSweepMoveRemindersRoute
   '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/bank-sms'
     | '/api/public/hooks/check-move-reminder-results'
     | '/api/public/hooks/fix-notice'
+    | '/api/public/hooks/push-dispatch'
     | '/api/public/hooks/send-move-reminders'
     | '/api/public/hooks/sweep-move-reminders'
     | '/api/public/item-icon/$file'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/bank-sms'
     | '/api/public/hooks/check-move-reminder-results'
     | '/api/public/hooks/fix-notice'
+    | '/api/public/hooks/push-dispatch'
     | '/api/public/hooks/send-move-reminders'
     | '/api/public/hooks/sweep-move-reminders'
     | '/api/public/item-icon/$file'
@@ -193,6 +205,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/bank-sms'
     | '/api/public/hooks/check-move-reminder-results'
     | '/api/public/hooks/fix-notice'
+    | '/api/public/hooks/push-dispatch'
     | '/api/public/hooks/send-move-reminders'
     | '/api/public/hooks/sweep-move-reminders'
     | '/api/public/item-icon/$file'
@@ -210,6 +223,7 @@ export interface RootRouteChildren {
   ApiPublicHooksBankSmsRoute: typeof ApiPublicHooksBankSmsRoute
   ApiPublicHooksCheckMoveReminderResultsRoute: typeof ApiPublicHooksCheckMoveReminderResultsRoute
   ApiPublicHooksFixNoticeRoute: typeof ApiPublicHooksFixNoticeRoute
+  ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
   ApiPublicHooksSendMoveRemindersRoute: typeof ApiPublicHooksSendMoveRemindersRoute
   ApiPublicHooksSweepMoveRemindersRoute: typeof ApiPublicHooksSweepMoveRemindersRoute
   ApiPublicItemIconFileRoute: typeof ApiPublicItemIconFileRoute
@@ -294,6 +308,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksFixNoticeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/push-dispatch': {
+      id: '/api/public/hooks/push-dispatch'
+      path: '/api/public/hooks/push-dispatch'
+      fullPath: '/api/public/hooks/push-dispatch'
+      preLoaderRoute: typeof ApiPublicHooksPushDispatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/send-move-reminders': {
       id: '/api/public/hooks/send-move-reminders'
       path: '/api/public/hooks/send-move-reminders'
@@ -331,6 +352,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksCheckMoveReminderResultsRoute:
     ApiPublicHooksCheckMoveReminderResultsRoute,
   ApiPublicHooksFixNoticeRoute: ApiPublicHooksFixNoticeRoute,
+  ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
   ApiPublicHooksSendMoveRemindersRoute: ApiPublicHooksSendMoveRemindersRoute,
   ApiPublicHooksSweepMoveRemindersRoute: ApiPublicHooksSweepMoveRemindersRoute,
   ApiPublicItemIconFileRoute: ApiPublicItemIconFileRoute,
