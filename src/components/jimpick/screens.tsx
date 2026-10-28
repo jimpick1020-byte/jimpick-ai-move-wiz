@@ -16,7 +16,7 @@ import { ManualItemForm, type ManualItemInput } from "./ManualItemForm";
 import { FavoriteItemGrid } from "./FavoriteItemGrid";
 import { pickerItemLabel } from "@/lib/picker-item-label";
 import { createManualItem } from "@/lib/manual-item.functions";
-import { CARD_DOUBLE_TAP_MS, isSameCardDoubleTap, pickedIdsInInputOrder, withRoomQuantity, withRoomDisposal } from "@/lib/room-item-state";
+import { CARD_DOUBLE_TAP_MS, isSameCardDoubleTap, pickedIdsInInputOrder, withRoomQuantity, withRoomQuantityStep, withRoomDisposal } from "@/lib/room-item-state";
 import { calcDeposit, calcBalance } from "@/lib/deposit-rule";
 import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate, seoulMonthKey } from "@/lib/estimate-sort";
 import { publicUrl } from "@/lib/app-url";
@@ -2488,10 +2488,7 @@ export function Step6() {
   /** +·− 한 번: 화면에 보이는 값이 아니라 가장 최신 수량에서 1개씩 더하고 뺍니다 (0 미만 금지) */
   const stepQtyInRoom = (roomName: string, itemId: string, delta: 1 | -1) => {
     tap("soft");
-    void persistItemPatch((current) => {
-      const currentQty = current.rooms.find((r) => r.name === roomName)?.items[itemId] || 0;
-      return { rooms: withRoomQuantity(current.rooms, roomName, itemId, Math.max(0, currentQty + delta)) };
-    });
+    void persistItemPatch((current) => ({ rooms: withRoomQuantityStep(current.rooms, roomName, itemId, delta) }));
   };
 
   /** 수량 1에서 더 줄이면 바로 지우지 않고 삭제 확인창을 띄웁니다 */
