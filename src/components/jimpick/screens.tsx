@@ -2363,30 +2363,60 @@ export function Step6() {
     setListQuery(q);
     setListMode(mode);
   };
-  /** Optimistic shared state, immediate persistence, and exact rollback on failure. */
-  const persistItemPatch = async (make: (current: Estimate) => Partial<Estimate>): Promise<boolean> => {
-    if (itemWriteLock.current) return false;
-    itemWriteLock.current = true;
+  /**
+   * 화면은 즉시 바꾸고 저장은 순서대로 이어서 처리합니다.
+   * - 입력을 잠그지 않습니다: 저장 중에 누른 +·−도 바로 반영되고, 마지막 상태가 이어서 저장됩니다.
+   * - 서버 응답으로 화면 수량을 덮어쓰지 않으므로 늦은 응답이 최신 수량을 되돌리지 않습니다.
+   * - 저장에 실패하면 마지막으로 저장에 성공한 상태로만 되돌립니다.
+   */
+  const savedDraftRef = useRef<Estimate>(draft);
+  const itemDirtyRef = useRef(false);
+  const itemTouchedKeys = useRef(new Set<keyof Estimate>());
+  const itemSaveLoop = useRef<Promise<boolean> | null>(null);
+  const runItemSaves = async (): Promise<boolean> => {
     setItemWriteBusy(true);
-    const before = draftRef.current;
-    const patch = make(before);
-    const next = { ...before, ...patch };
-    draftRef.current = next;
-    updateDraft(patch);
+    itemWriteLock.current = true;
+    let ok = true;
     try {
-      if (customerFlow) await customerFlow.persist(next);
-      else {
-        const result = await saveEstimateDraft({ data: { estimateId: next.id, payload: JSON.stringify(next), revision: nextRevision() } });
-        if (!result.ok || result.stale) throw new Error(result.error || "저장 내용이 변경되었습니다. 다시 확인해 주세요.");
+      while (itemDirtyRef.current) {
+        itemDirtyRef.current = false;
+        const snapshot = draftRef.current;
+        try {
+          if (customerFlow) await customerFlow.persist(snapshot);
+          else {
+            const result = await saveEstimateDraft({ data: { estimateId: snapshot.id, payload: JSON.stringify(snapshot), revision: nextRevision() } });
+            if (!result.ok || result.stale) throw new Error(result.error || "저장 내용이 변경되었습니다. 다시 확인해 주세요.");
+          }
+          savedDraftRef.current = snapshot;
+        } catch (cause) {
+          ok = false;
+          itemDirtyRef.current = false;
+          const base = savedDraftRef.current;
+          const rollback = Object.fromEntries([...itemTouchedKeys.current].map((key) => [key, base[key]])) as Partial<Estimate>;
+          draftRef.current = { ...draftRef.current, ...rollback };
+          updateDraft(rollback);
+          toast.error(cause instanceof Error ? cause.message : "저장하지 못했습니다. 이전 상태로 되돌렸습니다.");
+          break;
+        }
       }
-      return true;
-    } catch (cause) {
-      const rollback = Object.fromEntries(Object.keys(patch).map((key) => [key, before[key as keyof Estimate]])) as Partial<Estimate>;
-      draftRef.current = { ...draftRef.current, ...rollback };
-      updateDraft(rollback);
-      toast.error(cause instanceof Error ? cause.message : "저장하지 못했습니다. 이전 상태로 되돌렸습니다.");
-      return false;
-    } finally { itemWriteLock.current = false; setItemWriteBusy(false); }
+    } finally {
+      itemTouchedKeys.current.clear();
+      itemSaveLoop.current = null;
+      itemWriteLock.current = false;
+      setItemWriteBusy(false);
+    }
+    return ok;
+  };
+  const persistItemPatch = (make: (current: Estimate) => Partial<Estimate>): Promise<boolean> => {
+    const before = draftRef.current;
+    if (!itemSaveLoop.current) savedDraftRef.current = before;
+    const patch = make(before);
+    for (const key of Object.keys(patch) as Array<keyof Estimate>) itemTouchedKeys.current.add(key);
+    draftRef.current = { ...before, ...patch };
+    updateDraft(patch);
+    itemDirtyRef.current = true;
+    if (!itemSaveLoop.current) itemSaveLoop.current = runItemSaves();
+    return itemSaveLoop.current;
   };
   useEffect(() => {
     if (!openRoom) return;
@@ -2453,6 +2483,15 @@ export function Step6() {
   const setQtyInRoom = (roomName: string, itemId: string, qty: number) => {
     tap("soft");
     void persistItemPatch((current) => ({ rooms: withRoomQuantity(current.rooms, roomName, itemId, qty) }));
+  };
+
+  /** +·− 한 번: 화면에 보이는 값이 아니라 가장 최신 수량에서 1개씩 더하고 뺍니다 (0 미만 금지) */
+  const stepQtyInRoom = (roomName: string, itemId: string, delta: 1 | -1) => {
+    tap("soft");
+    void persistItemPatch((current) => {
+      const currentQty = current.rooms.find((r) => r.name === roomName)?.items[itemId] || 0;
+      return { rooms: withRoomQuantity(current.rooms, roomName, itemId, Math.max(0, currentQty + delta)) };
+    });
   };
 
   /** 수량 1에서 더 줄이면 바로 지우지 않고 삭제 확인창을 띄웁니다 */
@@ -3800,7 +3839,7 @@ export function Step6() {
                                 dragging={roomDrag.dragId === it.id}
                                 dragCardDown={!customerFlow && !qd.trim() ? roomDrag.onCardDown(it.id) : undefined}
                                 onTap={() => customerFlow ? setQty(it.id, qty > 0 ? 0 : 1) : cardTap(room.name, it.id, () => setQty(it.id, qty + 1))}
-                                onQuantity={(next) => setQty(it.id, next)} />
+                                onQuantity={(next) => setQty(it.id, next)} onStep={(delta) => stepQtyInRoom(room.name, it.id, delta)} />
                                 {barEnd && <div className="col-span-full h-1 rounded-full bg-[#FF8A00]" />}
                               </Fragment>
                             );
@@ -3872,6 +3911,7 @@ export function Step6() {
                 setQtyInRoom(room.name, item.id, customerFlow ? (currentQty > 0 ? 0 : 1) : currentQty + 1);
               })}
               onQuantity={(item, qty) => setQtyInRoom(room.name, item.id, Math.max(0, qty))}
+              onStep={(item, delta) => stepQtyInRoom(room.name, item.id, delta)}
               onRemove={(item) => setConfirmRemove({ id: item.id, name: item.name, room: room.name })}
               layout={itemLayout}
               onMoveItem={customerFlow ? undefined : (id, t) => handleItemDrop(id, t, listTab)}
