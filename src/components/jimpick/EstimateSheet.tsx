@@ -8,7 +8,7 @@
  * 확정한 뒤에는 sheetSnapshot 을 우선 써서, 단가가 나중에 바뀌어도
  * 이미 보낸 견적서 금액이 흔들리지 않습니다.
  */
-import { calcDeposit } from "@/lib/deposit-rule";
+import { plannedDeposit } from "@/lib/deposit-rule";
 import { formatTel } from "@/lib/format-input";
 import { normalizePaymentStatus } from "@/lib/payment.functions";
 import { RESERVATION_STAGE_CLASS, RESERVATION_STAGE_LABEL, reservationStageOf } from "@/lib/reservation-status";
@@ -245,7 +245,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
   /** 입금이 확인된 금액이 있으면 그 금액이 실제 예약금입니다 */
   const paid = Math.max(0, paidDeposit ?? 0);
   // 예약금은 총액의 10%(1만 원 미만 버림). 입금 확인된 금액이 있으면 그 금액을 보여 줍니다.
-  const deposit = paid > 0 ? paid : calcDeposit(total);
+  const deposit = paid > 0 ? paid : plannedDeposit(total, draft.depositOverride);
   const balance = Math.max(0, total - deposit);
   const version = draft.sheetVersion ?? 1;
   /** 사장님이 실제로 켠 추가 작업만 */
@@ -556,7 +556,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             <div className="my-1.5 border-t border-dashed border-[#E5E7EB]" />
           )}
           <MoneyRow label={paid > 0 ? "예약금 (입금완료)" : "예약금"} amount={deposit} />
-          <MoneyRow label="잔금" amount={deposit ? balance : 0} />
+          <MoneyRow label="잔금" amount={balance} />
 
           <div className="mt-3 flex items-center justify-between gap-3 rounded-[12px] border border-[#E5E7EB] bg-[#F7F8F5] px-3.5 py-3">
             <span className="shrink-0 text-[18px] font-black text-[#25282D]">총 견적금액</span>

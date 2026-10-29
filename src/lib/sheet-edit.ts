@@ -1,5 +1,5 @@
 import { calcEstimate, itemNameById, ITEM_CATALOG, type Estimate } from './jimpick';
-import { calcDeposit } from './deposit-rule';
+import { plannedDeposit } from './deposit-rule';
 
 export function sheetRoomsOf(draft: Estimate) {
   return draft.rooms.map(room => ({ id: room.id, name: room.name,
@@ -14,7 +14,7 @@ export function editedSheet(draft: Estimate, patch: Partial<Estimate>) {
   const next = { ...draft, ...patch };
   const { total, parts } = calcEstimate(next);
   next.total = total;
-  next.deposit = calcDeposit(total);
+  next.deposit = plannedDeposit(total, next.depositOverride);
   next.sheetSnapshot = { sheetNo: next.sheetNo || '', version: next.sheetVersion || 1, confirmedAt: next.sheetConfirmedAt || 0, ...next.sheetSnapshot, total, parts, rooms: sheetRoomsOf(next) };
   return next;
 }
