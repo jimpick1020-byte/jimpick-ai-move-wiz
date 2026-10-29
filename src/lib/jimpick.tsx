@@ -193,6 +193,8 @@ export interface Estimate {
   discount?: number;
   /** 예약금 (잔금은 총액 − 예약금으로 계산합니다) */
   deposit?: number;
+  /** Manually agreed reservation amount, separate from actual payment evidence. */
+  depositOverride?: number;
   /** 견적서 안내 문구 */
   sheetNote?: string;
   /** 확정한 시각 — 확정 뒤에는 금액이 바뀌어도 이 스냅샷을 씁니다 */

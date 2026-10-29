@@ -8,6 +8,12 @@ export function calcDeposit(total: number | null | undefined): number {
   return Math.floor((t * 0.1) / 10000) * 10000;
 }
 
+/** Manually agreed reservation amount; never represents a confirmed payment. */
+export function plannedDeposit(total: number | null | undefined, override?: number): number {
+  const t = Math.max(0, Math.floor(Number(total) || 0));
+  return override === undefined ? calcDeposit(t) : Math.min(t, Math.max(0, Math.floor(Number(override) || 0)));
+}
+
 export function calcBalance(total: number | null | undefined): number {
   const t = Math.max(0, Math.floor(Number(total) || 0));
   return t - calcDeposit(t);

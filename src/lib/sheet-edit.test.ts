@@ -3,6 +3,21 @@ import { newEstimate, calcEstimate } from './jimpick';
 import { editedSheet, sheetRoomsOf, toggleSheetDisposal, isDoubleTap } from './sheet-edit';
 
 describe('owner sheet edits', () => {
+  it('persists a manually edited deposit and recalculates balance without changing the total', () => {
+    const before = { ...newEstimate(), totalOverride: 1480000 };
+    const edited = editedSheet(before, { depositOverride: 200000 });
+    const reopened = editedSheet(JSON.parse(JSON.stringify(edited)), { customerName: '수정 고객' });
+    expect(reopened.total).toBe(1480000);
+    expect(reopened.deposit).toBe(200000);
+    expect(reopened.total - (reopened.deposit ?? 0)).toBe(1280000);
+  });
+  it('keeps zero deposit and prevents negative or above-total deposits', () => {
+    const before = { ...newEstimate(), totalOverride: 1480000 };
+    expect(editedSheet(before, { depositOverride: 0 }).deposit).toBe(0);
+    expect(editedSheet(before, { depositOverride: -10000 }).deposit).toBe(0);
+    expect(editedSheet(before, { depositOverride: 2000000 }).deposit).toBe(1480000);
+    expect(editedSheet(before, {}).deposit).toBe(140000);
+  });
   it('edits only the selected estimate and keeps image IDs and other quantities', () => {
     const before = { ...newEstimate(), rooms: [{ id: 'living', name: '거실', items: { sofa: 2, tv: 1 } }] };
     const next = editedSheet(before, { customerName: '수정 고객', itemNames: { sofa: '내 소파' }, rooms: [{ ...before.rooms[0], items: { sofa: 3, tv: 1 } }] });

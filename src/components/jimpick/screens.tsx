@@ -17,7 +17,7 @@ import { FavoriteItemGrid } from "./FavoriteItemGrid";
 import { pickerItemLabel } from "@/lib/picker-item-label";
 import { createManualItem } from "@/lib/manual-item.functions";
 import { CARD_DOUBLE_TAP_MS, isSameCardDoubleTap, pickedIdsInInputOrder, withRoomQuantity, withRoomQuantityStep, withRoomDisposal } from "@/lib/room-item-state";
-import { calcDeposit, calcBalance } from "@/lib/deposit-rule";
+import { plannedDeposit } from "@/lib/deposit-rule";
 import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate, seoulMonthKey } from "@/lib/estimate-sort";
 import { publicUrl } from "@/lib/app-url";
 import {
@@ -5158,7 +5158,7 @@ export function Result() {
             termsEffectiveAt: TERMS_EFFECTIVE_AT,
             accessToken: shareToken(),
             sheetSnapshot: JSON.stringify({
-              draft: { ...draft, total, deposit: calcDeposit(total) },
+              draft: { ...draft, total, deposit: plannedDeposit(total, draft.depositOverride) },
               rooms: sheetRooms,
               parts,
               total,
@@ -5414,9 +5414,9 @@ export function Result() {
     .reduce((s, p) => s + p.amount, 0);
 
   useEffect(() => {
-    const dep = calcDeposit(total);
+    const dep = plannedDeposit(total, draft.depositOverride);
     if (draft.total !== total || draft.deposit !== dep) updateDraft({ total, deposit: dep });
-  }, [total, draft.total, draft.deposit, updateDraft]);
+  }, [total, draft.total, draft.deposit, draft.depositOverride, updateDraft]);
 
   /**
    * 이미 저장된 견적의 금액을 고치면, 견적 내역 카드와 예약금·잔금 계산 기준을 함께 맞춥니다.
@@ -6124,15 +6124,17 @@ export function Result() {
                     onChange={(n) => updateDraft({ discount: n })}
                   />
                 </Field>
-                {/* 예약금은 총액의 10%(1만 원 미만 버림)로 자동 계산됩니다 */}
-                <div className="flex items-center justify-between rounded-2xl bg-[#F7F8F5] px-4 py-3">
-                  <span className="text-sm font-bold text-[#6B7280]">예약금 (총액의 10%, 자동)</span>
-                  <span className="text-[17px] font-black text-[#25282D]">{won(calcDeposit(total))}</span>
-                </div>
+                <Field label="예약금">
+                  <MoneyInput
+                    value={plannedDeposit(total, draft.depositOverride)}
+                    step={10000}
+                    onChange={(n) => updateDraft({ depositOverride: plannedDeposit(total, n) })}
+                  />
+                </Field>
                 <div className="flex items-center justify-between rounded-2xl bg-[#F7F8F5] px-4 py-3">
                   <span className="text-sm font-bold text-[#6B7280]">잔금 (총액 − 예약금)</span>
                   <span className="text-[17px] font-black text-[#25282D]">
-                    {won(calcBalance(total))}
+                    {won(Math.max(0, total - plannedDeposit(total, draft.depositOverride)))}
                   </span>
                 </div>
                 <Field label="담당자 이름">
@@ -6207,12 +6209,13 @@ export function Result() {
           <div className="border-t border-[#E5E7EB] bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <div className="grid grid-cols-3 gap-2">
               <button
-                onClick={() => {
+                onClick={async () => {
                   tap("soft");
                   if (sheetEdit) {
                     // 수정을 끝내면 이력을 남기고 차수를 올립니다
                     const before = draft.sheetSnapshot?.total ?? total;
-                    updateDraft({
+                    try {
+                    await saveInlineSheet({
                       sheetVersion: (draft.sheetVersion ?? 1) + (draft.sheetConfirmedAt ? 1 : 0),
                       sheetHistory: [
                         ...(draft.sheetHistory ?? []),
@@ -6225,8 +6228,11 @@ export function Result() {
                         },
                       ],
                     });
-                    saveDraft();
                     void persistCompanyDefaults();
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : "견적서를 저장하지 못했습니다.");
+                      return;
+                    }
                   }
                   setSheetEdit((v) => !v);
                 }}
