@@ -123,10 +123,15 @@ export const publishEstimateTerms = createServerFn({ method: "POST" })
 
 /** 고객용 — 보안 토큰으로 약관 정보와 동의 여부를 읽습니다 */
 export const getTermsLink = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ token: z.string().min(8).max(80) }).parse(d))
+  .inputValidator((d: unknown) =>
+    z.object({ token: z.string().min(8).max(80), ownerView: z.boolean().optional() }).parse(d),
+  )
   .handler(async ({ data }): Promise<TermsLinkInfo> => {
     const guard = await import("./customer-link-guard.server");
-    if (await guard.signedInAccountId()) return { ok: false, staffBlocked: true, error: guard.STAFF_BLOCK_MESSAGE };
+    const signedIn = await guard.signedInAccountId();
+    // 로그인 계정은 「완료 보관함 → 견적서 보기」(ownerView)로만, 그리고 본인 업체 견적 또는 서비스 관리자만 봅니다.
+    if (signedIn && !data.ownerView) return { ok: false, staffBlocked: true, error: guard.STAFF_BLOCK_MESSAGE };
+    if (!signedIn && data.ownerView) return { ok: false, error: "로그인 후 확인해 주세요." };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("estimate_terms")
@@ -140,6 +145,14 @@ export const getTermsLink = createServerFn({ method: "POST" })
       return { ok: false, error: "약관 정보를 불러오지 못했습니다." };
     }
     if (!row) return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
+    if (signedIn) {
+      let allowed = (row as { user_id?: string }).user_id === signedIn;
+      if (!allowed) {
+        const { data: isAdmin } = await supabaseAdmin.rpc("is_super_admin", { _user_id: signedIn });
+        allowed = isAdmin === true;
+      }
+      if (!allowed) return { ok: false, staffBlocked: true, error: guard.STAFF_BLOCK_MESSAGE };
+    }
     // 삭제된 계약의 고객용 링크는 더 이상 열리지 않습니다.
     if ((row as { deleted_at?: string | null }).deleted_at)
       return { ok: false, error: "삭제된 견적서입니다. 업체에 문의해 주세요." };
