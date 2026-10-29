@@ -26,5 +26,5 @@
 - History retires only unconverted intake drafts through an owner-scoped locked RPC, leaving request snapshots and formal estimates or receipt-linked drafts intact; tombstones prevent device copies from reappearing.
 
 - Request deletion uses the owner-scoped locked delete_intake_request RPC and soft markers; formal estimate/receipt-linked drafts are protected and audit snapshots are retained.
-- Calendar eligibility requires latest estimate payment state plus a confirmed owner-reviewed deposit receipt; payment triggers permanently complete only the company/estimate-linked visit with visit_completed_at.
+- Calendar eligibility requires latest estimate payment state plus a confirmed owner-reviewed deposit receipt; that confirmation completes any scheduled linked visit and soft-hides the linked request (deleted_at only), so requests leave the list once a deposit is confirmed without losing records.
 - Both contract-calendar readers use the shared calendar-deposit predicate after latest-version selection; this prevents calendar surfaces disagreeing about unconfirmed receipts or refunds.
