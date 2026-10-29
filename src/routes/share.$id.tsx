@@ -19,6 +19,7 @@ export const Route = createFileRoute("/share/$id")({
     // 이사 전날 안내 문자로 보낸 확인용 토큰
     rm: typeof search.rm === "string" ? search.rm : undefined,
     card: search.card === "deposit" || search.card === "reminder" ? search.card : undefined,
+    view: search.view === "owner" ? "owner" : undefined,
   }),
   loaderDeps: ({ search }) => ({ t: search.t, rm: search.rm, card: search.card, staff: search.staff }),
   loader: async ({ params, deps }) => {
