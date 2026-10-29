@@ -6856,9 +6856,8 @@ export function History() {
                         return;
                       }
                       window.open(
-                        `/share/${encodeURIComponent(a.estimateId)}?t=${encodeURIComponent(a.accessToken)}`,
+                        `/share/${encodeURIComponent(a.estimateId)}?t=${encodeURIComponent(a.accessToken)}&view=owner`,
                         "_blank",
-                        "noopener,noreferrer",
                       );
                     }}
                     className="mt-2 w-full rounded-lg border border-[#D9E7FA] bg-white py-2 text-[12.5px] font-bold text-[#1D4ED8]"

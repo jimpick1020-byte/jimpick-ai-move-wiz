@@ -135,8 +135,10 @@ function CustomerItemGrid({ items }: { items: { id: string; room: string; name: 
 export function SharePage() {
   const { id } = useParams({ from: "/share/$id" });
   const preview = useLoaderData({ from: "/share/$id" });
-  const search = useSearch({ from: "/share/$id" }) as { staff?: string; t?: string; rm?: string; card?: string };
+  const search = useSearch({ from: "/share/$id" }) as { staff?: string; t?: string; rm?: string; card?: string; view?: string };
   const staffMode = String(search?.staff ?? "") === "1";
+  // 완료 보관함에서 사장님·관리자가 여는 보기 전용 화면 (동의·입금 신고·열람 집계 없음)
+  const ownerView = String(search?.view ?? "") === "owner";
   // 고객용 견적서는 항상 밝게 — 기기 다크모드에서 확인란·버튼이 어두워지는 것을 막습니다 (직원 보기에는 적용하지 않음)
   useForceLightPage(!staffMode);
   const token = String(search?.t ?? "").slice(0, 80);
@@ -268,7 +270,7 @@ export function SharePage() {
    */
   const termsLogged = useRef(false);
   const logTermsOpen = () => {
-    if (termsLogged.current || staffMode) return;
+    if (termsLogged.current || staffMode || ownerView) return;
     termsLogged.current = true;
     void logCustomerView({ data: { token, event: "terms" } }).catch(() => {});
   };
@@ -280,11 +282,11 @@ export function SharePage() {
     setAccepted(null);
     termsLogged.current = false;
     // 보안 토큰으로 이 견적 한 건만 조회합니다 (다른 견적번호로는 열리지 않습니다)
-    void getTermsLink({ data: { token } })
+    void getTermsLink({ data: { token, ownerView } })
       .then((info) => {
         setLink(info);
         // 고객이 실제로 링크를 연 것만 기록합니다 (직원용 화면은 세지 않습니다)
-        if (preview.valid && info.ok && info.estimateId === id && !staffMode) {
+        if (preview.valid && info.ok && info.estimateId === id && !staffMode && !ownerView) {
           void logCustomerView({ data: { token, event: "sheet" } }).catch(() => {});
         }
         if (info.ok && info.acceptedAt) {
@@ -304,11 +306,11 @@ export function SharePage() {
       })
       .catch(() => setLink(null))
       .finally(() => setLoading(false));
-  }, [id, token, staffMode, preview.valid]);
+  }, [id, token, staffMode, ownerView, preview.valid]);
 
   // 업체가 입금을 확인하면 새로고침 없이도 다음 단계(잔금 입금)가 보이도록 저장된 기록을 다시 읽습니다.
   useEffect(() => {
-    if (!token || staffMode) return;
+    if (!token || staffMode || ownerView) return;
     const refresh = () => {
       if (document.visibilityState !== "visible") return;
       void getTermsLink({ data: { token } })
@@ -679,7 +681,7 @@ export function SharePage() {
             paidDeposit={paidDeposit}
             paymentStatus={link?.ok ? link.paymentStatus ?? null : null}
             depositClaimPending={link?.ok ? link.depositClaimPending === true : claimSent}
-            depositClaimSlot={depositClaimSlot}
+            depositClaimSlot={ownerView ? null : depositClaimSlot}
             companyName={companyName}
             companyPhone={contactPhone}
             acceptedAt={accepted ? new Date(accepted.acceptedAt).toISOString() : null}
@@ -920,7 +922,11 @@ export function SharePage() {
       )}
 
       {/* 동의 · 예약 요청 */}
-      {accepted ? (
+      {ownerView ? (
+        <div className="mt-4 rounded-[14px] bg-white p-4 text-center text-[15px] font-bold text-[#6B7280]">
+          관리자·업체 보기 전용 화면입니다{accepted ? ` · 고객 동의 ${new Date(accepted.acceptedAt).toLocaleString("ko-KR")}` : ""}
+        </div>
+      ) : accepted ? (
         <div className="mt-4 rounded-[14px] border-2 border-[#3578C8] bg-white p-4">
           <div className="inline-flex items-center gap-2 text-[19px] font-black text-[#1D4ED8]">
             <CheckCircle2 className="h-6 w-6" /> 예약 요청이 접수되었습니다
