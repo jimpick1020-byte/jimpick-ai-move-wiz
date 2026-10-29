@@ -9,7 +9,7 @@ describe('owner sheet edits', () => {
     const reopened = editedSheet(JSON.parse(JSON.stringify(edited)), { customerName: '수정 고객' });
     expect(reopened.total).toBe(1480000);
     expect(reopened.deposit).toBe(200000);
-    expect(reopened.total - reopened.deposit).toBe(1280000);
+    expect(reopened.total - (reopened.deposit ?? 0)).toBe(1280000);
   });
   it('keeps zero deposit and prevents negative or above-total deposits', () => {
     const before = { ...newEstimate(), totalOverride: 1480000 };

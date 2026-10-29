@@ -42,7 +42,7 @@
 - Options snapshot the selected catalog ID, image URL and entered name in the existing options JSON and render through OptionArt; this preserves matching owner/customer/PDF art without changing pricing or historic records.
 - Native sheet printing temporarily marks only the printable ancestor branch, resets scrolling/fixed constraints and uses normal-flow pagination until afterprint; this prevents paper-size-dependent clipping and retains on-screen layout afterward.
 
-- Explicit owner inline sheet saves persist draft revisions before updating the latest owned customer snapshot; payment and consent audit fields are never written, preserving existing tokens and read-only customer views.
+- Owner sheet saves persist revisions then sync the customer snapshot; depositOverride uses plannedDeposit, never payment/consent audit fields, preserving tokens and read-only views.
 - Sheet disposal uses room/item IDs and pointer tap timing with movement cancellation; shared rendering overlays an X without changing image sources or quantities.
 - Customer sheet decoration belongs to SharePage wrappers and pointer-transparent CSS pseudo-elements, not EstimateSheet; this isolates owner/export content and preserves layout and interaction.
 - External Cloudflare hosting config lives in root wrangler.jsonc (worker name gyejeokkit, nodejs_compat); nitro merges it into dist/server/wrangler.json on every build — keep it, and keep the Lovable published site live because the bank-SMS webhook and admin-key server functions only run there.
