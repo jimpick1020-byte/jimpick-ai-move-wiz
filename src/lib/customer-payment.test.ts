@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { customerPaymentDue } from "./customer-payment";
+import { customerPaymentDue, sheetPlannedDeposit } from "./customer-payment";
 import { paymentReview } from "./payment-review";
 
 test("김호영 310000 total less 110000 deposit gives 200000 balance", () => assert.deepEqual(customerPaymentDue(310000,110000,0,"deposit_paid"), { kind:"balance", amount:200000 }));
@@ -14,4 +14,9 @@ test("partial balance subtracts already confirmed amount", () => assert.equal(cu
 test("pending 180000 balance claim shows blue balance review", () => {
   const review = paymentReview([{ amount:180000, status:"pending_review", source:"customer_claim", paymentMethod:"bank_transfer", paymentKind:"balance", depositorName:"김호영" }], "deposit_paid",20000,0,200000);
   assert.equal(review?.kind,"balance"); assert.equal(review?.amount,180000);
+});
+test("450000 total plans a 45000 deposit (10%, not rounded down to 40000)", () => assert.deepEqual(customerPaymentDue(450000,0,0,"unpaid"), { kind:"deposit", amount:45000 }));
+test("owner-set 50000 deposit in the sent sheet is what the customer claims", () => {
+  const snap = JSON.stringify({ draft: { depositOverride: 50000 } });
+  assert.equal(customerPaymentDue(450000,0,0,"unpaid", sheetPlannedDeposit(450000, snap)).amount, 50000);
 });
