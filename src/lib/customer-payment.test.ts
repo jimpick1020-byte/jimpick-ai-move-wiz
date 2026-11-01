@@ -15,7 +15,8 @@ test("pending 180000 balance claim shows blue balance review", () => {
   const review = paymentReview([{ amount:180000, status:"pending_review", source:"customer_claim", paymentMethod:"bank_transfer", paymentKind:"balance", depositorName:"김호영" }], "deposit_paid",20000,0,200000);
   assert.equal(review?.kind,"balance"); assert.equal(review?.amount,180000);
 });
-test("450000 total plans a 45000 deposit (10%, not rounded down to 40000)", () => assert.deepEqual(customerPaymentDue(450000,0,0,"unpaid"), { kind:"deposit", amount:45000 }));
+test("450000 total plans a 50000 deposit (10% rounded to 10,000)", () => assert.deepEqual(customerPaymentDue(450000,0,0,"unpaid"), { kind:"deposit", amount:50000 }));
+test("440000 total plans a 40000 deposit", () => assert.deepEqual(customerPaymentDue(440000,0,0,"unpaid"), { kind:"deposit", amount:40000 }));
 test("owner-set 50000 deposit in the sent sheet is what the customer claims", () => {
   const snap = JSON.stringify({ draft: { depositOverride: 50000 } });
   assert.equal(customerPaymentDue(450000,0,0,"unpaid", sheetPlannedDeposit(450000, snap)).amount, 50000);
