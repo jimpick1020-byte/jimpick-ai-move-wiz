@@ -1,10 +1,21 @@
-import { calcDeposit } from "./deposit-rule";
+import { calcDeposit, plannedDeposit } from "./deposit-rule";
 import { remainingPayment } from "./payment-method";
 
-export function customerPaymentDue(total: number, deposit: number, balance: number, status: string) {
+/** 보낸 견적서 원본에 사장님이 직접 정한 예약금이 있으면 그 금액, 없으면 10% 규칙입니다. */
+export function sheetPlannedDeposit(total: number, snapshot: string | null | undefined): number {
+  try {
+    const v = snapshot ? (JSON.parse(snapshot) as { draft?: { depositOverride?: unknown } }) : null;
+    const o = v?.draft?.depositOverride;
+    return plannedDeposit(total, typeof o === "number" && Number.isFinite(o) ? o : undefined);
+  } catch {
+    return calcDeposit(total);
+  }
+}
+
+export function customerPaymentDue(total: number, deposit: number, balance: number, status: string, planned?: number) {
   const kind = deposit > 0 ? "balance" as const : "deposit" as const;
   const remaining = remainingPayment(total, deposit, balance);
-  const amount = ["completed", "canceled", "refunded"].includes(status) ? 0 : kind === "balance" ? remaining : Math.min(remaining, calcDeposit(total));
+  const amount = ["completed", "canceled", "refunded"].includes(status) ? 0 : kind === "balance" ? remaining : Math.min(remaining, planned ?? calcDeposit(total));
   return { kind, amount };
 }
 
