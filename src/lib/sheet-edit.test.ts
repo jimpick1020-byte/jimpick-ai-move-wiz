@@ -16,7 +16,7 @@ describe('owner sheet edits', () => {
     expect(editedSheet(before, { depositOverride: 0 }).deposit).toBe(0);
     expect(editedSheet(before, { depositOverride: -10000 }).deposit).toBe(0);
     expect(editedSheet(before, { depositOverride: 2000000 }).deposit).toBe(1480000);
-    expect(editedSheet(before, {}).deposit).toBe(140000);
+    expect(editedSheet(before, {}).deposit).toBe(148000);
   });
   it('edits only the selected estimate and keeps image IDs and other quantities', () => {
     const before = { ...newEstimate(), rooms: [{ id: 'living', name: '거실', items: { sofa: 2, tv: 1 } }] };

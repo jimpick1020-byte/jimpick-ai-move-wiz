@@ -1,4 +1,4 @@
-import { customerPaymentDue } from "@/lib/customer-payment";
+import { customerPaymentDue, sheetPlannedDeposit } from "@/lib/customer-payment";
 import { CharacterImg } from "./CharacterGuide";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatTel } from "@/lib/format-input";
@@ -379,7 +379,7 @@ export function SharePage() {
 
   const depositClaimSlot = (() => {
     if (!hasData) return null;
-    const due = customerPaymentDue(total, paidDeposit, link?.balancePaid ?? 0, link?.paymentStatus ?? "unpaid");
+    const due = customerPaymentDue(total, paidDeposit, link?.balancePaid ?? 0, link?.paymentStatus ?? "unpaid", sheetPlannedDeposit(total, validLink ? link.sheetSnapshot : null));
     const label = due.kind === "balance" ? "잔금" : "예약금";
     const errorBox = claimError && (
       <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">{claimError}</div>

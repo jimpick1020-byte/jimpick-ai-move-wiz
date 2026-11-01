@@ -15,7 +15,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { parseDepositSms, isSameName, normalizeName } from "./deposit-parse";
 import { receiptPaymentKind, claimAlreadyRecorded } from "./payment-review";
-import { customerPaymentDue } from "./customer-payment";
+import { customerPaymentDue, sheetPlannedDeposit } from "./customer-payment";
 
 export interface DepositRow {
   id: string;
@@ -195,7 +195,7 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
         sheet_snapshot: string | null;
       };
 
-      const { kind, amount } = customerPaymentDue(Number(t.total ?? 0), Number(t.deposit_paid ?? 0), Number(t.balance_paid ?? 0), t.payment_status);
+      const { kind, amount } = customerPaymentDue(Number(t.total ?? 0), Number(t.deposit_paid ?? 0), Number(t.balance_paid ?? 0), t.payment_status, sheetPlannedDeposit(Number(t.total ?? 0), t.sheet_snapshot));
       if (amount <= 0) return { ok: false, error: "신고할 입금 금액이 없습니다." };
 
       // 같은 견적·같은 종류·같은 금액의 확인 대기/확인 기록이 어떤 경로로든 이미 있으면
