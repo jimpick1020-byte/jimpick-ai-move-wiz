@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SharePage } from "@/components/jimpick/SharePage";
 import { getSharePreview } from "@/lib/share-preview.functions";
-import quoteImage from "@/assets/message-previews/quote.jpg.asset.json";
-import depositImage from "@/assets/message-previews/deposit.jpg.asset.json";
-import reminderImage from "@/assets/message-previews/reminder.jpg.asset.json";
+import quoteImage from "@/assets/message-previews/gyeonjeokit-quote-preview.jpg.asset.json";
+import depositImage from "@/assets/message-previews/gyeonjeokit-deposit-preview.jpg.asset.json";
+import reminderImage from "@/assets/message-previews/gyeonjeokit-reminder-preview.jpg.asset.json";
 
 type CardType = "quote" | "deposit" | "reminder";
 const previews: Record<CardType, { title: string; description: string; image: string }> = {
