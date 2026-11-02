@@ -6,7 +6,7 @@ export async function dispatchOwnerNotifications(onlyId?: string): Promise<{ sen
   const publicKey = String(process.env["VAPID_PUBLIC_KEY"] ?? "").trim();
   const privateKey = String(process.env["VAPID_PRIVATE_KEY"] ?? "").trim();
   if (!publicKey || !privateKey) throw new Error("VAPID keys are not configured");
-  const vapid = { subject: "mailto:support@jimpick-ai-move-wiz.lovable.app", publicKey, privateKey };
+  const vapid = { subject: "mailto:support@gyeonjeokit.lovable.app", publicKey, privateKey };
 
   let query = supabaseAdmin.from("owner_notifications")
     .select("id, company_id, kind, ref_id, title, body, url")

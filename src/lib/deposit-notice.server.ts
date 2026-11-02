@@ -1,5 +1,6 @@
 // 예약금 입금 확인 후 고객 안내 문자(알리고) — 사장님이 확인 버튼을 누른 뒤에만, 영수 1건당 1회.
 import { formatTel } from "./format-input";
+import { PUBLIC_APP_URL } from "./app-url";
 import { depositConfirmedText } from "./deposit-notice";
 import { depositNoticeKey } from "./deposit-notice";
 
@@ -68,7 +69,7 @@ export async function sendDepositConfirmedSms(companyId: string, receiptId: stri
   const text = depositConfirmedText({
     name: String(terms.customer_name).trim(), deposit: amount, total: Number(terms.total ?? 0),
     moveDate: String(terms.move_date ?? ""), template: String(profile?.sms_template ?? ""),
-    link: terms.access_token ? `${String(process.env["PUBLIC_APP_URL"] || "https://jimpick-ai-move-wiz.lovable.app").trim().replace(/\/$/, "")}/share/${encodeURIComponent(String(rec.estimate_id))}?t=${encodeURIComponent(String(terms.access_token))}&card=deposit` : "",
+    link: terms.access_token ? `${PUBLIC_APP_URL}/share/${encodeURIComponent(String(rec.estimate_id))}?t=${encodeURIComponent(String(terms.access_token))}&card=deposit` : "",
     phone: companyPhone,
   });
   const msgType = new TextEncoder().encode(text).length > 90 ? "LMS" : "SMS";

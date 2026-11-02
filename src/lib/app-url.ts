@@ -1,5 +1,5 @@
 /** 외부로 나가는 모든 링크의 기준 운영 주소 (미리보기 주소는 절대 쓰지 않습니다) */
-export const PUBLIC_APP_URL = "https://jimpick-ai-move-wiz.lovable.app";
+export const PUBLIC_APP_URL = "https://gyeonjeokit.lovable.app";
 
 /** 운영 주소 기준 절대 링크 */
 export function publicUrl(path: string): string {
