@@ -3,11 +3,11 @@
  * 알림을 누르면 그 알림만 읽음 처리하고 관련 견적·요청으로 이동합니다 (입금 확정과는 별개).
  */
 import { useCallback, useEffect, useState } from "react";
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { listOwnerNotifications, markOwnerNotificationRead, type OwnerNotice } from "@/lib/notifications.functions";
+import { deleteOwnerNotifications, listOwnerNotifications, markOwnerNotificationRead, type OwnerNotice } from "@/lib/notifications.functions";
 import { currentPushState, enablePush, type PushState } from "@/lib/push-client";
 import { updateAppBadge } from "@/lib/app-badge";
 
@@ -75,6 +75,27 @@ export function NotificationBell({ onOpenTarget }: { onOpenTarget: (target: Noti
     onOpenTarget(notice.kind === "intake" ? { kind: notice.kind, intakeId: notice.refId } : { kind: notice.kind, estimateId: notice.refId });
   };
 
+  const [deleting, setDeleting] = useState(false);
+  // 삭제는 알림 목록에서만 숨깁니다 — 입금 확정·결제·요청 자료는 바꾸지 않습니다.
+  const removeNotices = async (payload: { ids?: string[]; unreadOnly?: boolean }, done: string) => {
+    setDeleting(true);
+    try {
+      const r = await deleteOwnerNotifications({ data: payload });
+      if (!r.ok) { toast.error("알림을 삭제하지 못했습니다. 다시 시도해 주세요."); return; }
+      setUnread(r.unread); updateAppBadge(r.unread);
+      setItems((prev) => payload.ids ? prev.filter((n) => !payload.ids!.includes(n.id)) : prev.filter((n) => n.readAt));
+      toast.success(done);
+      load();
+    } catch {
+      toast.error("알림을 삭제하지 못했습니다. 다시 시도해 주세요.");
+    } finally { setDeleting(false); }
+  };
+  const removeAllUnread = () => {
+    if (unread === 0) return;
+    if (!window.confirm(`미확인 알림 ${unread}건을 모두 삭제할까요?\n입금·결제 기록은 그대로 남습니다.`)) return;
+    void removeNotices({ unreadOnly: true }, "미확인 알림을 삭제했습니다");
+  };
+
   const turnOnPush = async () => {
     setPushBusy(true);
     try {
@@ -99,10 +120,14 @@ export function NotificationBell({ onOpenTarget }: { onOpenTarget: (target: Noti
           <p className="text-muted-foreground">{PUSH_COPY[push]}</p>
           {push !== "on" && push !== "unsupported" && <Button type="button" className="mt-2 w-full" disabled={pushBusy || push === "denied"} onClick={() => void turnOnPush()}>{pushBusy ? "켜는 중…" : "휴대폰 알림 켜기"}</Button>}
         </div>
+        {unread > 0 && <Button type="button" variant="outline" className="mt-3 w-full border-destructive text-destructive" disabled={deleting} onClick={removeAllUnread}>{deleting ? "삭제 중…" : `미확인 알림 ${unread}건 모두 삭제`}</Button>}
         <ul className="mt-3 space-y-2">
           {items.length === 0 && <li className="py-8 text-center text-sm text-muted-foreground">새 알림이 없습니다.</li>}
-          {items.map((n) => <li key={n.id}>
-            <button type="button" onClick={() => void openNotice(n)} className={`w-full rounded-xl border p-3 text-left ${n.readAt ? "opacity-60" : "border-primary"}`}>
+          {items.map((n) => <li key={n.id} className="relative">
+            <button type="button" aria-label="이 알림 삭제" disabled={deleting} onClick={() => void removeNotices({ ids: [n.id] }, "알림을 삭제했습니다")} className="absolute right-1 top-1 z-10 grid size-10 place-items-center rounded-full text-muted-foreground active:bg-muted">
+              <X className="size-5" />
+            </button>
+            <button type="button" onClick={() => void openNotice(n)} className={`w-full rounded-xl border p-3 pr-12 text-left ${n.readAt ? "opacity-60" : "border-primary"}`}>
               <div className="flex items-center gap-2 text-sm font-black">{!n.readAt && <span className="size-2 rounded-full bg-destructive" />}{n.title}</div>
               <div className="mt-1 text-sm">{n.body}</div>
               <div className="mt-1 text-xs text-muted-foreground">{new Date(n.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</div>

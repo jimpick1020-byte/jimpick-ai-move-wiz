@@ -22,7 +22,7 @@ export async function dispatchOwnerNotifications(onlyId?: string): Promise<{ sen
   for (const note of notes ?? []) {
     const { data: subs } = await supabaseAdmin.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", note.company_id);
     const { count: unread } = await supabaseAdmin.from("owner_notifications").select("id", { count: "exact", head: true })
-      .eq("company_id", note.company_id).is("read_at", null);
+      .eq("company_id", note.company_id).is("read_at", null).is("deleted_at", null);
     if (!subs?.length) {
       skipped += 1;
       await supabaseAdmin.from("owner_notifications").update({ pushed_at: new Date().toISOString(), push_error: "no_subscription" }).eq("id", note.id);

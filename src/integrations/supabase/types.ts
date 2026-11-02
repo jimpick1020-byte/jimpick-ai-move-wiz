@@ -1178,6 +1178,7 @@ export type Database = {
           company_id: string
           created_at: string
           dedupe_key: string
+          deleted_at: string | null
           id: string
           kind: string
           push_error: string | null
@@ -1192,6 +1193,7 @@ export type Database = {
           company_id: string
           created_at?: string
           dedupe_key: string
+          deleted_at?: string | null
           id?: string
           kind: string
           push_error?: string | null
@@ -1206,6 +1208,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           dedupe_key?: string
+          deleted_at?: string | null
           id?: string
           kind?: string
           push_error?: string | null

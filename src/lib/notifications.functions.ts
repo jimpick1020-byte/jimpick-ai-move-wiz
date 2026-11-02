@@ -10,8 +10,8 @@ export const listOwnerNotifications = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<{ unread: number; items: OwnerNotice[] }> => {
     const { supabase, userId } = context;
     const [{ count, error: countError }, { data, error }] = await Promise.all([
-      supabase.from("owner_notifications").select("id", { count: "exact", head: true }).eq("company_id", userId).is("read_at", null),
-      supabase.from("owner_notifications").select("id, kind, ref_id, title, body, url, created_at, read_at").eq("company_id", userId).order("created_at", { ascending: false }).limit(40),
+      supabase.from("owner_notifications").select("id", { count: "exact", head: true }).eq("company_id", userId).is("read_at", null).is("deleted_at", null),
+      supabase.from("owner_notifications").select("id, kind, ref_id, title, body, url, created_at, read_at").eq("company_id", userId).is("deleted_at", null).order("created_at", { ascending: false }).limit(40),
     ]);
     if (countError || error) throw new Error("알림을 불러오지 못했습니다.");
     return {
@@ -29,7 +29,30 @@ export const markOwnerNotificationRead = createServerFn({ method: "POST" })
     const { error } = await supabase.from("owner_notifications").update({ read_at: new Date().toISOString() })
       .eq("id", data.id).eq("company_id", userId).is("read_at", null);
     if (error) return { ok: false, unread: -1 };
-    const { count } = await supabase.from("owner_notifications").select("id", { count: "exact", head: true }).eq("company_id", userId).is("read_at", null);
+    const { count } = await supabase.from("owner_notifications").select("id", { count: "exact", head: true }).eq("company_id", userId).is("read_at", null).is("deleted_at", null);
+    return { ok: true, unread: count ?? 0 };
+  });
+
+/**
+ * 알림 삭제 — 목록에서만 숨깁니다(삭제 표시). 중복 방지 기록은 남아 같은 일로 알림이 다시 생기지 않고,
+ * 입금·결제·요청 자료는 전혀 바꾸지 않습니다. ids 를 주면 그 알림만, unreadOnly 면 미확인 알림 전부를 지웁니다.
+ */
+export const deleteOwnerNotifications = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    ids: z.array(z.string().uuid()).max(200).optional(),
+    unreadOnly: z.boolean().optional(),
+  }).refine((v) => (v.ids && v.ids.length > 0) || v.unreadOnly === true).parse(d))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; unread: number }> => {
+    const { supabase, userId } = context;
+    const now = new Date().toISOString();
+    let q = supabase.from("owner_notifications").update({ deleted_at: now, read_at: now })
+      .eq("company_id", userId).is("deleted_at", null);
+    if (data.ids && data.ids.length > 0) q = q.in("id", data.ids);
+    else q = q.is("read_at", null);
+    const { error } = await q;
+    if (error) { console.error("[deleteOwnerNotifications]", error.message); return { ok: false, unread: -1 }; }
+    const { count } = await supabase.from("owner_notifications").select("id", { count: "exact", head: true }).eq("company_id", userId).is("read_at", null).is("deleted_at", null);
     return { ok: true, unread: count ?? 0 };
   });
 

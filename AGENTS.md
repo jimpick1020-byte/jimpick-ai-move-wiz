@@ -48,6 +48,6 @@
 - External Cloudflare hosting config lives in root wrangler.jsonc (worker name gyejeokkit, nodejs_compat); nitro merges it into dist/server/wrangler.json on every build — keep it, and keep the Lovable published site live because the bank-SMS webhook and admin-key server functions only run there.
 - Brand refreshes use versioned CDN pointers for logos and install icons, a separate safely padded maskable icon, and a versioned public favicon; keep manifest identity and start URL stable so updates do not create a different installed app.
 
-- Owner notifications come only from DB triggers with per-company dedupe keys and push via push-dispatch + public/push-sw.js; owners may change only read_at, keeping reads apart from payment confirmation.
+- Owner notifications come only from DB triggers with per-company dedupe keys and push via push-dispatch + public/push-sw.js; owners may change only read_at and a one-way deleted_at soft delete (dedupe kept), keeping reads apart from payment confirmation.
 - Customer share-link server functions reject signed-in sessions via customer-link-guard and never count their views; the token link stays the customer credential.
 - MoveDateCalendar is shared by owner and customer flows (ratio-spacer cells, equal rows; customer shell overflow: clip keeps the sticky bar visible); this keeps both identical without clipping dates.
