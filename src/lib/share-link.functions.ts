@@ -8,6 +8,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { PUBLIC_APP_URL } from "./app-url";
 
 export type ShareLinkCode = "not_sent" | "deleted" | "no_token" | "forbidden" | "error";
 
@@ -24,15 +25,8 @@ export interface ShareLinkResult {
 
 /** 운영 공개 주소 (끝의 / 는 제거) */
 function publicBase(): string {
-  const env = (process.env["PUBLIC_APP_URL"] || "https://gyeonjeokit.lovable.app").trim();
-  if (/id-preview|lovableproject|localhost/.test(env)) return "https://gyeonjeokit.lovable.app";
-  if (env) return env.replace(/\/$/, "");
-  try {
-    // 환경변수가 없으면 지금 요청이 들어온 주소를 씁니다.
-    return "";
-  } catch {
-    return "";
-  }
+  // 고객 문자 링크는 항상 견적잇 운영 주소로 보냅니다 (예전 저장값·미리보기 주소 무시).
+  return PUBLIC_APP_URL;
 }
 
 export const getCustomerShareLink = createServerFn({ method: "POST" })

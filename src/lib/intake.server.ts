@@ -4,6 +4,7 @@
  *  - 사장님이 링크를 다시 복사·발송할 수 있게 원문은 서버 비밀키(AES-GCM)로 암호화해 둡니다.
  */
 import { hashStaffToken, makeStaffToken } from "./staff-share.server";
+import { PUBLIC_APP_URL } from "./app-url";
 
 export const makeIntakeToken = makeStaffToken;
 export const hashIntakeToken = hashStaffToken;
@@ -36,7 +37,7 @@ export async function decryptToken(v: string | null | undefined): Promise<string
 }
 
 export function intakeLink(token: string): string {
-  const base = String(process.env["PUBLIC_APP_URL"] || "https://gyeonjeokit.lovable.app").trim().replace(/\/$/, "");
+  const base = PUBLIC_APP_URL;
   return `${base}/intake/${token}?preview=v2`;
 }
 
