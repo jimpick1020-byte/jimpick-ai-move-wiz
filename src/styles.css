@@ -597,6 +597,8 @@ html.jp-force-light, html.jp-force-light body { color-scheme: light only; backgr
 .jp-cal-son { font-size: clamp(7px, 2.2vw, 10px); line-height: 1.3; letter-spacing: -0.06em; word-break: break-all; text-align: center; }
 
 /* 고객 사전정보: 다음·완료 버튼을 크게, 화살표로 누를 곳을 알려 줍니다 (버튼 전체 터치) */
+/* 바깥 틀이 스크롤 영역이 되지 않게(clip) 해서, 아래 버튼 줄이 휴대폰 화면 아래에 항상 붙어 보이게 합니다 */
+.jp-customer-flow .jp-shell-inner { overflow: clip; }
 .jp-customer-flow .jp-next-btn { min-height: 66px; font-size: 21px; border-radius: 20px; }
 .jp-customer-flow .jp-next-btn > span:last-child { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
 .jp-customer-flow .jp-next-btn:not(:has(svg)) > span:last-child::after {
