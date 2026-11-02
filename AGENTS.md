@@ -50,4 +50,4 @@
 
 - Owner notifications come only from DB triggers with per-company dedupe keys and push via push-dispatch + public/push-sw.js; owners may change only read_at, keeping reads apart from payment confirmation.
 - Customer share-link server functions reject signed-in sessions via customer-link-guard and never count their views; the token link stays the customer credential.
-- MoveDateCalendar is the single date picker for owner Step1 and customer intake; cells use a ratio spacer with equal fr rows and customer shells use overflow: clip so the sticky next bar stays visible, keeping both screens identical without clipping dates.
+- MoveDateCalendar is shared by owner and customer flows (ratio-spacer cells, equal rows; customer shell overflow: clip keeps the sticky bar visible); this keeps both identical without clipping dates.
