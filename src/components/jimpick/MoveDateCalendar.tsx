@@ -183,14 +183,15 @@ export function MoveDateCalendar({
                   aria-label={`${view.m}월 ${c.d}일${c.son ? ` ${sonLabel}` : ""}`}
                   aria-pressed={selected}
                   aria-disabled={c.past}
-                  className={`jp-cal-cell relative flex min-w-0 flex-col items-center justify-center gap-[3px] rounded-xl border px-0 py-1 ${box}${ring} ${
+                  className={`jp-cal-cell relative min-w-0 rounded-xl border px-0 py-1 ${box}${ring} ${
                     c.past ? "opacity-45" : ""
                   }`}
                 >
+                  <span className="jp-cal-body">
                   <span className={`text-[17px] leading-none font-black tabular-nums ${numColor}`}>{c.d}</span>
                   {/* 상태 표시 — 손없는날 배지(한 줄 고정, 줄바꿈으로 칸이 길어지지 않음) */}
                   {c.son ? (
-                    <span className="jp-cal-son max-w-full whitespace-nowrap rounded-full bg-[#FBE7B8] px-[2px] font-black text-[#8A6D1B]">
+                    <span className="jp-cal-son max-w-full rounded-full bg-[#FBE7B8] px-[2px] font-black text-[#8A6D1B]">
                       {sonLabel}
                     </span>
                   ) : (
@@ -198,6 +199,7 @@ export function MoveDateCalendar({
                       {sonLabel}
                     </span>
                   )}
+                  </span>
                 </button>
               );
             })()
