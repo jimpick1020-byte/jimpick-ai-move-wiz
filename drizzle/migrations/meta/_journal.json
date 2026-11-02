@@ -253,6 +253,13 @@
       "when": 1793266217900,
       "tag": "0035_fix_balance_completion_and_retire_paid_intake",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793607239842,
+      "tag": "0036_owner_notifications_soft_delete",
+      "breakpoints": true
     }
   ]
 }
