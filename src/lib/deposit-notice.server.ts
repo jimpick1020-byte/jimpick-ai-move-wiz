@@ -68,7 +68,7 @@ export async function sendDepositConfirmedSms(companyId: string, receiptId: stri
   const text = depositConfirmedText({
     name: String(terms.customer_name).trim(), deposit: amount, total: Number(terms.total ?? 0),
     moveDate: String(terms.move_date ?? ""), template: String(profile?.sms_template ?? ""),
-    link: terms.access_token ? `${String(process.env["PUBLIC_APP_URL"] || "https://jimpick-ai-move-wiz.lovable.app").trim().replace(/\/$/, "")}/share/${encodeURIComponent(String(rec.estimate_id))}?t=${encodeURIComponent(String(terms.access_token))}&card=deposit` : "",
+    link: terms.access_token ? `${String(process.env["PUBLIC_APP_URL"] || "https://gyeonjeokit.lovable.app").trim().replace(/\/$/, "")}/share/${encodeURIComponent(String(rec.estimate_id))}?t=${encodeURIComponent(String(terms.access_token))}&card=deposit` : "",
     phone: companyPhone,
   });
   const msgType = new TextEncoder().encode(text).length > 90 ? "LMS" : "SMS";

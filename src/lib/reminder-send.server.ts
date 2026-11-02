@@ -127,7 +127,7 @@ export async function sendViaAligo(v: {
 
 /** 이 예약에 넣을 고객 확인 링크 (기존 견적 보안 링크 + 확인 토큰) */
 async function customerLink(row: Reminder): Promise<string | null> {
-  const base = String(process.env["PUBLIC_APP_URL"] || "https://jimpick-ai-move-wiz.lovable.app").trim().replace(/\/$/, "");
+  const base = String(process.env["PUBLIC_APP_URL"] || "https://gyeonjeokit.lovable.app").trim().replace(/\/$/, "");
   if (!base || !row.view_token) return null;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   let token: string | null = null;

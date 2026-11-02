@@ -15,7 +15,7 @@ import {
 import { AuthField, AuthInput, AuthPrimaryButton, AuthShell, AuthTopBar } from "./AuthUi";
 
 /** 비밀번호 재설정 메일이 돌아올 화면 주소 (공개 앱 주소로 고정) */
-export const RESET_REDIRECT_URL = "https://jimpick-ai-move-wiz.lovable.app/reset-password";
+export const RESET_REDIRECT_URL = "https://gyeonjeokit.lovable.app/reset-password";
 
 export function resetRedirectUrl(): string {
   return RESET_REDIRECT_URL;

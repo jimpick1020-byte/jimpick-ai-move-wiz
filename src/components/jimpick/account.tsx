@@ -110,7 +110,7 @@ export function SignupScreen() {
           email: normalizedEmail,
           password,
           options: {
-            // 게시 주소로 돌아오게 합니다 (게시: https://jimpick-ai-move-wiz.lovable.app,
+            // 게시 주소로 돌아오게 합니다 (게시: https://gyeonjeokit.lovable.app,
             // 미리보기: lovable 프리뷰 주소). 어느 쪽이든 지금 접속한 주소로 맞춰집니다.
             emailRedirectTo: PUBLIC_APP_URL,
             data: {

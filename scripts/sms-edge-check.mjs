@@ -69,7 +69,7 @@ const deno = spawn(process.env.DENO_EXE || "deno", ["run", "--allow-net", "--all
     ALIGO_USER_ID: "testid",
     ALIGO_API_KEY: "testkey",
     ALIGO_SENDER: "010-0000-0000",
-    PUBLIC_APP_URL: "https://jimpick-ai-move-wiz.lovable.app",
+    PUBLIC_APP_URL: "https://gyeonjeokit.lovable.app",
     SUPABASE_URL: `http://127.0.0.1:${DB_PORT}`,
     SUPABASE_SERVICE_ROLE_KEY: "service-key",
   },
@@ -166,7 +166,7 @@ console.log("\n[5] 정상 발송 — 서버가 문자 내용을 직접 만듭니
   check("시험모드 아님", !decoded.includes("testmode_yn"));
   check("test 관련 값 없음", !/test_mode|is_test|mock|demo|fakeSuccess/i.test(decoded));
   check("발신번호에서 하이픈 제거", decoded.includes("01000000000"));
-  check("배포 주소 사용", decoded.includes("https://jimpick-ai-move-wiz.lovable.app"));
+  check("배포 주소 사용", decoded.includes("https://gyeonjeokit.lovable.app"));
   check("문의 번호 들어감", decoded.includes("문의: 010-7566-2542"));
   check("표준약관 안내 문구", decoded.includes("견적서와 표준약관을 확인해 주세요"));
   check("발송내역 저장됨", inserted.length === 1, JSON.stringify(inserted));
