@@ -99,7 +99,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "AI로 더 쉽고 정확한 이사 견적. 방별 품목, 차량, 옵션, 보관료까지 한 번에 계산합니다.",
       },
-      { name: "author", content: "Lovable" },
+      { name: "author", content: "견적잇" },
+      { property: "og:site_name", content: "견적잇" },
       { property: "og:title", content: "견적잇 — AI 이사 견적 앱" },
       {
         property: "og:description",

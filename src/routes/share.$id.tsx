@@ -52,7 +52,7 @@ export const Route = createFileRoute("/share/$id")({
     const title = preview?.title ?? "고객용 이사 견적서";
     const description = preview?.description ?? "전달받은 이사 견적서와 약관을 확인하세요.";
     return { meta: [
-      { title },
+      { title: `${title} | 견적잇` },
       { name: "description", content: description },
       { property: "og:title", content: title },
       { property: "og:description", content: description },
