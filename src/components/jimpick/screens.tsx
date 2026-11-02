@@ -7648,7 +7648,7 @@ function SmsTemplateCard() {
         maxLength={500}
         disabled={!loaded}
         onChange={(e) => setText(e.target.value)}
-        placeholder="예: 안녕하세요, 짐픽이사입니다. 요청하신 이사 견적을 안내드립니다."
+        placeholder="예: 안녕하세요, 믿음이사입니다. 요청하신 이사 견적을 안내드립니다."
         className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-sm min-h-24"
         aria-label="문자 기본 문구"
       />

@@ -153,11 +153,12 @@ export function MoveDateCalendar({
         ))}
       </div>
 
-      {/* 날짜 — 둥근 사각형 칸 */}
-      <div className="mt-1.5 grid grid-cols-7 gap-1">
+      {/* 날짜 — 둥근 사각형 칸. 모든 줄이 같은 높이(auto-rows-fr), 칸은 폭에 비례(4:5)해 5주·6주 달 모두 일정합니다.
+          글자가 커지는 휴대폰(글자 크기 확대·인앱 브라우저)에서도 잘라 내지 않고 줄 전체가 같이 늘어납니다. */}
+      <div className="jp-cal-grid mt-1.5 grid grid-cols-7 auto-rows-fr gap-[3px]">
         {cells.map((c, i) =>
           !c ? (
-            <div key={`e${i}`} className="min-h-[60px]" />
+            <div key={`e${i}`} className="jp-cal-cell" aria-hidden />
           ) : (
             (() => {
               const selected = value === c.date;
@@ -182,19 +183,23 @@ export function MoveDateCalendar({
                   aria-label={`${view.m}월 ${c.d}일${c.son ? ` ${sonLabel}` : ""}`}
                   aria-pressed={selected}
                   aria-disabled={c.past}
-                  className={`relative flex min-h-[60px] flex-col items-center justify-start gap-[2px] rounded-xl border px-0.5 pt-1.5 pb-1 ${box}${ring} ${
+                  className={`jp-cal-cell relative min-w-0 rounded-xl border px-0 py-1 ${box}${ring} ${
                     c.past ? "opacity-45" : ""
                   }`}
                 >
-                  <span className={`text-[17px] font-black tabular-nums ${numColor}`}>{c.d}</span>
-                  {/* 상태 표시 — 계약 건수 배지 > 손없는날 배지 */}
+                  <span className="jp-cal-body">
+                  <span className={`text-[17px] leading-none font-black tabular-nums ${numColor}`}>{c.d}</span>
+                  {/* 상태 표시 — 손없는날 배지(한 줄 고정, 줄바꿈으로 칸이 길어지지 않음) */}
                   {c.son ? (
-                    <span className="rounded-full bg-[#FBE7B8] px-1 py-[1px] text-[10px] font-black text-[#8A6D1B]">
+                    <span className="jp-cal-son max-w-full rounded-full bg-[#FBE7B8] px-[2px] font-black text-[#8A6D1B]">
                       {sonLabel}
                     </span>
                   ) : (
-                    <span className="h-1.5 w-1.5" aria-hidden />
+                    <span className="jp-cal-son invisible" aria-hidden>
+                      {sonLabel}
+                    </span>
                   )}
+                  </span>
                 </button>
               );
             })()
