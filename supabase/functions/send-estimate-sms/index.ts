@@ -452,9 +452,9 @@ const handle = async (req: Request): Promise<Response> => {
   const apiKey = Deno.env.get("ALIGO_API_KEY")?.trim();
   // 기존 전역 발신번호는 업체별 발송에 사용하지 않습니다.
   const sender = normalizePhone(Deno.env.get("ALIGO_SENDER") ?? "");
-  const appUrl = (Deno.env.get("PUBLIC_APP_URL") || Deno.env.get("APP_PUBLIC_URL") || "https://gyeonjeokit.lovable.app")
-    .trim()
-    .replace(/\/$/, "");
+  // 고객 링크는 항상 견적잇 공개 주소로 만듭니다. 예전에 저장된 PUBLIC_APP_URL 비밀값이
+  // 옛 주소(jimpick-ai-move-wiz)로 남아 있어 '페이지 없음' 링크가 나가던 문제를 막습니다.
+  const appUrl = "https://gyeonjeokit.lovable.app";
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const proxyUrl = Deno.env.get("SMS_PROXY_URL");
