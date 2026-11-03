@@ -295,6 +295,8 @@ function useIntakeDraftSync(rows: IntakeRow[]) {
  */
 export function useServerEstimateRestore() {
   const { upsertServerEstimates, loggedIn } = useApp();
+  const upsertRef = useRef(upsertServerEstimates);
+  upsertRef.current = upsertServerEstimates;
   useEffect(() => {
     if (!loggedIn) return;
     let alive = true;
@@ -306,7 +308,7 @@ export function useServerEstimateRestore() {
           for (const p of r.payloads) {
             try { list.push(JSON.parse(p) as Estimate); } catch { /* 깨진 기록은 건너뜁니다 */ }
           }
-          upsertServerEstimates(list);
+          upsertRef.current(list);
         })
         .catch(() => { /* 못 읽으면 이 기기 목록은 그대로 둡니다 */ });
     };
@@ -314,7 +316,7 @@ export function useServerEstimateRestore() {
     const onVisible = () => { if (document.visibilityState === "visible") run(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { alive = false; document.removeEventListener("visibilitychange", onVisible); };
-  }, [loggedIn, upsertServerEstimates]);
+  }, [loggedIn]);
 }
 
 export function IntakeNotifier() {
