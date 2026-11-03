@@ -1939,9 +1939,10 @@ export function Step3() {
         {(["from", "to"] as const).map((side) => {
           const isFrom = side === "from";
           const place = isFrom ? "출발지" : "도착지";
-          const env = isFrom ? draft.fromEnv : draft.toEnv;
           const floor = isFrom ? draft.fromFloor : draft.toFloor;
           const ladderOn = isFrom ? !!draft.ladderFrom : !!draft.ladderTo;
+          // 예전에 저장된 자료에 둘 다 켜져 있어도 화면에는 사다리차 하나만 선택으로 보입니다.
+          const env = ladderOn ? undefined : isFrom ? draft.fromEnv : draft.toEnv;
           return (
             <div
               key={side}
