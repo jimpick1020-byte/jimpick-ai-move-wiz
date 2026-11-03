@@ -520,9 +520,14 @@ function blockReason(row: any): string | null {
   return null;
 }
 
+/** 업체·관리자 로그인 기기에서는 고객용 사전정보 화면 조회·저장·제출을 막습니다. */
+const INTAKE_STAFF_BLOCK = "업체·관리자 계정으로 로그인된 기기에서는 고객용 사전정보 화면을 열 수 없습니다. 고객 요청 화면에서 확인해 주세요.";
+
 export const openIntake = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ token: tokenSchema }).parse(d))
   .handler(async ({ data }): Promise<IntakeOpen> => {
+    const staffGuard = await import("./customer-link-guard.server");
+    if (await staffGuard.signedInAccountId()) return { ok: false, error: INTAKE_STAFF_BLOCK };
     const { sb, row } = await findByToken(data.token);
     const blocked = blockReason(row);
     if (blocked) return { ok: false, error: blocked };
@@ -562,6 +567,8 @@ export const openIntake = createServerFn({ method: "POST" })
 export const saveIntakeProgress = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ token: tokenSchema, form: formSchema }).parse(d))
   .handler(async ({ data }): Promise<{ ok: boolean; closed?: boolean; error?: string }> => {
+    const staffGuard = await import("./customer-link-guard.server");
+    if (await staffGuard.signedInAccountId()) return { ok: false, error: INTAKE_STAFF_BLOCK };
     const { sb, row } = await findByToken(data.token);
     const blocked = blockReason(row);
     if (blocked) return { ok: false, error: blocked };
@@ -577,6 +584,8 @@ export const saveIntakeProgress = createServerFn({ method: "POST" })
 export const submitIntake = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ token: tokenSchema, form: formSchema, consent: z.literal(true) }).parse(d))
   .handler(async ({ data }): Promise<{ ok: boolean; closed?: boolean; error?: string }> => {
+    const staffGuard = await import("./customer-link-guard.server");
+    if (await staffGuard.signedInAccountId()) return { ok: false, error: INTAKE_STAFF_BLOCK };
     const { sb, row } = await findByToken(data.token);
     const blocked = blockReason(row);
     if (blocked) return { ok: false, error: blocked };
