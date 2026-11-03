@@ -130,7 +130,7 @@ import {
 import { getSizePresets } from "@/lib/size-presets.functions";
 
 import { toast } from "sonner";
-import { IntakeRequestButton, IntakeNotifier, RequestsScreenBody, useNewRequestCount, IntakeStatusChip, findIntakeFor, useIntakeRequests, reloadIntakeRequests } from "./IntakePanel";
+import { IntakeRequestButton, IntakeNotifier, useServerEstimateRestore, RequestsScreenBody, useNewRequestCount, IntakeStatusChip, findIntakeFor, useIntakeRequests, reloadIntakeRequests } from "./IntakePanel";
 import { setIntakeVisit, type IntakeRow } from "@/lib/intake.functions";
 import { tap } from "@/lib/feedback";
 import { KakaoMap } from "./KakaoMap";
@@ -6564,6 +6564,8 @@ type HistoryKind = "normal" | "intake" | "visit";
 
 export function History() {
   const { estimates, setScreen, loadEstimateToStep1, deleteEstimate, draft, resetDraft, patchDraft } = useApp();
+  // 다른 기기·재로그인으로 이 기기에 없는 보낸 견적도 서버에서 받아와 함께 보여 줍니다
+  useServerEstimateRestore();
   const [waitingTargetId, setWaitingTargetId] = useState<string | null>(null);
   const [termsReady, setTermsReady] = useState(false);
   const historyCards = useRef(new Map<string, HTMLDivElement>());
