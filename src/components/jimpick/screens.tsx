@@ -1927,6 +1927,16 @@ export function Step3() {
       });
     }
   };
+  // 예전 자료에서 사다리차와 계단/엘리베이터가 함께 저장된 경우 사다리차 하나만 남깁니다.
+  useEffect(() => {
+    const fixFrom = !!draft.ladderFrom && !!draft.fromEnv;
+    const fixTo = !!draft.ladderTo && !!draft.toEnv;
+    if (!fixFrom && !fixTo) return;
+    const f = fixFrom ? undefined : draft.fromEnv;
+    const t = fixTo ? undefined : draft.toEnv;
+    updateDraft({ fromEnv: f, toEnv: t, workEnv: combineEnv(f, t) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.ladderFrom, draft.ladderTo, draft.fromEnv, draft.toEnv]);
   const swipe = useSwipeNav(
     () => setScreen("step2"),
      () => setScreen(customerFlow ? "scan" : afterWorkConditions(aiScanEnabled)),
