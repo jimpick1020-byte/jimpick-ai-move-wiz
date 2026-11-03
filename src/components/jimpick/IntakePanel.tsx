@@ -21,6 +21,7 @@ import {
 } from "@/lib/intake.functions";
 import { Button } from "@/components/ui/button";
 import { canManageIntakeItems, createCustomerIntakeItem } from "@/lib/intake.functions";
+import { listActiveEstimates } from "@/lib/estimate-restore.functions";
 import { VISIT_TIMES, INTAKE_ROOMS, intakeStatusLabel, requestStatusLabel, type IntakeForm } from "@/lib/intake";
 
 /** 고객이 아직 이름을 넣기 전에는 전화번호로 구분합니다 */
@@ -288,9 +289,38 @@ function useIntakeDraftSync(rows: IntakeRow[]) {
   }, [key, loggedIn, upsertServerEstimates]);
 }
 
+/**
+ * 서버에 있는 보낸 견적 중 이 기기 목록에 없는 견적을 넣습니다 (같은 id는 한 건, 기존 기기 견적은 바꾸지 않음).
+ * 견적 내역·견적 현황이 달력과 같은 계약을 보도록 화면을 열 때와 앱으로 돌아올 때 확인합니다.
+ */
+export function useServerEstimateRestore() {
+  const { upsertServerEstimates, loggedIn } = useApp();
+  useEffect(() => {
+    if (!loggedIn) return;
+    let alive = true;
+    const run = () => {
+      listActiveEstimates()
+        .then((r) => {
+          if (!alive || !r.ok || !r.payloads.length) return;
+          const list: Estimate[] = [];
+          for (const p of r.payloads) {
+            try { list.push(JSON.parse(p) as Estimate); } catch { /* 깨진 기록은 건너뜁니다 */ }
+          }
+          upsertServerEstimates(list);
+        })
+        .catch(() => { /* 못 읽으면 이 기기 목록은 그대로 둡니다 */ });
+    };
+    run();
+    const onVisible = () => { if (document.visibilityState === "visible") run(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { alive = false; document.removeEventListener("visibilitychange", onVisible); };
+  }, [loggedIn, upsertServerEstimates]);
+}
+
 export function IntakeNotifier() {
   const rows = useIntakeRequests();
   useIntakeDraftSync(rows);
+  useServerEstimateRestore();
   const shown = useRef(new Set<string>());
   useEffect(() => {
     const id = window.setInterval(() => void reloadIntakeRequests(), 60_000);
