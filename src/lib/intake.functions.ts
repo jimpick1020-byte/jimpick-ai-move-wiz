@@ -635,6 +635,9 @@ export const submitIntake = createServerFn({ method: "POST" })
 // ───────────── 고객 방문 일정 확인 (로그인 없음) ─────────────
 export interface VisitOpen { ok: boolean; error?: string; companyName?: string; contact?: string; memo?: string | null; date?: string; time?: string | null; address?: string; customerName?: string; confirmedAt?: string | null }
 
+/** 업체·관리자 로그인 기기에서는 고객용 방문 일정 화면 조회·확인을 막습니다. */
+const VISIT_STAFF_BLOCK = "업체·관리자 계정으로 로그인된 기기에서는 고객용 방문견적 화면을 열 수 없습니다. 고객 요청 화면에서 확인해 주세요.";
+
 async function findVisit(token: string) {
   const { hashIntakeToken } = await import("./intake.server");
   const sb = await admin();
@@ -647,6 +650,8 @@ async function findVisit(token: string) {
 export const openVisit = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ token: tokenSchema }).parse(d))
   .handler(async ({ data }): Promise<VisitOpen> => {
+    const guard = await import("./customer-link-guard.server");
+    if (await guard.signedInAccountId()) return { ok: false, error: VISIT_STAFF_BLOCK };
     const { sb, row } = await findVisit(data.token);
     if (!row || row.deleted_at || row.status === "cancelled") return { ok: false, error: "잘못되었거나 취소된 링크입니다. 업체에 문의해 주세요." };
     if (row.visit_status !== "scheduled" || !row.visit_date) return { ok: false, error: "방문 일정이 아직 정해지지 않았거나 취소되었습니다. 업체에 문의해 주세요." };
@@ -663,6 +668,8 @@ export const openVisit = createServerFn({ method: "POST" })
 export const confirmVisit = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ token: tokenSchema }).parse(d))
   .handler(async ({ data }): Promise<{ ok: boolean; confirmedAt?: string; error?: string }> => {
+    const guard = await import("./customer-link-guard.server");
+    if (await guard.signedInAccountId()) return { ok: false, error: VISIT_STAFF_BLOCK };
     const { sb, row } = await findVisit(data.token);
     if (!row || row.status === "cancelled" || row.visit_status !== "scheduled") return { ok: false, error: "확인할 방문 일정이 없습니다." };
     if (row.visit_customer_confirmed_at) return { ok: true, confirmedAt: row.visit_customer_confirmed_at };
