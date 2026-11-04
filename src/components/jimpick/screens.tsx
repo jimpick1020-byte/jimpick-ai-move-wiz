@@ -1002,7 +1002,7 @@ export function HomeScreen() {
           </div>
         )}
 
-        <div data-home-intake-request className="[&>button]:!rounded-2xl">
+        <div data-home-intake-request>
           <IntakeRequestButton label="고객 사전정보 요청" wide />
         </div>
         <IntakeNotifier />
