@@ -22,6 +22,7 @@ export function intakeToEstimate(form: IntakeForm): Estimate {
     fromDecideOnVisit: form.fromDecideOnVisit, toDecideOnVisit: form.toDecideOnVisit,
     ...(form.fromDecideOnVisit ? { fromEnv: undefined, ladderFrom: false } : {}), ...(form.toDecideOnVisit ? { toEnv: undefined, ladderTo: false } : {}),
     sizeTab: form.fromSize || base.sizeTab,
+    toSizeTab: form.toSize || undefined,
     rooms: names.map(name => ({ id: `r_${name}`, name,
       items: Object.fromEntries(Object.entries(form.rooms[name] ?? {}).map(([id, pick]) => [id, pick.qty])),
       disposal: Object.fromEntries(Object.entries(form.rooms[name] ?? {}).filter(([, pick]) => pick.disposal).map(([id]) => [id, true])),

@@ -144,6 +144,8 @@ export interface Estimate {
   rooms: Room[];
    /** 4단계에서 고른 평수 구간 (예: "30~40평") */
   sizeTab?: string;
+  /** 4단계에서 고른 도착지 평수 구간 — 없으면 미선택(출발지 값을 복사하지 않음) */
+  toSizeTab?: string;
   customItems: CustomItem[];
   hiddenItems: string[];
   /** 사장님이 수정한 품목 이름(작성 당시 고정). 품목 ID는 그대로입니다. */
@@ -216,6 +218,8 @@ export interface Estimate {
   /** 고객 상세주소에서 확실히 찾은 층수 또는 「방문 확인 예정」 (참고용) */
   intakeFromFloor?: string;
   intakeFromSize?: string;
+  /** 고객이 사전정보에서 고른 도착지 평수(참고) */
+  intakeToSize?: string;
   intakeSubmittedAt?: string;
   intakeToFloor?: string;
   /** 고객이 고른 방별 품목·폐기물 요약 */
