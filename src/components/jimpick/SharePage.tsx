@@ -707,8 +707,14 @@ export function SharePage() {
             </div>
             {estimate?.sizeTab?.trim() && (
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[#6B7280]">평수</span>
+                <span className="text-[#6B7280]">출발지 평수</span>
                 <span className="font-bold">{estimate.sizeTab.trim()}</span>
+              </div>
+            )}
+            {estimate?.sizeTab?.trim() && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[#6B7280]">도착지 평수</span>
+                <span className="font-bold">{estimate.toSizeTab?.trim() || "미입력"}</span>
               </div>
             )}
 

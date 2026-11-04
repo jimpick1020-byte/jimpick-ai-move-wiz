@@ -316,7 +316,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           )}
 
           {/* 고객 · 이사일 */}
-          {inline("고객정보·일정", [field("customerName", "고객 이름"), field("phone", "고객 전화번호"), field("moveDate", "이사일", "date"), field("sizeTab", "평수")], (
+          {inline("고객정보·일정", [field("customerName", "고객 이름"), field("phone", "고객 전화번호"), field("moveDate", "이사일", "date"), field("sizeTab", "출발지 평수"), field("toSizeTab", "도착지 평수")], (
           <div className="mt-3 space-y-2 border-t border-[#E5E7EB] pt-3">
             <div className="flex min-w-0 items-center gap-2">
               <User className="h-[19px] w-[19px] shrink-0 text-[#25282D]" strokeWidth={2} />
@@ -352,11 +352,22 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             <div className="flex min-w-0 items-center gap-2">
               <Package className="h-[19px] w-[19px] shrink-0 text-[#25282D]" strokeWidth={2} />
               <span className="min-w-0 truncate text-[16px] text-[#6B7280]">
-                평수{" "}
+                출발지 평수{" "}
                 <span
                   className={`font-bold ${draft.sizeTab?.trim() ? "text-[#25282D]" : "text-[#D95C5C]"}`}
                 >
-                  {draft.sizeTab?.trim() || "평수 미입력"}
+                  {draft.sizeTab?.trim() || "미입력"}
+                </span>
+              </span>
+            </div>
+            <div className="flex min-w-0 items-center gap-2">
+              <Package className="h-[19px] w-[19px] shrink-0 text-[#25282D]" strokeWidth={2} />
+              <span className="min-w-0 truncate text-[16px] text-[#6B7280]">
+                도착지 평수{" "}
+                <span
+                  className={`font-bold ${draft.toSizeTab?.trim() ? "text-[#25282D]" : "text-[#D95C5C]"}`}
+                >
+                  {draft.toSizeTab?.trim() || "미입력"}
                 </span>
               </span>
             </div>

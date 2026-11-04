@@ -1002,6 +1002,9 @@ export function HomeScreen() {
           </div>
         )}
 
+        <div data-home-intake-request>
+          <IntakeRequestButton label="고객 사전정보 요청" wide />
+        </div>
         <IntakeNotifier />
         <div className="grid grid-cols-2 gap-3" data-home-menu>
           {[
@@ -1289,12 +1292,12 @@ export function Step1() {
       <StepHero step={1} total={customerFlow ? 4 : 6} title="고객 정보" pose="clipboard"
         bubble="이사 견적을 위해 고객 정보를 입력해 주세요!" onBack={() => setScreen("home")} />
       <div className="px-4 pt-1 space-y-4 flex-1 overflow-auto pb-32" {...swipe}>
-        {!customerFlow && !draft.intakeRequestId && <IntakeRequestButton label="고객 사전정보 요청" name={draft.customerName} phone={draft.phone} wide />}
         {!customerFlow && draft.intakeRequestId && (
           <div className="rounded-2xl bg-[#EFF6FF] p-3 text-sm text-[#1E3A8A] space-y-0.5">
             <div className="font-black">고객 사전정보로 채운 견적 초안입니다. 모든 칸을 고칠 수 있습니다.</div>
             <div>출발지 층수: {draft.intakeFromFloor ?? "방문 확인 예정"} · 도착지 층수: {draft.intakeToFloor ?? "방문 확인 예정"}</div>
             {draft.intakeFromSize && <div>고객이 고른 출발지 평수(참고): {draft.intakeFromSize}</div>}
+            {draft.intakeToSize && <div>고객이 고른 도착지 평수(참고): {draft.intakeToSize}</div>}
             <div>엘리베이터·사다리차: 방문 후 결정 · 폐기물 처리비: 방문 후 확인</div>
             {draft.intakeNote && <div className="whitespace-pre-line text-[#374151]">{draft.intakeNote}</div>}
           </div>
@@ -3576,6 +3579,7 @@ export function Step6() {
 
       {/* 평수 선택 — 예전처럼 한 줄을 좌우로 밀어서 봅니다 */}
       <div className="bg-white border-b border-[#E5E7EB] px-4 py-3">
+        {!customerFlow && <div className="mb-1.5 px-1 text-[14px] font-black text-[#25282D]">출발지 평수</div>}
         <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {SIZE_TABS.map((t) => (
             <button
@@ -3591,6 +3595,33 @@ export function Step6() {
             </button>
           ))}
         </div>
+        {!customerFlow && (
+          <>
+            <div className="mb-1.5 mt-2 px-1 text-[14px] font-black text-[#25282D]">도착지 평수</div>
+            {/* 도착지 평수 — 값만 저장합니다. 방·품목·수량·폐기물 표시는 건드리지 않습니다. */}
+            <div role="radiogroup" aria-label="도착지 평수" className="flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {[...SIZE_TABS.map((t) => t.key), ...(draft.toSizeTab && !SIZE_TABS.some((t) => t.key === draft.toSizeTab) ? [draft.toSizeTab] : [])].map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={draft.toSizeTab === key}
+                  onClick={() => {
+                    tap("soft");
+                    updateDraft({ toSizeTab: draft.toSizeTab === key ? undefined : key });
+                  }}
+                  className={`min-w-[108px] shrink-0 snap-start px-3 py-2.5 rounded-2xl text-[14px] font-black text-center whitespace-nowrap transition-all duration-150 active:translate-y-[2px] ${
+                    draft.toSizeTab === key
+                      ? "text-white bg-gradient-to-b from-[#5B93D6] to-[#3578C8] shadow-[0_4px_0_#285C99,0_8px_16px_rgba(7,81,216,0.32),inset_0_1px_0_rgba(255,255,255,0.5)] active:shadow-[0_1px_0_#285C99]"
+                      : "text-[#2A6FD6] bg-gradient-to-b from-white to-[#F7F8F5] shadow-[0_3px_0_#E5E7EB,inset_0_1px_0_#fff] active:shadow-[0_1px_0_#E5E7EB]"
+                  }`}
+                >
+                  {key}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         <div className="mt-2 flex gap-2">
           <button
             onClick={clearAllItems}
@@ -6979,9 +7010,15 @@ export function History() {
                         {e.moveDate || "-"} · {e.fromAddress || "?"} → {e.toAddress || "?"}
                       </div>
                       <div className="text-sm text-[#6B7280]">
-                        평수{" "}
+                        출발지 평수{" "}
                         <b className={e.sizeTab?.trim() ? "text-[#25282D]" : "text-[#D95C5C]"}>
-                          {e.sizeTab?.trim() || "평수 미입력"}
+                          {e.sizeTab?.trim() || "미입력"}
+                        </b>
+                      </div>
+                      <div className="text-sm text-[#6B7280]">
+                        도착지 평수{" "}
+                        <b className={e.toSizeTab?.trim() ? "text-[#25282D]" : "text-[#D95C5C]"}>
+                          {e.toSizeTab?.trim() || "미입력"}
                         </b>
                       </div>
                       <div className="mt-1 flex items-center justify-between">

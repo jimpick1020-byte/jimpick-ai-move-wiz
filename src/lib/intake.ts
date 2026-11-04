@@ -149,6 +149,8 @@ export interface IntakeForm {
   toZip?: string;
   /** 출발지 평수 (추천용) */
   fromSize?: string;
+  /** 도착지 평수 — 출발지와 따로 저장합니다 */
+  toSize?: string;
   /** 3단계에서 고른 공간 (4단계 방 목록) */
   spaces?: string[];
   moveType?: "포장이사" | "반포장이사" | "일반이사" | "보관이사" | "사무실이사";
@@ -341,6 +343,8 @@ export function mergeIntakeIntoDraft(
   // 평수는 추천용 참고 정보로만 남깁니다(사장님 화면의 평수·기본 품목은 바꾸지 않음).
   out.intakeFromSize = form.fromSize ?? "";
   if (form.fromSize && (INTAKE_SIZES as readonly string[]).includes(form.fromSize)) out.sizeTab = form.fromSize;
+  out.intakeToSize = form.toSize ?? "";
+  if (form.toSize && (INTAKE_SIZES as readonly string[]).includes(form.toSize)) out.toSizeTab = form.toSize;
   if (form.moveType) out.moveType = form.moveType;
   if (form.storageEnabled !== undefined) out.storageEnabled = form.storageEnabled;
   if (form.memo !== undefined) out.memo = form.memo;
