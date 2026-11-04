@@ -69,3 +69,27 @@ describe("고객 작업 조건은 계단·엘리베이터·사다리차 중 하�
     assert.equal(out.ladderTo, true);
   });
 });
+
+describe("출발지·도착지 평수는 따로 저장", () => {
+  it("고객이 고른 두 평수가 사장님 초안에 각각 들어간다", () => {
+    const out = mergeIntakeIntoDraft(newEstimate() as unknown as Record<string, unknown>,
+      { ...base, fromSize: "20~30평", toSize: "40~50평" }, null, { intakeRequestId: "req" });
+    assert.equal(out.sizeTab, "20~30평");
+    assert.equal(out.toSizeTab, "40~50평");
+  });
+
+  it("도착지 평수가 없으면 출발지 값을 복사하지 않는다", () => {
+    const out = mergeIntakeIntoDraft(newEstimate() as unknown as Record<string, unknown>,
+      { ...base, fromSize: "20~30평" }, null, { intakeRequestId: "req" });
+    assert.equal(out.sizeTab, "20~30평");
+    assert.equal(out.toSizeTab, undefined);
+    assert.equal(intakeToEstimate({ ...base, fromSize: "20~30평" }).toSizeTab, undefined);
+  });
+
+  it("고객 화면을 오가도 도착지 평수가 유지된다", () => {
+    const form = { ...base, fromSize: "10~20평", toSize: "30~40평" } as IntakeForm;
+    const back = estimateToIntake(intakeToEstimate(form), form);
+    assert.equal(back.fromSize, "10~20평");
+    assert.equal(back.toSize, "30~40평");
+  });
+});
