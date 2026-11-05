@@ -2058,8 +2058,9 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       window.history.replaceState({ jpScreen: "login" }, "");
     },
     updateDraft: (patch) => setState((s) => {
-      const merged = applyLadderAuto({ ...s.draft, ...patch }, patch);
-      const next = merged === s.draft || !("ladderFromPrice" in merged) ? merged : {
+      const plain = { ...s.draft, ...patch };
+      const merged = applyLadderAuto(plain, patch);
+      const next = merged === plain ? merged : {
         ...merged,
         ladder: (merged.ladderFrom ? 1 : 0) + (merged.ladderTo ? 1 : 0),
         ladderPrice: (merged.ladderFrom ? merged.ladderFromPrice : 0) + (merged.ladderTo ? merged.ladderToPrice : 0),
