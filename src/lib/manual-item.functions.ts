@@ -6,7 +6,7 @@ import { itemSubgroup } from "./item-groups";
 import { retryItemStorage } from "./item-save-retry";
 
 const schema = z.object({
-  name: z.string().trim().min(2).max(24), cat: z.enum(["가구", "가전", "주방", "생활용품", "운동·레저"]),
+  name: z.string().trim().min(2).max(80), cat: z.enum(["가구", "가전", "주방", "생활용품", "운동·레저"]),
   room: z.string().min(1).max(20), volume: z.number().min(0).max(5),
   photo: z.string().max(4_000_000).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/),
   group: z.string().trim().min(1).max(20).optional(),

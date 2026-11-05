@@ -640,7 +640,7 @@ export const submitIntake = createServerFn({ method: "POST" })
         const u = await sb.from("estimate_drafts").update({ payload: merged as never, revision }).eq("user_id", row.company_id).eq("estimate_id", row.estimate_id);
         if (u.error) { console.error("[submitIntake] draft update", u.error.code, u.error.message); return { ok: false, error: FAIL }; }
       }
-    } else if (!draftRow.deleted_at) {
+    } else if (!draftRow.deleted_at && !base.intakeOwnerStartedAt) {
       // 사장님이 지운 견적은 되살리지 않습니다.
       const { error } = await sb.from("estimate_drafts").update({ payload: merged as never, revision }).eq("id", draftRow.id);
       if (error) { console.error("[submitIntake] draft update", error.code, error.message); return { ok: false, error: FAIL }; }

@@ -52,7 +52,7 @@ export function itemImageHints(name: string): { en: string[]; not: string[] } {
 export function buildItemImagePrompt(name: string): string {
   const { en, not } = itemImageHints(name);
   return [
-    `Product photo of exactly one Korean household moving item named "${name}".`,
+    `Product photo of exactly one household moving item named ${JSON.stringify(name)}. Names may be Korean or international brands/models; depict the furniture/appliance kind, never a logo or an invented model-specific feature.`,
     en.length ? `It must clearly be: ${en.join("; ")}.` : "Depict the object that this Korean name literally refers to.",
     not.length ? `It must NOT look like: ${not.join("; ")}.` : "",
     "Photorealistic 3D product render, whole object centered and fully visible with margin, three-quarter view, soft studio lighting, pure white background, no people, no text, no logos.",

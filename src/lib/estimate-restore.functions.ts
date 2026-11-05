@@ -17,7 +17,10 @@ export const listActiveEstimates = createServerFn({ method: "POST" })
       .is("archived_at", null)
       .limit(2000);
     if (error) return { ok: false, payloads: [] };
-    const ids = [...new Set((terms ?? []).map((r) => String(r.estimate_id)).filter(Boolean))];
+    const completed = await context.supabase.from("intake_requests").select("estimate_id,source_estimate_id")
+      .eq("company_id", context.userId).not("estimate_completed_at", "is", null);
+    if (completed.error) return { ok: false, payloads: [] };
+    const ids = [...new Set([...(terms ?? []).map(r => String(r.estimate_id)), ...(completed.data ?? []).flatMap(r => [r.estimate_id, r.source_estimate_id].filter((id): id is string => !!id))].filter(Boolean))];
     if (!ids.length) return { ok: true, payloads: [] };
     const payloads: string[] = [];
     for (let i = 0; i < ids.length; i += 200) {
