@@ -33,6 +33,19 @@ export const markOwnerNotificationRead = createServerFn({ method: "POST" })
     return { ok: true, unread: count ?? 0 };
   });
 
+/** 알림함에서 확인한 알림들을 한 번에 읽음 처리합니다 (입금·결제 상태는 바꾸지 않습니다) */
+export const markOwnerNotificationsRead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ ids: z.array(z.string().uuid()).min(1).max(200) }).parse(d))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; unread: number }> => {
+    const { supabase, userId } = context;
+    const { error } = await supabase.from("owner_notifications").update({ read_at: new Date().toISOString() })
+      .in("id", data.ids).eq("company_id", userId).is("read_at", null);
+    if (error) return { ok: false, unread: -1 };
+    const { count } = await supabase.from("owner_notifications").select("id", { count: "exact", head: true }).eq("company_id", userId).is("read_at", null).is("deleted_at", null);
+    return { ok: true, unread: count ?? 0 };
+  });
+
 /**
  * 알림 삭제 — 목록에서만 숨깁니다(삭제 표시). 중복 방지 기록은 남아 같은 일로 알림이 다시 생기지 않고,
  * 입금·결제·요청 자료는 전혀 바꾸지 않습니다. ids 를 주면 그 알림만, unreadOnly 면 미확인 알림 전부를 지웁니다.

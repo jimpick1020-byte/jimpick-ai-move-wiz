@@ -66,7 +66,7 @@ export function IntakePage({ token }: { token: string }) {
   if (!data) return <Shell><div className="py-24 text-center text-xl">불러오는 중…</div></Shell>;
   if (!data.ok) return <Shell><Message text={data.error ?? "링크를 열 수 없습니다."} /></Shell>;
   if (closed) return <Shell company={data.companyName}><Message text={CLOSED} sub={`문의: ${data.contact}`} /></Shell>;
-  if (done) return <div className="jp-intake-done" data-intake-done><CharacterImg pose="thumbsup" size={140} priority className="mx-auto mb-4" /><p className="text-2xl font-black">{DONE}</p></div>;
+  if (done) return <IntakeDone />;
   if (!form) return null;
 
   return <div className="jp-customer-flow">
@@ -74,6 +74,33 @@ export function IntakePage({ token }: { token: string }) {
     <IntakeEstimateFlow token={token} form={form} setForm={setForm} data={data} step={step} setStep={setStep}
       consent={consent} setConsent={setConsent} busy={busy} setBusy={setBusy} err={err} setErr={setErr}
       onDone={() => setDone(true)} onClosed={() => setClosed(true)} />
+  </div>;
+}
+
+/** 문자 화면으로 돌아가기 — 창 닫기 → 카카오톡 내부 브라우저 닫기 → 이전 화면 순서로 시도합니다. */
+function tryReturnToMessages() {
+  try { window.close(); } catch { /* 닫기 제한 */ }
+  if (/KAKAOTALK/i.test(navigator.userAgent)) { window.location.href = "kakaotalk://inappbrowser/close"; return; }
+  if (window.history.length > 1) window.history.back();
+}
+
+/** 저장 성공 뒤에만 보이는 완료 화면 — 1초 뒤 자동으로 닫기를 시도하고, 막히면 안내와 돌아가기 버튼을 보여 줍니다. */
+function IntakeDone() {
+  const [fallback, setFallback] = useState(false);
+  useEffect(() => {
+    // 완료 뒤 뒤로 가기로 입력 화면이 다시 보이지 않도록 현재 기록을 완료 상태로 바꿉니다
+    try { window.history.replaceState({ ...(window.history.state ?? {}), intakeDone: true }, ""); } catch { /* 무시 */ }
+    const t1 = window.setTimeout(() => { try { window.close(); } catch { /* 제한 */ } if (/KAKAOTALK/i.test(navigator.userAgent)) window.location.href = "kakaotalk://inappbrowser/close"; }, 1000);
+    const t2 = window.setTimeout(() => { if (!document.hidden) setFallback(true); }, 1600);
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
+  }, []);
+  return <div className="jp-intake-done" data-intake-done>
+    <CharacterImg pose="thumbsup" size={140} priority className="mx-auto mb-4" />
+    <p className="text-2xl font-black">{DONE}</p>
+    {fallback && <div className="mt-4 px-6 text-center" data-intake-return>
+      <p className="text-lg font-bold">문자 화면으로 돌아가 주세요.</p>
+      <button type="button" onClick={tryReturnToMessages} className="mt-4 w-full max-w-xs rounded-2xl bg-primary px-6 py-4 text-lg font-black text-primary-foreground">돌아가기</button>
+    </div>}
   </div>;
 }
 

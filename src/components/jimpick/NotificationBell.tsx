@@ -7,9 +7,26 @@ import { Bell, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { deleteOwnerNotifications, listOwnerNotifications, markOwnerNotificationRead, type OwnerNotice } from "@/lib/notifications.functions";
+import { deleteOwnerNotifications, listOwnerNotifications, markOwnerNotificationRead, markOwnerNotificationsRead, type OwnerNotice } from "@/lib/notifications.functions";
 import { currentPushState, enablePush, type PushState } from "@/lib/push-client";
 import { updateAppBadge } from "@/lib/app-badge";
+
+/** 휴대폰 알림창에 남은 견적잇 알림 중 읽은 것(또는 전부)을 닫아 아이콘 숫자도 함께 줄입니다. */
+async function closeTrayNotices(readIds: string[] | "all") {
+  try {
+    if (!("serviceWorker" in navigator)) return;
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+    for (const n of await reg.getNotifications()) {
+      const url = String((n.data && n.data.url) || "");
+      if (readIds === "all" || readIds.some((id) => url.includes(id))) n.close();
+    }
+  } catch { /* 지원하지 않으면 그대로 둡니다 */ }
+}
+function syncBadge(unread: number, readIds: string[] = []) {
+  updateAppBadge(unread);
+  void closeTrayNotices(unread === 0 ? "all" : readIds);
+}
 
 export type NoticeTarget = { kind: string; estimateId?: string; intakeId?: string };
 
@@ -30,7 +47,7 @@ export function NotificationBell({ onOpenTarget }: { onOpenTarget: (target: Noti
 
   const load = useCallback(() => {
     listOwnerNotifications()
-      .then((r) => { setUnread(r.unread); setItems(r.items); updateAppBadge(r.unread); })
+      .then((r) => { setUnread(r.unread); setItems(r.items); syncBadge(r.unread, r.items.filter((n) => n.readAt).map((n) => n.id)); })
       .catch(() => {});
   }, []);
 
@@ -58,7 +75,7 @@ export function NotificationBell({ onOpenTarget }: { onOpenTarget: (target: Noti
     for (const key of ["notice", "nid", "estimate", "intake"]) url.searchParams.delete(key);
     window.history.replaceState(window.history.state, "", url.pathname + (url.search ? url.search : "") + url.hash);
     if (nid && /^[0-9a-f-]{36}$/i.test(nid)) {
-      void markOwnerNotificationRead({ data: { id: nid } }).then((r) => { if (r.ok) { setUnread(r.unread); updateAppBadge(r.unread); load(); } }).catch(() => {});
+      void markOwnerNotificationRead({ data: { id: nid } }).then((r) => { if (r.ok) { setUnread(r.unread); syncBadge(r.unread, [nid]); load(); } }).catch(() => {});
     }
     onOpenTarget(target);
     // 처음 들어올 때 한 번만 처리합니다
@@ -69,11 +86,22 @@ export function NotificationBell({ onOpenTarget }: { onOpenTarget: (target: Noti
     setOpen(false);
     if (!notice.readAt) {
       const r = await markOwnerNotificationRead({ data: { id: notice.id } }).catch(() => null);
-      if (r?.ok) { setUnread(r.unread); updateAppBadge(r.unread); }
+      if (r?.ok) { setUnread(r.unread); syncBadge(r.unread, [notice.id]); }
       load();
     }
     onOpenTarget(notice.kind === "intake" ? { kind: notice.kind, intakeId: notice.refId } : { kind: notice.kind, estimateId: notice.refId });
   };
+
+  // 알림함을 열어 내용을 보면 화면에 보인 미확인 알림을 바로 읽음으로 저장합니다 (새로고침·재접속 후에도 유지).
+  useEffect(() => {
+    if (!open) return;
+    const ids = items.filter((n) => !n.readAt).map((n) => n.id);
+    if (ids.length === 0) return;
+    void markOwnerNotificationsRead({ data: { ids } }).then((r) => {
+      if (!r.ok) return;
+      setUnread(r.unread); syncBadge(r.unread, ids);
+    }).catch(() => {});
+  }, [open, items]);
 
   const [deleting, setDeleting] = useState(false);
   // 삭제는 알림 목록에서만 숨깁니다 — 입금 확정·결제·요청 자료는 바꾸지 않습니다.
@@ -82,7 +110,7 @@ export function NotificationBell({ onOpenTarget }: { onOpenTarget: (target: Noti
     try {
       const r = await deleteOwnerNotifications({ data: payload });
       if (!r.ok) { toast.error("알림을 삭제하지 못했습니다. 다시 시도해 주세요."); return; }
-      setUnread(r.unread); updateAppBadge(r.unread);
+      setUnread(r.unread); syncBadge(r.unread, payload.ids ?? []);
       const ids = payload.ids;
       setItems((prev) => ids ? prev.filter((n) => !ids.includes(n.id)) : prev.filter((n) => n.readAt));
       toast.success(done);
