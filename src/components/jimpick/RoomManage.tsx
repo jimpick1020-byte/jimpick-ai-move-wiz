@@ -93,6 +93,8 @@ export function useRoomDrag(enabled: boolean, onDrop: (id: string, toIndex: numb
     },
     onPointerUp: () => finish(true),
     onPointerCancel: () => finish(false),
+    draggable: false,
+    onDragStart: (e: React.DragEvent) => { if (enabled) e.preventDefault(); },
     onContextMenu: (e: React.MouseEvent) => { if (enabled) e.preventDefault(); },
     onClickCapture: (e: React.MouseEvent) => {
       if (suppressClick.current) { e.preventDefault(); e.stopPropagation(); suppressClick.current = false; }
