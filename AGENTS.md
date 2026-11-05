@@ -51,3 +51,5 @@
 - Owner notifications come only from DB triggers with per-company dedupe keys and push via push-dispatch + public/push-sw.js; owners may change only read_at and a one-way deleted_at soft delete (dedupe kept), keeping reads apart from payment confirmation.
 - Customer share-link server functions reject signed-in sessions via customer-link-guard and never count their views; the token link stays the customer credential.
 - MoveDateCalendar is shared by owner and customer flows (ratio-spacer cells, equal rows; customer shell overflow: clip keeps the sticky bar visible); this keeps both identical without clipping dates.
+- Ladder prices are computed by ladder-fee.ts only inside updateDraft when floors, truck counts or ladder/work-method selections change; opening a saved estimate never recomputes, and missing tiers stay unconfirmed with a note instead of a guessed amount.
+- Owner room management materializes the shown rooms into draft.rooms (roomsCustomized) and edits rooms by ID via room-manage.ts; rename keeps the room's kind for its picture, so items and art never follow names or positions.
