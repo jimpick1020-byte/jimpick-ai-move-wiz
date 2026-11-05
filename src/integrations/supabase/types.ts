@@ -778,6 +778,7 @@ export type Database = {
           deleted_at: string | null
           draft: Json
           editing_started_at: string | null
+          estimate_completed_at: string | null
           estimate_id: string
           expires_at: string
           first_opened_at: string | null
@@ -817,6 +818,7 @@ export type Database = {
           deleted_at?: string | null
           draft?: Json
           editing_started_at?: string | null
+          estimate_completed_at?: string | null
           estimate_id: string
           expires_at: string
           first_opened_at?: string | null
@@ -856,6 +858,7 @@ export type Database = {
           deleted_at?: string | null
           draft?: Json
           editing_started_at?: string | null
+          estimate_completed_at?: string | null
           estimate_id?: string
           expires_at?: string
           first_opened_at?: string | null
@@ -2023,6 +2026,10 @@ export type Database = {
         Args: { _est: string; _today: string; _user: string }
         Returns: boolean
       }
+      finalize_intake_estimate: {
+        Args: { p_estimate_id: string; p_payload: Json; p_revision: number }
+        Returns: Json
+      }
       has_confirmed_calendar_deposit: {
         Args: { p_company: string; p_estimate: string }
         Returns: boolean
@@ -2061,6 +2068,10 @@ export type Database = {
       }
       reserve_free_sms: {
         Args: { _count?: number; _key: string; _user_id: string }
+        Returns: Json
+      }
+      resume_intake_estimate: {
+        Args: { p_initial: Json; p_request_id: string }
         Returns: Json
       }
       retire_unconverted_intake_drafts: { Args: never; Returns: Json }
