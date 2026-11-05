@@ -10,6 +10,8 @@ import { useIconFit } from "./icon-fit";
 import { useItemCutout } from "./use-item-cutout";
 import { ITEMS_1000 } from "./items-catalog-1000";
 import { FEATURED_HOUSEHOLD_100 } from "./featured-household-100";
+import movingBasket from "@/assets/moving-red-basket.png.asset.json";
+import movingBox from "@/assets/moving-blue-box.png.asset.json";
 
 const BASE = "/assets/items-3d";
 
@@ -149,14 +151,14 @@ export const ICON3D: Record<string, string> = {
   art: `${BASE}/special/sculpture.webp`,
 
   // ── 잔짐·박스 ───────────────────────────────────────────
-  box: `${BASE}/packing/moving-box-medium.webp`,
+  box: movingBox.url,
   clothbox: `${BASE}/packing/clothes-box.webp`,
   bigbox: `${BASE}/packing/moving-box-large.webp`,
   midbox: `${BASE}/packing/moving-box-medium.webp`,
   bookbox: `${BASE}/packing/moving-box-medium.webp`,
   kitchenbox: `${BASE}/packing/moving-box-medium.webp`,
   smallbox: `${BASE}/packing/moving-box-medium.webp`,
-  basket: `${BASE}/packing/storage-basket.webp`,
+  basket: movingBasket.url,
   blanketbag: `${BASE}/living/bedding.webp`,
 
   // ── 새로 추가한 품목 ──

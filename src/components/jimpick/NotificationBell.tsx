@@ -83,7 +83,8 @@ export function NotificationBell({ onOpenTarget }: { onOpenTarget: (target: Noti
       const r = await deleteOwnerNotifications({ data: payload });
       if (!r.ok) { toast.error("알림을 삭제하지 못했습니다. 다시 시도해 주세요."); return; }
       setUnread(r.unread); updateAppBadge(r.unread);
-      setItems((prev) => payload.ids ? prev.filter((n) => !payload.ids!.includes(n.id)) : prev.filter((n) => n.readAt));
+      const ids = payload.ids;
+      setItems((prev) => ids ? prev.filter((n) => !ids.includes(n.id)) : prev.filter((n) => n.readAt));
       toast.success(done);
       load();
     } catch {

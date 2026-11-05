@@ -868,7 +868,10 @@ export function HomeScreen() {
           </div>
         </div>
         <NotificationBell onOpenTarget={(target) => {
-          if (target.kind === "intake") { setScreen("requests"); return; }
+          if (target.kind === "intake") {
+            if (target.intakeId) sessionStorage.setItem("jp_intake_open_target", target.intakeId);
+            setScreen("requests"); return;
+          }
           if (target.estimateId) {
             try { sessionStorage.setItem("jp_waiting_history_target", target.estimateId); } catch { /* 저장소 제한 */ }
           }
@@ -1013,7 +1016,7 @@ export function HomeScreen() {
           {[
             { label: "견적 내역", icon: <ClipboardList className="w-8 h-8 text-[#25282D]" />, s: "history" as const },
             { label: "고객 관리", icon: <User className="w-8 h-8 text-[#25282D]" />, s: "customers" as const },
-            { label: "고객 요청", icon: <span className="relative inline-flex"><User className="w-8 h-8 text-[#25282D]" /><Bell className="absolute -right-2 -top-1 w-4 h-4 text-[#25282D]" /></span>, s: "requests" as const },
+            { label: "고객 요청", icon: <span className="relative inline-flex"><User className="w-8 h-8 text-[#25282D]" />{newRequests > 0 && <Bell data-request-bell className="absolute -right-2 -top-1 w-4 h-4 text-[#25282D]" />}</span>, s: "requests" as const },
             { label: "통계 확인", icon: <BarChart3 className="w-8 h-8 text-[#25282D]" />, s: "stats" as const },
           ].map(({ label, icon, s }) => (
             <Card key={label} onClick={() => setScreen(s)} className="relative flex h-[96px] flex-col items-center justify-center gap-2">
@@ -3735,11 +3738,11 @@ export function Step6() {
                 </button>
                 <div className="mt-2 space-y-1" data-room-quick={name}>
                   {([{ id: "basket", label: "이사바구니" }, { id: "box", label: "이사박스" }]).map(item => (
-                    <div key={item.id} className="flex items-center justify-between gap-0.5 text-[10px] font-bold">
-                      <span className="min-w-0 whitespace-nowrap text-foreground">{item.label}</span>
-                      <div className="flex shrink-0 items-center gap-0.5">
+                    <div key={item.id} className="flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5 text-[10px] font-bold">
+                      <span className="inline-flex min-w-0 items-center gap-0.5 text-foreground"><ItemArt id={item.id} name={item.label} size={22} /><span className="whitespace-nowrap">{item.label}</span></span>
+                      <div className="ml-auto flex shrink-0 items-center gap-0.5">
                         <Button size="icon" variant="outline" className="size-6" aria-label={`${name} ${item.label} 감소`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, -1); }}>−</Button>
-                        <output aria-label={`${name} ${item.label} 수량`} className="w-4 text-center tabular-nums">{r?.items[item.id] || 0}</output>
+                        <output aria-label={`${name} ${item.label} 수량`} className="min-w-5 text-center tabular-nums">{r?.items[item.id] || 0}</output>
                         <Button size="icon" variant="outline" className="size-6" aria-label={`${name} ${item.label} 증가`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, 1); }}>+</Button>
                       </div>
                     </div>
@@ -5302,6 +5305,10 @@ export function Result() {
         );
         return;
       }
+      const final = await saveEstimateDraft({ data: { estimateId: draft.id, payload: JSON.stringify({ ...draft, total }), revision: nextRevision(), finalSave: true } });
+      if (!final.ok || final.stale) throw new Error(final.error || "견적 완료 상태를 저장하지 못했습니다.");
+      await reloadIntakeRequests();
+      window.dispatchEvent(new Event("jimpick:payment-updated"));
       setConfirmSheet(false);
       setSheetOpen(false);
       finishToHome();
@@ -5396,6 +5403,7 @@ export function Result() {
       // 서버 저장이 성공한 경우에만 완료 상태로 저장(로컬 목록에 반영)합니다.
       saveDraft();
       await reloadIntakeRequests();
+      window.dispatchEvent(new Event("jimpick:payment-updated"));
       tap("success");
       toast.success("견적이 저장되었습니다");
       setScreen("history");
@@ -6500,6 +6508,11 @@ export function Result() {
                 )}
 
                 <div className="mt-4 space-y-2">
+                  {sendResult?.ok && draft.intakeRequestId && (
+                    <Button type="button" variant="outline" className="w-full" disabled={finishing} onClick={() => {
+                      if (window.confirm("문자 앱에서 견적서를 정상 발송하셨나요? 발송 실패·취소라면 취소를 눌러 주세요.")) void finishAndGoHome();
+                    }}>문자 정상 발송 확인</Button>
+                  )}
                   {/* 발송이 성공한 뒤에만 첫 화면으로 가는 큰 버튼을 보여 줍니다 */}
                   {sendResult?.ok && (
                     <button
