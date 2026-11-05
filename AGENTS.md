@@ -34,12 +34,12 @@
 
 - Deposit acknowledgement uses the owner-locked confirm_payment_receipt RPC to atomically and idempotently sync receipt sums and contract payment state; balance completion delegates to complete_estimate_payment, preventing duplicate sums, total changes or messaging side effects.
 - Receipt highlighting uses bank methods/known alerts; direct bank confirmation audits the expected amount via RPC; PaymentPanel shows only pendingBalanceReceipts, so confirmed balances can't be reconfirmed.
-- Customer claims use stage-specific deduplication and stored contract totals; pending receipts stay visible and only owner acknowledgement confirms them. Payment SMS preparation is owner-scoped, read-only and native-composer-only, never a sent record.
+- Customer claims use stage-specific dedupe and stored totals; only owner acknowledgement confirms receipts, and payment SMS prep is read-only native-composer only.
 - History opens receipt-review months by default; SMS groups use Asia/Seoul; archive deletion reuses authenticated soft-delete and refreshes only after success to preserve payments and SMS.
 - Bank SMS are stored first in bank_sms_messages (deduped by event ID or text hash, never name/account/estimate), then matched via bank-sms-match into one pending deposit_records row; detection never completes payment. Forward URLs use publicUrl (preview blocks external POSTs); SMS dates parse as Asia/Seoul.
 - Bank SMS inbox deletion uses the owner-scoped security-invoker hide_bank_sms RPC and list-only deleted_at filtering; retained originals and dedupe keys prevent replay without touching receipt or payment state.
 - AI item images are checked by item-image-verify against the item name before createManualItem stores them, and prompts come from item-image-prompt; this prevents a mismatched picture being linked to an item ID.
-- Options snapshot the selected catalog ID, image URL and entered name in the existing options JSON and render through OptionArt; this preserves matching owner/customer/PDF art without changing pricing or historic records.
+- Options snapshot catalog ID, image URL and name in options JSON and render via OptionArt, keeping owner/customer/PDF art identical.
 - Native sheet printing marks only the printable ancestor branch and uses normal-flow pagination until afterprint; this prevents paper-size clipping.
 
 - Owner sheet saves persist revisions then sync the customer snapshot; depositOverride uses plannedDeposit, never payment/consent audit fields, preserving tokens and read-only views.
