@@ -331,6 +331,21 @@ export const loadIntakeDraft = createServerFn({ method: "POST" })
     return { ok: true, payload: JSON.stringify(row.payload) };
   });
 
+/** Locks the owner request and restores its existing draft, creating only when absent. */
+export const resumeIntakeEstimate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ requestId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; payload?: string; error?: string }> => {
+    const row = await ownRow(context.supabase, context.userId, data.requestId);
+    if (!row || row.status === "cancelled") return { ok: false, error: "요청을 찾지 못했습니다." };
+    const { baseEstimate } = await import("./intake.server");
+    const initial = mergeIntakeIntoDraft(baseEstimate(row.estimate_id), row.submission as IntakeForm, null, { intakeRequestId: row.id });
+    const result = await context.supabase.rpc("resume_intake_estimate", { p_request_id: row.id, p_initial: initial as never });
+    if (result.error) return { ok: false, error: result.error.message };
+    const response = result.data as { ok: boolean; payload?: unknown; error?: string };
+    return { ok: response.ok, payload: response.payload ? JSON.stringify(response.payload) : undefined, error: response.error };
+  });
+
 // ───────────── 고객 링크 품목 관리 ─────────────
 
 export interface IntakeItem {
@@ -605,15 +620,15 @@ export const submitIntake = createServerFn({ method: "POST" })
     const company = await itemsFor(sb, row.company_id, false);
     const { ITEM_CATALOG } = await import("./jimpick");
     const nameOf = (id: string) => ITEM_CATALOG.find((c) => c.id === id)?.name ?? intakeItemName(id) ?? company.find((c) => c.id === id)?.name ?? id;
-    const merged = mergeIntakeIntoDraft(base, form, prevRooms, { intakeRequestId: row.id });
+    const merged = base.intakeOwnerStartedAt ? { ...base } : mergeIntakeIntoDraft(base, form, prevRooms, { intakeRequestId: row.id });
     const pickedIds = new Set(Object.values(form.rooms).flatMap(p => Object.keys(p)));
     const snapshots = (base.customItems as any[] | undefined) ?? [];
     const {data:storedIcons}=await sb.from("item_icons").select("id,item_id,image_path,storage_path").in("item_id",[...Array.from(pickedIds), ...(pickedIds.has("bookshelf-01") ? ["bookself-01"] : [])]).or(`customer_only.eq.true,user_id.eq.${row.company_id}`).eq("active",true);
     const pictureFor = (id:string) => (storedIcons ?? []).find(r => (r.item_id===id || (id==="bookshelf-01" && r.item_id==="bookself-01")) && (r.image_path || r.storage_path));
-    merged.customItems = [...snapshots.filter(i => !pickedIds.has(i.id)), ...company.filter(i => pickedIds.has(i.id)).map(i => ({
+    if (!base.intakeOwnerStartedAt) merged.customItems = [...snapshots.filter(i => !pickedIds.has(i.id)), ...company.filter(i => pickedIds.has(i.id)).map(i => ({
       id:i.id,name:i.name,cat:i.group,extra:0.5,active:true,icon:pictureFor(i.id) ? `/api/public/item-icon/${pictureFor(i.id)?.id}.png` : (INTAKE_BASE_ITEMS.find(b=>b.id===i.id || b.id===i.family)?.img ?? i.icon)
     }))];
-    merged.intakeNote = intakeSummary(form, nameOf).join("\n");
+    if (!base.intakeOwnerStartedAt) merged.intakeNote = intakeSummary(form, nameOf).join("\n");
     merged.intakeDisposalFee = "방문 후 확인";
     merged.intakeSubmittedAt = new Date().toISOString();
     const FAIL = "저장하지 못했습니다. 다시 눌러 주세요.";
