@@ -2175,9 +2175,7 @@ export function Step4() {
                     checked={draft.ladderFromSeparate}
                     onChange={(e) => {
                       tap("soft");
-                      // 별도: 즉시 0원 · 해제: 이전 금액이 아니라 기본 단가를 다시 넣습니다
                       const sep = e.target.checked;
-                      const price = sep ? 0 : ladderUnit;
                       // 별도는 금액을 지우지 않고 합계에서만 뺍니다(포함으로 되돌리면 그 금액이 다시 반영)
                       updateDraft({ ladderFromSeparate: sep });
                     }}
@@ -2186,6 +2184,16 @@ export function Step4() {
                 </label>
                 {draft.ladderFromSeparate && (
                   <p className="mt-1 text-sm font-bold text-[#E8590C]">{LADDER_SEPARATE_TEXT}</p>
+                )}
+                {draft.ladderFromNote && !draft.ladderFromManual && (
+                  <p className="mt-1 text-sm font-bold text-[#B4232A]" data-ladder-note="from">{draft.ladderFromNote}</p>
+                )}
+                {draft.ladderFromManual ? (
+                  <button type="button" className="mt-1 text-sm font-bold text-[#3578C8] underline" onClick={() => updateDraft({ ladderFromManual: false, truck1t: draft.truck1t })}>
+                    층수·차량 기준 자동 금액으로 되돌리기
+                  </button>
+                ) : !draft.ladderFromNote && (
+                  <p className="mt-1 text-xs font-semibold text-[#6B7280]">출발지 층수와 5톤·1톤 대수로 자동 계산된 금액입니다.</p>
                 )}
               </Field>
             )}
@@ -2206,7 +2214,6 @@ export function Step4() {
                     onChange={(e) => {
                       tap("soft");
                       const sep = e.target.checked;
-                      const price = sep ? 0 : ladderUnit;
                       // 별도는 금액을 지우지 않고 합계에서만 뺍니다(포함으로 되돌리면 그 금액이 다시 반영)
                       updateDraft({ ladderToSeparate: sep });
                     }}
@@ -2215,6 +2222,16 @@ export function Step4() {
                 </label>
                 {draft.ladderToSeparate && (
                   <p className="mt-1 text-sm font-bold text-[#E8590C]">{LADDER_SEPARATE_TEXT}</p>
+                )}
+                {draft.ladderToNote && !draft.ladderToManual && (
+                  <p className="mt-1 text-sm font-bold text-[#B4232A]" data-ladder-note="to">{draft.ladderToNote}</p>
+                )}
+                {draft.ladderToManual ? (
+                  <button type="button" className="mt-1 text-sm font-bold text-[#3578C8] underline" onClick={() => updateDraft({ ladderToManual: false, truck1t: draft.truck1t })}>
+                    층수·차량 기준 자동 금액으로 되돌리기
+                  </button>
+                ) : !draft.ladderToNote && (
+                  <p className="mt-1 text-xs font-semibold text-[#6B7280]">도착지 층수와 5톤·1톤 대수로 자동 계산된 금액입니다.</p>
                 )}
               </Field>
             )}
