@@ -3705,18 +3705,30 @@ export function Step6() {
       {/* 디지털 3D 집 구조 */}
       <div
         className="flex-1 overflow-auto p-4 pb-6 bg-gradient-to-b from-[#EEF6FF] to-[#E6EEFA]"
+        data-room-grid-scroll
         {...swipe}
       >
         <div className="grid grid-cols-2 gap-3">
-          {sizeRooms.map((name) => {
+          {displayNames.map((name, index) => {
             const r = roomOf(name);
             const s = roomSummary(r?.items || {});
+            const cardId = r?.id ?? `r_${name}`;
+            const press = roomDrag.pressProps(cardId);
+            const dragging = roomDrag.dragId === cardId;
+            const dropHint = roomDrag.dragId !== null && !dragging && roomDrag.overIndex === index;
+            const art = r?.kind ?? name;
             return (
               <div
-                key={name}
+                key={cardId}
+                data-room-card-id={cardId}
+                data-room-card-index={index}
+                data-room-dragging={dragging || undefined}
+                style={{ transition: dragging ? "none" : undefined, outline: dropHint ? "3px dashed #3578C8" : dragging ? "3px solid #3578C8" : undefined, outlineOffset: 2, boxShadow: dragging ? "0 18px 36px -10px rgba(7,81,216,0.45)" : undefined }}
                 className="relative rounded-3xl p-3 bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_8px_0_#E5E7EB,0_16px_28px_-14px_rgba(7,81,216,0.4),inset_0_1px_0_#fff]"
               >
                 <button
+                  {...press}
+                  style={{ touchAction: roomDrag.dragId ? "none" : undefined, WebkitTouchCallout: "none", userSelect: "none" }}
                   onClick={() => {
                     tap("soft");
                     if (r) setCurrentRoom(r.id);
@@ -3730,13 +3742,13 @@ export function Step6() {
                 >
                   <span
                     className={`inline-block px-3 py-1 rounded-xl text-white text-[14px] font-black bg-gradient-to-b ${
-                      ROOM_TINT[name] || "from-[#5B93D6] to-[#3578C8]"
-                    } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)]`}
+                      ROOM_TINT[art] || "from-[#5B93D6] to-[#3578C8]"
+                    } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)] max-w-[calc(100%-2.5rem)] truncate align-top`}
                   >
                     {name}
                   </span>
                   <div className="mt-1 relative flex items-center justify-center h-[86px]">
-                    <Art3D src={ROOM_IMG[name] || ROOM_IMG["작은방"]} alt={name} size={82} />
+                    <Art3D src={ROOM_IMG[art] || ROOM_IMG["작은방"]} alt={name} size={82} />
                   </div>
                   {/* 담은 품목 미리보기 — 3D 아이콘 3개까지, 나머지는 +N */}
                   {(() => {
@@ -3796,16 +3808,50 @@ export function Step6() {
                     </div>
                   ))}
                 </div>
+                {!customerFlow && (
+                  <div className="absolute top-2 right-2 z-10">
+                    <RoomMenu name={name} disabled={itemWriteBusy}
+                      onRename={() => setRoomDialog({ mode: "rename", id: cardId, name })}
+                      onDelete={() => setRoomDelete({ id: cardId, name })} />
+                  </div>
+                )}
                 {s.kinds > 0 && (
-                  <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#285C99,inset_0_1px_0_rgba(255,255,255,0.5)]">
+                  <span className="absolute top-2 right-10 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#285C99,inset_0_1px_0_rgba(255,255,255,0.5)]">
                     {s.kinds}
                   </span>
                 )}
               </div>
             );
           })}
+          {!customerFlow && (
+            <button type="button" data-room-add onClick={() => { tap("soft"); setRoomDialog({ mode: "add" }); }}
+              className="min-h-[160px] rounded-3xl border-2 border-dashed border-[#9DB8E0] bg-white/70 text-[16px] font-black text-[#3578C8] active:translate-y-[2px]">
+              ＋ 방 추가
+            </button>
+          )}
         </div>
       </div>
+      <RoomNameDialog
+        open={!!roomDialog}
+        title={roomDialog?.mode === "rename" ? "방 이름 변경" : "방 추가"}
+        initial={roomDialog?.mode === "rename" ? roomDialog.name : ""}
+        validate={(n) => {
+          const base = draft.roomsCustomized ? draft.rooms : materializeRooms(draft.rooms, sizeRooms);
+          return roomNameError(base, n, roomDialog?.mode === "rename" ? roomDialog.id : undefined);
+        }}
+        onSubmit={submitRoomName}
+        onClose={() => setRoomDialog(null)}
+      />
+      <RoomDeleteDialog
+        name={roomDelete?.name ?? null}
+        onClose={() => setRoomDelete(null)}
+        onConfirm={() => {
+          const target = roomDelete;
+          setRoomDelete(null);
+          if (!target) return;
+          void manageRooms((rooms) => deleteRoom(rooms, target.id)).then((ok) => { if (ok) toast.success(`${target.name}을(를) 삭제했습니다`); });
+        }}
+      />
 
 
       <BottomButtonBar>
