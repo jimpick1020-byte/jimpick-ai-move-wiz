@@ -12,7 +12,7 @@ const BUCKET = "item-icons";
 
 /** 품목명 정리 — 앞뒤 공백 제거, 공백 하나로, 길이 제한 */
 export function cleanItemName(raw: string): string {
-  return (raw || "").replace(/\s+/g, " ").trim().slice(0, 24);
+  return (raw || "").replace(/\s+/g, " ").trim().slice(0, 80);
 }
 
 /** 검색용 정규화 이름 (공백·기호 제거, 소문자) */
@@ -51,12 +51,12 @@ function recoveredDisplayName(row: {
 }
 
 /** 품목명으로 쓸 수 있는 글자만 허용합니다 (악성 입력·명령문 차단) */
-const NAME_OK = /^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9 ·()+\-']{1,24}$/;
+const NAME_OK = /^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9 ·()._&+\-']{1,80}$/;
 
 /** 이미지 생성에 쓰면 안 되는 말 */
 const BLOCKED = [
   "사람", "인물", "얼굴", "여자", "남자", "아이", "누드", "나체", "성인", "야한", "섹",
-  "총", "칼로", "폭탄", "마약", "혈액", "시체", "브랜드", "로고", "상표",
+  "총", "칼로", "폭탄", "마약", "혈액", "시체", "로고",
   "prompt", "ignore", "system", "http", "www", "<", ">",
 ];
 

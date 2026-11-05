@@ -81,6 +81,8 @@ export interface CustomItem {
 }
 export interface Estimate {
   id: string;
+  lastWritingScreen?: string;
+  intakeOwnerStartedAt?: string;
   createdAt: number;
   status: EstimateStatus;
   customerName: string;
@@ -2020,6 +2022,8 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
         return {
           ...s,
           screen,
+          draft: ["step1", "step2", "step3", "step4", "scan", "step6", "plan", "options", "result"].includes(screen)
+            ? { ...s.draft, lastWritingScreen: screen } : s.draft,
           stepSnapshot: enteringItems ? JSON.parse(JSON.stringify(s.draft)) : s.stepSnapshot,
         };
       });
@@ -2054,6 +2058,8 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     resetDraft: () =>
       setState((s) => ({
         ...s,
+        estimates: s.draft.intakeRequestId && s.draft.status !== "완료"
+          ? [s.draft, ...s.estimates.filter(e => e.id !== s.draft.id)] : s.estimates,
         draft: { ...newEstimate(), customItems: companyCatalog.items },
         currentRoomId: "",
       })),
@@ -2079,7 +2085,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
           // 고객이 다시 제출한 경우만 바꿉니다(같은 견적 한 건을 갱신, 중복 없음).
           const cur = estimates[i] as Estimate & { intakeSubmittedAt?: string };
           const nx = e as Estimate & { intakeSubmittedAt?: string };
-          if (nx.intakeSubmittedAt && nx.intakeSubmittedAt !== cur.intakeSubmittedAt) {
+          if (!cur.intakeOwnerStartedAt && nx.intakeSubmittedAt && nx.intakeSubmittedAt !== cur.intakeSubmittedAt) {
             estimates = estimates.map((x, j) => (j === i ? formatDraftPhones(e) : x));
             changed = true;
           }

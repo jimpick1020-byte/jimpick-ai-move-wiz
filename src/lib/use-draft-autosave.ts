@@ -20,7 +20,7 @@ export function nextRevision(): number {
   } catch {
     /* 저장할 수 없는 브라우저는 시간값을 씁니다 */
   }
-  const next = Math.max(rev + 1, Math.floor(Date.now() / 1000));
+  const next = Math.max(rev + 1, Date.now());
   try {
     localStorage.setItem(REV_KEY, String(next));
   } catch {
@@ -33,12 +33,12 @@ export function useDraftAutosave(enabled: boolean, estimateId: string, payload: 
   const [state, setState] = useState<DraftSaveState>("idle");
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const lastSent = useRef<string>("");
-  const pending = useRef<string | null>(null);
+  const pending = useRef<{ id: string; body: string } | null>(null);
   const inFlight = useRef(false);
 
   const flush = async (id: string, body: string) => {
     if (inFlight.current) {
-      pending.current = body;
+      pending.current = { id, body };
       return;
     }
     inFlight.current = true;
@@ -47,7 +47,7 @@ export function useDraftAutosave(enabled: boolean, estimateId: string, payload: 
       const r = await saveEstimateDraft({
         data: { estimateId: id, payload: body, revision: nextRevision() },
       });
-      if (r.ok) {
+      if (r.ok && !r.stale) {
         lastSent.current = body;
         setSavedAt(Date.now());
         setState("saved");
@@ -60,7 +60,7 @@ export function useDraftAutosave(enabled: boolean, estimateId: string, payload: 
       inFlight.current = false;
       const queued = pending.current;
       pending.current = null;
-      if (queued && queued !== lastSent.current) void flush(id, queued);
+      if (queued && queued.body !== lastSent.current) void flush(queued.id, queued.body);
     }
   };
 

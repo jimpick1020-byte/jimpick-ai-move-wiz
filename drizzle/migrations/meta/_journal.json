@@ -260,6 +260,13 @@
       "when": 1793607239842,
       "tag": "0036_owner_notifications_soft_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793852628685,
+      "tag": "0037_preserve_linked_visit_estimate_and_finalize",
+      "breakpoints": true
     }
   ]
 }

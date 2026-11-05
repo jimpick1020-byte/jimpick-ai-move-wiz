@@ -1,4 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { analyzeItemPhoto, type PhotoItemCandidate } from "@/lib/item-photo-analysis.functions";
+import { itemFormRecovery } from "@/lib/manual-item-recovery";
 import { Camera, ImagePlus, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { streamImage } from "@/lib/stream-image";
@@ -31,6 +34,8 @@ async function previewToJpeg(src: string): Promise<string> {
 
 export function ManualItemForm({ category, onClose, onSave }: { category: string; onClose: () => void; onSave: (inputs: ManualItemInput[]) => Promise<void> }) {
   const [name, setName] = useState("");
+  const [photoMode, setPhotoMode] = useState(false);
+
   const [editing, setEditing] = useState(false);
   const [cat, setCat] = useState<ItemMainCat | "">("");
   const [group, setGroup] = useState("");
@@ -74,7 +79,7 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
     try {
       const { data } = await supabase.auth.getSession();
       if (!data.session) throw new Error("로그인이 필요합니다.");
-      await streamImage("/api/item-image-preview", { name: forName }, (image, final) => { if (run !== runId.current) return; setPreview(image); setPreviewReady(final); }, undefined, { Authorization: `Bearer ${data.session.access_token}` });
+      await streamImage("/api/item-image-preview", { name: forName, ...(photoMode && photo ? { photo, features: selectedFeatures } : {}) }, (image, final) => { if (run !== runId.current) return; setPreview(image); setPreviewReady(final); }, undefined, { Authorization: `Bearer ${data.session.access_token}` });
     } catch (cause) { setPreviewReady(false); setGenerationError(cause instanceof Error ? cause.message : "이미지 생성에 실패했습니다."); }
     finally { lock.current = false; setGenerating(false); }
   };
@@ -106,7 +111,7 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
   };
   const save = async () => {
     if (lock.current || (!multi && !finalCat)) return;
-    lock.current = true; setBusy(true); setError("");
+    lock.current = true; setBusy(true); setError(""); setSaveStatus("저장 중");
     try {
       // 화면에 보이는 것이 곧 저장되는 것: 완성된 AI 미리보기가 있으면 그것을 먼저 씁니다.
       let image = "";
@@ -126,10 +131,43 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
       } else if (finalCat) {
         await onSave([{ name: names[0], cat: finalCat, volume: 0, photo: image, photoSource: source, favorite, group: finalGroup, rooms: finalRooms, keywords: auto.keywords }]);
       }
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "저장하지 못했습니다."); }
+      setSaveStatus("저장 완료");
+      if (recoveryKey) await itemFormRecovery(recoveryKey, undefined, true);
+    } catch (cause) { setSaveStatus("저장 실패 · 다시 저장"); setError(cause instanceof Error ? cause.message : "저장하지 못했습니다."); }
     finally { lock.current = false; setBusy(false); }
   };
-  const invalid = busy || generating || (!!preview && !previewReady) || (generationTried && !photo && !(preview && previewReady)) || names.length === 0 || names.some((n) => n.length < 2 || n.length > 24) || (multi ? multiNeedsCat || names.length > 20 : !finalCat);
+  const invalid = busy || generating || (!!preview && !previewReady) || (generationTried && !photo && !(preview && previewReady)) || (photoMode && !previewReady && !photoIsAi.current) || names.length === 0 || names.some((n) => n.length < 2 || n.length > 80) || (multi ? multiNeedsCat || names.length > 20 : !finalCat);
+  const analyze = useServerFn(analyzeItemPhoto);
+  const [selectedFeatures, setSelectedFeatures] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [candidates, setCandidates] = useState<PhotoItemCandidate[]>([]);
+  const [recoveryKey, setRecoveryKey] = useState("");
+  const [restored, setRestored] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("");
+  useEffect(() => {
+    let alive = true;
+    void supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user || !alive) return;
+      const key = `${data.user.id}:manual-item`;
+      const saved = await itemFormRecovery(key).catch(() => null) as { name?: string; photo?: string; photoIsAi?: boolean; preview?: string; previewName?: string; multiImages?: Record<string,string>; cat?: ItemMainCat; saveStatus?: string } | null;
+      if (!alive) return;
+      if (saved) { setName(saved.name || ""); setPhoto(saved.photo || ""); photoIsAi.current = !!saved.photoIsAi; setPreview(saved.preview || ""); setPreviewName(saved.previewName || ""); setPreviewReady(!!saved.preview); setMultiImages(saved.multiImages || {}); setCat(saved.cat || ""); setSaveStatus(saved.saveStatus || "저장 전"); }
+      setRecoveryKey(key); setRestored(true);
+    });
+    return () => { alive=false; };
+  }, []);
+  useEffect(() => {
+    if (!restored || !recoveryKey || saveStatus === "저장 완료") return;
+    const timer = setTimeout(() => { void itemFormRecovery(recoveryKey, { name, photo, photoIsAi: photoIsAi.current, preview: previewReady ? preview : "", previewName, multiImages, cat, saveStatus }).catch(() => setError("작업 복구 정보를 저장하지 못했습니다. 이 화면에서 저장을 마쳐 주세요.")); }, 200);
+    return () => clearTimeout(timer);
+  }, [name, photo, preview, previewReady, previewName, multiImages, cat, saveStatus, restored, recoveryKey]);
+  const detectPhoto = async () => {
+    if (!photo || analyzing) return;
+    setAnalyzing(true); setError(""); setCandidates([]);
+    try { const result=await analyze({data:{photo}}); if (!result.ok) throw new Error(result.error); setCandidates(result.candidates || []); if (!result.candidates?.length) setError("품목을 확인하지 못했습니다. 물건이 잘 보이도록 다시 촬영해 주세요."); }
+    catch(cause) { setError(cause instanceof Error?cause.message:"사진 분석 실패"); }
+    finally { setAnalyzing(false); }
+  };
   const startEdit = () => { setEditing(true); setCat(finalCat || ""); setGroup(finalGroup); setRooms(finalRooms); };
 
   return <FullScreenItemFrame level="form" title="품목 직접 등록" onClose={() => { if (!busy && !generating) onClose(); }} footer={
@@ -138,6 +176,9 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
       <PrimaryButton disabled={invalid} onClick={() => void save()}>{busy ? "저장 중…" : multi ? `${names.length}개 저장` : "이대로 저장"}</PrimaryButton>
     </div>}>
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
+      <div className="flex gap-2"><Button variant={!photoMode ? "default" : "outline"} onClick={() => setPhotoMode(false)}>이름으로 추가</Button><Button variant={photoMode ? "default" : "outline"} onClick={() => setPhotoMode(true)}><Camera className="size-4" /> 사진으로 추가</Button></div>
+      {photoMode && <div className="space-y-2"><div className="flex gap-2"><Button variant="outline" onClick={() => camera.current?.click()}><Camera className="size-4" /> 카메라 촬영</Button><Button variant="outline" onClick={() => upload.current?.click()}><ImagePlus className="size-4" /> 앨범 선택</Button></div>{photo && <><img src={photo} alt="분석할 물건" className="h-40 w-full object-contain" /><Button disabled={analyzing || busy} onClick={() => void detectPhoto()}>{analyzing ? "사진 분석 중…" : "품목 후보 확인"}</Button></>}{candidates.map((candidate,i) => <Button key={i} variant="outline" className="h-auto w-full flex-col items-start whitespace-normal py-3 text-left" onClick={() => { setName(candidate.name); setCat(candidate.cat as ItemMainCat); setEditing(true); setGroup("기타"); setPreview(""); setPreviewReady(false); setGenerationTried(false); setSelectedFeatures(candidate.features); }}><span>{candidate.name} · {candidate.cat}{candidate.uncertain ? " · 확인 필요" : ""}</span><span className="text-xs font-normal">{candidate.features}</span></Button>)}</div>}
+      {saveStatus && <p role="status" className="text-sm font-bold">{saveStatus}</p>}
       <Field label="품목 이름"><textarea value={name} maxLength={400} rows={2} disabled={busy || generating} onChange={(e) => { const v = e.target.value; setName(v); if (previewName && v.trim() !== previewName) { runId.current++; setPreview(""); setPreviewReady(false); setPreviewName(""); setGenerationTried(false); } }} placeholder="여러 개는 쉼표나 줄바꿈으로 나눠 주세요" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-base" /></Field>
       {multi && <section className="space-y-2" data-multi-items>
         <p className="text-sm font-black">품목 {names.length}개로 나눠 저장합니다</p>
@@ -147,13 +188,13 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
           <p className="mt-1 font-black">{n}</p>
           <p>{c.cat || cat || "카테고리 선택 필요"} · {c.cat ? c.group : "기타"}</p>
           <p className="text-muted-foreground">{c.rooms.length ? c.rooms.join("·") : "공간 지정 없음"}</p>
-          {n.length > 24 && <p className="font-bold text-destructive">24자 이하로 줄여 주세요</p>}
+          {n.length > 80 && <p className="font-bold text-destructive">80자 이하로 줄여 주세요</p>}
         </div>)}</div>
         {multiNeedsCat && <p role="status" className="font-bold text-destructive">자동 분류가 안 된 품목이 있어요. 아래에서 카테고리를 골라 주세요.</p>}
         <Button variant="outline" disabled={busy || generating || names.length > 20} onClick={() => void generateEach()}><Sparkles className="size-4" /> {generating ? "품목별 이미지 생성 중…" : "품목별 이미지 생성"}</Button>
         <p className="text-xs text-muted-foreground">이미지를 만들지 않은 품목은 기본 이미지로 저장됩니다.</p>
       </section>}
-      {!multi && <div className="flex items-center gap-3"><img src={preview || photo || boxImage} alt="등록할 품목" className="size-24 shrink-0 rounded-lg object-contain" /><div className="flex min-w-0 flex-wrap gap-2">
+      {!multi && <div className="flex items-center gap-3"><img src={preview || photo || boxImage} alt="등록할 품목" className={`size-24 shrink-0 rounded-lg object-contain transition-[filter] ${preview && !previewReady ? "blur-xl" : "blur-0"}`} /><div className="flex min-w-0 flex-wrap gap-2">
         <Button variant="outline" disabled={busy || generating} onClick={() => upload.current?.click()}><ImagePlus className="size-4" /> 이미지 등록</Button>
         <Button variant="outline" disabled={busy || generating} onClick={() => camera.current?.click()}><Camera className="size-4" /> 촬영</Button>
         <Button variant="outline" disabled={busy || generating} onClick={() => void generate()}><Sparkles className="size-4" /> {generating ? "이미지 생성 중…" : "이미지 생성"}</Button>
@@ -203,7 +244,7 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
         })}</div></fieldset>
         <label className="flex min-h-11 items-center gap-2 text-sm font-bold"><input type="checkbox" disabled={busy} checked={favorite} onChange={(e) => setFavorite(e.target.checked)} className="size-5 accent-auth-primary" /> 자주 담는 품목 등록</label>
       </>}
-      {error && <p role="alert" className="text-sm font-bold text-destructive">{error}</p>}
+      {error && <div role="alert" className="space-y-2 text-sm font-bold text-destructive"><p>{error}</p>{saveStatus.includes("실패") && <Button variant="outline" disabled={invalid} onClick={() => void save()}>같은 이미지로 다시 저장</Button>}</div>}
     </div>
   </FullScreenItemFrame>;
 }

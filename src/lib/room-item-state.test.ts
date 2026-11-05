@@ -1,10 +1,25 @@
 import { describe, it } from "node:test";
 import { strict as assert } from "node:assert";
-import { favoriteCardTapQuantity, isSameCardDoubleTap, pickedIdsInInputOrder, withRoomDisposal, withRoomQuantity } from "./room-item-state";
+import { favoriteCardTapQuantity, isSameCardDoubleTap, pickedIdsInInputOrder, withRoomDisposal, withRoomQuantity, withRoomQuantityStep } from "./room-item-state";
 import type { Room } from "./jimpick";
 
 const rooms: Room[] = [{ id: "a", name: "안방", items: { bed: 2, desk: 1 }, disposal: { bed: true } }, { id: "b", name: "거실", items: { bed: 1 } }];
 describe("shared room item rules", () => {
+  it("room quick basket and box use the same IDs, count every tap and never fall below zero", () => {
+    let next = rooms;
+    for (let i=0;i<20;i++) next = withRoomQuantityStep(next,"안방","basket",1);
+    for (let i=0;i<8;i++) next = withRoomQuantityStep(next,"안방","basket",-1);
+    for (let i=0;i<7;i++) next = withRoomQuantityStep(next,"안방","box",1);
+    assert.equal(next[0].items.basket,12); assert.equal(next[0].items.box,7);
+    assert.equal(next[0].items.bed,2); assert.equal(next[0].disposal?.bed,true);
+    for (let i=0;i<25;i++) next = withRoomQuantityStep(next,"안방","basket",-1);
+    assert.equal(next[0].items.basket ?? 0,0);
+  });
+  it("quick quantities create only the missing room and share its items map", () => {
+    const next = withRoomQuantityStep(rooms,"서재","box",1);
+    assert.equal(next.find(r=>r.name==="서재")?.items.box,1);
+    assert.equal(next.filter(r=>r.name==="서재").length,1);
+  });
   it("a favorite card tap selects quantity 1 when unselected", () => {
     assert.equal(favoriteCardTapQuantity(0), 1);
   });

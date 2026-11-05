@@ -206,6 +206,8 @@ import {
 import { getCompanyDefaults, saveCompanyDefaults } from "@/lib/company-defaults.functions";
 import { formatTel, formatBizNo, formatAccount, onFormatted, digitsOnly } from "@/lib/format-input";
 import { saveEstimateDraft } from "@/lib/draft-sync.functions";
+import { useVisitEstimate } from "@/lib/use-visit-estimate";
+import { areaOnlyPatch } from "@/lib/visit-estimate-state";
 import { nextRevision } from "@/lib/use-draft-autosave";
 import {
   getFavoriteItems,
@@ -608,6 +610,7 @@ export function Login() {
 
 // ============ Home ============
 export function HomeScreen() {
+  const { openVisit } = useVisitEstimate();
   const { setScreen, resetDraft, estimates, loadEstimate, loadEstimateToStep1, openEstimate, openEstimateToStep1, draft } = useApp();
   const newRequests = useNewRequestCount();
   /** null = 아직 불러오는 중, "" = 상호명 없음/실패, 그 외 = 상호명 */
@@ -1154,7 +1157,7 @@ export function HomeScreen() {
         )}
 
 
-        <HomeContractCalendar visits={visitBookings} bookings={contractBookings} companyName={companyName ?? ""} onOpenBooking={openContractBooking} onCancelled={() => { loadContractSchedule(); window.dispatchEvent(new Event("jimpick:payment-updated")); }} />
+        <HomeContractCalendar onOpenVisit={v => void openVisit(v)} visits={visitBookings} bookings={contractBookings} companyName={companyName ?? ""} onOpenBooking={openContractBooking} onCancelled={() => { loadContractSchedule(); window.dispatchEvent(new Event("jimpick:payment-updated")); }} />
       </div>
       <BottomNav />
     </MobileShell>
@@ -2770,17 +2773,12 @@ export function Step6() {
    */
   const pickSize = (key: string) => {
     tap("soft");
-    if (pickedCount === 0) {
-      // 아직 담은 품목이 없으면 기본품목을 채워 드립니다 (지울 품목이 없음)
-      applyPreset(key, "merge");
-      return;
-    }
     const baseRooms = (SIZE_TABS.find((t) => t.key === key) || DEFAULT_SIZE_TAB).rooms;
     const missingRooms = baseRooms.filter((n) => !draft.rooms.some((r) => r.name === n));
     setSize(key);
     setNeedRegister([]);
     updateDraft({
-      sizeTab: key,
+      ...areaOnlyPatch(key),
       ...(missingRooms.length
         ? {
             rooms: [
@@ -3735,6 +3733,18 @@ export function Step6() {
                     {s.kinds > 0 ? `${s.kinds}종 · ${s.count}개` : "품목 없음"}
                   </div>
                 </button>
+                <div className="mt-2 space-y-1" data-room-quick={name}>
+                  {([{ id: "basket", label: "이사바구니" }, { id: "box", label: "이사박스" }]).map(item => (
+                    <div key={item.id} className="flex items-center justify-between gap-0.5 text-[10px] font-bold">
+                      <span className="min-w-0 whitespace-nowrap text-foreground">{item.label}</span>
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <Button size="icon" variant="outline" className="size-6" aria-label={`${name} ${item.label} 감소`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, -1); }}>−</Button>
+                        <output aria-label={`${name} ${item.label} 수량`} className="w-4 text-center tabular-nums">{r?.items[item.id] || 0}</output>
+                        <Button size="icon" variant="outline" className="size-6" aria-label={`${name} ${item.label} 증가`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, 1); }}>+</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
                 {s.kinds > 0 && (
                   <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#285C99,inset_0_1px_0_rgba(255,255,255,0.5)]">
                     {s.kinds}
@@ -5377,14 +5387,15 @@ export function Result() {
       }
 
       const r = await saveEstimateDraft({
-        data: { estimateId: draft.id, payload: JSON.stringify(draft), revision },
+        data: { estimateId: draft.id, payload: JSON.stringify({ ...draft, total, status: "완료" }), revision: nextRevision(), finalSave: true },
       });
-      if (!r?.ok) {
+      if (!r?.ok || r.stale) {
         throw new Error(r?.error || "서버 저장에 실패했습니다.");
       }
 
       // 서버 저장이 성공한 경우에만 완료 상태로 저장(로컬 목록에 반영)합니다.
       saveDraft();
+      await reloadIntakeRequests();
       tap("success");
       toast.success("견적이 저장되었습니다");
       setScreen("history");

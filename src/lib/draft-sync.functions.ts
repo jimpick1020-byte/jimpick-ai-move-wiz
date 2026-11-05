@@ -32,6 +32,7 @@ export const saveEstimateDraft = createServerFn({ method: "POST" })
         /** 편집본 전체(JSON 글) */
         payload: z.string().min(2).max(400_000),
         revision: z.number().int().min(1).max(9_000_000_000_000),
+        finalSave: z.boolean().optional(),
       })
       .parse(d),
   )
@@ -44,6 +45,14 @@ export const saveEstimateDraft = createServerFn({ method: "POST" })
     }
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       parsed = formatDraftPhones(parsed as { phone?: string; staffPhone?: string });
+    }
+
+    if (data.finalSave) {
+      const result = await context.supabase.rpc("finalize_intake_estimate", {
+        p_estimate_id: data.estimateId, p_payload: parsed as never, p_revision: data.revision,
+      });
+      if (result.error) return { ok: false, error: result.error.message };
+      return result.data as unknown as DraftSyncResult;
     }
 
     const { data: existing } = await context.supabase

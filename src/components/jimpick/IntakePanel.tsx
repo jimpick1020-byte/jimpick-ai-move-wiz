@@ -8,7 +8,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, Settings2, Plus, GripVertical, Trash2 } from "lucide-react";
+import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, Settings2, Plus, GripVertical, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { useVisitEstimate } from "@/lib/use-visit-estimate";
 import { useApp, type Estimate } from "@/lib/jimpick";
 import { formatTel } from "@/lib/format-input";
 import { createComposerGate, intakeSmsHref } from "@/lib/intake-sms";
@@ -107,6 +108,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
   const [err, setErr] = useState<string | null>(null);
   const [rowId, setRowId] = useState<string | undefined>(requestId);
   const { patchDraft, setScreen } = useApp();
+  const { openVisit, opening } = useVisitEstimate();
   const row = rows.find((r) => r.id === rowId)
     ?? (sourceEstimateId ? rows.find((r) => r.source_estimate_id === sourceEstimateId && r.status !== "cancelled") : undefined);
   useEffect(() => { if (row && !rowId) setRowId(row.id); }, [row, rowId]);
@@ -183,12 +185,8 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
   });
   const openDraft = () => run("draft", async () => {
     if (!row) return;
-    const r = await loadIntakeDraft({ data: { estimateId: row.estimate_id } });
-    if (!r.ok || !r.payload) { setErr(r.error ?? "견적 초안을 불러오지 못했습니다."); return; }
-    const server = JSON.parse(r.payload) as Estimate;
-    patchDraft(() => server);
+    await openVisit(row);
     onClose();
-    setScreen("step1");
   });
 
   const t = (v: string | null | undefined) => (v ? new Date(v).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "-");
@@ -609,13 +607,12 @@ export function RequestsScreenBody() {
     finally { setDeleting(null); }
   };
   const [openId, setOpenId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<"active" | "cancelled">("active");
   const shown = rows.filter((r) => (filter === "cancelled") === (r.status === "cancelled"));
   const open = rows.find((r) => r.id === openId);
   return (
     <div className="space-y-3">
-      <Button type="button" onClick={() => setCreating(true)} className="w-full py-3 text-[15px] font-black">새 고객 사전정보 요청</Button>
       <div className="grid grid-cols-2 gap-2">
         {(["active", "cancelled"] as const).map((f) => (
           <Button key={f} type="button" variant={filter === f ? "default" : "secondary"} onClick={() => setFilter(f)}>{f === "active" ? "진행 중" : "취소"}</Button>
@@ -627,20 +624,24 @@ export function RequestsScreenBody() {
         const sub = r.submission as Partial<IntakeForm>;
         return (
           <div key={r.id} data-request-id={r.id} data-request-card className="rounded-2xl border border-[#E5E7EB] bg-white p-3 space-y-2">
-            <button type="button" onClick={() => setOpenId(r.id)} className="w-full flex items-center justify-between text-left">
+            <Button variant="ghost" type="button" aria-expanded={expanded.has(r.id)} onClick={() => setExpanded(prev => { const next = new Set(prev); if (next.has(r.id)) next.delete(r.id); else next.add(r.id); return next; })} className="h-auto w-full flex flex-wrap items-center justify-between gap-2 p-0 text-left">
               <span className="font-black text-[#25282D]">{intakeDisplayName(r)} <span className="text-xs font-bold text-[#6B7280]">{r.customer_phone}</span></span>
               <span className={`rounded-full px-2 py-0.5 text-xs font-black ${REQ_CLASS[l] ?? ""}`}>{l}</span>
-            </button>
+              {expanded.has(r.id) ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+            </Button>
+            <div className="text-xs text-muted-foreground">{r.visit_date ? `방문 ${r.visit_date} ${r.visit_time || "시간 미정"}` : "방문 일정 미정"}</div>
+            <div hidden={!expanded.has(r.id)} className="space-y-2">
+            <Button variant="outline" type="button" onClick={() => setOpenId(r.id)}>사전정보·문자 확인</Button>
             <div className="flex justify-end"><Button variant="ghost" size="icon" disabled={!!deleting} onClick={() => void remove(r)} aria-label={`${intakeDisplayName(r)} 요청 삭제`} title="요청 삭제" className="text-destructive"><Trash2 className="size-5" /></Button></div>
             {sub?.moveDate !== undefined && (r.status === "submitted" || r.status === "confirmed") && (
               <div className="text-xs text-[#6B7280]">이사 {sub.moveDate || "미정"} {sub.moveTime ?? ""} · 출발지 평수 {sub.fromSize || "-"} · 도착지 평수 {sub.toSize || "미입력"} · {sub.fromAddress || "주소 미입력"}</div>
             )}
             {r.status !== "cancelled" && (r.status === "submitted" || r.status === "confirmed") && <VisitPanel row={r} />}
+            </div>
           </div>
         );
       })}
       {open && <IntakeRequestSheet name={open.customer_name} phone={open.customer_phone} requestId={open.id} onClose={() => setOpenId(null)} />}
-      {creating && <IntakeRequestSheet name="" phone="" onClose={() => setCreating(false)} />}
     </div>
   );
 }
@@ -648,7 +649,7 @@ export function RequestsScreenBody() {
 
 /** 방문 일정 저장·변경·취소, 통신사 문자, 방문견적 시작 (같은 요청 행 하나에만 저장) */
 function VisitPanel({ row }: { row: IntakeRow }) {
-  const { patchDraft, setScreen } = useApp();
+  const { openVisit, opening, hasLinked } = useVisitEstimate();
   const [date, setDate] = useState(row.visit_date ?? "");
   const [time, setTime] = useState(row.visit_time ?? "");
   const [memo, setMemo] = useState(row.visit_memo ?? "");
@@ -682,11 +683,7 @@ function VisitPanel({ row }: { row: IntakeRow }) {
     toast.success("문자 보냄을 기록했습니다.");
   });
   const start = () => go("start", async () => {
-    const r = await loadIntakeDraft({ data: { estimateId: row.estimate_id } });
-    if (!r.ok || !r.payload) throw new Error(r.error ?? "견적 초안을 불러오지 못했습니다.");
-    const loaded = JSON.parse(r.payload) as Estimate;
-    patchDraft(() => loaded);
-    setScreen("step1");
+    await openVisit(row);
   });
   const t = (v: string | null) => (v ? new Date(v).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
   return (
@@ -718,7 +715,7 @@ function VisitPanel({ row }: { row: IntakeRow }) {
           </div>
         </div>
       )}
-      <Button type="button" disabled={!!busy} onClick={start} className="w-full bg-[#3578C8] text-white"><ArrowRight className="w-4 h-4" /> 방문견적 시작</Button>
+      <Button type="button" disabled={!!busy || opening} onClick={start} className="w-full bg-[#3578C8] text-white"><ArrowRight className="w-4 h-4" /> {hasLinked(row) ? "견적 이어서 작성" : "방문견적 시작"}</Button>
     </div>
   );
 }
