@@ -3,7 +3,7 @@ import { strict as assert } from "node:assert";
 import type { Estimate } from "./jimpick";
 import { areaOnlyPatch, linkedLocalEstimate, visitResumeScreen } from "./visit-estimate-state";
 const request = { id: "request-1", estimate_id: "estimate-1", source_estimate_id: null };
-const e = { id: "estimate-1", intakeRequestId: "request-1", status: "작성중", lastWritingScreen: "step6", rooms: [{ id: "r", name: "안방", items: { box: 12 }, disposal: { box: true } }], depositOverride: 50000 } as Estimate;
+const e = { id: "estimate-1", intakeRequestId: "request-1", status: "작성중", lastWritingScreen: "step6", rooms: [{ id: "r", name: "안방", items: { box: 12 }, disposal: { box: true } }], depositOverride: 50000 } as unknown as Estimate;
 describe("visit estimate preservation", () => {
   it("repeat start retains current room quantities and custom deposit, not older server copy", () => {
     assert.equal(linkedLocalEstimate(request, e, [{ ...e, rooms: [] }]), e);

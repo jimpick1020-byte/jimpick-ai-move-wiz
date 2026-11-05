@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { cleanItemName, normItemName, type IconResult } from "./item-icon.functions";
 import { itemSubgroup } from "./item-groups";
+import { retryItemStorage } from "./item-save-retry";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(24), cat: z.enum(["가구", "가전", "주방", "생활용품", "운동·레저"]),
@@ -53,15 +54,18 @@ export const createManualItem = createServerFn({ method: "POST" })
     const path = `${context.userId}/${id}.${isPng ? "png" : "jpg"}`;
     // Storage upload is narrowly privileged after an owner-scoped insert succeeds.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const upload = await supabaseAdmin.storage.from("item-icons").upload(path, bytes, { contentType: isPng ? "image/png" : "image/jpeg", upsert: false });
+    const upload = await retryItemStorage(() => supabaseAdmin.storage.from("item-icons").upload(path, bytes, { contentType: isPng ? "image/png" : "image/jpeg", upsert: true }));
     const iconUrl = `/api/public/item-icon/${id}.png`;
     const done = upload.error ? null : await context.supabase.from("item_icons").update({ status: "ready", image_path: path, storage_path: path, image_url: iconUrl })
       .eq("id", id).eq("user_id", context.userId).select("id").single();
     if (upload.error || !done || done.error) {
+      console.error("[manual-item-save]", { phase: upload.error ? "upload" : "link", rowId: id, code: upload.error?.statusCode ?? done?.error?.code, message: upload.error?.message ?? done?.error?.message });
       // 한쪽만 남지 않도록: 올라간 파일은 지우고 품목 행은 실패·비활성으로 둡니다.
       if (!upload.error) await supabaseAdmin.storage.from("item-icons").remove([path]);
       await context.supabase.from("item_icons").update({ status: "failed", active: false }).eq("id", id).eq("user_id", context.userId);
-      return { ok: false, error: "이미지 저장에 실패했습니다. 품목은 선택되지 않았습니다." };
+      return { ok: false, error: upload.error ? `이미지 업로드 실패 (${upload.error.statusCode}). 생성된 그림으로 다시 저장해 주세요.` : "품목 이미지 연결에 실패했습니다. 생성된 그림으로 다시 저장해 주세요." };
     }
+    const stored = await context.supabase.from("item_icons").select("status, storage_path").eq("id", id).eq("user_id", context.userId).single();
+    if (stored.error || stored.data?.status !== "ready" || stored.data.storage_path !== path) return { ok: false, error: "저장된 이미지를 확인하지 못했습니다. 다시 저장해 주세요." };
     return { ok: true, itemId, name, cat: data.cat, subgroup, volume: data.volume, iconUrl };
   });
