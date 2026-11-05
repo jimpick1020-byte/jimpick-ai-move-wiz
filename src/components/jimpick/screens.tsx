@@ -2164,9 +2164,7 @@ export function Step4() {
                 <MoneyInput
                   value={draft.ladderFromSeparate ? 0 : draft.ladderFromPrice}
                   disabled={draft.ladderFromSeparate}
-                  onChange={(n) =>
-                    updateDraft({ ladderFromPrice: n, ladderPrice: n + draft.ladderToPrice })
-                  }
+                  onChange={(n) => updateDraft({ ladderFromPrice: n, ladderFromManual: true, ladderFromNote: undefined })}
                   step={10000}
                   placeholder="금액 입력"
                 />
@@ -2180,11 +2178,8 @@ export function Step4() {
                       // 별도: 즉시 0원 · 해제: 이전 금액이 아니라 기본 단가를 다시 넣습니다
                       const sep = e.target.checked;
                       const price = sep ? 0 : ladderUnit;
-                      updateDraft({
-                        ladderFromSeparate: sep,
-                        ladderFromPrice: price,
-                        ladderPrice: price + (draft.ladderToSeparate ? 0 : draft.ladderToPrice),
-                      });
+                      // 별도는 금액을 지우지 않고 합계에서만 뺍니다(포함으로 되돌리면 그 금액이 다시 반영)
+                      updateDraft({ ladderFromSeparate: sep });
                     }}
                   />
                   출발지 별도
@@ -2199,9 +2194,7 @@ export function Step4() {
                 <MoneyInput
                   value={draft.ladderToSeparate ? 0 : draft.ladderToPrice}
                   disabled={draft.ladderToSeparate}
-                  onChange={(n) =>
-                    updateDraft({ ladderToPrice: n, ladderPrice: draft.ladderFromPrice + n })
-                  }
+                  onChange={(n) => updateDraft({ ladderToPrice: n, ladderToManual: true, ladderToNote: undefined })}
                   step={10000}
                   placeholder="금액 입력"
                 />
@@ -2214,11 +2207,8 @@ export function Step4() {
                       tap("soft");
                       const sep = e.target.checked;
                       const price = sep ? 0 : ladderUnit;
-                      updateDraft({
-                        ladderToSeparate: sep,
-                        ladderToPrice: price,
-                        ladderPrice: (draft.ladderFromSeparate ? 0 : draft.ladderFromPrice) + price,
-                      });
+                      // 별도는 금액을 지우지 않고 합계에서만 뺍니다(포함으로 되돌리면 그 금액이 다시 반영)
+                      updateDraft({ ladderToSeparate: sep });
                     }}
                   />
                   도착지 별도

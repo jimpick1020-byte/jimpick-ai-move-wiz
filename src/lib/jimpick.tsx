@@ -8,6 +8,7 @@ import { useDraftAutosave, type DraftSaveState } from "./use-draft-autosave";
 import { loadEstimateDraft } from "./draft-sync.functions";
 import { registerCustomIcons } from "./jimpick-icon3d";
 import { mergeItemCatalog } from "./item-catalog-merge";
+import { applyLadderAuto } from "./ladder-fee";
 import { usePersistentItemCatalog } from "./use-persistent-item-catalog";
 import { FEATURED_HOUSEHOLD_100 } from "./featured-household-100";
 import { saveSafeSnapshot } from "./safe-state";
