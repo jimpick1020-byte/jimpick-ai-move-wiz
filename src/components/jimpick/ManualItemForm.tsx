@@ -34,6 +34,8 @@ async function previewToJpeg(src: string): Promise<string> {
 
 export function ManualItemForm({ category, onClose, onSave }: { category: string; onClose: () => void; onSave: (inputs: ManualItemInput[]) => Promise<void> }) {
   const [name, setName] = useState("");
+  const [photoMode, setPhotoMode] = useState(false);
+
   const [editing, setEditing] = useState(false);
   const [cat, setCat] = useState<ItemMainCat | "">("");
   const [group, setGroup] = useState("");
@@ -136,7 +138,6 @@ export function ManualItemForm({ category, onClose, onSave }: { category: string
   };
   const invalid = busy || generating || (!!preview && !previewReady) || (generationTried && !photo && !(preview && previewReady)) || (photoMode && !previewReady && !photoIsAi.current) || names.length === 0 || names.some((n) => n.length < 2 || n.length > 80) || (multi ? multiNeedsCat || names.length > 20 : !finalCat);
   const analyze = useServerFn(analyzeItemPhoto);
-  const [photoMode, setPhotoMode] = useState(false);
   const [selectedFeatures, setSelectedFeatures] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [candidates, setCandidates] = useState<PhotoItemCandidate[]>([]);
