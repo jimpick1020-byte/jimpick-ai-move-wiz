@@ -16,6 +16,8 @@ import { ManualItemForm, type ManualItemInput } from "./ManualItemForm";
 import { FavoriteItemGrid } from "./FavoriteItemGrid";
 import { pickerItemLabel } from "@/lib/picker-item-label";
 import { createManualItem } from "@/lib/manual-item.functions";
+import { RoomMenu, RoomNameDialog, RoomDeleteDialog, useRoomDrag } from "./RoomManage";
+import { addRoom, deleteRoom, materializeRooms, moveRoom, renameRoom, roomNameError } from "@/lib/room-manage";
 import { CARD_DOUBLE_TAP_MS, isSameCardDoubleTap, pickedIdsInInputOrder, withRoomQuantity, withRoomQuantityStep, withRoomDisposal } from "@/lib/room-item-state";
 import { plannedDeposit } from "@/lib/deposit-rule";
 import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate, seoulMonthKey } from "@/lib/estimate-sort";
@@ -2559,6 +2561,44 @@ export function Step6() {
     () => [...new Set([...tabRooms, ...presetRooms.map((r) => r.room)])],
     [tabRooms, presetRooms],
   );
+  /** 사장님이 방을 직접 관리한 견적은 저장된 방 순서(고유 ID)를 그대로 보여 줍니다 */
+  const roomsManaged = !customerFlow && !!draft.roomsCustomized;
+  const displayNames = useMemo(
+    () => (roomsManaged ? draft.rooms.map((r) => r.name) : sizeRooms),
+    [roomsManaged, draft.rooms, sizeRooms],
+  );
+  const manageRooms = (make: (rooms: Room[]) => Room[]) =>
+    persistItemPatch((current) => {
+      const base = current.roomsCustomized ? current.rooms : materializeRooms(current.rooms, sizeRooms);
+      return { rooms: make(base), roomsCustomized: true };
+    });
+  const [roomDialog, setRoomDialog] = useState<{ mode: "add" } | { mode: "rename"; id: string; name: string } | null>(null);
+  const [roomDelete, setRoomDelete] = useState<{ id: string; name: string } | null>(null);
+  const roomDrag = useRoomDrag(!customerFlow, (id, toIndex) => {
+    const base = draftRef.current.roomsCustomized ? draftRef.current.rooms : materializeRooms(draftRef.current.rooms, sizeRooms);
+    if (moveRoom(base, id, toIndex) === base) return;
+    void manageRooms((rooms) => moveRoom(rooms, id, toIndex)).then((ok) => { if (ok) toast.success("방 순서를 저장했습니다"); });
+  });
+  const submitRoomName = async (name: string): Promise<boolean> => {
+    if (!roomDialog) return false;
+    if (roomDialog.mode === "add") {
+      const ok = await manageRooms((rooms) => addRoom(rooms, name));
+      if (ok) toast.success("방을 추가했습니다");
+      return ok;
+    }
+    const { id, name: oldName } = roomDialog;
+    const ok = await manageRooms((rooms) => renameRoom(rooms, id, name));
+    if (ok) {
+      toast.success("방 이름을 바꿨습니다");
+      const newName = draftRef.current.rooms.find((r) => r.id === id)?.name;
+      if (newName && newName !== oldName) {
+        // 이 방의 촬영 사진도 새 이름으로 이어 줍니다(이 견적만)
+        void import("@/integrations/supabase/client").then(({ supabase }) =>
+          supabase.from("room_scans").update({ room: newName }).eq("estimate_id", draftRef.current.id).eq("room", oldName));
+      }
+    }
+    return ok;
+  };
 
   const selectedCustomItems = useMemo(() => {
     const selected = new Set(draft.rooms.flatMap((r) => Object.keys(r.items)));
@@ -2784,7 +2824,8 @@ export function Step6() {
   const pickSize = (key: string) => {
     tap("soft");
     const baseRooms = (SIZE_TABS.find((t) => t.key === key) || DEFAULT_SIZE_TAB).rooms;
-    const missingRooms = baseRooms.filter((n) => !draft.rooms.some((r) => r.name === n));
+    // 방을 직접 관리한 견적은 지운 방을 평수 버튼으로 되살리지 않습니다
+    const missingRooms = draft.roomsCustomized ? [] : baseRooms.filter((n) => !draft.rooms.some((r) => r.name === n));
     setSize(key);
     setNeedRegister([]);
     updateDraft({
@@ -2903,7 +2944,7 @@ export function Step6() {
       if (qty <= 0) return;
       const name =
         itemName || catalog.find((c) => c.id === itemId)?.name || itemNameById(itemId) || "";
-      const pick = suggestRoomName(name, sizeRooms) || sizeRooms[0];
+      const pick = suggestRoomName(name, displayNames) || displayNames[0];
       if (!pick) return;
       if (!rooms.some((r) => r.name === pick))
         rooms = [...rooms, { id: `r_${pick}`, name: pick, items: {} as Record<string, number> }];
@@ -4098,7 +4139,7 @@ export function Step6() {
                     <div>
                       <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">추가할 공간</div>
                       <div className="flex flex-wrap gap-2">
-                        {[...new Set([...sizeRooms, ...draft.rooms.map((r) => r.name)])].map((rn) => (
+                        {[...new Set([...displayNames, ...draft.rooms.map((r) => r.name)])].map((rn) => (
                           <button
                             key={rn}
                             onClick={() => setIconGen((f) => (f ? { ...f, room: rn } : f))}
