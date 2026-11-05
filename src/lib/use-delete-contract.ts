@@ -12,7 +12,7 @@ import { deleteEstimateEverywhere } from "./estimate-delete.functions";
 export function useDeleteContract(opts: {
   source: "calendar" | "history";
   /** 서버 삭제가 성공한 뒤에만 호출됩니다 */
-  onDeleted: (estimateId: string, intakeIds: string[]) => void;
+  onDeleted: (estimateId: string, intakeIds: string[], info?: { absent?: boolean }) => void;
 }) {
   const [target, setTarget] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -48,7 +48,7 @@ export function useDeleteContract(opts: {
       }
       const id = target;
       setTarget(null);
-      opts.onDeleted(id, (r as { intakeIds?: string[] }).intakeIds ?? []);
+      opts.onDeleted(id, r.intakeIds ?? [], { absent: !!r.absent });
     } catch (err) {
       console.error("[useDeleteContract]", err);
       setError("삭제하지 못했습니다. 통신 상태를 확인한 뒤 다시 시도해 주세요.");
