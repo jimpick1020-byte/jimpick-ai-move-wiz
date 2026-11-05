@@ -3735,12 +3735,12 @@ export function Step6() {
                 </button>
                 <div className="mt-2 space-y-1" data-room-quick={name}>
                   {([{ id: "basket", label: "이사바구니" }, { id: "box", label: "이사박스" }]).map(item => (
-                    <div key={item.id} className="flex items-center justify-between gap-1 text-xs font-bold">
-                      <span className="min-w-0 text-foreground">{item.label}</span>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <Button size="icon" variant="outline" className="size-7" aria-label={`${name} ${item.label} 감소`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, -1); }}>−</Button>
-                        <output aria-label={`${name} ${item.label} 수량`} className="w-5 text-center tabular-nums">{r?.items[item.id] || 0}</output>
-                        <Button size="icon" variant="outline" className="size-7" aria-label={`${name} ${item.label} 증가`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, 1); }}>+</Button>
+                    <div key={item.id} className="flex items-center justify-between gap-0.5 text-[10px] font-bold">
+                      <span className="min-w-0 whitespace-nowrap text-foreground">{item.label}</span>
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <Button size="icon" variant="outline" className="size-6" aria-label={`${name} ${item.label} 감소`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, -1); }}>−</Button>
+                        <output aria-label={`${name} ${item.label} 수량`} className="w-4 text-center tabular-nums">{r?.items[item.id] || 0}</output>
+                        <Button size="icon" variant="outline" className="size-6" aria-label={`${name} ${item.label} 증가`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, 1); }}>+</Button>
                       </div>
                     </div>
                   ))}
