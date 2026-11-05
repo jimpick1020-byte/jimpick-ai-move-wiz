@@ -1,6 +1,6 @@
 import type { Estimate, Screen } from "./jimpick";
 
-const STEPS = new Set(["step1", "step2", "step3", "scan", "scanReview", "step6", "step7", "result"]);
+const STEPS = new Set(["step1", "step2", "step3", "step4", "scan", "step6", "plan", "options", "result"]);
 export function visitResumeScreen(e: Pick<Estimate, "status" | "lastWritingScreen">): Screen {
   if (e.status === "완료") return "result";
   return e.lastWritingScreen && STEPS.has(e.lastWritingScreen) ? e.lastWritingScreen as Screen : "step1";

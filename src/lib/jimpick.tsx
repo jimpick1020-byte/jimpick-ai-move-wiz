@@ -2022,7 +2022,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
         return {
           ...s,
           screen,
-          draft: ["step1", "step2", "step3", "scan", "scanReview", "step6", "step7", "result"].includes(screen)
+          draft: ["step1", "step2", "step3", "step4", "scan", "step6", "plan", "options", "result"].includes(screen)
             ? { ...s.draft, lastWritingScreen: screen } : s.draft,
           stepSnapshot: enteringItems ? JSON.parse(JSON.stringify(s.draft)) : s.stepSnapshot,
         };
