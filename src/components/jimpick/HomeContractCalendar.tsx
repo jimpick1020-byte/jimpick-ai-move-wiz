@@ -57,6 +57,7 @@ export function HomeContractCalendar({
   companyName,
   onOpenBooking,
   onCancelled,
+  onOpenVisit,
 }: {
   bookings: Record<string, ReservationRow[]>;
   /** 방문 견적 일정 (고객 사전정보 요청) */
@@ -64,6 +65,7 @@ export function HomeContractCalendar({
   companyName: string;
   onOpenBooking: (booking: ReservationRow) => void;
   onCancelled: () => void;
+  onOpenVisit?: (visit: IntakeRow) => void;
 }) {
   const [cancelTarget, setCancelTarget] = useState<ReservationRow | null>(null);
   const [cancelStep, setCancelStep] = useState<"confirm" | "completed">("confirm");
@@ -247,6 +249,7 @@ export function HomeContractCalendar({
             <div className="text-[12.5px] font-semibold text-[#667085]">방문 견적 · {v.visit_time || "시간 미정"} · {v.customer_phone}</div>
             <div className="break-keep text-[12.5px] font-semibold text-[#667085]">{(v.submission as { fromAddress?: string; fromDetail?: string })?.fromAddress || "주소 미입력"} {(v.submission as { fromDetail?: string })?.fromDetail ?? ""}</div>
             {v.visit_memo && <div className="text-sm break-all">방문 메모: {v.visit_memo}</div>}
+            <Button type="button" variant="outline" className="mt-2 w-full" onClick={() => onOpenVisit?.(v)}>견적 열기</Button>
           </div>
         ))}
         {selectedBookings.length === 0 ? (

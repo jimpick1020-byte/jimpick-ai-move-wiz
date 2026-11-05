@@ -103,7 +103,7 @@ export const listIntakeRequests = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ ok: boolean; rows: IntakeRow[]; error?: string }> => {
     const { data, error } = await context.supabase
-      .from("intake_requests").select(OWNER_COLS).eq("company_id", context.userId).is("deleted_at", null)
+      .from("intake_requests").select(OWNER_COLS).eq("company_id", context.userId).is("deleted_at", null).is("estimate_completed_at", null)
       .order("created_at", { ascending: false }).limit(300);
     if (error) return { ok: false, rows: [], error: "사전정보 요청 목록을 불러오지 못했습니다." };
     return { ok: true, rows: (data ?? []) as unknown as IntakeRow[] };
