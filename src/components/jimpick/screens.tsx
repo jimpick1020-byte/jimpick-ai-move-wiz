@@ -2574,7 +2574,7 @@ export function Step6() {
     });
   const [roomDialog, setRoomDialog] = useState<{ mode: "add" } | { mode: "rename"; id: string; name: string } | null>(null);
   const [roomDelete, setRoomDelete] = useState<{ id: string; name: string } | null>(null);
-  const roomDrag = useRoomDrag(!customerFlow, (id, toIndex) => {
+  const roomCardDrag = useRoomDrag(!customerFlow, (id, toIndex) => {
     const base = draftRef.current.roomsCustomized ? draftRef.current.rooms : materializeRooms(draftRef.current.rooms, sizeRooms);
     if (moveRoom(base, id, toIndex) === base) return;
     void manageRooms((rooms) => moveRoom(rooms, id, toIndex)).then((ok) => { if (ok) toast.success("방 순서를 저장했습니다"); });
@@ -3713,9 +3713,9 @@ export function Step6() {
             const r = roomOf(name);
             const s = roomSummary(r?.items || {});
             const cardId = r?.id ?? `r_${name}`;
-            const press = roomDrag.pressProps(cardId);
-            const dragging = roomDrag.dragId === cardId;
-            const dropHint = roomDrag.dragId !== null && !dragging && roomDrag.overIndex === index;
+            const press = roomCardDrag.pressProps(cardId);
+            const dragging = roomCardDrag.dragId === cardId;
+            const dropHint = roomCardDrag.dragId !== null && !dragging && roomCardDrag.overIndex === index;
             const art = r?.kind ?? name;
             return (
               <div
@@ -3728,7 +3728,7 @@ export function Step6() {
               >
                 <button
                   {...press}
-                  style={{ touchAction: roomDrag.dragId ? "none" : undefined, WebkitTouchCallout: "none", userSelect: "none" }}
+                  style={{ touchAction: roomCardDrag.dragId ? "none" : undefined, WebkitTouchCallout: "none", userSelect: "none" }}
                   onClick={() => {
                     tap("soft");
                     if (r) setCurrentRoom(r.id);
