@@ -16,6 +16,8 @@ import { ManualItemForm, type ManualItemInput } from "./ManualItemForm";
 import { FavoriteItemGrid } from "./FavoriteItemGrid";
 import { pickerItemLabel } from "@/lib/picker-item-label";
 import { createManualItem } from "@/lib/manual-item.functions";
+import { RoomMenu, RoomNameDialog, RoomDeleteDialog, useRoomDrag } from "./RoomManage";
+import { addRoom, deleteRoom, materializeRooms, moveRoom, renameRoom, roomNameError } from "@/lib/room-manage";
 import { CARD_DOUBLE_TAP_MS, isSameCardDoubleTap, pickedIdsInInputOrder, withRoomQuantity, withRoomQuantityStep, withRoomDisposal } from "@/lib/room-item-state";
 import { plannedDeposit } from "@/lib/deposit-rule";
 import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate, seoulMonthKey } from "@/lib/estimate-sort";
@@ -2164,9 +2166,7 @@ export function Step4() {
                 <MoneyInput
                   value={draft.ladderFromSeparate ? 0 : draft.ladderFromPrice}
                   disabled={draft.ladderFromSeparate}
-                  onChange={(n) =>
-                    updateDraft({ ladderFromPrice: n, ladderPrice: n + draft.ladderToPrice })
-                  }
+                  onChange={(n) => updateDraft({ ladderFromPrice: n, ladderFromManual: true, ladderFromNote: undefined })}
                   step={10000}
                   placeholder="금액 입력"
                 />
@@ -2177,20 +2177,25 @@ export function Step4() {
                     checked={draft.ladderFromSeparate}
                     onChange={(e) => {
                       tap("soft");
-                      // 별도: 즉시 0원 · 해제: 이전 금액이 아니라 기본 단가를 다시 넣습니다
                       const sep = e.target.checked;
-                      const price = sep ? 0 : ladderUnit;
-                      updateDraft({
-                        ladderFromSeparate: sep,
-                        ladderFromPrice: price,
-                        ladderPrice: price + (draft.ladderToSeparate ? 0 : draft.ladderToPrice),
-                      });
+                      // 별도는 금액을 지우지 않고 합계에서만 뺍니다(포함으로 되돌리면 그 금액이 다시 반영)
+                      updateDraft({ ladderFromSeparate: sep });
                     }}
                   />
                   출발지 별도
                 </label>
                 {draft.ladderFromSeparate && (
                   <p className="mt-1 text-sm font-bold text-[#E8590C]">{LADDER_SEPARATE_TEXT}</p>
+                )}
+                {draft.ladderFromNote && !draft.ladderFromManual && (
+                  <p className="mt-1 text-sm font-bold text-[#B4232A]" data-ladder-note="from">{draft.ladderFromNote}</p>
+                )}
+                {draft.ladderFromManual ? (
+                  <button type="button" className="mt-1 text-sm font-bold text-[#3578C8] underline" onClick={() => updateDraft({ ladderFromManual: false, truck1t: draft.truck1t })}>
+                    층수·차량 기준 자동 금액으로 되돌리기
+                  </button>
+                ) : !draft.ladderFromNote && (
+                  <p className="mt-1 text-xs font-semibold text-[#6B7280]">출발지 층수와 5톤·1톤 대수로 자동 계산된 금액입니다.</p>
                 )}
               </Field>
             )}
@@ -2199,9 +2204,7 @@ export function Step4() {
                 <MoneyInput
                   value={draft.ladderToSeparate ? 0 : draft.ladderToPrice}
                   disabled={draft.ladderToSeparate}
-                  onChange={(n) =>
-                    updateDraft({ ladderToPrice: n, ladderPrice: draft.ladderFromPrice + n })
-                  }
+                  onChange={(n) => updateDraft({ ladderToPrice: n, ladderToManual: true, ladderToNote: undefined })}
                   step={10000}
                   placeholder="금액 입력"
                 />
@@ -2213,18 +2216,24 @@ export function Step4() {
                     onChange={(e) => {
                       tap("soft");
                       const sep = e.target.checked;
-                      const price = sep ? 0 : ladderUnit;
-                      updateDraft({
-                        ladderToSeparate: sep,
-                        ladderToPrice: price,
-                        ladderPrice: (draft.ladderFromSeparate ? 0 : draft.ladderFromPrice) + price,
-                      });
+                      // 별도는 금액을 지우지 않고 합계에서만 뺍니다(포함으로 되돌리면 그 금액이 다시 반영)
+                      updateDraft({ ladderToSeparate: sep });
                     }}
                   />
                   도착지 별도
                 </label>
                 {draft.ladderToSeparate && (
                   <p className="mt-1 text-sm font-bold text-[#E8590C]">{LADDER_SEPARATE_TEXT}</p>
+                )}
+                {draft.ladderToNote && !draft.ladderToManual && (
+                  <p className="mt-1 text-sm font-bold text-[#B4232A]" data-ladder-note="to">{draft.ladderToNote}</p>
+                )}
+                {draft.ladderToManual ? (
+                  <button type="button" className="mt-1 text-sm font-bold text-[#3578C8] underline" onClick={() => updateDraft({ ladderToManual: false, truck1t: draft.truck1t })}>
+                    층수·차량 기준 자동 금액으로 되돌리기
+                  </button>
+                ) : !draft.ladderToNote && (
+                  <p className="mt-1 text-xs font-semibold text-[#6B7280]">도착지 층수와 5톤·1톤 대수로 자동 계산된 금액입니다.</p>
                 )}
               </Field>
             )}
@@ -2552,6 +2561,44 @@ export function Step6() {
     () => [...new Set([...tabRooms, ...presetRooms.map((r) => r.room)])],
     [tabRooms, presetRooms],
   );
+  /** 사장님이 방을 직접 관리한 견적은 저장된 방 순서(고유 ID)를 그대로 보여 줍니다 */
+  const roomsManaged = !customerFlow && !!draft.roomsCustomized;
+  const displayNames = useMemo(
+    () => (roomsManaged ? draft.rooms.map((r) => r.name) : sizeRooms),
+    [roomsManaged, draft.rooms, sizeRooms],
+  );
+  const manageRooms = (make: (rooms: Room[]) => Room[]) =>
+    persistItemPatch((current) => {
+      const base = current.roomsCustomized ? current.rooms : materializeRooms(current.rooms, sizeRooms);
+      return { rooms: make(base), roomsCustomized: true };
+    });
+  const [roomDialog, setRoomDialog] = useState<{ mode: "add" } | { mode: "rename"; id: string; name: string } | null>(null);
+  const [roomDelete, setRoomDelete] = useState<{ id: string; name: string } | null>(null);
+  const roomCardDrag = useRoomDrag(!customerFlow, (id, toIndex) => {
+    const base = draftRef.current.roomsCustomized ? draftRef.current.rooms : materializeRooms(draftRef.current.rooms, sizeRooms);
+    if (moveRoom(base, id, toIndex) === base) return;
+    void manageRooms((rooms) => moveRoom(rooms, id, toIndex)).then((ok) => { if (ok) toast.success("방 순서를 저장했습니다"); });
+  });
+  const submitRoomName = async (name: string): Promise<boolean> => {
+    if (!roomDialog) return false;
+    if (roomDialog.mode === "add") {
+      const ok = await manageRooms((rooms) => addRoom(rooms, name));
+      if (ok) toast.success("방을 추가했습니다");
+      return ok;
+    }
+    const { id, name: oldName } = roomDialog;
+    const ok = await manageRooms((rooms) => renameRoom(rooms, id, name));
+    if (ok) {
+      toast.success("방 이름을 바꿨습니다");
+      const newName = draftRef.current.rooms.find((r) => r.id === id)?.name;
+      if (newName && newName !== oldName) {
+        // 이 방의 촬영 사진도 새 이름으로 이어 줍니다(이 견적만)
+        void import("@/integrations/supabase/client").then(({ supabase }) =>
+          supabase.from("room_scans").update({ room: newName }).eq("estimate_id", draftRef.current.id).eq("room", oldName));
+      }
+    }
+    return ok;
+  };
 
   const selectedCustomItems = useMemo(() => {
     const selected = new Set(draft.rooms.flatMap((r) => Object.keys(r.items)));
@@ -2777,7 +2824,8 @@ export function Step6() {
   const pickSize = (key: string) => {
     tap("soft");
     const baseRooms = (SIZE_TABS.find((t) => t.key === key) || DEFAULT_SIZE_TAB).rooms;
-    const missingRooms = baseRooms.filter((n) => !draft.rooms.some((r) => r.name === n));
+    // 방을 직접 관리한 견적은 지운 방을 평수 버튼으로 되살리지 않습니다
+    const missingRooms = draft.roomsCustomized ? [] : baseRooms.filter((n) => !draft.rooms.some((r) => r.name === n));
     setSize(key);
     setNeedRegister([]);
     updateDraft({
@@ -2896,7 +2944,7 @@ export function Step6() {
       if (qty <= 0) return;
       const name =
         itemName || catalog.find((c) => c.id === itemId)?.name || itemNameById(itemId) || "";
-      const pick = suggestRoomName(name, sizeRooms) || sizeRooms[0];
+      const pick = suggestRoomName(name, displayNames) || displayNames[0];
       if (!pick) return;
       if (!rooms.some((r) => r.name === pick))
         rooms = [...rooms, { id: `r_${pick}`, name: pick, items: {} as Record<string, number> }];
@@ -3657,18 +3705,30 @@ export function Step6() {
       {/* 디지털 3D 집 구조 */}
       <div
         className="flex-1 overflow-auto p-4 pb-6 bg-gradient-to-b from-[#EEF6FF] to-[#E6EEFA]"
+        data-room-grid-scroll
         {...swipe}
       >
         <div className="grid grid-cols-2 gap-3">
-          {sizeRooms.map((name) => {
+          {displayNames.map((name, index) => {
             const r = roomOf(name);
             const s = roomSummary(r?.items || {});
+            const cardId = r?.id ?? `r_${name}`;
+            const press = roomCardDrag.pressProps(cardId);
+            const dragging = roomCardDrag.dragId === cardId;
+            const dropHint = roomCardDrag.dragId !== null && !dragging && roomCardDrag.overIndex === index;
+            const art = r?.kind ?? name;
             return (
               <div
-                key={name}
+                key={cardId}
+                data-room-card-id={cardId}
+                data-room-card-index={index}
+                data-room-dragging={dragging || undefined}
+                style={{ transition: dragging ? "none" : undefined, outline: dropHint ? "3px dashed #3578C8" : dragging ? "3px solid #3578C8" : undefined, outlineOffset: 2, boxShadow: dragging ? "0 18px 36px -10px rgba(7,81,216,0.45)" : undefined }}
                 className="relative rounded-3xl p-3 bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_8px_0_#E5E7EB,0_16px_28px_-14px_rgba(7,81,216,0.4),inset_0_1px_0_#fff]"
               >
                 <button
+                  {...press}
+                  style={{ touchAction: roomCardDrag.dragId ? "none" : undefined, WebkitTouchCallout: "none", userSelect: "none" }}
                   onClick={() => {
                     tap("soft");
                     if (r) setCurrentRoom(r.id);
@@ -3682,13 +3742,13 @@ export function Step6() {
                 >
                   <span
                     className={`inline-block px-3 py-1 rounded-xl text-white text-[14px] font-black bg-gradient-to-b ${
-                      ROOM_TINT[name] || "from-[#5B93D6] to-[#3578C8]"
-                    } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)]`}
+                      ROOM_TINT[art] || "from-[#5B93D6] to-[#3578C8]"
+                    } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)] max-w-[calc(100%-2.5rem)] truncate align-top`}
                   >
                     {name}
                   </span>
                   <div className="mt-1 relative flex items-center justify-center h-[86px]">
-                    <Art3D src={ROOM_IMG[name] || ROOM_IMG["작은방"]} alt={name} size={82} />
+                    <Art3D src={ROOM_IMG[art] || ROOM_IMG["작은방"]} alt={name} size={82} />
                   </div>
                   {/* 담은 품목 미리보기 — 3D 아이콘 3개까지, 나머지는 +N */}
                   {(() => {
@@ -3748,16 +3808,50 @@ export function Step6() {
                     </div>
                   ))}
                 </div>
+                {!customerFlow && (
+                  <div className="absolute top-2 right-2 z-10">
+                    <RoomMenu name={name} disabled={itemWriteBusy}
+                      onRename={() => setRoomDialog({ mode: "rename", id: cardId, name })}
+                      onDelete={() => setRoomDelete({ id: cardId, name })} />
+                  </div>
+                )}
                 {s.kinds > 0 && (
-                  <span className="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#285C99,inset_0_1px_0_rgba(255,255,255,0.5)]">
+                  <span className="absolute top-2 right-10 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#285C99,inset_0_1px_0_rgba(255,255,255,0.5)]">
                     {s.kinds}
                   </span>
                 )}
               </div>
             );
           })}
+          {!customerFlow && (
+            <button type="button" data-room-add onClick={() => { tap("soft"); setRoomDialog({ mode: "add" }); }}
+              className="min-h-[160px] rounded-3xl border-2 border-dashed border-[#9DB8E0] bg-white/70 text-[16px] font-black text-[#3578C8] active:translate-y-[2px]">
+              ＋ 방 추가
+            </button>
+          )}
         </div>
       </div>
+      <RoomNameDialog
+        open={!!roomDialog}
+        title={roomDialog?.mode === "rename" ? "방 이름 변경" : "방 추가"}
+        initial={roomDialog?.mode === "rename" ? roomDialog.name : ""}
+        validate={(n) => {
+          const base = draft.roomsCustomized ? draft.rooms : materializeRooms(draft.rooms, sizeRooms);
+          return roomNameError(base, n, roomDialog?.mode === "rename" ? roomDialog.id : undefined);
+        }}
+        onSubmit={submitRoomName}
+        onClose={() => setRoomDialog(null)}
+      />
+      <RoomDeleteDialog
+        name={roomDelete?.name ?? null}
+        onClose={() => setRoomDelete(null)}
+        onConfirm={() => {
+          const target = roomDelete;
+          setRoomDelete(null);
+          if (!target) return;
+          void manageRooms((rooms) => deleteRoom(rooms, target.id)).then((ok) => { if (ok) toast.success(`${target.name}을(를) 삭제했습니다`); });
+        }}
+      />
 
 
       <BottomButtonBar>
@@ -4091,7 +4185,7 @@ export function Step6() {
                     <div>
                       <div className="mb-1.5 text-[13px] font-black text-[#6B7280]">추가할 공간</div>
                       <div className="flex flex-wrap gap-2">
-                        {[...new Set([...sizeRooms, ...draft.rooms.map((r) => r.name)])].map((rn) => (
+                        {[...new Set([...displayNames, ...draft.rooms.map((r) => r.name)])].map((rn) => (
                           <button
                             key={rn}
                             onClick={() => setIconGen((f) => (f ? { ...f, room: rn } : f))}
