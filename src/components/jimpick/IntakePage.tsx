@@ -81,7 +81,7 @@ export function IntakePage({ token }: { token: string }) {
 function tryReturnToMessages() {
   try { window.close(); } catch { /* 닫기 제한 */ }
   if (/KAKAOTALK/i.test(navigator.userAgent)) { window.location.href = "kakaotalk://inappbrowser/close"; return; }
-  if (window.history.length > 1) window.history.go(-window.history.length + 1 || -1);
+  if (window.history.length > 1) window.history.back();
 }
 
 /** 저장 성공 뒤에만 보이는 완료 화면 — 1초 뒤 자동으로 닫기를 시도하고, 막히면 안내와 돌아가기 버튼을 보여 줍니다. */
