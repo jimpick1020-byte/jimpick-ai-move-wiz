@@ -52,7 +52,7 @@ export const saveEstimateDraft = createServerFn({ method: "POST" })
         p_estimate_id: data.estimateId, p_payload: parsed as never, p_revision: data.revision,
       });
       if (result.error) return { ok: false, error: result.error.message };
-      return result.data as DraftSyncResult;
+      return result.data as unknown as DraftSyncResult;
     }
 
     const { data: existing } = await context.supabase

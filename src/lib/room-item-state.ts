@@ -43,5 +43,6 @@ export function pickedIdsInInputOrder(items: Record<string, number>): string[] {
 /** +·− 한 번: 최신 수량에서 1개씩 증감하고 0 미만으로 내려가지 않습니다 */
 export function withRoomQuantityStep(rooms: Room[], roomName: string, id: string, delta: 1 | -1): Room[] {
   const current = rooms.find((r) => r.name === roomName)?.items[id] || 0;
-  return withRoomQuantity(rooms, roomName, id, Math.max(0, current + delta));
+  const base = rooms.some(r => r.name === roomName) || delta < 0 ? rooms : [...rooms, { id: `r_${roomName}`, name: roomName, items: {} }];
+  return withRoomQuantity(base, roomName, id, Math.max(0, current + delta));
 }
