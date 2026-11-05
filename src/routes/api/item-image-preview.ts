@@ -21,10 +21,14 @@ export const Route = createFileRoute("/api/item-image-preview")({
       const { generateImage } = await import("@/lib/item-image-gateway.server");
       const { buildItemImagePrompt } = await import("@/lib/item-image-prompt");
       const upstream = await generateImage({ baseURL: "https://ai.gateway.lovable.dev", apiKey: key, model: "openai/gpt-image-2.5-sunburst", format: "openai" },
-        buildItemImagePrompt(name), body.stream !== false, request.signal);
-      if (!upstream.ok) return failure(upstream.status === 429 ? "이미지 생성 요청이 많습니다. 잠시 후 다시 시도해 주세요." : "이미지 생성에 실패했습니다. 다시 시도해 주세요.", upstream.status === 429 ? 429 : 502);
+        buildItemImagePrompt(name), body.stream !== false);
+      if (!upstream.ok) {
+        const detail = await upstream.json().catch(() => null);
+        console.error("[item-image-preview]", { phase: "generate", status: upstream.status });
+        return failure(detail?.error?.message ?? detail?.message ?? `이미지 생성 실패 (${upstream.status})`, upstream.status);
+      }
       // Preview only: never insert item rows or upload an unapproved image.
       return new Response(upstream.body, { headers: { "Content-Type": upstream.headers.get("Content-Type") || "text/event-stream", "Cache-Control": "no-store", "X-Accel-Buffering": "no" } });
-    } catch { return failure("이미지 생성에 실패했습니다. 다시 시도해 주세요.", 502); }
+    } catch (cause) { console.error("[item-image-preview]", cause instanceof Error ? cause.message : "failed"); return failure("이미지 생성 연결에 실패했습니다. 다시 시도해 주세요.", 502); }
   } } },
 });
