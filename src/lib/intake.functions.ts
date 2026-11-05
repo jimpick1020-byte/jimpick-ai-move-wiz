@@ -280,9 +280,9 @@ export const markIntakeSeen = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ ids: z.array(z.string().uuid()).max(100) }).parse(d))
   .handler(async ({ data, context }) => {
     if (!data.ids.length) return { ok: true };
-    await context.supabase.from("intake_requests").update({ owner_seen_at: new Date().toISOString() })
+    const { error } = await context.supabase.from("intake_requests").update({ owner_seen_at: new Date().toISOString() })
       .eq("company_id", context.userId).in("id", data.ids);
-    return { ok: true };
+    return error ? { ok: false, error: "요청 확인 상태를 저장하지 못했습니다. 다시 열어 주세요." } : { ok: true };
   });
 
 /**

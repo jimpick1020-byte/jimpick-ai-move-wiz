@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, Settings2, Plus, GripVertical, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { useVisitEstimate } from "@/lib/use-visit-estimate";
+import { isUnreadIntake } from "@/lib/intake-unread";
 import { useApp, type Estimate } from "@/lib/jimpick";
 import { formatTel } from "@/lib/format-input";
 import { createComposerGate, intakeSmsHref } from "@/lib/intake-sms";
@@ -73,6 +74,17 @@ export function useIntakeRequests(): IntakeRow[] {
   return rows;
 }
 
+export async function reviewIntakeRequest(id: string): Promise<void> {
+  try {
+    const result = await markIntakeSeen({ data: { ids: [id] } });
+    if (!result.ok) throw new Error(result.error);
+    await reloadIntakeRequests();
+    window.dispatchEvent(new Event("jimpick:payment-updated"));
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "요청 확인 상태를 저장하지 못했습니다.");
+  }
+}
+
 /** 고객 견적 id 목록이나 전화번호로 이 고객의 최신 요청 찾기 */
 export function findIntakeFor(rows: IntakeRow[], ids: string[], phone: string): IntakeRow | undefined {
   const p = phone.replace(/[^0-9]/g, "");
@@ -111,6 +123,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
   const { openVisit, opening } = useVisitEstimate();
   const row = rows.find((r) => r.id === rowId)
     ?? (sourceEstimateId ? rows.find((r) => r.source_estimate_id === sourceEstimateId && r.status !== "cancelled") : undefined);
+  useEffect(() => { if (requestId) void reviewIntakeRequest(requestId); }, [requestId]);
   useEffect(() => { if (row && !rowId) setRowId(row.id); }, [row, rowId]);
   const label = row ? intakeStatusLabel(row) : "링크 미발송";
   const closed = !row || label === "링크 취소" || label === "링크 만료";
@@ -333,7 +346,6 @@ export function IntakeNotifier() {
       shown.current.add(`${r.id}:${r.last_submitted_at}`);
       toast.success(`${r.customer_name || r.customer_phone} 고객님이 사전정보 입력을 완료했습니다.`, { duration: 8000 });
     }
-    void markIntakeSeen({ data: { ids: fresh.map((r) => r.id) } });
   }, [rows]);
   return null;
 }
@@ -580,10 +592,10 @@ const REQ_CLASS: Record<string, string> = {
   "취소": "bg-[#FEE2E2] text-[#B91C1C]",
 };
 
-/** 홈 「고객 요청」 배지: 고객이 입력을 마쳤지만 아직 방문 일정을 잡지 않은 요청 */
+/** 홈 「고객 요청」 배지: 실제로 아직 열어 확인하지 않은 제출 요청만 */
 export function useNewRequestCount(): number {
   const rows = useIntakeRequests();
-  return rows.filter((r) => r.status === "submitted" && r.visit_status !== "scheduled").length;
+  return rows.filter(isUnreadIntake).length;
 }
 
 export function RequestsScreenBody() {
@@ -609,6 +621,13 @@ export function RequestsScreenBody() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<"active" | "cancelled">("active");
+  useEffect(() => {
+    const id = sessionStorage.getItem("jp_intake_open_target");
+    if (!id) return;
+    sessionStorage.removeItem("jp_intake_open_target");
+    setExpanded(new Set([id]));
+    void reviewIntakeRequest(id);
+  }, []);
   const shown = rows.filter((r) => (filter === "cancelled") === (r.status === "cancelled"));
   const open = rows.find((r) => r.id === openId);
   return (
@@ -624,7 +643,7 @@ export function RequestsScreenBody() {
         const sub = r.submission as Partial<IntakeForm>;
         return (
           <div key={r.id} data-request-id={r.id} data-request-card className="rounded-2xl border border-[#E5E7EB] bg-white p-3 space-y-2">
-            <Button variant="ghost" type="button" aria-expanded={expanded.has(r.id)} onClick={() => setExpanded(prev => { const next = new Set(prev); if (next.has(r.id)) next.delete(r.id); else next.add(r.id); return next; })} className="h-auto w-full flex flex-wrap items-center justify-between gap-2 p-0 text-left">
+            <Button variant="ghost" type="button" aria-expanded={expanded.has(r.id)} onClick={() => { if (!expanded.has(r.id)) void reviewIntakeRequest(r.id); setExpanded(prev => { const next = new Set(prev); if (next.has(r.id)) next.delete(r.id); else next.add(r.id); return next; }); }} className="h-auto w-full flex flex-wrap items-center justify-between gap-2 p-0 text-left">
               <span className="font-black text-[#25282D]">{intakeDisplayName(r)} <span className="text-xs font-bold text-[#6B7280]">{r.customer_phone}</span></span>
               <span className={`rounded-full px-2 py-0.5 text-xs font-black ${REQ_CLASS[l] ?? ""}`}>{l}</span>
               {expanded.has(r.id) ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
