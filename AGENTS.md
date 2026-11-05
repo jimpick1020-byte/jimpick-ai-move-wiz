@@ -33,20 +33,20 @@
 - Shared address selection appends provider-returned building names to the existing address string through address-label; this preserves names across intake, estimates and saved drafts without changing coordinates or detail fields.
 
 - Deposit acknowledgement uses the owner-locked confirm_payment_receipt RPC to atomically and idempotently sync receipt sums and contract payment state; balance completion delegates to complete_estimate_payment, preventing duplicate sums, total changes or messaging side effects.
-- Receipt highlighting uses bank methods/known alerts; direct bank confirmation audits the owner-reviewed expected amount via RPC. PaymentPanel uses pendingBalanceReceipts only: confirmed balances are already deducted and cannot be reconfirmed or adjust totals.
+- Receipt highlighting uses bank methods/known alerts; direct bank confirmation audits the expected amount via RPC; PaymentPanel shows only pendingBalanceReceipts, so confirmed balances can't be reconfirmed.
 - Customer claims use stage-specific deduplication and stored contract totals; pending receipts stay visible and only owner acknowledgement confirms them. Payment SMS preparation is owner-scoped, read-only and native-composer-only, never a sent record.
 - History opens receipt-review months by default; SMS groups use Asia/Seoul; archive deletion reuses authenticated soft-delete and refreshes only after success to preserve payments and SMS.
 - Bank SMS are stored first in bank_sms_messages (deduped by event ID or text hash, never name/account/estimate), then matched via bank-sms-match into one pending deposit_records row; detection never completes payment. Forward URLs use publicUrl (preview blocks external POSTs); SMS dates parse as Asia/Seoul.
 - Bank SMS inbox deletion uses the owner-scoped security-invoker hide_bank_sms RPC and list-only deleted_at filtering; retained originals and dedupe keys prevent replay without touching receipt or payment state.
 - AI item images are checked by item-image-verify against the item name before createManualItem stores them, and prompts come from item-image-prompt; this prevents a mismatched picture being linked to an item ID.
 - Options snapshot the selected catalog ID, image URL and entered name in the existing options JSON and render through OptionArt; this preserves matching owner/customer/PDF art without changing pricing or historic records.
-- Native sheet printing temporarily marks only the printable ancestor branch, resets scrolling/fixed constraints and uses normal-flow pagination until afterprint; this prevents paper-size-dependent clipping and retains on-screen layout afterward.
+- Native sheet printing marks only the printable ancestor branch and uses normal-flow pagination until afterprint; this prevents paper-size clipping.
 
 - Owner sheet saves persist revisions then sync the customer snapshot; depositOverride uses plannedDeposit, never payment/consent audit fields, preserving tokens and read-only views.
 - Sheet disposal uses room/item IDs and pointer tap timing with movement cancellation; shared rendering overlays an X without changing image sources or quantities.
 - Customer sheet decoration belongs to SharePage wrappers and pointer-transparent CSS pseudo-elements, not EstimateSheet; this isolates owner/export content and preserves layout and interaction.
 - External Cloudflare hosting config lives in root wrangler.jsonc (worker name gyejeokkit, nodejs_compat); nitro merges it into dist/server/wrangler.json on every build — keep it, and keep the Lovable published site live because the bank-SMS webhook and admin-key server functions only run there.
-- Brand refreshes use versioned CDN pointers for logos and install icons, a separate safely padded maskable icon, and a versioned public favicon; keep manifest identity and start URL stable so updates do not create a different installed app.
+- Brand refreshes use versioned CDN pointers (separate padded maskable icon, versioned favicon) with stable manifest identity/start URL, so installs don't duplicate.
 
 - Owner notifications come only from DB triggers with per-company dedupe keys and push via push-dispatch + public/push-sw.js; owners may change only read_at and a one-way deleted_at soft delete (dedupe kept), keeping reads apart from payment confirmation.
 - Customer share-link server functions reject signed-in sessions via customer-link-guard and never count their views; the token link stays the customer credential.
