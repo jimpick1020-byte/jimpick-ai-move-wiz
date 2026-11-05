@@ -27,6 +27,8 @@ export interface RoomItems {
 export interface Room {
   id: string;
   name: string;
+  /** 방 그림 종류(처음 이름) — 이름을 바꿔도 그림은 그대로 둡니다 */
+  kind?: string;
   items: RoomItems;
   /**
    * 품목별 폐기물 표시 (item_id → true). 방마다·품목마다 따로 저장합니다.
@@ -137,6 +139,14 @@ export interface Estimate {
   /** 사다리차 출발지·도착지 별도 여부 (견적 합계에서 제외) */
   ladderFromSeparate: boolean;
   ladderToSeparate: boolean;
+  /** 사장님이 사다리차 금액을 직접 입력한 지점 — 자동 계산으로 덮어쓰지 않습니다 */
+  ladderFromManual?: boolean;
+  ladderToManual?: boolean;
+  /** 자동 계산 기준이 없을 때 안내 문구(금액 미확정) */
+  ladderFromNote?: string;
+  ladderToNote?: string;
+  /** 사장님이 방을 추가·이름 변경·순서 변경·삭제한 견적 — 화면은 rooms 순서만 따릅니다 */
+  roomsCustomized?: boolean;
   /** 상세 내역에서 직접 추가·수정하는 항목 */
   extraCharges: { id: string; label: string; amount: number }[];
   /** 고객 메모 */
@@ -2047,7 +2057,15 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       window.history.replaceState({ jpScreen: "login" }, "");
     },
-    updateDraft: (patch) => setState((s) => ({ ...s, draft: formatDraftPhones({ ...s.draft, ...patch }) })),
+    updateDraft: (patch) => setState((s) => {
+      const merged = applyLadderAuto({ ...s.draft, ...patch }, patch);
+      const next = merged === s.draft || !("ladderFromPrice" in merged) ? merged : {
+        ...merged,
+        ladder: (merged.ladderFrom ? 1 : 0) + (merged.ladderTo ? 1 : 0),
+        ladderPrice: (merged.ladderFrom ? merged.ladderFromPrice : 0) + (merged.ladderTo ? merged.ladderToPrice : 0),
+      };
+      return { ...s, draft: formatDraftPhones(next) };
+    }),
     patchDraft: (make) => setState((s) => ({ ...s, draft: formatDraftPhones({ ...s.draft, ...make(s.draft) }) })),
     commitSavedSheet: (draft) => setState((s) => {
       if (s.draft.id !== draft.id) return s;
