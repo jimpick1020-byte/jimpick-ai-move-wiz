@@ -83,12 +83,15 @@ export interface ItemLayoutEntryInput {
   cat5?: string;
   group?: string;
   order?: number;
+  /** 계정 전체에서 지운 품목 — 앱을 업데이트해도 다시 나타나지 않게 서버에 보관 */
+  hidden?: boolean;
 }
 
 const layoutEntrySchema = z.object({
   cat5: z.string().min(1).max(20).optional(),
   group: z.string().min(1).max(30).optional(),
   order: z.number().min(-100000).max(100000).optional(),
+  hidden: z.boolean().optional(),
 });
 
 const layoutSchema = z.object({
@@ -105,6 +108,7 @@ function cleanLayout(raw: unknown): Record<string, ItemLayoutEntryInput> {
     if (typeof e.cat5 === "string" && e.cat5.trim()) entry.cat5 = e.cat5.slice(0, 20);
     if (typeof e.group === "string" && e.group.trim()) entry.group = e.group.slice(0, 30);
     if (typeof e.order === "number" && Number.isFinite(e.order)) entry.order = e.order;
+    if (e.hidden === true) entry.hidden = true;
     if (Object.keys(entry).length) out[id] = entry;
   }
   return out;
