@@ -595,6 +595,11 @@ export function registerCustomIcons(
   }
 }
 
+/** 품목 id 에 저장된 그림(직접 추가·AI 생성 포함)이 있는지 */
+export function hasStoredIcon(id: string | undefined): boolean {
+  return !!id && !!(CUSTOM_ICON[id] ?? ICON3D[id]);
+}
+
 /** 품목 id·이름으로 아이콘 경로 정하기 (없으면 기본 박스) */
 export function icon3dFor(id: string | undefined, name: string): string {
   return (
