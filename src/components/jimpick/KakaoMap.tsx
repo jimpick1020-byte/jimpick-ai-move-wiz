@@ -158,7 +158,9 @@ export function KakaoMap({
     return () => {
       cancelled = true;
     };
-  }, [from?.x, from?.y, to?.x, to?.y, path?.length, attempt]);
+    // 경로가 바뀌면(길이가 같아도) 새로 그립니다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from?.x, from?.y, to?.x, to?.y, path?.length, path?.[0]?.x, path?.[path.length - 1]?.y, attempt]);
 
   return (
     <div className="relative w-full block" style={{ height, minHeight: height }}>

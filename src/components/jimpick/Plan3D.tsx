@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Calculator, ChevronLeft, RotateCcw } from "lucide-react";
 import { useApp, ITEM_CATALOG, itemNameById, roomSummary } from "@/lib/jimpick";
 import { MobileShell, PrimaryButton, BottomButtonBar } from "@/components/jimpick/ui";
-import { Art3D, ItemArt, ROOM_IMG } from "@/lib/jimpick-art";
+import { Art3D, ItemArt, roomImageFor } from "@/lib/jimpick-art";
 import { SIZE_TABS, ROOM_TINT } from "@/components/jimpick/screens";
 import { tap } from "@/lib/feedback";
 import { DisposalX } from "@/components/jimpick/EstimateSheet";
@@ -181,7 +181,7 @@ export function Plan3D() {
                     {name}
                   </span>
                   <div className="mt-1 flex items-center justify-center h-[74px]">
-                    <Art3D src={ROOM_IMG[name] || ROOM_IMG["작은방"]} alt={name} size={72} />
+                    <Art3D src={roomImageFor(name)} alt={name} size={72} />
                   </div>
                   {entries.length > 0 && (
                     <div className="mt-1 flex flex-wrap justify-center gap-1">

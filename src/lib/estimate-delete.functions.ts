@@ -23,6 +23,8 @@ export interface DeleteEstimateResult {
   error?: string;
   /** 권한 없음 — 다시 눌러도 삭제되지 않음 */
   forbidden?: boolean;
+  /** 서버(계약·초안·사전요청 모두)에 이 견적 ID가 없음을 확인 — 기기 목록만 정리 */
+  absent?: boolean;
 }
 
 /** 삭제 확인창 문구 (달력·견적 내역 공통) */
@@ -52,6 +54,35 @@ export const deleteEstimateEverywhere = createServerFn({ method: "POST" })
       return { ok: false, error: "삭제하지 못했습니다. 잠시 후 다시 시도해 주세요." };
     }
     const out = (res ?? {}) as { ok?: boolean; reason?: string; already?: boolean; intake_ids?: string[] };
+    if (!out.ok && out.reason === "not_found") {
+      // 계약·초안이 없는 항목: 실제 자료 유형(사전 견적요청)을 같은 견적 ID로 확인합니다.
+      // 이름·전화번호로 찾지 않고, 이 업체 소유 행만 조회합니다(RLS).
+      const { data: reqs, error: qErr } = await context.supabase
+        .from("intake_requests")
+        .select("id, deleted_at")
+        .eq("company_id", context.userId)
+        .eq("estimate_id", data.estimateId)
+        .limit(5);
+      if (qErr) {
+        console.error("[deleteEstimateEverywhere] intake lookup", qErr.message);
+        return { ok: false, error: "삭제하지 못했습니다. 통신 상태를 확인한 뒤 다시 시도해 주세요." };
+      }
+      const live = (reqs ?? []).filter((r) => !r.deleted_at);
+      if (!reqs?.length) return { ok: true, absent: true, intakeIds: [] };
+      if (!live.length) return { ok: true, already: true, intakeIds: reqs.map((r) => r.id) };
+      // 한 건만 처리합니다. 같은 견적 ID의 진행 중 요청이 여러 건이면 임의로 고르지 않습니다.
+      if (live.length > 1) {
+        return { ok: false, error: "같은 견적번호의 고객 요청이 여러 건이라 자동으로 삭제하지 않았습니다. 고객 요청 화면에서 한 건씩 삭제해 주세요." };
+      }
+      const target = live[0];
+      const { data: d, error: dErr } = await context.supabase.rpc("delete_intake_request", { p_request_id: target.id } as never);
+      const ok = !dErr && (d as { ok?: boolean } | null)?.ok;
+      if (!ok) {
+        console.error("[deleteEstimateEverywhere] delete_intake_request", dErr?.message ?? d);
+        return { ok: false, error: "사전 견적요청을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요." };
+      }
+      return { ok: true, intakeIds: [target.id] };
+    }
     if (!out.ok) {
       const msg =
         out.reason === "forbidden"

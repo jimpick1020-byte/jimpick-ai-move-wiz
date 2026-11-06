@@ -28,6 +28,13 @@ import roomEntry from "@/assets/room-entry.png";
 import roomLiving from "@/assets/room-living.png";
 import roomKitchen from "@/assets/room-kitchen.png";
 import roomBalcony from "@/assets/room-balcony.png";
+import roomBathroom from "@/assets/room-bathroom.png";
+import roomStudy from "@/assets/room-study.png";
+import roomDress from "@/assets/room-dress.png";
+import roomLaundry from "@/assets/room-laundry.png";
+import roomStorage from "@/assets/room-storage.png";
+import roomNeutral from "@/assets/room-neutral.png";
+import { roomArtKey, type RoomArtKey } from "./room-art";
 
 import truck1t from "@/assets/veh-truck1t.png";
 import truck5t from "@/assets/veh-truck5t.png";
@@ -69,6 +76,17 @@ export const ROOM_IMG: Record<string, string> = {
   부엌: roomKitchen,
   베란다: roomBalcony,
 };
+
+const ROOM_ART_IMG: Record<RoomArtKey, string> = {
+  bathroom: roomBathroom, kitchen: roomKitchen, living: roomLiving, bedroom: roomMaster,
+  small: roomSmall, entry: roomEntry, study: roomStudy, dress: roomDress,
+  laundry: roomLaundry, balcony: roomBalcony, storage: roomStorage, neutral: roomNeutral,
+};
+
+/** 방 이름(사용자가 입력한 그대로)에 맞는 대표 그림 */
+export function roomImageFor(name: string | null | undefined): string {
+  return ROOM_ART_IMG[roomArtKey(name)];
+}
 
 export const VEHICLE_IMG = { truck1t, truck5t, ladder };
 export const ENV_IMG = { 계단: envStairs, 엘리베이터: envElevator };

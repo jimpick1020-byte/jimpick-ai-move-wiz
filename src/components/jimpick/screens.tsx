@@ -233,7 +233,7 @@ import {
 import charC from "@/assets/jimpick-char-c.png";
 import logoAsset from "@/assets/gyeokjeokit-logo-20261027.png.asset.json";
 const logoImg = logoAsset.url;
-import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
+import { Art3D, ItemArt, roomImageFor, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { JimpickCharacter } from "./JimpickCharacter";
 
 import {
@@ -1261,10 +1261,11 @@ export function Step1() {
    */
   const contractDelete = useDeleteContract({
     source: "calendar",
-    onDeleted: (estimateId) => {
+    onDeleted: (estimateId, _intakeIds, info) => {
       deleteEstimate(estimateId);
       loadBookings();
-      toast.success("계약을 삭제했습니다", {
+      if (info?.absent) toast.success("목록에서 정리했습니다", { description: "서버에는 이미 없는 항목이라 이 기기에 남은 기록만 지웠습니다." });
+      else toast.success("계약을 삭제했습니다", {
         description: "달력 일정과 견적 내역에서 함께 삭제되었습니다.",
       });
     },
@@ -1574,6 +1575,33 @@ export function Step2() {
   const hasFrom = Boolean(draft.fromAddress?.trim());
   const hasDestination = Boolean(draft.toAddress?.trim());
 
+  // 직접 입력해 좌표가 없는 주소: 기본주소(괄호 속 건물명·상세주소 제외)로 위치만 찾아 채웁니다.
+  // 입력한 주소 글자와 상세주소는 바꾸지 않습니다.
+  const geoTried = useRef<Record<string, boolean>>({});
+  useEffect(() => {
+    const sides: ("from" | "to")[] = ["from", "to"];
+    for (const side of sides) {
+      const addr = (side === "from" ? draft.fromAddress : draft.toAddress)?.trim() ?? "";
+      const has = side === "from" ? !!from : !!to;
+      if (!addr || has) continue;
+      const base = addr.replace(/\s*\(.*?\)\s*/g, " ").trim();
+      if (!base || geoTried.current[`${side}:${base}`]) continue;
+      geoTried.current[`${side}:${base}`] = true;
+      searchAddress({ data: { query: base.slice(0, 100) } })
+        .then((res) => {
+          const p = res.places?.find((x) => Number.isFinite(x.x) && Number.isFinite(x.y) && x.x && x.y);
+          if (!p) return;
+          const cur = (side === "from" ? draft.fromAddress : draft.toAddress)?.trim();
+          if (cur !== addr) return;
+          updateDraft(side === "from" ? { fromX: p.x, fromY: p.y } : { toX: p.x, toY: p.y });
+        })
+        .catch(() => {
+          delete geoTried.current[`${side}:${base}`];
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.fromAddress, draft.toAddress, !!from, !!to]);
+
   useEffect(() => {
     // 도착지를 입력하지 않은 경우 지도와 거리를 표시하지 않습니다.
     if (!hasDestination) {
@@ -1682,10 +1710,10 @@ export function Step2() {
           }}
           onDetail={(d) => updateDraft({ toDetail: d, ...autoFloor("to", d) })}
         />
-        {!hasDestination && (
+        {!hasDestination && !from && (
           <p className="text-center text-sm font-semibold text-muted-foreground">도착지를 입력하면 경로가 표시됩니다</p>
         )}
-        {hasDestination && (from || to) && (
+        {(from || to) && (
           <Card className="pb-5">
             <div className="font-bold mb-2">경로 안내</div>
             <KakaoMap from={from} to={to} path={path} height={280} />
@@ -3748,7 +3776,7 @@ export function Step6() {
                     {name}
                   </span>
                   <div className="mt-1 relative flex items-center justify-center h-[86px]">
-                    <Art3D src={ROOM_IMG[art] || ROOM_IMG["작은방"]} alt={name} size={82} />
+                    <Art3D src={roomImageFor(name)} alt={name} size={82} />
                   </div>
                   {/* 담은 품목 미리보기 — 3D 아이콘 3개까지, 나머지는 +N */}
                   {(() => {
@@ -6828,7 +6856,7 @@ export function History() {
   /** 견적 내역에서 삭제 → 달력 일정도 함께 삭제됩니다(서버에서 한 번에 처리) */
   const contractDelete = useDeleteContract({
     source: "history",
-    onDeleted: (estimateId, intakeIds) => {
+    onDeleted: (estimateId, intakeIds, info) => {
       deleteEstimate(estimateId);
       setArchived((rows) => rows.filter((row) => row.estimateId !== estimateId));
       loadArchived();
@@ -6837,7 +6865,8 @@ export function History() {
       void reloadIntakeRequests();
       loadTerms();
       loadNotices();
-      toast.success("계약을 삭제했습니다", {
+      if (info?.absent) toast.success("목록에서 정리했습니다", { description: "서버에는 이미 없는 항목이라 이 기기에 남은 기록만 지웠습니다." });
+      else toast.success("삭제했습니다", {
         description: "달력 일정과 견적 내역에서 함께 삭제되었습니다.",
       });
     },
@@ -7295,6 +7324,7 @@ export function History() {
                             onClick={() => {
                               contractDelete.ask(e.id);
                             }}
+                            aria-label={`${e.customerName || "이름 없음"} 견적 삭제`}
                             className="px-3 py-2 rounded-xl bg-[#FBEAEA] text-[#D95C5C]"
                           >
                             <Trash2 className="w-4 h-4" />
