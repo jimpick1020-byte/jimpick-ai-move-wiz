@@ -70,17 +70,18 @@ export const deleteEstimateEverywhere = createServerFn({ method: "POST" })
       const live = (reqs ?? []).filter((r) => !r.deleted_at);
       if (!reqs?.length) return { ok: true, absent: true, intakeIds: [] };
       if (!live.length) return { ok: true, already: true, intakeIds: reqs.map((r) => r.id) };
-      const ids: string[] = [];
-      for (const r of live) {
-        const { data: d, error: dErr } = await context.supabase.rpc("delete_intake_request", { p_request_id: r.id } as never);
-        const ok = !dErr && (d as { ok?: boolean } | null)?.ok;
-        if (!ok) {
-          console.error("[deleteEstimateEverywhere] delete_intake_request", dErr?.message ?? d);
-          return { ok: false, error: "사전 견적요청을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요." };
-        }
-        ids.push(r.id);
+      // 한 건만 처리합니다. 같은 견적 ID의 진행 중 요청이 여러 건이면 임의로 고르지 않습니다.
+      if (live.length > 1) {
+        return { ok: false, error: "같은 견적번호의 고객 요청이 여러 건이라 자동으로 삭제하지 않았습니다. 고객 요청 화면에서 한 건씩 삭제해 주세요." };
       }
-      return { ok: true, intakeIds: ids };
+      const target = live[0];
+      const { data: d, error: dErr } = await context.supabase.rpc("delete_intake_request", { p_request_id: target.id } as never);
+      const ok = !dErr && (d as { ok?: boolean } | null)?.ok;
+      if (!ok) {
+        console.error("[deleteEstimateEverywhere] delete_intake_request", dErr?.message ?? d);
+        return { ok: false, error: "사전 견적요청을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요." };
+      }
+      return { ok: true, intakeIds: [target.id] };
     }
     if (!out.ok) {
       const msg =
