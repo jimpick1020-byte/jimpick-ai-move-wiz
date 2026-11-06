@@ -1,7 +1,7 @@
 // 3D 아트 에셋 레지스트리
 import { CharArt } from "@/lib/jimpick-chars";
 import { LineArt, guessWorkLineKey } from "@/lib/jimpick-line";
-import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
+import { Icon3D, icon3dFor, hasStoredIcon } from "@/lib/jimpick-icon3d";
 
 import bed from "@/assets/item-bed.png";
 import wardrobe from "@/assets/item-wardrobe.png";
