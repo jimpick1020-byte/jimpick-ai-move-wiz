@@ -2645,7 +2645,12 @@ export function Step6() {
     if (customerFlow) return;
     let alive = true;
     getItemLayout()
-      .then((r) => { if (alive && r.ok) setItemLayout(r.layout as ItemLayout); })
+      .then((r) => {
+        if (!alive || !r.ok) return;
+        setItemLayout(r.layout as ItemLayout);
+        // 서버에 저장된 '지운 품목'은 업데이트·재설치·다른 기기에서도 계속 숨깁니다
+        for (const [id, e] of Object.entries(r.layout)) if (e.hidden) hideCatalogItem(id);
+      })
       .catch(() => {});
     return () => { alive = false; };
   }, [customerFlow]);
@@ -3428,6 +3433,14 @@ export function Step6() {
       (draft.customItems || []).find((x) => x.id === id)?.name ||
       itemNameById(id) ||
       "품목";
+    if (!customerFlow) {
+      const saved = await saveItemLayout({ data: { patch: { [id]: { hidden: true } } } })
+        .catch(() => ({ ok: false as const, error: "네트워크 연결을 확인해 주세요" }));
+      if (!saved.ok) {
+        toast.error(saved.error || "품목 삭제를 저장하지 못했습니다. 다시 시도해 주세요.");
+        return;
+      }
+    }
     if (id.startsWith("ci_ai_")) {
       const result = await deactivateItemIcon({ data: { itemId: id } });
       if (!result.ok) {
