@@ -233,7 +233,7 @@ import {
 import charC from "@/assets/jimpick-char-c.png";
 import logoAsset from "@/assets/gyeokjeokit-logo-20261027.png.asset.json";
 const logoImg = logoAsset.url;
-import { Art3D, ItemArt, ROOM_IMG, roomImageFor, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
+import { Art3D, ItemArt, roomImageFor, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { JimpickCharacter } from "./JimpickCharacter";
 
 import {
