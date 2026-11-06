@@ -1,7 +1,7 @@
 // 3D 아트 에셋 레지스트리
 import { CharArt } from "@/lib/jimpick-chars";
 import { LineArt, guessWorkLineKey } from "@/lib/jimpick-line";
-import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
+import { Icon3D, icon3dFor, hasStoredIcon } from "@/lib/jimpick-icon3d";
 
 import bed from "@/assets/item-bed.png";
 import wardrobe from "@/assets/item-wardrobe.png";
@@ -194,7 +194,8 @@ export function ItemArt({
   cutout?: boolean;
 }) {
   // 옵션·작업(에어컨 이전 설치, 입주 청소 …)은 3D 사진이 없어 라인 아이콘을 씁니다
-  const work = guessWorkLineKey(name);
+  // 품목에 저장된 그림이 있으면 이름(예: '조립식')과 관계없이 그 그림을 그대로 씁니다
+  const work = hasStoredIcon(id) ? undefined : guessWorkLineKey(name);
   if (work) return <LineArt name={work} alt={name} size={size} className={className} />;
 
   return <Icon3D src={icon3dFor(id, name)} alt={name} size={size} className={className} cutout={cutout} />;
