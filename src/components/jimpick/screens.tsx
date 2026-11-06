@@ -1261,11 +1261,11 @@ export function Step1() {
    */
   const contractDelete = useDeleteContract({
     source: "calendar",
-    onDeleted: (estimateId) => {
+    onDeleted: (estimateId, _intakeIds, info) => {
       deleteEstimate(estimateId);
       loadBookings();
       if (info?.absent) toast.success("목록에서 정리했습니다", { description: "서버에는 이미 없는 항목이라 이 기기에 남은 기록만 지웠습니다." });
-      else toast.success("삭제했습니다", {
+      else toast.success("계약을 삭제했습니다", {
         description: "달력 일정과 견적 내역에서 함께 삭제되었습니다.",
       });
     },
@@ -6865,7 +6865,8 @@ export function History() {
       void reloadIntakeRequests();
       loadTerms();
       loadNotices();
-      toast.success("계약을 삭제했습니다", {
+      if (info?.absent) toast.success("목록에서 정리했습니다", { description: "서버에는 이미 없는 항목이라 이 기기에 남은 기록만 지웠습니다." });
+      else toast.success("삭제했습니다", {
         description: "달력 일정과 견적 내역에서 함께 삭제되었습니다.",
       });
     },
