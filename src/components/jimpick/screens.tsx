@@ -1575,6 +1575,33 @@ export function Step2() {
   const hasFrom = Boolean(draft.fromAddress?.trim());
   const hasDestination = Boolean(draft.toAddress?.trim());
 
+  // 직접 입력해 좌표가 없는 주소: 기본주소(괄호 속 건물명·상세주소 제외)로 위치만 찾아 채웁니다.
+  // 입력한 주소 글자와 상세주소는 바꾸지 않습니다.
+  const geoTried = useRef<Record<string, boolean>>({});
+  useEffect(() => {
+    const sides: ("from" | "to")[] = ["from", "to"];
+    for (const side of sides) {
+      const addr = (side === "from" ? draft.fromAddress : draft.toAddress)?.trim() ?? "";
+      const has = side === "from" ? !!from : !!to;
+      if (!addr || has) continue;
+      const base = addr.replace(/\s*\(.*?\)\s*/g, " ").trim();
+      if (!base || geoTried.current[`${side}:${base}`]) continue;
+      geoTried.current[`${side}:${base}`] = true;
+      searchAddress({ data: { query: base.slice(0, 100) } })
+        .then((res) => {
+          const p = res.places?.find((x) => Number.isFinite(x.x) && Number.isFinite(x.y) && x.x && x.y);
+          if (!p) return;
+          const cur = (side === "from" ? draft.fromAddress : draft.toAddress)?.trim();
+          if (cur !== addr) return;
+          updateDraft(side === "from" ? { fromX: p.x, fromY: p.y } : { toX: p.x, toY: p.y });
+        })
+        .catch(() => {
+          delete geoTried.current[`${side}:${base}`];
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.fromAddress, draft.toAddress, !!from, !!to]);
+
   useEffect(() => {
     // 도착지를 입력하지 않은 경우 지도와 거리를 표시하지 않습니다.
     if (!hasDestination) {
@@ -1683,10 +1710,10 @@ export function Step2() {
           }}
           onDetail={(d) => updateDraft({ toDetail: d, ...autoFloor("to", d) })}
         />
-        {!hasDestination && (
+        {!hasDestination && !from && (
           <p className="text-center text-sm font-semibold text-muted-foreground">도착지를 입력하면 경로가 표시됩니다</p>
         )}
-        {hasDestination && (from || to) && (
+        {(from || to) && (
           <Card className="pb-5">
             <div className="font-bold mb-2">경로 안내</div>
             <KakaoMap from={from} to={to} path={path} height={280} />
