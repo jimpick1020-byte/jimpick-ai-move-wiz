@@ -233,7 +233,7 @@ import {
 import charC from "@/assets/jimpick-char-c.png";
 import logoAsset from "@/assets/gyeokjeokit-logo-20261027.png.asset.json";
 const logoImg = logoAsset.url;
-import { Art3D, ItemArt, ROOM_IMG, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
+import { Art3D, ItemArt, ROOM_IMG, roomImageFor, VEHICLE_IMG, CHAR_IMG, ENV_IMG } from "@/lib/jimpick-art";
 import { JimpickCharacter } from "./JimpickCharacter";
 
 import {
@@ -3749,7 +3749,7 @@ export function Step6() {
                     {name}
                   </span>
                   <div className="mt-1 relative flex items-center justify-center h-[86px]">
-                    <Art3D src={ROOM_IMG[art] || ROOM_IMG["작은방"]} alt={name} size={82} />
+                    <Art3D src={roomImageFor(name)} alt={name} size={82} />
                   </div>
                   {/* 담은 품목 미리보기 — 3D 아이콘 3개까지, 나머지는 +N */}
                   {(() => {
