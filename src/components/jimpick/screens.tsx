@@ -7323,6 +7323,7 @@ export function History() {
                             onClick={() => {
                               contractDelete.ask(e.id);
                             }}
+                            aria-label={`${e.customerName || "이름 없음"} 견적 삭제`}
                             className="px-3 py-2 rounded-xl bg-[#FBEAEA] text-[#D95C5C]"
                           >
                             <Trash2 className="w-4 h-4" />
