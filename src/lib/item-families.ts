@@ -60,6 +60,8 @@ export interface ItemLayoutEntry {
   group?: string;
   /** 묶음 안에서의 순서 (작을수록 앞) */
   order?: number;
+  /** 계정에서 지운 품목 (서버 보관) */
+  hidden?: boolean;
 }
 
 /** 업체별 배치 덮어쓰기 전체 — 키는 품목 ID */
