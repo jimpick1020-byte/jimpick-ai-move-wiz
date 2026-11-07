@@ -37,8 +37,9 @@ export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: 
     if (balancePendingKey && stored !== "completed") { setStatus("completed"); setAskComplete(true); setMethod("bank_transfer"); setOpen(true); }
     else { setStatus(stored); setAskComplete(false); setMethod(null); }
   }, [estimateId, row.paymentStatus, row.paymentNote, balancePendingKey]);
-  const label = pending.length ? "계좌이체 확인 필요" : status === "completed" ? completedPaymentLabel(row.paymentMethod) : `${PAYMENT_METHOD_LABEL[normalizePaymentMethod(row.paymentMethod)]} · ${PAYMENT_STATUS_LABEL[status]}`;
-  const cancel = () => { setAskComplete(false); setMethod(null); };
+  const storedStatus = normalizePaymentStatus(row.paymentStatus);
+  const label = pending.length ? "계좌이체 확인 필요" : storedStatus === "completed" ? completedPaymentLabel(row.paymentMethod) : `${PAYMENT_METHOD_LABEL[normalizePaymentMethod(row.paymentMethod)]} · ${PAYMENT_STATUS_LABEL[storedStatus]}`;
+  const cancel = () => { setAskComplete(false); setMethod(null); setStatus(normalizePaymentStatus(row.paymentStatus)); };
   const confirmDirectBank = async () => {
     if (locked.current || remain <= 0) return;
     locked.current = true; setBusy(true);
@@ -84,7 +85,7 @@ export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: 
     <Button variant="ghost" className="w-full justify-between px-0 text-xs" onClick={() => setOpen(!open)}><span>결제 상태 · {label}</span><span>{open ? "닫기" : "열기"}</span></Button>
     <div className="mt-1 text-xs text-muted-foreground">총 {won(summary.total)} · 예약금 {won(summary.deposit)} · 잔금 <b>{won(summary.balance)}</b></div>
     {open && <div className="mt-3 space-y-3">
-      <div className="grid grid-cols-2 gap-2">{PAYMENT_STATUS_CHOICES.map((s) => <Button key={s} aria-pressed={status === s} variant={status === s ? "staff" : "outline"} disabled={busy || (s === "completed" && status === "completed")} onClick={() => { if (s === "completed") { setAskComplete(true); setMethod(null); } else { cancel(); setStatus(s); } }}>{status === s && <Check aria-hidden="true" className="size-4 shrink-0" />}{PAYMENT_STATUS_LABEL[s]}</Button>)}</div>
+      <div className="grid grid-cols-2 gap-2">{PAYMENT_STATUS_CHOICES.map((s) => <Button key={s} aria-pressed={status === s} variant={status === s ? "staff" : "outline"} disabled={busy || (s === "completed" && normalizePaymentStatus(row.paymentStatus) === "completed")} onClick={() => { if (s === "completed") { setStatus("completed"); setAskComplete(true); setMethod(null); } else { cancel(); setStatus(s); } }}>{status === s && <Check aria-hidden="true" className="size-4 shrink-0" />}{PAYMENT_STATUS_LABEL[s]}</Button>)}</div>
       {askComplete && <div className="space-y-3 border-t border-border pt-3" aria-label="결제완료 확인">
         {!method ? <div className="grid grid-cols-2 gap-2">{PAYMENT_METHODS.map((m) => <Button key={m} variant="outline" onClick={() => setMethod(m)}>{m === "bank_transfer" ? "계좌이체" : `${PAYMENT_METHOD_LABEL[m]} 결제`}</Button>)}<Button variant="ghost" onClick={cancel}>취소</Button></div> : <>
           {method === "cash" && <><p className="text-sm font-bold">잔금 {won(remain)}을 현금으로 받으셨나요?</p><div className="grid grid-cols-2 gap-2"><Button variant="outline" disabled={busy} onClick={cancel}>취소</Button><Button variant="staff" disabled={busy} onClick={() => void run("cash")}>{busy ? "저장 중…" : "현금으로 받았어요"}</Button></div></>}
