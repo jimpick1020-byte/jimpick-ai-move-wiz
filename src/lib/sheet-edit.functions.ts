@@ -4,6 +4,21 @@ import { z } from 'zod';
 import { sheetRoomsOf } from './sheet-edit';
 import { formatDraftPhones } from './format-input';
 import type { Estimate } from './jimpick';
+import { editedSheet } from './sheet-edit';
+
+export const saveEditedSheet = createServerFn({ method: 'POST' })
+  .middleware([requireActiveEntitlement])
+  .inputValidator((input: unknown) => z.object({ estimateId: z.string().min(1).max(80), payload: z.string().max(400000), revision: z.number().int().positive() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const draft = formatDraftPhones(JSON.parse(data.payload) as Estimate);
+    if (draft.id !== data.estimateId) throw new Error('견적 저장 정보를 확인해 주세요.');
+    const saved = { ...editedSheet(draft, {}), sheetSavedRevision: data.revision };
+    const result = await context.supabase.rpc('save_edited_estimate_sheet', {
+      p_estimate_id: saved.id, p_payload: saved as never, p_revision: data.revision,
+    });
+    if (result.error) throw new Error('견적서를 저장하지 못했습니다. 다시 열어 저장해 주세요.');
+    return { ok: true, payload: JSON.stringify(saved) };
+  });
 
 /** Only explicit owner saves change the current shared sheet; consent/payment audit is untouched. */
 export const syncEditedSheet = createServerFn({ method: 'POST' })
