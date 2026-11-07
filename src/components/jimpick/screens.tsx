@@ -201,7 +201,6 @@ import {
   updateReservationMoveDate,
   getReservationCustomerName,
   getManagerNotices,
-  updateEstimateTotal,
   type TermsStatusRow,
   type ManagerNoticeRow,
 } from "@/lib/terms.functions";
@@ -5498,7 +5497,6 @@ export function Result() {
         sheetVersion: draft.sheetVersion ?? 1,
       });
     }
-    saveDraft();
     setSheetOpen(true);
   };
 
@@ -5612,13 +5610,6 @@ export function Result() {
     if (draft.total !== total || draft.deposit !== dep) updateDraft({ total, deposit: dep });
   }, [total, draft.total, draft.deposit, draft.depositOverride, updateDraft]);
 
-  /**
-   * 이미 저장된 견적의 금액을 고치면, 견적 내역 카드와 예약금·잔금 계산 기준을 함께 맞춥니다.
-   *  · 목록(estimates)의 총액을 즉시 고쳐 내역 카드 금액이 바로 바뀌게 합니다.
-   *  · 서버(estimate_terms)의 총액도 함께 고쳐 잔금 등 입금 계산이 옛 금액으로 남지 않게 합니다.
-   *  · 아직 저장 전인 새 견적은 「견적 완료」에서 저장하므로 여기서 건드리지 않습니다.
-   *  · 할인·조정(adjust)은 저장 값이 아니라 화면 임시값이므로, 조정 값이 있을 때는 맞추지 않습니다.
-   */
   // History and customer totals change only after an explicit successful save.
   /** 확인창에 보여 줄 문자 미리보기 (서버가 만드는 내용과 같은 형식입니다) */
   const smsPreview = [

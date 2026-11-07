@@ -30,4 +30,8 @@ describe('saved sheet history amounts', () => {
     const current = { ...newEstimate(), id: 'one', total: 1400000 };
     expect(mergeSavedSheet(current, { ...current, id: 'two', total: 1500000, sheetSavedRevision: 2 })).toBe(current);
   });
+  it('ignores delayed responses from an older successful save', () => {
+    const current = { ...newEstimate(), total: 1300000, sheetSavedRevision: 2 };
+    expect(mergeSavedSheet(current, { ...current, total: 1500000, sheetSavedRevision: 1 })).toBe(current);
+  });
 });
