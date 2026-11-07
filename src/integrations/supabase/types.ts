@@ -2080,6 +2080,10 @@ export type Database = {
         Args: { ids: string[] }
         Returns: undefined
       }
+      save_edited_estimate_sheet: {
+        Args: { p_estimate_id: string; p_payload: Json; p_revision: number }
+        Returns: Json
+      }
       save_worker_contact: { Args: { _contact: Json }; Returns: Json }
       sms_free_limit: { Args: never; Returns: number }
       sms_quota: { Args: { _user_id?: string }; Returns: Json }
