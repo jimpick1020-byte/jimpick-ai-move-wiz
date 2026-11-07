@@ -201,7 +201,6 @@ import {
   updateReservationMoveDate,
   getReservationCustomerName,
   getManagerNotices,
-  updateEstimateTotal,
   type TermsStatusRow,
   type ManagerNoticeRow,
 } from "@/lib/terms.functions";
@@ -275,7 +274,7 @@ import { EstimateSheet, DisposalX, type SheetRoom } from "./EstimateSheet";
 import { Switch } from "@/components/ui/switch";
 import { afterWorkConditions, beforeItemSelection } from "@/lib/ai-scan-setting";
 import { editedSheet, sheetRoomsOf } from "@/lib/sheet-edit";
-import { syncEditedSheet } from "@/lib/sheet-edit.functions";
+import { saveEditedSheet } from "@/lib/sheet-edit.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { printSheet } from "@/lib/sheet-export";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
@@ -5498,7 +5497,6 @@ export function Result() {
         sheetVersion: draft.sheetVersion ?? 1,
       });
     }
-    saveDraft();
     setSheetOpen(true);
   };
 
@@ -5573,8 +5571,7 @@ export function Result() {
 
   /** 공간별 품목 — 담긴 방만, 담긴 순서대로 */
   const sheetRooms: SheetRoom[] = sheetRoomsOf(draft);
-  const persistSheetDraft = useServerFn(saveEstimateDraft);
-  const syncSheet = useServerFn(syncEditedSheet);
+  const persistSheetDraft = useServerFn(saveEditedSheet);
   const sheetSaveLock = useRef(false);
   const sheetDraftRef = useRef(draft);
   sheetDraftRef.current = draft;
@@ -5585,11 +5582,10 @@ export function Result() {
       const next = editedSheet(sheetDraftRef.current, patch);
       const revision = nextRevision();
       const saved = await persistSheetDraft({ data: { estimateId: next.id, payload: JSON.stringify(next), revision } });
-      if (!saved.ok || saved.stale) throw new Error(saved.error || '저장 내용이 변경되었습니다. 다시 저장해 주세요.');
-      sheetDraftRef.current = next;
-      commitSavedSheet(next);
-      const synced = await syncSheet({ data: { estimateId: next.id, revision } });
-      if (!synced.ok) throw new Error(synced.error || '고객 견적서에 반영하지 못했습니다.');
+      const committed = JSON.parse(saved.payload) as Estimate;
+      sheetDraftRef.current = committed;
+      commitSavedSheet(committed);
+      window.dispatchEvent(new Event('jimpick:payment-updated'));
     } finally { sheetSaveLock.current = false; }
   };
 
@@ -5614,30 +5610,7 @@ export function Result() {
     if (draft.total !== total || draft.deposit !== dep) updateDraft({ total, deposit: dep });
   }, [total, draft.total, draft.deposit, draft.depositOverride, updateDraft]);
 
-  /**
-   * 이미 저장된 견적의 금액을 고치면, 견적 내역 카드와 예약금·잔금 계산 기준을 함께 맞춥니다.
-   *  · 목록(estimates)의 총액을 즉시 고쳐 내역 카드 금액이 바로 바뀌게 합니다.
-   *  · 서버(estimate_terms)의 총액도 함께 고쳐 잔금 등 입금 계산이 옛 금액으로 남지 않게 합니다.
-   *  · 아직 저장 전인 새 견적은 「견적 완료」에서 저장하므로 여기서 건드리지 않습니다.
-   *  · 할인·조정(adjust)은 저장 값이 아니라 화면 임시값이므로, 조정 값이 있을 때는 맞추지 않습니다.
-   */
-  const syncedTotal = useRef<number | null>(null);
-  const estimateSaved = estimates.some((e) => e.id === draft.id);
-  useEffect(() => {
-    // 화면을 처음 열 때의 금액은 기준값으로만 기록합니다(열기만으로 저장된 계약 금액을 바꾸지 않음).
-    if (!estimateSaved || syncedTotal.current === null) {
-      syncedTotal.current = total;
-      return;
-    }
-    if (adjust !== 0) return;
-    if (syncedTotal.current === total) return;
-    syncedTotal.current = total;
-    saveDraft();
-    void updateEstimateTotal({ data: { estimateId: draft.id, total } }).catch(() => {
-      /* 저장 실패 시에도 화면 금액은 유지되고, 다음 수정 때 다시 시도합니다 */
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [total, adjust, estimateSaved, draft.id]);
+  // History and customer totals change only after an explicit successful save.
   /** 확인창에 보여 줄 문자 미리보기 (서버가 만드는 내용과 같은 형식입니다) */
   const smsPreview = [
     `${draft.customerName || "고객"} 고객님, 요청하신 이사 견적서가 도착했습니다.`,
@@ -5934,8 +5907,12 @@ export function Result() {
             <div className="flex items-center justify-between mb-1">
               <div className="font-bold text-base">상세 내역</div>
               <button
-                onClick={() => {
+                onClick={async () => {
                   tap("soft");
+                  if (detailEdit) {
+                    try { await saveInlineSheet({}); }
+                    catch (error) { toast.error(error instanceof Error ? error.message : '견적서를 저장하지 못했습니다.'); return; }
+                  }
                   setDetailEdit((v) => !v);
                 }}
                 className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#F7F8F5] text-[#25282D] flex items-center gap-1"

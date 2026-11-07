@@ -11,7 +11,7 @@ export const listActiveEstimates = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<{ ok: boolean; payloads: string[] }> => {
     const { data: terms, error } = await context.supabase
       .from("estimate_terms")
-      .select("estimate_id")
+      .select("estimate_id, total, sheet_version")
       .eq("user_id", context.userId)
       .is("deleted_at", null)
       .is("archived_at", null)
@@ -34,7 +34,10 @@ export const listActiveEstimates = createServerFn({ method: "POST" })
       if (e2) return { ok: false, payloads: [] };
       for (const r of rows ?? []) {
         const p = r.payload as { id?: string } | null;
-        if (p && typeof p === "object" && p.id === r.estimate_id) payloads.push(JSON.stringify(p));
+        if (p && typeof p === "object" && p.id === r.estimate_id) {
+          const latest = (terms ?? []).filter(t => t.estimate_id === r.estimate_id).sort((a,b) => b.sheet_version - a.sheet_version)[0];
+          payloads.push(JSON.stringify(latest ? { ...p, total: latest.total } : p));
+        }
       }
     }
     return { ok: true, payloads };
