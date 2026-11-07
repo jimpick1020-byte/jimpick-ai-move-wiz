@@ -14,6 +14,7 @@ import { FEATURED_HOUSEHOLD_100 } from "./featured-household-100";
 import { saveSafeSnapshot } from "./safe-state";
 import { formatDraftPhones } from "./format-input";
 import { DEFAULT_AI_SCAN_ENABLED, aiScanSettingKey, parseAiScanSetting } from "./ai-scan-setting";
+import { mergeSavedSheet } from './saved-sheet';
 
 // ============ Types ============
 export type MoveType = "포장이사" | "반포장이사" | "일반이사" | "보관이사" | "사무실이사";
@@ -178,6 +179,8 @@ export interface Estimate {
   /** 예상 견적 금액 직접 입력 (null이면 자동 합계) */
   totalOverride?: number | null;
   total: number;
+  /** Revision of the last explicitly saved final sheet, not an autosave. */
+  sheetSavedRevision?: number;
   /** @deprecated 구 견적 호환용. 폐기 품목은 견적 합계에서 제외합니다. */
   disposalFee?: number | null;
   /** @deprecated 구 견적 호환용. 현재 화면에는 폐기 안내문구를 표시하지 않습니다. */
@@ -2105,7 +2108,10 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
           // 고객이 다시 제출한 경우만 바꿉니다(같은 견적 한 건을 갱신, 중복 없음).
           const cur = estimates[i] as Estimate & { intakeSubmittedAt?: string };
           const nx = e as Estimate & { intakeSubmittedAt?: string };
-          if (!cur.intakeOwnerStartedAt && nx.intakeSubmittedAt && nx.intakeSubmittedAt !== cur.intakeSubmittedAt) {
+          if (nx.sheetSavedRevision || (!nx.intakeSubmittedAt && nx.sheetSnapshot)) {
+            const merged = mergeSavedSheet(cur, nx);
+            if (merged !== cur) { estimates = estimates.map((x, j) => j === i ? merged : x); changed = true; }
+          } else if (!cur.intakeOwnerStartedAt && nx.intakeSubmittedAt && nx.intakeSubmittedAt !== cur.intakeSubmittedAt) {
             estimates = estimates.map((x, j) => (j === i ? formatDraftPhones(e) : x));
             changed = true;
           }
