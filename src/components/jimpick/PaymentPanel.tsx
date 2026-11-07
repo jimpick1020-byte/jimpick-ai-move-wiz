@@ -37,7 +37,8 @@ export function PaymentPanel({ estimateId, total, row, onSaved }: { estimateId: 
     if (balancePendingKey && stored !== "completed") { setStatus("completed"); setAskComplete(true); setMethod("bank_transfer"); setOpen(true); }
     else { setStatus(stored); setAskComplete(false); setMethod(null); }
   }, [estimateId, row.paymentStatus, row.paymentNote, balancePendingKey]);
-  const label = pending.length ? "계좌이체 확인 필요" : status === "completed" ? completedPaymentLabel(row.paymentMethod) : `${PAYMENT_METHOD_LABEL[normalizePaymentMethod(row.paymentMethod)]} · ${PAYMENT_STATUS_LABEL[status]}`;
+  const storedStatus = normalizePaymentStatus(row.paymentStatus);
+  const label = pending.length ? "계좌이체 확인 필요" : storedStatus === "completed" ? completedPaymentLabel(row.paymentMethod) : `${PAYMENT_METHOD_LABEL[normalizePaymentMethod(row.paymentMethod)]} · ${PAYMENT_STATUS_LABEL[storedStatus]}`;
   const cancel = () => { setAskComplete(false); setMethod(null); setStatus(normalizePaymentStatus(row.paymentStatus)); };
   const confirmDirectBank = async () => {
     if (locked.current || remain <= 0) return;
