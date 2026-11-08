@@ -13,10 +13,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { z } from "zod";
 import { formatDraftPhones } from "./format-input";
+import { finalSavedEstimate } from "./saved-sheet";
+import type { Estimate } from "./jimpick";
 
 export interface DraftSyncResult {
   ok: boolean;
   error?: string;
+  payload?: string;
   /** 서버에 저장된 최신 순번 */
   revision?: number;
   /** 더 최신 값이 이미 있어서 이번 값은 반영하지 않음 */
@@ -48,11 +51,17 @@ export const saveEstimateDraft = createServerFn({ method: "POST" })
     }
 
     if (data.finalSave) {
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) ||
+        (parsed as Estimate).id !== data.estimateId || !Array.isArray((parsed as Estimate).rooms)) {
+        return { ok: false, error: "견적 저장 정보를 확인해 주세요." };
+      }
+      const saved = finalSavedEstimate(parsed as Estimate, data.revision);
       const result = await context.supabase.rpc("finalize_intake_estimate", {
-        p_estimate_id: data.estimateId, p_payload: parsed as never, p_revision: data.revision,
+        p_estimate_id: data.estimateId, p_payload: saved as never, p_revision: data.revision,
       });
       if (result.error) return { ok: false, error: result.error.message };
-      return result.data as unknown as DraftSyncResult;
+      const final = result.data as unknown as DraftSyncResult;
+      return final.ok && !final.stale ? { ...final, payload: JSON.stringify(saved) } : final;
     }
 
     const { data: existing } = await context.supabase
