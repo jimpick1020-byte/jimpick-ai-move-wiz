@@ -281,6 +281,13 @@
       "when": 1794049750117,
       "tag": "0039_save_edited_estimate_sheet_atomic",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1794143758915,
+      "tag": "0040_final_completion_sync_current_sheet",
+      "breakpoints": true
     }
   ]
 }
