@@ -5428,7 +5428,6 @@ export function Result() {
     setFinishing(true);
     setFinishError(null);
     try {
-      saveDraft();
       const r = await getTermsStatuses({ data: { estimateId: draft.id } });
       const saved = r.ok && (r.rows ?? []).some((row) => row.estimateId === draft.id);
       if (!saved) {
@@ -5440,7 +5439,8 @@ export function Result() {
         return;
       }
       const final = await saveEstimateDraft({ data: { estimateId: draft.id, payload: JSON.stringify({ ...draft, total }), revision: nextRevision(), finalSave: true } });
-      if (!final.ok || final.stale) throw new Error(final.error || "견적 완료 상태를 저장하지 못했습니다.");
+      if (!final.ok || final.stale || !final.payload) throw new Error(final.error || "견적 완료 상태를 저장하지 못했습니다.");
+      commitSavedSheet(JSON.parse(final.payload) as Estimate);
       await reloadIntakeRequests();
       window.dispatchEvent(new Event("jimpick:payment-updated"));
       setConfirmSheet(false);
@@ -5529,12 +5529,12 @@ export function Result() {
       const r = await saveEstimateDraft({
         data: { estimateId: draft.id, payload: JSON.stringify({ ...draft, total, status: "완료" }), revision: nextRevision(), finalSave: true },
       });
-      if (!r?.ok || r.stale) {
+      if (!r?.ok || r.stale || !r.payload) {
         throw new Error(r?.error || "서버 저장에 실패했습니다.");
       }
 
       // 서버 저장이 성공한 경우에만 완료 상태로 저장(로컬 목록에 반영)합니다.
-      saveDraft();
+      commitSavedSheet(JSON.parse(r.payload) as Estimate);
       await reloadIntakeRequests();
       window.dispatchEvent(new Event("jimpick:payment-updated"));
       tap("success");
