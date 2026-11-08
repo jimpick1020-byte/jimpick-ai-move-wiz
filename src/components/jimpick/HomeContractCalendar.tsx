@@ -273,7 +273,7 @@ export function HomeContractCalendar({
                   </div>
                   <div className="mt-2 flex gap-2">
                     <button type="button" onClick={() => onOpenBooking(booking)} className="flex-1 rounded-xl bg-[#EAF2FC] py-2.5 text-[13px] font-black text-[#1671E8]">견적서 보기</button>
-                    <button type="button" onClick={() => askCancel(booking)} className="flex-1 rounded-xl border border-[#EBCFCF] bg-white py-2.5 text-[13px] font-black text-[#D95C5C]">계약 취소</button>
+                    {!done && <button type="button" onClick={() => askCancel(booking)} className="flex-1 rounded-xl border border-[#EBCFCF] bg-white py-2.5 text-[13px] font-black text-[#D95C5C]">계약 취소</button>}
                   </div>
                 </div>
               );
