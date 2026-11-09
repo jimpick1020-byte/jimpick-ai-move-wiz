@@ -3744,11 +3744,11 @@ export function Step6() {
 
       {/* 디지털 3D 집 구조 */}
       <div
-        className="flex-1 overflow-auto p-4 pb-6 bg-gradient-to-b from-[#EEF6FF] to-[#E6EEFA]"
+        className="jp-room-canvas flex-1 overflow-auto pb-6"
         data-room-grid-scroll
         {...swipe}
       >
-        <div className="grid min-w-0 grid-cols-1 gap-4">
+        <div className="jp-room-list grid min-w-0 grid-cols-1">
           {displayNames.map((name, index) => {
             const r = roomOf(name);
             const s = roomSummary(r?.items || {});
@@ -3764,7 +3764,7 @@ export function Step6() {
                 data-room-card-index={index}
                 data-room-dragging={dragging || undefined}
                 style={{ transition: dragging ? "none" : undefined, outline: dropHint ? "3px dashed #3578C8" : dragging ? "3px solid #3578C8" : undefined, outlineOffset: 2, boxShadow: dragging ? "0 18px 36px -10px rgba(7,81,216,0.45)" : undefined }}
-                className="jp-room-horizontal relative grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)] gap-2 rounded-3xl border border-border bg-card p-3 text-card-foreground shadow-sm"
+                className="jp-room-horizontal relative grid min-w-0 text-card-foreground"
               >
                 <Button variant="ghost"
                   {...press}
@@ -3779,7 +3779,7 @@ export function Step6() {
                     setQ("");
                   }}
                   aria-label={`${name} 방 열기`}
-                  className="h-auto min-w-0 w-full flex-col items-stretch justify-start gap-0 whitespace-normal p-0 text-left active:translate-y-[2px] transition-transform"
+                  className="jp-room-face h-auto min-w-0 w-full flex-col items-stretch justify-start gap-0 whitespace-normal p-0 text-left active:translate-y-[2px] transition-transform"
                 >
                   <span
                     className={`inline-block px-3 py-1 rounded-xl text-white text-[14px] font-black bg-gradient-to-b ${
@@ -3788,7 +3788,7 @@ export function Step6() {
                   >
                     {name}
                   </span>
-                  <div className="jp-room-original-art mt-3 relative flex w-full items-center justify-center aspect-square">
+                  <div className="jp-room-original-art relative flex w-full items-center justify-center aspect-square">
                     <Art3D src={roomImageFor(name)} alt={name} size={120} />
                   </div>
                   {/* 담은 품목 미리보기 — 3D 아이콘 3개까지, 나머지는 +N */}
@@ -3800,8 +3800,8 @@ export function Step6() {
                     const nameOf = (id: string) => catalog.find((c) => c.id === id)?.name || id;
                     return (
                       <>
-                        <div className="mt-1 flex min-w-0 flex-wrap items-center justify-center gap-1">
-                          {shownItems.map(([id, qty]) => (
+                        <div className="mt-1 flex flex-wrap items-center justify-center gap-1">
+                          {shownItems.filter(([id]) => r?.disposal?.[id]).map(([id, qty]) => (
                             <span
                               key={id}
                               className="relative rounded-xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] p-0.5 shadow-[0_2px_0_#E5E7EB,inset_0_1px_0_#fff]"
@@ -3815,37 +3815,32 @@ export function Step6() {
                               )}
                             </span>
                           ))}
-                          {rest > 0 && (
-                            <span className="self-center rounded-xl bg-[#F7F8F5] border border-[#E5E7EB] px-1.5 py-2 text-[12px] font-black text-[#25282D]">
-                              +{rest}
-                            </span>
-                          )}
                         </div>
                         {/* 품목 이름·수량 — 두 줄까지 보여 주고 나머지는 「외 N종」 */}
-                        <div className="mt-1 text-center text-[11px] font-bold text-[#5A6478] leading-snug line-clamp-2 break-keep">
+                        <div className="mt-1 text-center text-[11px] font-bold text-muted-foreground leading-snug line-clamp-2 break-keep">
                           {shownItems.map(([id, qty]) => `${nameOf(id)} ${qty}`).join(" · ")}
                         </div>
                         {rest > 0 && (
-                          <div className="text-center text-[11px] font-bold text-[#8A93A6]">
+                          <div className="text-center text-[11px] font-bold text-muted-foreground">
                             외 {rest}종
                           </div>
                         )}
                       </>
                     );
                   })()}
-                  <div className="mt-1 text-center text-[12px] font-extrabold text-[#25282D]">
+                  <div className="mt-1 text-center text-[12px] font-extrabold text-foreground">
                     {s.kinds > 0 ? `${s.kinds}종 · ${s.count}개` : "품목 없음"}
                   </div>
                 </Button>
-                <div className="min-w-0 space-y-3 border-l border-border pl-2 pt-9" data-room-quick={name}>
+                <div className="jp-room-quick min-w-0" data-room-quick={name}>
                   {([{ id: "basket", label: "이사바구니" }, { id: "box", label: "이사박스" }]).map(item => (
-                    <div key={item.id} className="grid min-w-0 grid-cols-[72px_minmax(0,1fr)] items-center gap-x-1 gap-y-1 border-b border-border pb-3 last:border-b-0 last:pb-0" onPointerDown={e => e.stopPropagation()}>
-                      <span className="relative flex size-[72px] shrink-0 items-center justify-center"><ItemArt id={item.id} name={item.label} size={72} />{r?.disposal?.[item.id] && <DisposalX />}</span>
-                      <span className="min-w-0 break-keep text-[14px] font-black text-foreground">{item.label}</span>
-                      <div className="col-span-2 grid w-full min-w-0 grid-cols-[44px_minmax(24px,1fr)_44px] items-center gap-1">
-                        <Button size="icon" variant="outline" className="size-11 shrink-0 text-xl" aria-label={`${name} ${item.label} 감소`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, -1); }}><Minus /></Button>
+                    <div key={item.id} className="jp-room-quick-row grid min-w-0 items-center" onPointerDown={e => e.stopPropagation()}>
+                      <span className="jp-room-quick-art relative flex items-center justify-center"><ItemArt id={item.id} name={item.label} size={88} />{r?.disposal?.[item.id] && <DisposalX />}</span>
+                      <span className="jp-room-quick-name min-w-0 break-keep text-[14px] font-black text-foreground">{item.label}</span>
+                      <div className="jp-room-quick-controls grid w-full min-w-0 grid-cols-[44px_minmax(24px,1fr)_44px] items-center gap-1">
+                        <Button size="icon" variant="outline" className="jp-room-quantity-button size-11 shrink-0 text-xl" aria-label={`${name} ${item.label} 감소`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, -1); }}><Minus /></Button>
                         <output aria-label={`${name} ${item.label} 수량`} className="min-w-0 text-center text-xl font-black tabular-nums">{r?.items[item.id] || 0}</output>
-                        <Button size="icon" variant="outline" className="size-11 shrink-0 text-xl" aria-label={`${name} ${item.label} 증가`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, 1); }}><Plus /></Button>
+                        <Button size="icon" variant="outline" className="jp-room-quantity-button size-11 shrink-0 text-xl" aria-label={`${name} ${item.label} 증가`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, 1); }}><Plus /></Button>
                       </div>
                     </div>
                   ))}
