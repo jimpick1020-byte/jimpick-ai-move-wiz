@@ -11,9 +11,10 @@ import { createServerFn, createMiddleware } from "@tanstack/react-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
+import { NEW_TRIAL_DAYS } from "./payapp-test";
 
 /** 무료체험 기간 (일) */
-export const TRIAL_DAYS = 10;
+export const TRIAL_DAYS = NEW_TRIAL_DAYS;
 /** 무료체험 기간 (시간) */
 export const TRIAL_HOURS = TRIAL_DAYS * 24;
 

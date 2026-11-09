@@ -58,7 +58,7 @@ export const getMyAccount = createServerFn({ method: "GET" })
 /**
  * 구독 결제 처리.
  * 무료 체험 시작 전용 처리입니다.
- * 유료 구독은 토스페이먼츠가 실제 승인한 뒤에만 별도 결제 처리에서 기록합니다.
+ * 페이앱 모의시험은 이 함수와 실제 구독을 변경하지 않습니다.
  */
 export const subscribePlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -72,9 +72,14 @@ export const subscribePlan = createServerFn({ method: "POST" })
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const now = new Date();
-    // 무료 체험은 30일(한 달), 유료 구독은 30일 주기
-    const end = new Date(now.getTime() + (plan.price === 0 ? TRIAL_DAYS : 30) * 86400000);
+    const { data: existing, error: readError } = await context.supabase.from("subscriptions")
+      .select("plan, current_period_end").eq("user_id", context.userId).maybeSingle();
+    if (readError) throw new Error("기존 구독을 확인하지 못했습니다.");
+    if (existing) return { ok: true, plan: existing.plan, periodEnd: existing.current_period_end };
+    const { data: auth, error: authError } = await context.supabase.auth.getUser();
+    if (authError || !auth.user) throw new Error("가입일을 확인하지 못했습니다.");
+    const now = new Date(auth.user.created_at);
+    const end = new Date(now.getTime() + TRIAL_DAYS * 86400000);
 
 
     const { error: subErr } = await supabaseAdmin.from("subscriptions").upsert(
@@ -91,7 +96,7 @@ export const subscribePlan = createServerFn({ method: "POST" })
           ? { trial_started_at: now.toISOString(), trial_ends_at: end.toISOString() }
           : {}),
       },
-      { onConflict: "user_id" },
+      { onConflict: "user_id", ignoreDuplicates: true },
     );
     if (subErr) throw new Error(subErr.message);
 
