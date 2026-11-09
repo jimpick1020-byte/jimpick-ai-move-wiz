@@ -695,3 +695,6 @@ html.jp-force-light, html.jp-force-light body { color-scheme: light only; backgr
   .jp-customer-sheet-frame::before,
   .jp-customer-sheet-frame::after { display: none !important; animation: none !important; box-shadow: none !important; }
 }
+
+/* 견적 단계 좌우 밀기를 브라우저 뒤로가기 제스처가 가로채지 않도록 합니다. */
+html, body, .jp-estimate-flow, .jp-estimate-flow * { overscroll-behavior-x: none; }
