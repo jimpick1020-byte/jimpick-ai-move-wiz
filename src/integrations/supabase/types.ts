@@ -1223,6 +1223,24 @@ export type Database = {
         }
         Relationships: []
       }
+      payapp_test_subscriptions: {
+        Row: {
+          state: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          state?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          state?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -2082,6 +2100,10 @@ export type Database = {
       }
       save_edited_estimate_sheet: {
         Args: { p_estimate_id: string; p_payload: Json; p_revision: number }
+        Returns: Json
+      }
+      save_payapp_test_state: {
+        Args: { p_expected: Json; p_next: Json }
         Returns: Json
       }
       save_worker_contact: { Args: { _contact: Json }; Returns: Json }
