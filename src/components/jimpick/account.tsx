@@ -1,4 +1,5 @@
 import { PUBLIC_APP_URL } from "@/lib/app-url";
+import { Link } from "@tanstack/react-router";
 import { formatTel, onFormatted } from "@/lib/format-input";
 import { useEffect, useState, type MouseEvent } from "react";
 import { toast } from "sonner";
@@ -792,7 +793,7 @@ export function SubscriptionScreen() {
           <DialogContent className="max-h-[85dvh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>페이앱 정기결제 모의시험</DialogTitle>
-              <DialogDescription>월 30,000원 · 가입 후 10일 무료 체험. 실제 카드 등록·청구와 이용 권한 변경은 없습니다. 페이앱 판매자 연결 전입니다.</DialogDescription>
+              <DialogDescription>실제 청구 없음 · 월 30,000원 · 가입 후 10일 무료 체험. 체험 종료 후 별도 동의가 필요합니다. 지금은 모의시험만 가능하며 실제 카드 등록·청구와 이용 권한 변경은 없습니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-2 text-sm" aria-live="polite">
               <div>시험 상태: {payapp?.state ? ({ registered: "등록됨", active: "갱신됨", canceled: "해지됨" }[payapp.state.status]) : "미등록"}</div>
@@ -820,6 +821,7 @@ export function SubscriptionScreen() {
                   }}>{label}</Button>
               ))}
             </div>
+            <Button asChild variant="outline"><Link to="/billing/payapp/return">시험 결과 · 복귀 화면 확인</Link></Button>
           </DialogContent>
         </Dialog>
 

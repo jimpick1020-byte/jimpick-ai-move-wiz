@@ -22,11 +22,17 @@
 통보 문서: https://docs.payapp.kr/docs/04-webhook.md
 판매자 안내: https://www.payapp.kr/homepage/pay/pay_recurring.html
 
-1. 페이앱 판매자 관리자 **설정 → 연동 정보**에서 판매자 아이디(`userid`), `linkkey`, `linkval`, `requestkey`를 확인한다. 비밀값을 채팅에 보내지 않는다. 현재 앱에는 이 연결값이 없다.
+1. 판매자 아이디와 linkkey/linkval/requestkey는 PAYAPP_USER_ID, PAYAPP_LINK_KEY, PAYAPP_LINK_VALUE, PAYAPP_REQUEST_KEY로 보안 저장되어 있다. 이번 작업에서 값을 변경하거나 결제 요청에 사용하지 않는다.
 2. **정기/등록결제 → 정기결제 등록**의 상품 기준은 ‘견적잇 업체 구독’, 30,000원, 월간이다. 운영 건을 지금 등록하지 않는다.
 3. API 기준은 `goodprice=30000`, `rebillCycleType=Month`, 카드만이면 `openpaytype=card`, 자동 문자 금지는 `smsuse=n`. 월 결제일과 필수 종료일(`rebillExpire`)은 운영 정책 확정이 필요하다. 임의 종료일을 정하지 않았다.
 4. 공식 공개 API에는 무청구 sandbox나 가입 후 10일 뒤 최초 청구를 보장하는 등록 옵션이 확인되지 않았다. 페이앱에 **무청구 시험 판매자/시험 카드 제공 여부**, **등록 시 최초 승인 없이 무료체험 종료 후 첫 청구 가능한 방식**을 먼저 확인한다. 즉시 승인되는 정기결제를 무료체험 중 호출하면 안 된다.
 5. 페이앱 통보는 `userid/linkkey/linkval` 검증, 서버 주문의 금액·정기결제번호 비교, 거래번호(`mul_no`)별 중복 처리가 필요하다. 해지는 `rebillCancel`, 인증은 `requestdate`와 `sha256(userid + requestdate + requestkey)`를 사용한다.
-6. 결제 통보 주소(`feedbackurl`)와 복귀 주소(`returnurl`)는 **아직 생성되지 않았다**. 존재하지 않는 주소를 판매자 관리자에 등록하지 않는다. 위 시험/최초 청구 조건과 연결값이 준비되면 보호된 통보 처리와 정기결제 등록/해지를 구현하고, 게시된 실제 주소를 안내한다.
+6. 준비한 주소 (미게시):
+   - feedbackurl: https://gyeonjeokit.lovable.app/api/public/payapp/feedback
+   - returnurl: https://gyeonjeokit.lovable.app/api/public/payapp/return
+   - 복귀 주소는 /billing/payapp/return 화면으로 이동하며 저장된 모의시험만 읽는다. URL의 성공/금액 주장은 무시하고 이용권을 변경하지 않는다.
+   - 통보 주소는 현재 모든 통보에 503을 반환하고 저장·승인·이용권 변경을 하지 않는다. 공식 통보 인증 계약 미확인 상태에서 성공 응답하지 않는다. 아직 판매자 운영 설정에 등록하지 않는다.
+7. 첫 운영 결제는 가입 10일 체험 종료 이후 별도 월 30,000원 정기결제 동의를 서버에 저장·확인한 뒤에만 허용해야 한다. 가입 약관 동의로 대체할 수 없다. 현재 운영 결제는 비활성이고 동의/주문/실제 거래 처리는 구현하지 않았다.
+8. 운영 연결 전 공식 통보 인증·재시도/응답 규약을 확인하고, 인증된 서버 거래 조회·주문 금액/업체/정기번호 대조·거래번호 고유 제약을 통한 원자적 1회 이용권 반영을 구현해야 한다. 기존 모의시험 중복 처리를 운영 결제 검증으로 간주하지 않는다.
 
 현재 이 작업으로 기존 토스 정기결제 계약을 자동 취소하거나 페이앱으로 이전하지 않는다. 기존 정기결제 계약이 있다면 별도 확인과 중복 청구 방지 전환이 필요하다.
