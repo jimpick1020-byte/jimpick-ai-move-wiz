@@ -5322,6 +5322,8 @@ export function Result() {
         return;
       }
 
+      // Use the exact token accepted by the server, including collision recovery.
+      let publishedToken = shareToken();
       // 1) 견적서를 서버에 올려 둡니다. 이것이 있어야 고객이 링크를 열 수 있습니다.
       try {
         const pub = await publishEstimateTerms({
@@ -5337,7 +5339,7 @@ export function Result() {
             termsName: TERMS_NAME,
             termsVersion: TERMS_VERSION,
             termsEffectiveAt: TERMS_EFFECTIVE_AT,
-            accessToken: shareToken(),
+            accessToken: publishedToken,
             sheetSnapshot: JSON.stringify({
               draft: { ...draft, total, deposit: plannedDeposit(total, draft.depositOverride) },
               rooms: sheetRooms,
@@ -5349,11 +5351,14 @@ export function Result() {
         if (!pub.ok) {
           setSendResult({
             ok: false,
-            error: `${pub.error ?? "견적서를 서버에 올리지 못했습니다."} 계정 로그인 상태를 확인해 주세요.`,
+            error: pub.error ?? "견적서를 서버에 올리지 못했습니다. 잠시 후 다시 시도해 주세요.",
           });
           setSending(false);
           return;
         }
+        if (!pub.accessToken) throw new Error("고객 링크 저장을 확인하지 못했습니다. 다시 시도해 주세요.");
+        publishedToken = pub.accessToken;
+        updateDraft({ shareToken: publishedToken, shareTokenVersion: draft.sheetVersion ?? 1 });
       } catch (e) {
         setSendResult({
           ok: false,
@@ -5376,7 +5381,7 @@ export function Result() {
         customerName: draft.customerName ?? "",
         movingDate: formatMoveDateTime(draft.moveDate, draft.moveTime),
         totalAmount: total,
-        secureUrl: shareUrl(),
+        secureUrl: publicUrl(`/share/${draft.id}?t=${encodeURIComponent(publishedToken)}`),
       });
       window.location.href = intakeSmsHref(draft.phone ?? "", body);
       smsOpenedAt.current = Date.now();

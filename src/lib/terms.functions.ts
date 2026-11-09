@@ -13,6 +13,7 @@ import { formatTel } from "./format-input";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { z } from "zod";
+import { saveTermsWithStableToken } from "./terms-publish";
 
 export interface TermsLinkInfo {
   ok: boolean;
@@ -75,8 +76,22 @@ export const publishEstimateTerms = createServerFn({ method: "POST" })
       })
       .parse(d),
   )
-  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
-    const { data: saved, error } = await context.supabase
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string; accessToken?: string }> => {
+    const { data: saved, error, token } = await saveTermsWithStableToken({
+      token: data.accessToken,
+      existingToken: async () => {
+        const { data: existing, error: readError } = await context.supabase
+          .from("estimate_terms")
+          .select("access_token")
+          .eq("user_id", context.userId)
+          .eq("estimate_id", data.estimateId)
+          .eq("sheet_version", data.sheetVersion)
+          .maybeSingle();
+        if (readError) throw new Error("견적서 연결 정보를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        return existing?.access_token ?? null;
+      },
+      freshToken: () => crypto.randomUUID().replaceAll("-", ""),
+      save: async (accessToken) => await context.supabase
       .from("estimate_terms")
       .upsert(
         {
@@ -92,7 +107,7 @@ export const publishEstimateTerms = createServerFn({ method: "POST" })
           terms_name: data.termsName,
           terms_version: data.termsVersion,
           terms_effective_at: data.termsEffectiveAt ?? null,
-          access_token: data.accessToken,
+          access_token: accessToken,
           sent_at: new Date(data.sentAt ?? Date.now()).toISOString(),
           sent_msg_id: data.sentMsgId ?? null,
           sheet_snapshot: data.sheetSnapshot ?? null,
@@ -100,7 +115,8 @@ export const publishEstimateTerms = createServerFn({ method: "POST" })
         { onConflict: "user_id,estimate_id,sheet_version" },
       )
       .select("id")
-      .maybeSingle();
+      .maybeSingle(),
+    });
     if (error) {
       console.error("[publishEstimateTerms]", error.message);
       return { ok: false, error: "약관 발송 기록을 저장하지 못했습니다." };
@@ -118,7 +134,7 @@ export const publishEstimateTerms = createServerFn({ method: "POST" })
         );
       }
     }
-    return { ok: true };
+    return { ok: true, accessToken: token };
   });
 
 /** 고객용 — 보안 토큰으로 약관 정보와 동의 여부를 읽습니다 */
