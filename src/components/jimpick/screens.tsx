@@ -1775,7 +1775,7 @@ export function Step2() {
  *  · 오른쪽으로 밀기 → 이전(onPrev), 왼쪽으로 밀기 → 다음(onNext)
  *  · 가로로 70px 이상 + 세로 움직임보다 가로가 확실히 클 때만 반응(세로 스크롤·버튼 탭과 충돌 방지)
  */
-const SWIPE_IGNORE = 'textarea,input[type="range"],select,[contenteditable="true"],[role="slider"],[data-room-card-id],[data-room-quick],[data-no-swipe],[data-swipe-ignore]';
+const SWIPE_IGNORE = 'textarea,input[type="range"],select,[contenteditable="true"],[role="slider"],.jp-room-quantity-button,[data-no-swipe],[data-swipe-ignore]';
 
 /** 시작 지점이 가로로 스크롤되는 목록 안이면 단계 넘기기 대신 목록이 움직이게 둡니다. */
 function insideHorizontalScroller(el: Element | null, stop: Element) {
@@ -1788,14 +1788,15 @@ function insideHorizontalScroller(el: Element | null, stop: Element) {
   return false;
 }
 
-export function swipeDirection(dx: number, dy: number, ms: number): "next" | "prev" | null {
-  if (ms > 800) return null;
+export function swipeDirection(dx: number, dy: number, ms: number, holdMs = 0): "next" | "prev" | null {
+  // 0.3초 이상 멈춰 있다가 움직이면 꾹 눌러 옮기기로 보고 단계를 넘기지 않습니다.
+  if (ms > 800 || holdMs > 300) return null;
   if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8) return null;
   return dx < 0 ? "next" : "prev";
 }
 
 function useSwipeNav(onPrev?: () => void, onNext?: () => void) {
-  const start = useRef<{ x: number; y: number; t: number } | null>(null);
+  const start = useRef<{ x: number; y: number; t: number; moved?: number } | null>(null);
   const begin = (target: EventTarget, stop: Element, x: number, y: number) => {
     const el = target instanceof Element ? target : null;
     const editing = el instanceof HTMLInputElement && el === document.activeElement; // 입력 중인 칸의 글자 선택은 그대로 둡니다
@@ -1806,7 +1807,7 @@ function useSwipeNav(onPrev?: () => void, onNext?: () => void) {
     const s = start.current;
     start.current = null;
     if (!s) return;
-    const dir = swipeDirection(x - s.x, y - s.y, Date.now() - s.t);
+    const dir = swipeDirection(x - s.x, y - s.y, Date.now() - s.t, (s.moved ?? Date.now()) - s.t);
     if (dir === "next") onNext?.();
     else if (dir === "prev") onPrev?.();
   };
@@ -1833,7 +1834,12 @@ function useSwipeNav(onPrev?: () => void, onNext?: () => void) {
       host.addEventListener("touchend", done);
       host.addEventListener("touchcancel", done);
     },
-    onTouchMove: (e: ReactTouchEvent) => { if (e.touches.length !== 1) start.current = null; },
+    onTouchMove: (e: ReactTouchEvent) => {
+      const s = start.current;
+      const t = e.touches[0];
+      if (e.touches.length !== 1) { start.current = null; return; }
+      if (s && t && s.moved === undefined && Math.hypot(t.clientX - s.x, t.clientY - s.y) > 8) s.moved = Date.now();
+    },
     onTouchEnd: (e: ReactTouchEvent) => {
       const t = e.changedTouches[0];
       if (t) finish(t.clientX, t.clientY);
