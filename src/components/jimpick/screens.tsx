@@ -1775,7 +1775,7 @@ export function Step2() {
  *  · 오른쪽으로 밀기 → 이전(onPrev), 왼쪽으로 밀기 → 다음(onNext)
  *  · 가로로 70px 이상 + 세로 움직임보다 가로가 확실히 클 때만 반응(세로 스크롤·버튼 탭과 충돌 방지)
  */
-const SWIPE_IGNORE = 'input,textarea,select,[contenteditable="true"],[role="slider"],[data-room-card-id],[data-room-quick],[data-no-swipe],[data-swipe-ignore]';
+const SWIPE_IGNORE = 'textarea,input[type="range"],select,[contenteditable="true"],[role="slider"],[data-room-card-id],[data-room-quick],[data-no-swipe],[data-swipe-ignore]';
 
 /** 시작 지점이 가로로 스크롤되는 목록 안이면 단계 넘기기 대신 목록이 움직이게 둡니다. */
 function insideHorizontalScroller(el: Element | null, stop: Element) {
@@ -1798,7 +1798,8 @@ function useSwipeNav(onPrev?: () => void, onNext?: () => void) {
   const start = useRef<{ x: number; y: number; t: number } | null>(null);
   const begin = (target: EventTarget, stop: Element, x: number, y: number) => {
     const el = target instanceof Element ? target : null;
-    if (el?.closest(SWIPE_IGNORE) || insideHorizontalScroller(el, stop)) { start.current = null; return; }
+    const editing = el instanceof HTMLInputElement && el === document.activeElement; // 입력 중인 칸의 글자 선택은 그대로 둡니다
+    if (editing || el?.closest(SWIPE_IGNORE) || insideHorizontalScroller(el, stop)) { start.current = null; return; }
     start.current = { x, y, t: Date.now() };
   };
   const finish = (x: number, y: number) => {
