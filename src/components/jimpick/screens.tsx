@@ -1818,7 +1818,8 @@ function useSwipeNav(onPrev?: () => void, onNext?: () => void) {
       if (!start.current) return;
       // 가로로 확실히 밀 때만 브라우저 자체 뒤로가기 제스처를 막아 견적이 닫히지 않게 합니다.
       const host = e.currentTarget;
-      const guard = (ev: TouchEvent) => {
+      const guard = (event: Event) => {
+        const ev = event as TouchEvent;
         const s = start.current;
         const t = ev.touches[0];
         if (!s || !t || ev.touches.length !== 1) return;
