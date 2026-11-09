@@ -1813,6 +1813,24 @@ function useSwipeNav(onPrev?: () => void, onNext?: () => void) {
     onTouchStart: (e: ReactTouchEvent) => {
       if (e.touches.length !== 1) { start.current = null; return; }
       begin(e.target, e.currentTarget, e.touches[0].clientX, e.touches[0].clientY);
+      if (!start.current) return;
+      // 가로로 확실히 밀 때만 브라우저 자체 뒤로가기 제스처를 막아 견적이 닫히지 않게 합니다.
+      const host = e.currentTarget;
+      const guard = (ev: TouchEvent) => {
+        const s = start.current;
+        const t = ev.touches[0];
+        if (!s || !t || ev.touches.length !== 1) return;
+        const dx = Math.abs(t.clientX - s.x);
+        if (dx > 10 && dx > Math.abs(t.clientY - s.y) * 1.2 && ev.cancelable) ev.preventDefault();
+      };
+      const done = () => {
+        host.removeEventListener("touchmove", guard);
+        host.removeEventListener("touchend", done);
+        host.removeEventListener("touchcancel", done);
+      };
+      host.addEventListener("touchmove", guard, { passive: false });
+      host.addEventListener("touchend", done);
+      host.addEventListener("touchcancel", done);
     },
     onTouchMove: (e: ReactTouchEvent) => { if (e.touches.length !== 1) start.current = null; },
     onTouchEnd: (e: ReactTouchEvent) => {
