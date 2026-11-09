@@ -3800,8 +3800,8 @@ export function Step6() {
                     const nameOf = (id: string) => catalog.find((c) => c.id === id)?.name || id;
                     return (
                       <>
-                        <div className="hidden">
-                          {shownItems.map(([id, qty]) => (
+                        <div className="mt-1 flex flex-wrap items-center justify-center gap-1">
+                          {shownItems.filter(([id]) => r?.disposal?.[id]).map(([id, qty]) => (
                             <span
                               key={id}
                               className="relative rounded-xl bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] p-0.5 shadow-[0_2px_0_#E5E7EB,inset_0_1px_0_#fff]"
@@ -3815,11 +3815,6 @@ export function Step6() {
                               )}
                             </span>
                           ))}
-                          {rest > 0 && (
-                            <span className="self-center rounded-xl bg-[#F7F8F5] border border-[#E5E7EB] px-1.5 py-2 text-[12px] font-black text-[#25282D]">
-                              +{rest}
-                            </span>
-                          )}
                         </div>
                         {/* 품목 이름·수량 — 두 줄까지 보여 주고 나머지는 「외 N종」 */}
                         <div className="mt-1 text-center text-[11px] font-bold text-muted-foreground leading-snug line-clamp-2 break-keep">
