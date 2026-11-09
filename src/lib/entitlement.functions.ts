@@ -13,12 +13,12 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 
 /** 무료체험 기간 (일) */
-export const TRIAL_DAYS = 30;
+export const TRIAL_DAYS = 10;
 /** 무료체험 기간 (시간) */
 export const TRIAL_HOURS = TRIAL_DAYS * 24;
 
 export const TRIAL_EXPIRED_MESSAGE =
-  "한 달 무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
+  "무료체험이 종료되었습니다. 계속 이용하려면 구독해 주세요.";
 
 /** 무료 문자 사용량 표시용 참고 값 (체험 중에는 건수 제한이 없습니다) */
 export const FREE_SMS_LIMIT = 20;

@@ -26,11 +26,9 @@ import {
 } from "@/lib/subscription.functions";
 
 import {
-  getTossBillingConfig,
-  getTossBilling,
-  chargeTossBilling,
-  type BillingCardInfo,
-} from "@/lib/toss.functions";
+  getPayappTest,
+  runPayappTest,
+} from "@/lib/payapp.functions";
 import { tap } from "@/lib/feedback";
 import { Check, Crown, CreditCard, LogOut } from "lucide-react";
 import { Eye, EyeOff } from "lucide-react";
@@ -552,7 +550,9 @@ export function SubscriptionScreen() {
   const { userId, email, loading } = useSession();
   const [account, setAccount] = useState<Account | null>(null);
   const [busy, setBusy] = useState<PlanId | null>(null);
-  const [card, setCard] = useState<BillingCardInfo | null>(null);
+  const [payapp, setPayapp] = useState<Awaited<ReturnType<typeof getPayappTest>> | null>(null);
+  const [testOpen, setTestOpen] = useState(false);
+  const [testBusy, setTestBusy] = useState(false);
   const { entitlement, blocked, remainingText, refresh: refreshEnt } = useEntitlement();
 
   const refresh = async () => {
@@ -568,7 +568,7 @@ export function SubscriptionScreen() {
     // 결제·해지 후 이용 권한(체험/구독)을 다시 읽어 화면과 서버를 맞춥니다
     await refreshEnt();
     try {
-      setCard(await getTossBilling({ headers }));
+      setPayapp(await getPayappTest({ headers }));
     } catch {
       /* 카드 정보는 없어도 화면은 그대로 보여 줍니다 */
     }
@@ -597,49 +597,7 @@ export function SubscriptionScreen() {
         return;
       }
 
-      // 유료 구독은 토스페이먼츠 자동결제(빌링)로 실제 결제합니다.
-      // 이미 카드가 등록되어 있으면 그 카드로 바로 결제합니다.
-      if (card?.registered) {
-        const proPlan = PLANS.find((item) => item.id === "pro");
-        if (!window.confirm(`업체 구독 ${won(proPlan?.price ?? 30000)}을 결제하시겠어요?\n매월 같은 금액으로 갱신됩니다.`)) {
-          return;
-        }
-        const r = await chargeTossBilling({ headers });
-        if (r.ok && r.duplicate) {
-          toast.info("이미 결제가 완료된 이용기간입니다", {
-            description: r.nextBillingAt
-              ? `다음 결제 예정일 ${new Date(r.nextBillingAt).toLocaleDateString("ko-KR")}`
-              : undefined,
-          });
-          await refresh();
-        } else if (r.ok && r.mode === "test") {
-          toast.info("테스트 승인이 확인되었습니다", {
-            description: `${won(r.amount ?? 0)} · 실제 청구와 구독 시작은 이루어지지 않았습니다`,
-          });
-          await refresh();
-        } else if (r.ok) {
-          toast.success("결제가 완료되어 구독이 시작되었습니다", {
-            description: `${won(r.amount ?? 0)} · 매월 자동 결제`,
-          });
-          await refresh();
-        } else {
-          toast.error("결제에 실패했습니다", {
-            description: r.error ?? "카드사 응답을 확인해 주세요",
-          });
-        }
-        return;
-      }
-
-      const cfg = await getTossBillingConfig({ headers });
-      if (!cfg.ok || !cfg.clientKey || !cfg.customerKey) {
-        toast.error("결제 준비에 실패했습니다", {
-          description: cfg.error ?? "잠시 후 다시 시도해 주세요",
-        });
-        return;
-      }
-      const { openTossCardRegister } = await import("@/lib/toss");
-      await openTossCardRegister(cfg.clientKey, cfg.customerKey);
-      // 카드 등록창으로 이동합니다. 등록을 마치면 /billing/callback 에서 결제가 진행됩니다.
+      setTestOpen(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "결제에 실패했습니다");
     } finally {
@@ -777,23 +735,7 @@ export function SubscriptionScreen() {
               <br />이 날짜까지는 그대로 이용할 수 있고, 이후에는 결제되지 않습니다.
             </div>
           )}
-          {card?.registered && (
-            <div className="text-xs text-[#6B7280] mt-2 flex items-center gap-1.5">
-              <CreditCard className="w-3.5 h-3.5" />
-              자동결제 카드 등록됨
-              {card.cardCompany ? ` · ${card.cardCompany}` : ""}
-              {card.cardNumberMasked ? ` ${card.cardNumberMasked}` : ""}
-            </div>
-          )}
-          {card && (
-            <div
-              className={`mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                card.mode === "test" ? "bg-[#FEF3C7] text-[#92400E]" : "bg-[#E7F3EE] text-[#3E9B78]"
-              }`}
-            >
-              {card.mode === "test" ? "테스트 결제 모드 (실제 청구 없음)" : "실제 결제 모드"}
-            </div>
-          )}
+          <div className="mt-2 text-xs font-bold text-muted-foreground">페이앱 · 테스트 결제 모드 (실제 청구 없음)</div>
         </Card>
 
         {PLANS.map((p) => {
@@ -840,13 +782,46 @@ export function SubscriptionScreen() {
                     ? "결제 중..."
                     : p.price === 0
                       ? "무료로 시작"
-                      : card?.registered
-                        ? "등록한 카드로 결제하기"
-                        : "카드 등록하고 구독 시작"}
+                      : "카드 등록하고 구독 시작"}
               </button>
             </Card>
           );
         })}
+
+        <Dialog open={testOpen} onOpenChange={setTestOpen}>
+          <DialogContent className="max-h-[85dvh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>페이앱 정기결제 모의시험</DialogTitle>
+              <DialogDescription>월 30,000원 · 가입 후 10일 무료 체험. 실제 카드 등록·청구와 이용 권한 변경은 없습니다. 페이앱 판매자 연결 전입니다.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 text-sm" aria-live="polite">
+              <div>시험 상태: {payapp?.state ? ({ registered: "등록됨", active: "갱신됨", canceled: "해지됨" }[payapp.state.status]) : "미등록"}</div>
+              <div>모의 승인 횟수: {payapp?.state?.events.length ?? 0}회</div>
+              <div>모의 승인 합계: {won(payapp?.state?.simulatedTotal ?? 0)}</div>
+              <div>실제 청구: {won(payapp?.state?.actualCharged ?? 0)}</div>
+              {payapp?.state && <div>시험 다음 결제일: {new Date(payapp.state.nextBillingAt).toLocaleDateString("ko-KR")}</div>}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                ["register", "구독 등록 시험"], ["renew", "갱신 시험"],
+                ["duplicate", "중복 통보 시험"], ["cancel", "해지 시험"],
+              ] as const).map(([action, label]) => (
+                <Button key={action} variant="outline" disabled={testBusy}
+                  onClick={async () => {
+                    setTestBusy(true);
+                    try {
+                      const headers = await authHeader();
+                      if (!headers) throw new Error("다시 로그인해 주세요.");
+                      const r = await runPayappTest({ data: { action }, headers });
+                      setPayapp({ mode: "test", state: r.state });
+                      toast.success(r.duplicate ? "중복 처리 없이 기존 결과를 유지했습니다" : "모의시험 결과를 저장했습니다");
+                    } catch (e) { toast.error(e instanceof Error ? e.message : "시험에 실패했습니다"); }
+                    finally { setTestBusy(false); }
+                  }}>{label}</Button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* 관리자(서비스 소유자)에게는 결제 내역을 표시하지 않습니다. */}
         {!entitlement?.isSuperAdmin &&
