@@ -32,6 +32,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ChangeEvent as ReactChangeEvent,
   type PointerEvent as ReactPointerEvent,
+  type TouchEvent as ReactTouchEvent,
 } from "react";
 import { getSmsServiceStatus } from "@/lib/sms-status.functions";
 import {
@@ -1809,12 +1810,12 @@ function useSwipeNav(onPrev?: () => void, onNext?: () => void) {
     else if (dir === "prev") onPrev?.();
   };
   return {
-    onTouchStart: (e: React.TouchEvent) => {
+    onTouchStart: (e: ReactTouchEvent) => {
       if (e.touches.length !== 1) { start.current = null; return; }
       begin(e.target, e.currentTarget, e.touches[0].clientX, e.touches[0].clientY);
     },
-    onTouchMove: (e: React.TouchEvent) => { if (e.touches.length !== 1) start.current = null; },
-    onTouchEnd: (e: React.TouchEvent) => {
+    onTouchMove: (e: ReactTouchEvent) => { if (e.touches.length !== 1) start.current = null; },
+    onTouchEnd: (e: ReactTouchEvent) => {
       const t = e.changedTouches[0];
       if (t) finish(t.clientX, t.clientY);
     },
