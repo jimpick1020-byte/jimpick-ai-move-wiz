@@ -1294,7 +1294,8 @@ export function Step1() {
     if (!draft.phone.trim()) return setErr("연락처를 입력해 주세요.");
     setScreen("step2");
   };
-  const swipe = useSwipeNav(() => setScreen("home"), next);
+  // 첫 단계: 오른쪽으로 밀어도 작성 중인 견적을 닫지 않습니다.
+  const swipe = useSwipeNav(undefined, next);
   return (
     <MobileShell className="jp-estimate-flow jp-tone-1 jp-redesign">
       <StepHero step={1} total={customerFlow ? 4 : 6} title="고객 정보" pose="clipboard"
@@ -1668,7 +1669,7 @@ export function Step2() {
 
   const swipe = useSwipeNav(
     () => setScreen("step1"),
-    hasFrom ? () => setScreen("step3") : undefined,
+    () => (hasFrom ? setScreen("step3") : toast.error("출발지 주소를 입력해 주세요.")),
   );
   return (
     <MobileShell className="jp-estimate-flow jp-tone-2 jp-redesign">
@@ -1715,7 +1716,7 @@ export function Step2() {
         {(from || to) && (
           <Card className="pb-5">
             <div className="font-bold mb-2">경로 안내</div>
-            <KakaoMap from={from} to={to} path={path} height={280} />
+            <div data-no-swipe><KakaoMap from={from} to={to} path={path} height={280} /></div>
             {routeError && !routing ? (
               <div className="mt-3 rounded-xl bg-[#FFF1F1] border border-[#FFD4D4] p-3 text-center space-y-2">
                 <div className="text-xs font-semibold text-[#D95C5C] leading-relaxed">
@@ -1773,27 +1774,57 @@ export function Step2() {
  *  · 오른쪽으로 밀기 → 이전(onPrev), 왼쪽으로 밀기 → 다음(onNext)
  *  · 가로로 70px 이상 + 세로 움직임보다 가로가 확실히 클 때만 반응(세로 스크롤·버튼 탭과 충돌 방지)
  */
+const SWIPE_IGNORE = 'input,textarea,select,[contenteditable="true"],[role="slider"],[data-room-card-id],[data-room-quick],[data-no-swipe],[data-swipe-ignore]';
+
+/** 시작 지점이 가로로 스크롤되는 목록 안이면 단계 넘기기 대신 목록이 움직이게 둡니다. */
+function insideHorizontalScroller(el: Element | null, stop: Element) {
+  for (let cur = el; cur && cur !== stop; cur = cur.parentElement) {
+    if (cur.scrollWidth > cur.clientWidth + 2) {
+      const ox = getComputedStyle(cur).overflowX;
+      if (ox === "auto" || ox === "scroll") return true;
+    }
+  }
+  return false;
+}
+
+export function swipeDirection(dx: number, dy: number, ms: number): "next" | "prev" | null {
+  if (ms > 800) return null;
+  if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8) return null;
+  return dx < 0 ? "next" : "prev";
+}
+
 function useSwipeNav(onPrev?: () => void, onNext?: () => void) {
   const start = useRef<{ x: number; y: number; t: number } | null>(null);
+  const begin = (target: EventTarget, stop: Element, x: number, y: number) => {
+    const el = target instanceof Element ? target : null;
+    if (el?.closest(SWIPE_IGNORE) || insideHorizontalScroller(el, stop)) { start.current = null; return; }
+    start.current = { x, y, t: Date.now() };
+  };
+  const finish = (x: number, y: number) => {
+    const s = start.current;
+    start.current = null;
+    if (!s) return;
+    const dir = swipeDirection(x - s.x, y - s.y, Date.now() - s.t);
+    if (dir === "next") onNext?.();
+    else if (dir === "prev") onPrev?.();
+  };
   return {
+    onTouchStart: (e: React.TouchEvent) => {
+      if (e.touches.length !== 1) { start.current = null; return; }
+      begin(e.target, e.currentTarget, e.touches[0].clientX, e.touches[0].clientY);
+    },
+    onTouchMove: (e: React.TouchEvent) => { if (e.touches.length !== 1) start.current = null; },
+    onTouchEnd: (e: React.TouchEvent) => {
+      const t = e.changedTouches[0];
+      if (t) finish(t.clientX, t.clientY);
+    },
+    onTouchCancel: () => { start.current = null; },
+    // 컴퓨터 마우스 끌기(터치는 위 처리만 사용)
     onPointerDown: (e: ReactPointerEvent) => {
-      if (e.pointerType === "mouse" && e.button !== 0) return;
-      start.current = { x: e.clientX, y: e.clientY, t: Date.now() };
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      begin(e.target, e.currentTarget, e.clientX, e.clientY);
     },
-    onPointerUp: (e: ReactPointerEvent) => {
-      const s = start.current;
-      start.current = null;
-      if (!s) return;
-      const dx = e.clientX - s.x;
-      const dy = e.clientY - s.y;
-      if (Date.now() - s.t > 800) return; // 너무 느린 드래그(스크롤 등)는 무시
-      if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-      if (dx < 0) onNext?.();
-      else onPrev?.();
-    },
-    onPointerCancel: () => {
-      start.current = null;
-    },
+    onPointerUp: (e: ReactPointerEvent) => { if (e.pointerType === "mouse") finish(e.clientX, e.clientY); },
   };
 }
 
@@ -4946,11 +4977,13 @@ export function OptionsScreen() {
   );
   const storageOn = usesStorage(draft);
 
+  const optionsSwipe = useSwipeNav(() => setScreen("step4"), undefined);
   return (
     <MobileShell className="jp-estimate-flow jp-tone-6 jp-redesign">
       <StepHero step={6} total={6} title="옵션·보관료" pose="calculator"
         bubble="추가 작업과 추가 비용을 확인해 주세요!" onBack={() => setScreen("step4")} />
-      <div className="px-4 pt-1 space-y-3 flex-1 overflow-auto pb-32">
+      {/* 마지막 단계: 왼쪽 밀기로는 계산·완료·발송을 진행하지 않습니다. */}
+      <div className="px-4 pt-1 space-y-3 flex-1 overflow-auto pb-32" {...optionsSwipe}>
         {draft.options.length === 0 && (
           <div className="text-center text-[#6B7280] py-10 text-sm">
             추가된 옵션 품목이 없습니다. 아래에서 직접 추가해 주세요.
