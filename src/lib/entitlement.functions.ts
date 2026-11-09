@@ -1,8 +1,8 @@
 /**
  * 이용 권한(무료체험 · 유료구독) 검사.
  *
- * - 신규 가입자는 가입 시각부터 정확히 30일(한 달) 동안 모든 기능을 씁니다.
- * - 한 달이 지나고 결제하지 않으면 「읽기 전용」이 됩니다.
+ * - 신규 가입자는 가입 시각부터 정확히 10일 동안 모든 기능을 씁니다.
+ * - 체험 기간이 지나고 결제하지 않으면 「읽기 전용」이 됩니다.
  *   (기존 고객·견적·문자·결제 기록은 그대로 두고, 새로 만들거나 보내는 것만 막습니다)
  * - 체험 기간에는 문자를 건수 제한 없이 보낼 수 있습니다 (사용량은 기록합니다).
  * - 서비스 소유자·관리자 계정은 기간 제한 없이 씁니다. 관리자 여부는 서버에서 확인합니다.
@@ -76,7 +76,7 @@ export interface SmsQuota {
   limited: boolean;
 }
 
-/** 체험 종료 일시 — 저장된 값이 없으면 시작 시각 + 30일로 계산합니다 */
+/** 체험 종료 일시 — 저장된 값이 없으면 시작 시각 + 10일로 계산합니다 */
 function trialEnd(sub: SubRow): number {
   if (sub.trial_ends_at) return new Date(sub.trial_ends_at).getTime();
   const start = sub.trial_started_at ?? sub.current_period_start ?? sub.created_at;

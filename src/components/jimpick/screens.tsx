@@ -905,7 +905,7 @@ export function HomeScreen() {
         )}
         {!blocked && entitlement?.state === "trial" && remainingText && (
           <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-2.5 text-xs font-semibold text-[#25282D] break-keep">
-            한 달 무료체험 · 문자 무제한 ({entitlement.freeSmsUsed}건 사용)
+            무료체험 · 문자 무제한 ({entitlement.freeSmsUsed}건 사용)
             <div className="mt-0.5 font-medium text-[#1D4ED8]">
               무료체험 {entitlement.trialDaysLeft}일 남음 · 문자는 체험 기간 동안 무제한
             </div>
@@ -7957,7 +7957,7 @@ export function SettingsScreen() {
         </Card>
         <Card className="space-y-2 text-sm">
           <div className="font-bold text-base">구독 안내</div>
-          <div>· 무료 체험 한 달</div>
+          <div>· 가입 후 10일 무료 체험</div>
           <div>· 이후 월 30,000원</div>
           <div>· 약정 없이 언제든 해지 가능</div>
           <div>· 재구독 시 기존 데이터 복원</div>

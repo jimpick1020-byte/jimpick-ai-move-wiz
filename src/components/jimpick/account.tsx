@@ -143,7 +143,7 @@ export function SignupScreen() {
         }
 
         // 이메일 확인이 꺼져 있어 바로 세션이 생긴 경우만 로그인 처리합니다.
-        toast.success("가입 완료! 한 달 무료 체험이 시작되었습니다");
+        toast.success("가입 완료! 10일 무료 체험이 시작되었습니다");
       }
       login(normalizedEmail, true);
       setScreen("subscription");
@@ -400,7 +400,7 @@ export function SignupScreen() {
         )}
 
         <div className="text-sm leading-relaxed text-auth-muted">
-          가입 즉시 <b>한 달 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능을 쓸 수 있습니다.
+          가입 즉시 <b>10일 무료 체험</b>이 시작되며, 체험 기간에는 모든 기능을 쓸 수 있습니다.
           문자 발송 비용은 별도 충전금에서 차감됩니다.
         </div>
         {formError && (
@@ -592,7 +592,7 @@ export function SubscriptionScreen() {
     try {
       if (plan === "free") {
         await subscribePlan({ data: { plan, method: "card" }, headers });
-        toast.success("무료 체험이 시작되었습니다 (한 달)");
+        toast.success("무료 체험 기간을 확인했습니다");
         await refresh();
         return;
       }
@@ -664,7 +664,7 @@ export function SubscriptionScreen() {
         <div className="p-5 flex-1 flex flex-col items-center justify-center gap-4 text-center">
           <Crown className="w-12 h-12 text-[#25282D]" />
           <div className="font-bold text-lg">업체 계정이 필요합니다</div>
-          <div className="text-sm text-[#6B7280]">가입하면 한 달 무료 체험이 바로 시작됩니다.</div>
+          <div className="text-sm text-[#6B7280]">가입하면 10일 무료 체험이 바로 시작됩니다.</div>
         </div>
         <BottomButtonBar>
           <PrimaryButton onClick={() => setScreen("signup")}>업체 회원가입</PrimaryButton>
@@ -701,7 +701,7 @@ export function SubscriptionScreen() {
               )}
               {entitlement?.state === "trial" && remainingText && (
                 <div className="mt-2 rounded-xl bg-[#EFF6FF] p-2.5 text-xs font-semibold leading-5 text-[#25282D] break-keep">
-                  한 달 무료체험 · 문자 무제한 ({entitlement.freeSmsUsed}건 사용)
+                  무료체험 · 문자 무제한 ({entitlement.freeSmsUsed}건 사용)
                   <br />
                   무료체험 {entitlement.trialDaysLeft}일 남음 · 문자는 체험 기간 동안 무제한
                   {entitlement.trialEndsAt
