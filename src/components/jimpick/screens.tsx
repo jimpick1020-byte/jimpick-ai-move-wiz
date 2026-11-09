@@ -1822,6 +1822,7 @@ function useSwipeNav(onPrev?: () => void, onNext?: () => void) {
         const s = start.current;
         const t = ev.touches[0];
         if (!s || !t || ev.touches.length !== 1) return;
+        if ((s.moved ?? Date.now()) - s.t > 300) return; // 꾹 눌러 옮기는 중에는 관여하지 않습니다
         const dx = Math.abs(t.clientX - s.x);
         if (dx > 10 && dx > Math.abs(t.clientY - s.y) * 1.2 && ev.cancelable) ev.preventDefault();
       };
