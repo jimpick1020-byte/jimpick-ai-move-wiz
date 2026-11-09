@@ -5,6 +5,21 @@ import type { Room } from "./jimpick";
 
 const rooms: Room[] = [{ id: "a", name: "안방", items: { bed: 2, desk: 1 }, disposal: { bed: true } }, { id: "b", name: "거실", items: { bed: 1 } }];
 describe("shared room item rules", () => {
+  it("안방 바구니 3개와 박스 2개를 같은 품목에 저장하며 작은방과 폐기를 보존한다", () => {
+    const initial: Room[] = [
+      { id: "main", name: "안방", items: { bed: 1 }, disposal: { bed: true } },
+      { id: "small", name: "작은방", items: { basket: 4, box: 5 } },
+    ];
+    let next = initial;
+    for (let i = 0; i < 3; i++) next = withRoomQuantityStep(next, "안방", "basket", 1);
+    for (let i = 0; i < 2; i++) next = withRoomQuantityStep(next, "안방", "box", 1);
+    const reopened: Room[] = JSON.parse(JSON.stringify(next));
+    assert.equal(reopened[0].items.basket, 3);
+    assert.equal(reopened[0].items.box, 2);
+    assert.equal(reopened[0].disposal?.bed, true);
+    assert.deepEqual(reopened[1], initial[1]);
+    assert.equal(next[1], initial[1]);
+  });
   it("room quick basket and box use the same IDs, count every tap and never fall below zero", () => {
     let next = rooms;
     for (let i=0;i<20;i++) next = withRoomQuantityStep(next,"안방","basket",1);

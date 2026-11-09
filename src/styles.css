@@ -160,6 +160,8 @@
 .jp-item-card { min-height: 150px; background: var(--item-card-fill); color: var(--item-card-text); border-color: var(--item-card-border); border-width: 2px; border-radius: 16px; box-shadow: var(--item-card-shadow); }
 .jp-item-card .jp-picker-face, .jp-item-card .jp-picker-face:hover { background: var(--item-card-fill); color: var(--item-card-text); }
 .jp-picker-art { display: flex; align-items: center; justify-content: center; width: 100%; margin-inline: auto; aspect-ratio: 1; padding: 6px; box-sizing: border-box; }
+.jp-room-original-art > span { max-width: 100%; max-height: 100%; }
+.jp-room-original-art img { max-width: 100%; object-fit: contain; }
 .jp-picker-art > span { width: 100% !important; height: 100% !important; min-width: 0; overflow: visible; }
 .jp-picker-art img { width: 100%; height: 100%; object-fit: contain; object-position: center; margin: 0; transform: none !important; }
 .jp-scan-outline-auto { color: var(--scan-outline-auto); }

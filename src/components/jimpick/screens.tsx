@@ -3748,7 +3748,7 @@ export function Step6() {
         data-room-grid-scroll
         {...swipe}
       >
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-4">
           {displayNames.map((name, index) => {
             const r = roomOf(name);
             const s = roomSummary(r?.items || {});
@@ -3764,9 +3764,9 @@ export function Step6() {
                 data-room-card-index={index}
                 data-room-dragging={dragging || undefined}
                 style={{ transition: dragging ? "none" : undefined, outline: dropHint ? "3px dashed #3578C8" : dragging ? "3px solid #3578C8" : undefined, outlineOffset: 2, boxShadow: dragging ? "0 18px 36px -10px rgba(7,81,216,0.45)" : undefined }}
-                className="relative rounded-3xl p-3 bg-gradient-to-b from-white to-[#F7F8F5] border border-[#E5E7EB] shadow-[0_8px_0_#E5E7EB,0_16px_28px_-14px_rgba(7,81,216,0.4),inset_0_1px_0_#fff]"
+                className="jp-room-horizontal relative grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)] gap-2 rounded-3xl border border-border bg-card p-3 text-card-foreground shadow-sm"
               >
-                <button
+                <Button variant="ghost"
                   {...press}
                   style={{ touchAction: roomCardDrag.dragId ? "none" : undefined, WebkitTouchCallout: "none", userSelect: "none" }}
                   onClick={() => {
@@ -3778,28 +3778,29 @@ export function Step6() {
                     setPickedCollapsed(false);
                     setQ("");
                   }}
-                  className="w-full text-left active:translate-y-[2px] transition-transform"
+                  aria-label={`${name} 방 열기`}
+                  className="h-auto min-w-0 w-full flex-col items-stretch justify-start gap-0 whitespace-normal p-0 text-left active:translate-y-[2px] transition-transform"
                 >
                   <span
                     className={`inline-block px-3 py-1 rounded-xl text-white text-[14px] font-black bg-gradient-to-b ${
                       ROOM_TINT[art] || "from-[#5B93D6] to-[#3578C8]"
-                    } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)] max-w-[calc(100%-2.5rem)] truncate align-top`}
+                    } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)] max-w-full self-start truncate align-top`}
                   >
                     {name}
                   </span>
-                  <div className="mt-1 relative flex items-center justify-center h-[86px]">
-                    <Art3D src={roomImageFor(name)} alt={name} size={82} />
+                  <div className="jp-room-original-art mt-3 relative flex w-full items-center justify-center aspect-square">
+                    <Art3D src={roomImageFor(name)} alt={name} size={120} />
                   </div>
                   {/* 담은 품목 미리보기 — 3D 아이콘 3개까지, 나머지는 +N */}
                   {(() => {
-                    const entries = Object.entries(r?.items ?? {});
+                    const entries = Object.entries(r?.items ?? {}).filter(([, qty]) => qty > 0);
                     if (entries.length === 0) return null;
                     const shownItems = entries.slice(0, 3);
                     const rest = entries.length - shownItems.length;
                     const nameOf = (id: string) => catalog.find((c) => c.id === id)?.name || id;
                     return (
                       <>
-                        <div className="mt-1 flex items-center justify-center gap-1.5">
+                        <div className="mt-1 flex min-w-0 flex-wrap items-center justify-center gap-1">
                           {shownItems.map(([id, qty]) => (
                             <span
                               key={id}
@@ -3835,15 +3836,16 @@ export function Step6() {
                   <div className="mt-1 text-center text-[12px] font-extrabold text-[#25282D]">
                     {s.kinds > 0 ? `${s.kinds}종 · ${s.count}개` : "품목 없음"}
                   </div>
-                </button>
-                <div className="mt-2 space-y-1" data-room-quick={name}>
+                </Button>
+                <div className="min-w-0 space-y-3 border-l border-border pl-2 pt-9" data-room-quick={name}>
                   {([{ id: "basket", label: "이사바구니" }, { id: "box", label: "이사박스" }]).map(item => (
-                    <div key={item.id} className="flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5 text-[10px] font-bold">
-                      <span className="inline-flex min-w-0 items-center gap-0.5 text-foreground"><ItemArt id={item.id} name={item.label} size={22} /><span className="whitespace-nowrap">{item.label}</span></span>
-                      <div className="ml-auto flex shrink-0 items-center gap-0.5">
-                        <Button size="icon" variant="outline" className="size-6" aria-label={`${name} ${item.label} 감소`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, -1); }}>−</Button>
-                        <output aria-label={`${name} ${item.label} 수량`} className="min-w-5 text-center tabular-nums">{r?.items[item.id] || 0}</output>
-                        <Button size="icon" variant="outline" className="size-6" aria-label={`${name} ${item.label} 증가`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, 1); }}>+</Button>
+                    <div key={item.id} className="grid min-w-0 grid-cols-[72px_minmax(0,1fr)] items-center gap-x-1 gap-y-1 border-b border-border pb-3 last:border-b-0 last:pb-0" onPointerDown={e => e.stopPropagation()}>
+                      <span className="relative flex size-[72px] shrink-0 items-center justify-center"><ItemArt id={item.id} name={item.label} size={72} />{r?.disposal?.[item.id] && <DisposalX />}</span>
+                      <span className="min-w-0 break-keep text-[14px] font-black text-foreground">{item.label}</span>
+                      <div className="col-span-2 grid w-full min-w-0 grid-cols-[44px_minmax(24px,1fr)_44px] items-center gap-1">
+                        <Button size="icon" variant="outline" className="size-11 shrink-0 text-xl" aria-label={`${name} ${item.label} 감소`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, -1); }}><Minus /></Button>
+                        <output aria-label={`${name} ${item.label} 수량`} className="min-w-0 text-center text-xl font-black tabular-nums">{r?.items[item.id] || 0}</output>
+                        <Button size="icon" variant="outline" className="size-11 shrink-0 text-xl" aria-label={`${name} ${item.label} 증가`} onClick={e => { e.stopPropagation(); stepQtyInRoom(name, item.id, 1); }}><Plus /></Button>
                       </div>
                     </div>
                   ))}
@@ -3854,11 +3856,6 @@ export function Step6() {
                       onRename={() => setRoomDialog({ mode: "rename", id: cardId, name })}
                       onDelete={() => setRoomDelete({ id: cardId, name })} />
                   </div>
-                )}
-                {s.kinds > 0 && (
-                  <span className="absolute top-2 right-10 min-w-6 h-6 px-1.5 rounded-full bg-gradient-to-b from-[#5B93D6] to-[#3578C8] text-white text-[12px] font-black flex items-center justify-center shadow-[0_3px_0_#285C99,inset_0_1px_0_rgba(255,255,255,0.5)]">
-                    {s.kinds}
-                  </span>
                 )}
               </div>
             );
