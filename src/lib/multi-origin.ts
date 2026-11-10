@@ -1,7 +1,7 @@
 import type { Estimate, Room } from './jimpick';
 
 export interface ExtraOrigin {
-  id: 'origin-2';
+  id: 'origin-1' | 'origin-2';
   address: string;
   detail: string;
   x?: number | null;
@@ -18,6 +18,8 @@ export interface ExtraOrigin {
   ladderNote?: string;
   truck5t?: number;
   truck1t?: number;
+  floorEdited?: boolean;
+  decideOnVisit?: boolean;
 }
 
 export const HOUSE_SIZES = ['10~20평', '20~30평', '30~40평', '40~50평', '50~60평', '60~70평'];

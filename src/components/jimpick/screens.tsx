@@ -1,3 +1,4 @@
+import { activeHouseOf, houseLabel, roomHouse } from "@/lib/house-workspace";
 import { PaymentSmsButton } from "./PaymentSmsButton";
 import { extraLadderIncluded } from '@/lib/multi-origin';
 import { OptionAddDialog } from "./OptionAddDialog";
@@ -2332,7 +2333,7 @@ export function Step4() {
           </div>
         </Card>
         {/* 사다리차와 작업 인원 사이 간격 넓히기 */}
-        {draft.houseLinked && draft.extraOrigin?.address && <div className="text-sm font-bold text-muted-foreground">두 번째 집 · {draft.extraOrigin.address} · {draft.extraOrigin.floor ?? '미입력'}층 · {draft.extraOrigin.ladder ? draft.extraOrigin.ladderSeparate ? LADDER_SEPARATE_TEXT : draft.extraOrigin.ladderNote || `사다리차 ${won(draft.extraOrigin.ladderPrice || 0)}` : draft.extraOrigin.env || '방문 확인'}</div>}
+        {draft.houseLinked && draft.extraOrigin?.address && <div className="text-sm font-bold text-muted-foreground">{houseLabel(draft.extraOrigin.id)} · {draft.extraOrigin.address} · {draft.extraOrigin.floor ?? '미입력'}층 · {draft.extraOrigin.ladder ? draft.extraOrigin.ladderSeparate ? LADDER_SEPARATE_TEXT : draft.extraOrigin.ladderNote || `사다리차 ${won(draft.extraOrigin.ladderPrice || 0)}` : draft.extraOrigin.env || '방문 확인'}</div>}
         <div aria-hidden className="h-6" />
         <Field label="작업 인원">
           <Card selected={draft.workers > 0} className="jp-quantity-card" data-quantity-selected={draft.workers > 0}>
@@ -2651,13 +2652,16 @@ export function Step6() {
   /** 사장님이 방을 직접 관리한 견적은 저장된 방 순서(고유 ID)를 그대로 보여 줍니다 */
   const roomsManaged = !customerFlow && !!draft.roomsCustomized;
   const displayNames = useMemo(
-    () => (roomsManaged ? draft.rooms.map((r) => r.name) : sizeRooms),
-    [roomsManaged, draft.rooms, sizeRooms],
+    () => (roomsManaged ? draft.rooms.filter((r) => !draft.houseLinked || roomHouse(r) === activeHouseOf(draft)).map((r) => r.name) : sizeRooms),
+    [roomsManaged, draft.rooms, sizeRooms, draft.houseLinked, draft.activeHouse],
   );
   const manageRooms = (make: (rooms: Room[]) => Room[]) =>
     persistItemPatch((current) => {
       const base = current.roomsCustomized ? current.rooms : materializeRooms(current.rooms, sizeRooms);
-      return { rooms: make(base), roomsCustomized: true };
+      const known = new Set(base.map((r) => r.id));
+      const made = make(base);
+      // 두 집 견적에서 새로 만든 방은 지금 작성 중인 집에만 속합니다.
+      return { rooms: current.houseLinked ? made.map((r) => (known.has(r.id) ? r : { ...r, originId: activeHouseOf(current) })) : made, roomsCustomized: true };
     });
   const [roomDialog, setRoomDialog] = useState<{ mode: "add" } | { mode: "rename"; id: string; name: string } | null>(null);
   const [roomDelete, setRoomDelete] = useState<{ id: string; name: string } | null>(null);

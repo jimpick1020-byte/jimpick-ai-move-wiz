@@ -89,6 +89,10 @@ export interface Estimate {
   id: string;
   extraOrigin?: ExtraOrigin;
   houseLinked?: boolean;
+  /** 두 집 견적에서 지금 작성 중인 집 (from* 필드에 들어 있는 집) */
+  activeHouse?: 'origin-1' | 'origin-2';
+  /** 집별 마지막 작성 단계 */
+  houseSteps?: Record<string, string>;
   routeMode?: 'sequential' | 'separate';
   routeSegments?: { distanceKm: number; durationMin: number }[];
   lastWritingScreen?: string;
