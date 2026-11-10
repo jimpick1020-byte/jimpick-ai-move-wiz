@@ -64,6 +64,14 @@ export interface IntakeRow {
 const phoneSchema = z.string().trim().regex(/^0\d{1,2}-?\d{3,4}-?\d{4}$/, "휴대전화 번호를 확인해 주세요.");
 const pickSchema = z.object({ qty: z.number().int().min(1).max(20), disposal: z.boolean() });
 const formSchema = z.object({
+  extraOrigin: z.object({
+    id: z.literal('origin-2'), address: z.string().max(200), detail: z.string().max(100),
+    x: z.number().nullable().optional(), y: z.number().nullable().optional(),
+    jibun: z.string().max(200).optional(), zip: z.string().max(10).optional(),
+    size: z.enum(['10~20평', '20~30평', '30~40평', '40~50평', '50~60평', '60~70평']).optional(),
+    floor: z.number().int().min(-5).max(100).nullable().optional(),
+    env: z.enum(['계단', '엘리베이터']).optional(), ladder: z.boolean(),
+  }).optional(),
   customerName: z.string().trim().max(30),
   phone: z.string().trim().max(20),
   moveDate: z.string().max(10).regex(/^(\d{4}-\d{2}-\d{2})?$/),
@@ -565,6 +573,7 @@ export const openIntake = createServerFn({ method: "POST" })
       fromX: saved.fromX ?? null, fromY: saved.fromY ?? null, toX: saved.toX ?? null, toY: saved.toY ?? null,
       fromJibun: saved.fromJibun ?? "", fromZip: saved.fromZip ?? "", toJibun: saved.toJibun ?? "", toZip: saved.toZip ?? "",
       fromSize: saved.fromSize ?? "", toSize: saved.toSize ?? "",
+      extraOrigin: saved.extraOrigin,
       spaces: Array.isArray(saved.spaces) ? saved.spaces : undefined,
       moveType: saved.moveType, storageEnabled: saved.storageEnabled, memo: saved.memo,
       fromEnv: saved.fromEnv, toEnv: saved.toEnv, fromFloor: saved.fromFloor, toFloor: saved.toFloor,
@@ -608,6 +617,7 @@ export const submitIntake = createServerFn({ method: "POST" })
     if (row.status === "confirmed") return { ok: false, closed: true };
     const f = data.form;
     if (!f.customerName.trim()) return { ok: false, error: "이름을 입력해 주세요." };
+    if (f.extraOrigin && !f.extraOrigin.address.trim()) return { ok: false, error: '출발지 2 주소를 입력해 주세요.' };
     if (!phoneSchema.safeParse(f.phone).success) return { ok: false, error: "휴대전화 번호를 확인해 주세요." };
     const form: IntakeForm = { ...f, phone: formatTel(f.phone), customerName: f.customerName.trim() };
 

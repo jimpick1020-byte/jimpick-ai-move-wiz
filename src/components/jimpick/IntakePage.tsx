@@ -4,6 +4,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Step1, Step2, Step3 } from "./screens";
+import { ExtraOriginFields } from './ExtraOriginFields';
 import { CharacterImg } from "./CharacterGuide";
 import { StepHero, ResultHero } from "./StepHero";
 import { MobileShell, TopBar, BottomButtonBar, PrimaryButton } from "./ui";
@@ -147,6 +148,7 @@ function IntakeEstimateFlow({ token, form, setForm, data, step, setStep, consent
         <StepHero step={4} total={4} title="집 평수" pose="house" bubble="지금 사시는 집의 평수를 하나만 골라 주세요." onBack={() => setStep(3)} />
         <div className="px-4 pt-1 space-y-3 flex-1 overflow-auto pb-32">
           <h3 className="text-lg font-black">출발지 평수</h3>
+          <ExtraOriginFields mode="size" />
           <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="출발지 평수">
             {SIZE_CHOICES.map((s) => (
               <button key={s} type="button" role="radio" aria-checked={form.fromSize === s} data-choice-selected={form.fromSize === s}
@@ -185,6 +187,7 @@ function Review({ form, consent, setConsent }: { form: IntakeForm; consent: bool
         <div><b>{form.customerName}</b> · {form.phone}</div>
         <div>이사 날짜: {form.moveDate || "아직 미정"} {form.moveTime}</div>
         <div>나가는 곳: {form.fromAddress || "-"} {form.fromDetail}</div>
+        {form.extraOrigin && <div>출발지 2: {form.extraOrigin.address} {form.extraOrigin.detail} · {form.extraOrigin.size || '평수 미입력'} · {form.extraOrigin.floor || '층수 미입력'}층 · {form.extraOrigin.ladder ? '사다리차' : form.extraOrigin.env || '작업 조건 미입력'}</div>}
         <div>들어가는 곳: {form.toAddress || "-"} {form.toDetail}</div>
       </div>
       <div className="rounded-2xl bg-auth-soft p-4 space-y-1">
