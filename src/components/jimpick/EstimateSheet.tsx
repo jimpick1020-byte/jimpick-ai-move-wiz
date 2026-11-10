@@ -489,7 +489,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                   className="jp-avoid-break flex items-stretch gap-2 rounded-[14px] bg-white p-2.5 shadow-[0_2px_10px_rgba(17,24,39,0.06)]"
                 >
                   <div className="flex w-[64px] shrink-0 items-center justify-center">
-                    <span className="text-[17px] font-black text-[#25282D]">{r.name}</span>
+                    <span className="text-[17px] font-black text-[#25282D]">{r.name.replace(/^출발지 [12] · /, '')}</span>
                   </div>
                   <div className="flex min-w-0 flex-1 flex-wrap gap-x-3 gap-y-2 border-l border-[#E5E7EB] pl-2.5">
                     {r.items.map((it) => (

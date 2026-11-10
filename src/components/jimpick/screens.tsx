@@ -3845,7 +3845,7 @@ export function Step6() {
                       ROOM_TINT[art] || "from-[#5B93D6] to-[#3578C8]"
                     } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)] max-w-full self-start truncate align-top`}
                   >
-                    {name}
+                    {art}
                   </span>
                   <div className="jp-room-original-art relative flex w-full items-center justify-center aspect-square">
                     <Art3D src={roomImageFor(name.replace(/^출발지 [12] · /, ''))} alt={name} size={120} />
@@ -3958,7 +3958,7 @@ export function Step6() {
             <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
               <div className="flex min-w-0 items-center gap-3">
                 <Button variant="ghost" size="icon" className="size-9 shrink-0" aria-label="이전 화면" onClick={() => { if (!itemWriteLock.current) setOpenRoom(null); }}><ChevronLeft /></Button>
-                <h2 className="truncate text-lg font-black">{room.name}</h2>
+                <h2 className="truncate text-lg font-black">{room.name.replace(/^출발지 [12] · /, '')}</h2>
                 <span className="shrink-0 text-sm font-bold text-muted-foreground">{roomSummary(room.items).kinds}종 · {roomSummary(room.items).count}개</span>
               </div>
               <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" onClick={() => setOpenRoom(null)} aria-label="닫기"><X /></Button>
