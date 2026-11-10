@@ -23,6 +23,13 @@ describe('집별 링크 입력', () => {
     expect(r1?.items['desk-01']).toBe(3); expect(r2?.items['desk-01']).toBe(8); expect(r1?.id).not.toBe(r2?.id);
     expect(r2?.disposal?.['desk-01']).toBe(true);
   });
+  it('오래된 도착지 입력은 거부하고 현재 도착지를 읽은 뒤 수정한 값은 반영한다', () => {
+    const saved = { toAddress: '공통 도착지', toFloor: 2 };
+    expect(mergeHouseDestination(saved, { ...emptyIntakeForm(), toAddress: '오래된 주소', toFloor: 5 }).toAddress).toBe('공통 도착지');
+    const edited = { ...emptyIntakeForm(), toAddress: '수정 도착지', toFloor: 5, destinationSnapshot: saved };
+    expect(mergeHouseDestination(saved, edited).toAddress).toBe('수정 도착지');
+    expect(mergeHouseDestination(saved, edited).toFloor).toBe(5);
+  });
   it('출발 두 곳 사다리와 공통 도착 사다리만 각각 한 번 계산한다', () => {
     const a = { ...emptyIntakeForm(), fromFloor: 2, fromFloorEdited: true, ladderFrom: true, toFloor: 2, toFloorEdited: true, ladderTo: true };
     const b = { ...a, fromFloor: 5 };
