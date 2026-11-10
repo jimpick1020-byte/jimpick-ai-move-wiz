@@ -362,7 +362,7 @@ export function mergeIntakeIntoDraft(
     out.routeMode = 'sequential';
   }
   for (const name of form.spaces ?? []) {
-    if (!rooms.some(r => r.name === name)) rooms.push({ id: `r_${name}`, name, items: {}, disposal: {} });
+    if (!rooms.some(r => r.name === name || (form.extraOrigin && r.name === `출발지 1 · ${name}`))) rooms.push({ id: `r_${name}`, name, items: {}, disposal: {} });
   }
   // 층수: 사장님이 직접 고친 값은 덮어쓰지 않고, 확실한 경우만 넣습니다.
   if (!base.fromFloorEdited) out.fromFloor = fromFloor;

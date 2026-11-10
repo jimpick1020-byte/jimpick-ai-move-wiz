@@ -17,6 +17,8 @@ describe('두 집 한 견적', () => {
     expect(restored.toFloor).toBe(2); expect(restored.ladderTo).toBe(true);
     expect(restored.intakeRequestId).toBe('one-request');
     expect(estimateToIntake(intakeToEstimate(form), form).extraOrigin).toEqual(form.extraOrigin);
+    const again = mergeIntakeIntoDraft(restored as unknown as Record<string, unknown>, { ...form, spaces: ['안방', '작은방', '거실'] }, null, { intakeRequestId: 'one-request' }) as unknown as Estimate;
+    expect(again.rooms.length).toBe(restored.rooms.length);
   });
   it('출발1과 도착에만 사다리 15만원씩 한 번 반영하고 반복 계산해도 30만원이다', () => {
     const d = { ...newEstimate(), fromFloor: 2, toFloor: 2, ladderFrom: true, ladderTo: true, truck1t: 3, truck5t: 0, extraOrigin: submitted().extraOrigin };
