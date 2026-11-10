@@ -408,6 +408,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             value={`${draft.fromAddress} ${draft.fromDetail || ""}`.trim()}
             sub={sideConditionText(draft, "from")}
           />
+          {draft.houseLinked && draft.extraOrigin?.address && <AddressRow label="두 번째 집" value={`${draft.extraOrigin.address} ${draft.extraOrigin.detail}`.trim()} sub={[draft.extraOrigin.size, draft.extraOrigin.floor ? `${draft.extraOrigin.floor}층` : '', draft.extraOrigin.ladder ? draft.extraOrigin.ladderSeparate ? LADDER_SEPARATE_TEXT : `사다리차 ${won(draft.extraOrigin.ladderPrice || 0)}` : draft.extraOrigin.env].filter(Boolean).join(' · ')} />}
           {hasDest && (
             <>
             <AddressRow

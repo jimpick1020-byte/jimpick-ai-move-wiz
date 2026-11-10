@@ -2332,6 +2332,7 @@ export function Step4() {
           </div>
         </Card>
         {/* 사다리차와 작업 인원 사이 간격 넓히기 */}
+        {draft.houseLinked && draft.extraOrigin?.address && <div className="text-sm font-bold text-muted-foreground">두 번째 집 · {draft.extraOrigin.address} · {draft.extraOrigin.floor ?? '미입력'}층 · {draft.extraOrigin.ladder ? draft.extraOrigin.ladderSeparate ? LADDER_SEPARATE_TEXT : draft.extraOrigin.ladderNote || `사다리차 ${won(draft.extraOrigin.ladderPrice || 0)}` : draft.extraOrigin.env || '방문 확인'}</div>}
         <div aria-hidden className="h-6" />
         <Field label="작업 인원">
           <Card selected={draft.workers > 0} className="jp-quantity-card" data-quantity-selected={draft.workers > 0}>
