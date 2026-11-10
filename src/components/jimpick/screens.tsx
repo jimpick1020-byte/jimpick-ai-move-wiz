@@ -2069,7 +2069,6 @@ export function Step3() {
       <StepHero step={3} total={customerFlow ? 4 : 6} title="작업 조건" pose="elevator"
         bubble="층수·엘리베이터·사다리차 조건을 골라 주세요!" onBack={() => setScreen("step2")} />
       <div className="px-4 pt-1 space-y-5 flex-1 overflow-auto pb-32" {...swipe}>
-        <ExtraOriginFields mode="conditions" />
         {(["from", "to"] as const).map((side) => {
           const isFrom = side === "from";
           const place = isFrom ? (draft.extraOrigin ? '출발지 1' : '출발지') : "도착지";
@@ -2078,6 +2077,8 @@ export function Step3() {
           // 예전에 저장된 자료에 둘 다 켜져 있어도 화면에는 사다리차 하나만 선택으로 보입니다.
           const env = ladderOn ? undefined : isFrom ? draft.fromEnv : draft.toEnv;
           return (
+            <Fragment key={side}>
+            {side === 'to' && <ExtraOriginFields mode="conditions" />}
             <div
               key={side}
               className={isFrom ? "" : "mt-7 border-t-2 border-dashed border-[#D7DEEB] pt-7"}
@@ -2166,6 +2167,7 @@ export function Step3() {
                 </Card>
               </Field>
             </div>
+            </Fragment>
           );
         })}
       </div>
@@ -3762,7 +3764,6 @@ export function Step6() {
       {/* 평수 선택 — 예전처럼 한 줄을 좌우로 밀어서 봅니다 */}
       <div className="bg-white border-b border-[#E5E7EB] px-4 py-3">
         {!customerFlow && <div className="mb-1.5 px-1 text-[14px] font-black text-[#25282D]">{draft.extraOrigin ? '출발지 1 평수' : '출발지 평수'}</div>}
-        <ExtraOriginFields mode="size" />
         <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {SIZE_TABS.map((t) => (
             <button
@@ -3778,6 +3779,7 @@ export function Step6() {
             </button>
           ))}
         </div>
+        <ExtraOriginFields mode="size" />
         {!customerFlow && (
           <>
             <div className="mb-1.5 mt-2 px-1 text-[14px] font-black text-[#25282D]">도착지 평수</div>
@@ -3850,7 +3852,7 @@ export function Step6() {
             const press = roomCardDrag.pressProps(cardId);
             const dragging = roomCardDrag.dragId === cardId;
             const dropHint = roomCardDrag.dragId !== null && !dragging && roomCardDrag.overIndex === index;
-            const art = r?.kind ?? name;
+            const art = name.replace(/^출발지 [12] · /, '');
             return (
               <div
                 key={cardId}

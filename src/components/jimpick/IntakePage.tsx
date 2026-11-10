@@ -147,8 +147,7 @@ function IntakeEstimateFlow({ token, form, setForm, data, step, setStep, consent
       <MobileShell className="jp-estimate-flow jp-tone-4 jp-redesign">
         <StepHero step={4} total={4} title="집 평수" pose="house" bubble="지금 사시는 집의 평수를 하나만 골라 주세요." onBack={() => setStep(3)} />
         <div className="px-4 pt-1 space-y-3 flex-1 overflow-auto pb-32">
-          <h3 className="text-lg font-black">출발지 평수</h3>
-          <ExtraOriginFields mode="size" />
+          <h3 className="text-lg font-black">{form.extraOrigin ? '출발지 1 평수' : '출발지 평수'}</h3>
           <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="출발지 평수">
             {SIZE_CHOICES.map((s) => (
               <button key={s} type="button" role="radio" aria-checked={form.fromSize === s} data-choice-selected={form.fromSize === s}
@@ -156,6 +155,7 @@ function IntakeEstimateFlow({ token, form, setForm, data, step, setStep, consent
                 className={`rounded-2xl border-2 py-4 text-lg font-black ${form.fromSize === s ? "jp-pick-orange border-primary bg-primary/10 text-primary" : "border-border bg-card text-foreground"}`}>{s}</button>
             ))}
           </div>
+          <ExtraOriginFields mode="size" />
           <h3 className="pt-2 text-lg font-black">도착지 평수</h3>
           <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="도착지 평수">
             {SIZE_CHOICES.map((s) => (
