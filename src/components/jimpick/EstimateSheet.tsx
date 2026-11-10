@@ -62,8 +62,9 @@ export interface SheetRoom {
 
 /** 폐기물 품목 사진 위 빨간 X */
 export function DisposalX() {
+  /** 그림 전체에 겹치는 폐기물 X — 버튼 안에서도 축소되지 않도록 인라인 크기로 지정합니다 */
   return (
-    <svg viewBox="0 0 24 24" aria-label="폐기물" className="pointer-events-none absolute inset-0 h-full w-full p-0.5">
+    <svg viewBox="0 0 24 24" aria-label="폐기물" className="pointer-events-none absolute inset-0 p-0.5" style={{ width: "100%", height: "100%" }}>
       <path d="M4 4L20 20M20 4L4 20" stroke="var(--sheet-disposal)" strokeWidth="3.4" strokeLinecap="round" />
     </svg>
   );
