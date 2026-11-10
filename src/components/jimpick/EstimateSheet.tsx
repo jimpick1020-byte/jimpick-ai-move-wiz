@@ -404,13 +404,12 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         {inline("주소·작업 조건", [field("fromAddress", "출발 주소", "text"), field("fromDetail", "출발 상세주소", "text"), field("fromFloor", "출발 층수", "number"), field("toAddress", "도착 주소", "text"), field("toDetail", "도착 상세주소", "text"), field("toFloor", "도착 층수", "number")], (
 <div className="divide-y divide-[#E5E7EB] rounded-[14px] bg-white shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
           <AddressRow
-            label={draft.extraOrigin ? '출발지 1' : '출발지'}
+            label="출발지"
             value={`${draft.fromAddress} ${draft.fromDetail || ""}`.trim()}
             sub={sideConditionText(draft, "from")}
           />
           {hasDest && (
             <>
-            {draft.extraOrigin && <AddressRow label="출발지 2" value={`${draft.extraOrigin.address} ${draft.extraOrigin.detail}`.trim()} sub={[draft.extraOrigin.size, draft.extraOrigin.floor ? `${draft.extraOrigin.floor}층` : '', draft.extraOrigin.ladder ? draft.extraOrigin.ladderSeparate ? LADDER_SEPARATE_TEXT : `사다리차 ${won(draft.extraOrigin.ladderPrice || 0)}` : draft.extraOrigin.env].filter(Boolean).join(' · ')} />}
             <AddressRow
               label="도착지"
               value={`${draft.toAddress} ${draft.toDetail || ""}`.trim()}
@@ -490,7 +489,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                   className="jp-avoid-break flex items-stretch gap-2 rounded-[14px] bg-white p-2.5 shadow-[0_2px_10px_rgba(17,24,39,0.06)]"
                 >
                   <div className="flex w-[64px] shrink-0 items-center justify-center">
-                    <span className="text-[17px] font-black text-[#25282D]">{r.name}</span>
+                    <span className="text-[17px] font-black text-[#25282D]">{r.name.replace(/^출발지 [12] · /, '')}</span>
                   </div>
                   <div className="flex min-w-0 flex-1 flex-wrap gap-x-3 gap-y-2 border-l border-[#E5E7EB] pl-2.5">
                     {r.items.map((it) => (

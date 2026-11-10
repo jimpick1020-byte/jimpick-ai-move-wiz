@@ -1,6 +1,5 @@
 import { PaymentSmsButton } from "./PaymentSmsButton";
-import { ExtraOriginFields } from './ExtraOriginFields';
-import { addSecondOrigin, removeSecondOrigin, originHasInput, extraLadderIncluded, routeLegs } from '@/lib/multi-origin';
+import { extraLadderIncluded } from '@/lib/multi-origin';
 import { OptionAddDialog } from "./OptionAddDialog";
 import { OptionArt } from "./OptionArt";
 import { DepositPanel } from "./DepositPanel";
@@ -1569,14 +1568,12 @@ function AddressSearch({
 export function Step2() {
   const { draft, updateDraft, setScreen, customerFlow } = useApp();
   const [path, setPath] = useState<{ x: number; y: number }[] | null>(null);
-  const [legPaths, setLegPaths] = useState<{ x: number; y: number }[][]>([]);
   const [routing, setRouting] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
   const from = draft.fromX && draft.fromY ? { x: draft.fromX, y: draft.fromY } : null;
   const to = draft.toX && draft.toY ? { x: draft.toX, y: draft.toY } : null;
-  const second = draft.extraOrigin?.x && draft.extraOrigin.y ? { x: draft.extraOrigin.x, y: draft.extraOrigin.y } : null;
   const hasFrom = Boolean(draft.fromAddress?.trim());
   const hasDestination = Boolean(draft.toAddress?.trim());
 
@@ -1607,18 +1604,6 @@ export function Step2() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.fromAddress, draft.toAddress, !!from, !!to]);
   useEffect(() => {
-    const origin = draft.extraOrigin;
-    if (!origin?.address.trim() || (origin.x && origin.y)) return;
-    let cancelled = false;
-    searchAddress({ data: { query: origin.address.replace(/\s*\(.*?\)\s*/g, ' ').trim().slice(0, 100) } }).then(res => {
-      const p = res.places?.find(p => p.x && p.y);
-      if (!cancelled && p) updateDraft({ extraOrigin: { ...origin, x: p.x, y: p.y } });
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [draft.extraOrigin?.address, draft.extraOrigin?.x, draft.extraOrigin?.y, tick]);
-
-  useEffect(() => {
-    setLegPaths([]);
     // 도착지를 입력하지 않은 경우 지도와 거리를 표시하지 않습니다.
     if (!hasDestination) {
       setPath(null);
@@ -1645,11 +1630,7 @@ export function Step2() {
     setPath(null);
     (async () => {
       try {
-        const legs = routeLegs(draft);
-        if (!legs.length) { setRouteError('출발지 2 주소를 검색 결과에서 선택해 주세요.'); updateDraft({ distanceKm: 0, durationMin: 0, routeSegments: undefined }); return; }
-        const results = await Promise.all(legs.map(leg => getRoute({ data: { originX: leg.from.x, originY: leg.from.y, destX: leg.to.x, destY: leg.to.y } })));
-        const failed = results.find(r => !r.ok || !r.distanceKm);
-        const res = failed || { ok: true, distanceKm: results.reduce((sum, r) => sum + (r.distanceKm || 0), 0), durationMin: results.reduce((sum, r) => sum + (r.durationMin || 0), 0), path: results.flatMap(r => r.path), error: undefined };
+        const res = await getRoute({ data: { originX: from.x, originY: from.y, destX: to.x, destY: to.y } });
         if (cancelled) return;
         if (!res.ok || !res.distanceKm) {
           // 실패 시 직선거리를 정상 거리처럼 표시하지 않습니다.
@@ -1658,8 +1639,7 @@ export function Step2() {
           return;
         }
         setPath(res.path.length > 1 ? res.path : null);
-        setLegPaths(results.map(r => r.path));
-        updateDraft({ distanceKm: res.distanceKm, durationMin: res.durationMin, routeSegments: results.map(r => ({ distanceKm: r.distanceKm || 0, durationMin: r.durationMin || 0 })) });
+        updateDraft({ distanceKm: res.distanceKm, durationMin: res.durationMin });
       } catch {
         if (!cancelled) {
           updateDraft({ distanceKm: 0, durationMin: 0 });
@@ -1672,7 +1652,7 @@ export function Step2() {
     return () => {
       cancelled = true;
     };
-  }, [from?.x, from?.y, to?.x, to?.y, second?.x, second?.y, !!draft.extraOrigin, draft.routeMode, hasFrom, hasDestination, tick]);
+  }, [from?.x, from?.y, to?.x, to?.y, hasFrom, hasDestination, tick]);
 
   /**
    * 상세주소에서 찾은 층수를 해당 장소의 층수 칸에만 넣습니다.
@@ -1688,7 +1668,7 @@ export function Step2() {
 
   const swipe = useSwipeNav(
     () => setScreen("step1"),
-    () => (hasFrom && (!draft.extraOrigin || draft.extraOrigin.address.trim()) ? setScreen("step3") : toast.error("출발지 주소를 입력해 주세요.")),
+    () => (hasFrom ? setScreen("step3") : toast.error("출발지 주소를 입력해 주세요.")),
   );
   return (
     <MobileShell className="jp-estimate-flow jp-tone-2 jp-redesign">
@@ -1696,7 +1676,7 @@ export function Step2() {
         bubble="출발지와 도착지 주소를 입력해 주세요!" onBack={() => setScreen("step1")} />
       <div className="px-4 pt-1 space-y-4 flex-1 overflow-auto pb-32" {...swipe}>
         <AddressSearch
-          label={draft.extraOrigin ? '출발지 1' : '출발지'}
+          label="출발지"
           value={draft.fromAddress}
           detail={draft.fromDetail}
           onSelect={(a, c) => {
@@ -1712,12 +1692,6 @@ export function Step2() {
           }}
           onDetail={(d) => updateDraft({ fromDetail: d, ...autoFloor("from", d) })}
         />
-        {!draft.extraOrigin ? <div className="space-y-2"><Button variant="outline" className="w-full min-h-11" onClick={() => updateDraft(customerFlow ? { extraOrigin: { id: 'origin-2', address: '', detail: '', ladder: false } } : addSecondOrigin(draft))}>＋ 출발지 추가</Button><p className="text-sm text-muted-foreground">다른 집에서도 짐을 싣는 경우 눌러주세요</p></div> : <div className="space-y-3">
-          <AddressSearch label="출발지 2" value={draft.extraOrigin.address} detail={draft.extraOrigin.detail}
-            onSelect={(address, c) => updateDraft({ extraOrigin: { ...draft.extraOrigin, id: 'origin-2', detail: draft.extraOrigin?.detail || '', ladder: !!draft.extraOrigin?.ladder, address, x: c.x || null, y: c.y || null, jibun: c.jibun, zip: c.zip }, distanceKm: 0, durationMin: 0 })}
-            onDetail={detail => { if (draft.extraOrigin) updateDraft({ extraOrigin: { ...draft.extraOrigin, detail } }); }} />
-          <Button variant="outline" onClick={() => { if (draft.extraOrigin && (!originHasInput(draft.extraOrigin, draft.rooms) || window.confirm('출발지 2 입력 내용과 해당 집의 방·품목을 삭제할까요?'))) updateDraft(removeSecondOrigin(draft)); }}>출발지 2 취소</Button>
-        </div>}
         <AddressSearch
           label="도착지"
           value={draft.toAddress}
@@ -1741,9 +1715,7 @@ export function Step2() {
         {(from || to) && (
           <Card className="pb-5">
             <div className="font-bold mb-2">경로 안내</div>
-            {draft.extraOrigin && !customerFlow && <div className="flex flex-wrap gap-2 mb-3" data-no-swipe><Button variant={draft.routeMode !== 'separate' ? 'default' : 'outline'} onClick={() => updateDraft({ routeMode: 'sequential' })}>두 집 순차 방문</Button><Button variant={draft.routeMode === 'separate' ? 'default' : 'outline'} onClick={() => updateDraft({ routeMode: 'separate' })}>각 집에서 출발</Button></div>}
-            {draft.extraOrigin && <p className="text-sm mb-2">{draft.routeMode === 'separate' ? '출발지 1 → 도착지 / 출발지 2 → 도착지' : '출발지 1 → 출발지 2 → 도착지'}</p>}
-            <div data-no-swipe><KakaoMap from={from} second={second} to={to} path={draft.routeMode === 'separate' ? null : path} paths={draft.routeMode === 'separate' ? legPaths : undefined} height={280} /></div>
+            <div data-no-swipe><KakaoMap from={from} to={to} path={path} height={280} /></div>
             {routeError && !routing ? (
               <div className="mt-3 rounded-xl bg-[#FFF1F1] border border-[#FFD4D4] p-3 text-center space-y-2">
                 <div className="text-xs font-semibold text-[#D95C5C] leading-relaxed">
@@ -1788,7 +1760,7 @@ export function Step2() {
       </div>
 
       <BottomButtonBar>
-        <PrimaryButton className="jp-next-btn" onClick={() => { if (draft.extraOrigin && !draft.extraOrigin.address.trim()) toast.error('출발지 2 주소를 입력해 주세요.'); else setScreen('step3'); }} disabled={!hasFrom}>
+        <PrimaryButton className="jp-next-btn" onClick={() => setScreen("step3")} disabled={!hasFrom}>
           다음: 작업 조건
         </PrimaryButton>
       </BottomButtonBar>
@@ -2071,14 +2043,13 @@ export function Step3() {
       <div className="px-4 pt-1 space-y-5 flex-1 overflow-auto pb-32" {...swipe}>
         {(["from", "to"] as const).map((side) => {
           const isFrom = side === "from";
-          const place = isFrom ? (draft.extraOrigin ? '출발지 1' : '출발지') : "도착지";
+          const place = isFrom ? "출발지" : "도착지";
           const floor = isFrom ? draft.fromFloor : draft.toFloor;
           const ladderOn = isFrom ? !!draft.ladderFrom : !!draft.ladderTo;
           // 예전에 저장된 자료에 둘 다 켜져 있어도 화면에는 사다리차 하나만 선택으로 보입니다.
           const env = ladderOn ? undefined : isFrom ? draft.fromEnv : draft.toEnv;
           return (
             <Fragment key={side}>
-            {side === 'to' && <ExtraOriginFields mode="conditions" />}
             <div
               key={side}
               className={isFrom ? "" : "mt-7 border-t-2 border-dashed border-[#D7DEEB] pt-7"}
@@ -2361,7 +2332,6 @@ export function Step4() {
           </div>
         </Card>
         {/* 사다리차와 작업 인원 사이 간격 넓히기 */}
-        <ExtraOriginFields mode="vehicles" />
         <div aria-hidden className="h-6" />
         <Field label="작업 인원">
           <Card selected={draft.workers > 0} className="jp-quantity-card" data-quantity-selected={draft.workers > 0}>
@@ -2690,7 +2660,6 @@ export function Step6() {
     });
   const [roomDialog, setRoomDialog] = useState<{ mode: "add" } | { mode: "rename"; id: string; name: string } | null>(null);
   const [roomDelete, setRoomDelete] = useState<{ id: string; name: string } | null>(null);
-  const [roomOrigin, setRoomOrigin] = useState<'1' | '2'>('1');
   const roomCardDrag = useRoomDrag(!customerFlow, (id, toIndex) => {
     const base = draftRef.current.roomsCustomized ? draftRef.current.rooms : materializeRooms(draftRef.current.rooms, sizeRooms);
     if (moveRoom(base, id, toIndex) === base) return;
@@ -2699,17 +2668,12 @@ export function Step6() {
   const submitRoomName = async (name: string): Promise<boolean> => {
     if (!roomDialog) return false;
     if (roomDialog.mode === "add") {
-      const ok = await manageRooms((rooms) => {
-        const next = addRoom(rooms, draft.extraOrigin ? `출발지 ${roomOrigin} · ${name}` : name);
-        return next.map((r, i) => i === next.length - 1 && draft.extraOrigin ? { ...r, originId: `origin-${roomOrigin}`, kind: name } : r);
-      });
+      const ok = await manageRooms((rooms) => addRoom(rooms, name));
       if (ok) toast.success("방을 추가했습니다");
       return ok;
     }
     const { id, name: oldName } = roomDialog;
-    const targetRoom = draftRef.current.rooms.find(r => r.id === id);
-    const prefixed = draft.extraOrigin && targetRoom?.originId ? `${targetRoom.originId === 'origin-2' ? '출발지 2' : '출발지 1'} · ${name.replace(/^출발지 [12] · /, '')}` : name;
-    const ok = await manageRooms((rooms) => renameRoom(rooms, id, prefixed));
+    const ok = await manageRooms((rooms) => renameRoom(rooms, id, name));
     if (ok) {
       toast.success("방 이름을 바꿨습니다");
       const newName = draftRef.current.rooms.find((r) => r.id === id)?.name;
@@ -3763,7 +3727,7 @@ export function Step6() {
 
       {/* 평수 선택 — 예전처럼 한 줄을 좌우로 밀어서 봅니다 */}
       <div className="bg-white border-b border-[#E5E7EB] px-4 py-3">
-        {!customerFlow && <div className="mb-1.5 px-1 text-[14px] font-black text-[#25282D]">{draft.extraOrigin ? '출발지 1 평수' : '출발지 평수'}</div>}
+        {!customerFlow && <div className="mb-1.5 px-1 text-[14px] font-black text-[#25282D]">출발지 평수</div>}
         <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {SIZE_TABS.map((t) => (
             <button
@@ -3779,7 +3743,6 @@ export function Step6() {
             </button>
           ))}
         </div>
-        <ExtraOriginFields mode="size" />
         {!customerFlow && (
           <>
             <div className="mb-1.5 mt-2 px-1 text-[14px] font-black text-[#25282D]">도착지 평수</div>
@@ -3882,7 +3845,7 @@ export function Step6() {
                       ROOM_TINT[art] || "from-[#5B93D6] to-[#3578C8]"
                     } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)] max-w-full self-start truncate align-top`}
                   >
-                    {name}
+                    {art}
                   </span>
                   <div className="jp-room-original-art relative flex w-full items-center justify-center aspect-square">
                     <Art3D src={roomImageFor(name.replace(/^출발지 [12] · /, ''))} alt={name} size={120} />
@@ -3952,12 +3915,10 @@ export function Step6() {
             );
           })}
           {!customerFlow && (
-            <div>{draft.extraOrigin && <div className="flex gap-2 mb-2"><Button variant={roomOrigin === '1' ? 'default' : 'outline'} onClick={() => setRoomOrigin('1')}>출발지 1 방 추가</Button><Button variant={roomOrigin === '2' ? 'default' : 'outline'} onClick={() => setRoomOrigin('2')}>출발지 2 방 추가</Button></div>}
             <button type="button" data-room-add onClick={() => { tap("soft"); setRoomDialog({ mode: "add" }); }}
               className="min-h-[160px] rounded-3xl border-2 border-dashed border-[#9DB8E0] bg-white/70 text-[16px] font-black text-[#3578C8] active:translate-y-[2px]">
               ＋ 방 추가
             </button>
-            </div>
           )}
         </div>
       </div>
@@ -3967,9 +3928,7 @@ export function Step6() {
         initial={roomDialog?.mode === "rename" ? roomDialog.name : ""}
         validate={(n) => {
           const base = draft.roomsCustomized ? draft.rooms : materializeRooms(draft.rooms, sizeRooms);
-          const origin = roomDialog?.mode === 'rename' ? base.find(r => r.id === roomDialog.id)?.originId : `origin-${roomOrigin}`;
-          const name = draft.extraOrigin ? `${origin === 'origin-2' ? '출발지 2' : '출발지 1'} · ${n.replace(/^출발지 [12] · /, '')}` : n;
-          return roomNameError(base, name, roomDialog?.mode === "rename" ? roomDialog.id : undefined);
+          return roomNameError(base, n, roomDialog?.mode === "rename" ? roomDialog.id : undefined);
         }}
         onSubmit={submitRoomName}
         onClose={() => setRoomDialog(null)}
@@ -3999,7 +3958,7 @@ export function Step6() {
             <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
               <div className="flex min-w-0 items-center gap-3">
                 <Button variant="ghost" size="icon" className="size-9 shrink-0" aria-label="이전 화면" onClick={() => { if (!itemWriteLock.current) setOpenRoom(null); }}><ChevronLeft /></Button>
-                <h2 className="truncate text-lg font-black">{room.name}</h2>
+                <h2 className="truncate text-lg font-black">{room.name.replace(/^출발지 [12] · /, '')}</h2>
                 <span className="shrink-0 text-sm font-bold text-muted-foreground">{roomSummary(room.items).kinds}종 · {roomSummary(room.items).count}개</span>
               </div>
               <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" onClick={() => setOpenRoom(null)} aria-label="닫기"><X /></Button>
