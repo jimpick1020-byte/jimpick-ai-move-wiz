@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { Field, FloorStepper, Counter, MoneyInput, Card } from './ui';
+import { Field, Counter, MoneyInput, Card } from './ui';
+import { FloorStepper } from './screens';
 import { useApp } from '@/lib/jimpick';
 import { HOUSE_SIZES } from '@/lib/multi-origin';
 import { ENV_IMG, VEHICLE_IMG, Art3D } from '@/lib/jimpick-art';

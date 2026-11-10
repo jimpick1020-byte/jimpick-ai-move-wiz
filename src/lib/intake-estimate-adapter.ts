@@ -45,7 +45,7 @@ export function estimateToIntake(draft: Estimate, previous: IntakeForm): IntakeF
     fromFloorEdited: draft.fromFloorEdited, toFloorEdited: draft.toFloorEdited,
     ladderFrom: draft.ladderFrom, ladderTo: draft.ladderTo,
     fromDecideOnVisit: draft.fromDecideOnVisit, toDecideOnVisit: draft.toDecideOnVisit,
-    fromSize: draft.sizeTab, spaces: draft.rooms.map(r => r.name),
-    rooms: Object.fromEntries(draft.rooms.map(r => [r.name, Object.fromEntries(Object.entries(r.items).filter(([, qty]) => qty > 0).map(([id, qty]) => [id, { qty, disposal: !!r.disposal?.[id] }]))])),
+    fromSize: draft.sizeTab, spaces: draft.rooms.filter(r => !r.originId).map(r => r.name),
+    rooms: Object.fromEntries(draft.rooms.filter(r => !r.originId).map(r => [r.name, Object.fromEntries(Object.entries(r.items).filter(([, qty]) => qty > 0).map(([id, qty]) => [id, { qty, disposal: !!r.disposal?.[id] }]))])),
   };
 }

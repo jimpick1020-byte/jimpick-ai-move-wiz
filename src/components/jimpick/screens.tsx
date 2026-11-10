@@ -1874,7 +1874,7 @@ function useSwipeNav(onPrev?: () => void, onNext?: () => void) {
  * 층수 입력 — 직접 입력 + 「−/+」 버튼(길게 누르면 연속으로 오르내림).
  * 1~100 정수만 저장합니다.
  */
-function FloorStepper({
+export function FloorStepper({
   value,
   onChange,
   label,
@@ -2684,12 +2684,17 @@ export function Step6() {
   const submitRoomName = async (name: string): Promise<boolean> => {
     if (!roomDialog) return false;
     if (roomDialog.mode === "add") {
-      const ok = await manageRooms((rooms) => addRoom(rooms, draft.extraOrigin ? `출발지 ${roomOrigin} · ${name}` : name).map(r => r === rooms[rooms.length - 1] ? r : r.originId || !draft.extraOrigin ? r : { ...r, originId: `origin-${roomOrigin}` }));
+      const ok = await manageRooms((rooms) => {
+        const next = addRoom(rooms, draft.extraOrigin ? `출발지 ${roomOrigin} · ${name}` : name);
+        return next.map((r, i) => i === next.length - 1 && draft.extraOrigin ? { ...r, originId: `origin-${roomOrigin}`, kind: name } : r);
+      });
       if (ok) toast.success("방을 추가했습니다");
       return ok;
     }
     const { id, name: oldName } = roomDialog;
-    const ok = await manageRooms((rooms) => renameRoom(rooms, id, name));
+    const targetRoom = draftRef.current.rooms.find(r => r.id === id);
+    const prefixed = draft.extraOrigin && targetRoom?.originId ? `${targetRoom.originId === 'origin-2' ? '출발지 2' : '출발지 1'} · ${name.replace(/^출발지 [12] · /, '')}` : name;
+    const ok = await manageRooms((rooms) => renameRoom(rooms, id, prefixed));
     if (ok) {
       toast.success("방 이름을 바꿨습니다");
       const newName = draftRef.current.rooms.find((r) => r.id === id)?.name;
@@ -3865,7 +3870,7 @@ export function Step6() {
                     {name}
                   </span>
                   <div className="jp-room-original-art relative flex w-full items-center justify-center aspect-square">
-                    <Art3D src={roomImageFor(name)} alt={name} size={120} />
+                    <Art3D src={roomImageFor(name.replace(/^출발지 [12] · /, ''))} alt={name} size={120} />
                   </div>
                   {/* 담은 품목 미리보기 — 3D 아이콘 3개까지, 나머지는 +N */}
                   {(() => {
@@ -3947,7 +3952,9 @@ export function Step6() {
         initial={roomDialog?.mode === "rename" ? roomDialog.name : ""}
         validate={(n) => {
           const base = draft.roomsCustomized ? draft.rooms : materializeRooms(draft.rooms, sizeRooms);
-          return roomNameError(base, n, roomDialog?.mode === "rename" ? roomDialog.id : undefined);
+          const origin = roomDialog?.mode === 'rename' ? base.find(r => r.id === roomDialog.id)?.originId : `origin-${roomOrigin}`;
+          const name = draft.extraOrigin ? `${origin === 'origin-2' ? '출발지 2' : '출발지 1'} · ${n.replace(/^출발지 [12] · /, '')}` : n;
+          return roomNameError(base, name, roomDialog?.mode === "rename" ? roomDialog.id : undefined);
         }}
         onSubmit={submitRoomName}
         onClose={() => setRoomDialog(null)}
