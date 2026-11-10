@@ -67,6 +67,7 @@ export interface IntakeRow {
 const phoneSchema = z.string().trim().regex(/^0\d{1,2}-?\d{3,4}-?\d{4}$/, "휴대전화 번호를 확인해 주세요.");
 const pickSchema = z.object({ qty: z.number().int().min(1).max(20), disposal: z.boolean() });
 const formSchema = z.object({
+  destinationSnapshot: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
   extraOrigin: z.object({
     id: z.literal('origin-2'), address: z.string().max(200), detail: z.string().max(100),
     x: z.number().nullable().optional(), y: z.number().nullable().optional(),
@@ -583,8 +584,8 @@ async function persistHouseInput(token: string, incoming: IntakeForm, submit: bo
       if (error) return { ok: false, error: "견적을 불러오지 못했습니다." };
       if (draftRow?.deleted_at) return { ok: false, error: "삭제된 견적은 다시 만들 수 없습니다." };
       const base = (draftRow?.payload as Record<string, unknown> | null) ?? baseEstimate(row.estimate_id);
-      const first = houseForm(origin === 1 ? form : row.submission ?? {}, row.customer_phone, destination);
-      const second = houseForm(origin === 2 ? form : row.second_submission ?? {}, row.customer_phone, destination);
+      const first = houseForm(origin === 1 ? form : Object.keys(row.draft ?? {}).length ? row.draft : row.submission ?? {}, row.customer_phone, destination);
+      const second = houseForm(origin === 2 ? form : Object.keys(row.second_draft ?? {}).length ? row.second_draft : row.second_submission ?? {}, row.customer_phone, destination);
       merged = base.intakeOwnerStartedAt ? { ...base } : linked
         ? mergeHouseEstimate(base as unknown as import("./jimpick").Estimate, first, second, row.id) as unknown as Record<string, unknown>
         : mergeIntakeIntoDraft(base, form, row.submission?.rooms ?? null, { intakeRequestId: row.id });
@@ -656,7 +657,7 @@ export const openIntake = createServerFn({ method: "POST" })
       fromX: saved.fromX ?? null, fromY: saved.fromY ?? null, toX: saved.toX ?? null, toY: saved.toY ?? null,
       fromJibun: saved.fromJibun ?? "", fromZip: saved.fromZip ?? "", toJibun: saved.toJibun ?? "", toZip: saved.toZip ?? "",
       fromSize: saved.fromSize ?? "", toSize: saved.toSize ?? "",
-      extraOrigin: saved.extraOrigin,
+      extraOrigin: saved.extraOrigin, destinationSnapshot: saved.destinationSnapshot,
       spaces: Array.isArray(saved.spaces) ? saved.spaces : undefined,
       moveType: saved.moveType, storageEnabled: saved.storageEnabled, memo: saved.memo,
       fromEnv: saved.fromEnv, toEnv: saved.toEnv, fromFloor: saved.fromFloor, toFloor: saved.toFloor,
