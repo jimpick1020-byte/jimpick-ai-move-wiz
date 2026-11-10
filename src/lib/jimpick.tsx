@@ -9,6 +9,7 @@ import { loadEstimateDraft } from "./draft-sync.functions";
 import { registerCustomIcons } from "./jimpick-icon3d";
 import { mergeItemCatalog } from "./item-catalog-merge";
 import { applyLadderAuto } from "./ladder-fee";
+import { extraLadderIncluded, type ExtraOrigin } from './multi-origin';
 import { usePersistentItemCatalog } from "./use-persistent-item-catalog";
 import { FEATURED_HOUSEHOLD_100 } from "./featured-household-100";
 import { saveSafeSnapshot } from "./safe-state";
@@ -28,6 +29,7 @@ export interface RoomItems {
 }
 export interface Room {
   id: string;
+  originId?: string;
   name: string;
   /** 방 그림 종류(처음 이름) — 이름을 바꿔도 그림은 그대로 둡니다 */
   kind?: string;
@@ -85,6 +87,9 @@ export interface CustomItem {
 }
 export interface Estimate {
   id: string;
+  extraOrigin?: ExtraOrigin;
+  routeMode?: 'sequential' | 'separate';
+  routeSegments?: { distanceKm: number; durationMin: number }[];
   lastWritingScreen?: string;
   intakeOwnerStartedAt?: string;
   createdAt: number;
@@ -1440,12 +1445,12 @@ export function calcEstimate(
 ): { total: number; parts: { label: string; amount: number }[] } {
   // 출발지·도착지를 따로 고른 견적은 위치별 반영금액만 더합니다(별도 체크 위치는 0원).
   // 금액이 0원이어도 예전 공용 단가로 되돌아가지 않습니다.
-  const usesSides = !!e.ladderFrom || !!e.ladderTo;
+  const usesSides = !!e.ladderFrom || !!e.ladderTo || !!e.extraOrigin?.ladder;
   const ladderCount = num(e.ladder) || (e.ladderFrom ? 1 : 0) + (e.ladderTo ? 1 : 0);
   const ladderFee = e.ladderSeparate
     ? 0
     : usesSides
-      ? ladderIncludedAmount(e, "from") + ladderIncludedAmount(e, "to")
+      ? ladderIncludedAmount(e, "from") + ladderIncludedAmount(e, "to") + extraLadderIncluded(e)
       : num(e.ladderPrice) || ladderCount * pricing.ladder;
 
   /** 5톤은 기본 차량이라 1회만, 1톤은 고른 대수만큼 금액이 더해집니다 */
@@ -1462,7 +1467,8 @@ export function calcEstimate(
   const toIsStair = !e.ladderTo && (e.toEnv ? e.toEnv === "계단" : e.workEnv === "계단");
   const stairFloors =
     (fromIsStair ? Math.max(0, num(e.fromFloor) - 1) : 0) +
-    (toIsStair ? Math.max(0, num(e.toFloor) - 1) : 0);
+    (toIsStair ? Math.max(0, num(e.toFloor) - 1) : 0) +
+    (e.extraOrigin?.env === '계단' && !e.extraOrigin.ladder ? Math.max(0, num(e.extraOrigin.floor) - 1) : 0);
   const stairFee = stairFloors * pricing.stairPerFloor;
 
   // 수작업 비용은 견적 합계·상세 내역에서 제외합니다.

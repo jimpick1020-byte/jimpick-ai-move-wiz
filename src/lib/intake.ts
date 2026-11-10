@@ -131,6 +131,7 @@ export interface IntakePick {
 export type IntakeRooms = Record<string, Record<string, IntakePick>>;
 
 export interface IntakeForm {
+  extraOrigin?: import('./multi-origin').ExtraOrigin;
   customerName: string;
   phone: string;
   moveDate: string;
@@ -319,6 +320,7 @@ export function mergeIntakeIntoDraft(
   }
   const out: Record<string, unknown> = {
     ...base,
+    extraOrigin: form.extraOrigin,
     customerName: form.customerName.trim(),
     phone: form.phone,
     moveDate: form.moveDate,
@@ -348,6 +350,17 @@ export function mergeIntakeIntoDraft(
   if (form.moveType) out.moveType = form.moveType;
   if (form.storageEnabled !== undefined) out.storageEnabled = form.storageEnabled;
   if (form.memo !== undefined) out.memo = form.memo;
+  if (form.extraOrigin && !rooms.some(r => (r as DraftRoom & { originId?: string }).originId === 'origin-2')) {
+    for (const r of rooms) {
+      Object.assign(r, { originId: 'origin-1', kind: r.name });
+      if (!r.name.startsWith('출발지 1 · ')) r.name = `출발지 1 · ${r.name}`;
+    }
+    for (const [i, name] of ['안방', '작은방', '거실'].entries()) {
+      rooms.push({ id: `origin-2-room-${i}`, name: `출발지 2 · ${name}`, items: {}, disposal: {}, ...{ originId: 'origin-2', kind: name } });
+    }
+    out.roomsCustomized = true;
+    out.routeMode = 'sequential';
+  }
   for (const name of form.spaces ?? []) {
     if (!rooms.some(r => r.name === name)) rooms.push({ id: `r_${name}`, name, items: {}, disposal: {} });
   }
