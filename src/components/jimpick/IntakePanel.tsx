@@ -660,6 +660,7 @@ export function RequestsScreenBody() {
             <div className="text-xs text-muted-foreground">{r.visit_date ? `방문 ${r.visit_date} ${r.visit_time || "시간 미정"}` : "방문 일정 미정"}</div>
             <div hidden={!expanded.has(r.id)} className="space-y-2">
             <Button variant="outline" type="button" onClick={() => setOpenId(r.id)}>사전정보·문자 확인</Button>
+            <HouseRows row={r} />
             <div className="flex justify-end"><Button variant="ghost" size="icon" disabled={!!deleting} onClick={() => void remove(r)} aria-label={`${intakeDisplayName(r)} 요청 삭제`} title="요청 삭제" className="text-destructive"><Trash2 className="size-5" /></Button></div>
             {sub?.moveDate !== undefined && (r.status === "submitted" || r.status === "confirmed") && (
               <>
@@ -676,6 +677,40 @@ export function RequestsScreenBody() {
   );
 }
 
+
+const filled = (v: unknown) => !!v && typeof v === "object" && Object.keys(v as object).length > 0;
+/** Per-link house status lines; each opens only that link's own saved answer. */
+function HouseRows({ row }: { row: IntakeRow }) {
+  const [open, setOpen] = useState<1 | 2 | null>(null);
+  const houses: { n: 1 | 2; label: string; form: Partial<IntakeForm>; state: string }[] = [
+    { n: 1, label: "첫 번째 집", form: (filled(row.submission) ? row.submission : row.draft ?? {}) as Partial<IntakeForm>, state: filled(row.submission) ? "입력 완료" : filled(row.draft) ? "작성 중" : "입력 대기" },
+  ];
+  if (row.second_token_hash) houses.push({ n: 2, label: "두 번째 집", form: (filled(row.second_submission) ? row.second_submission : row.second_draft ?? {}) as Partial<IntakeForm>, state: filled(row.second_submission) ? "입력 완료" : filled(row.second_draft) ? "작성 중" : "입력 대기" });
+  const cur = houses.find(h => h.n === open);
+  return (
+    <div className="space-y-1.5" data-house-rows>
+      {houses.map(h => (
+        <button key={h.n} type="button" data-house={h.n} onClick={() => setOpen(h.n)} className="w-full rounded-xl border border-[#E5E7EB] px-3 py-2 text-left text-sm">
+          <span className="font-black text-[#25282D]">{h.label}</span> · <span className="text-[#4B5563]">{h.form.fromAddress || "주소 미입력"}</span> · <span className={`font-black ${h.state === "입력 완료" ? "text-[#047857]" : "text-[#B45309]"}`}>{h.state}</span>
+        </button>
+      ))}
+      {cur && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40" onClick={() => setOpen(null)}>
+          <div role="dialog" aria-label={`${cur.label} 답변`} className="w-full max-w-md max-h-[85vh] overflow-auto rounded-t-3xl bg-white p-5 pb-8 space-y-2 text-sm" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between"><h2 className="text-lg font-black">{cur.label} 답변 · {cur.state}</h2><Button variant="ghost" type="button" onClick={() => setOpen(null)} aria-label="닫기"><X className="w-5 h-5" /></Button></div>
+            {[["고객", cur.form.customerName], ["포장 종류", cur.form.moveType], ["이사일", [cur.form.moveDate, cur.form.moveTime].filter(Boolean).join(" ")], ["출발지", [cur.form.fromAddress, cur.form.fromDetail].filter(Boolean).join(" ")], ["출발지 평수", cur.form.fromSize], ["출발지 층수", cur.form.fromFloor != null ? `${cur.form.fromFloor}층` : ""], ["출발지 작업", cur.form.fromEnv ?? (cur.form.ladderFrom ? "사다리차" : "")], ["도착지", [cur.form.toAddress, cur.form.toDetail].filter(Boolean).join(" ")], ["도착지 평수", cur.form.toSize], ["메모", cur.form.memo]].map(([k, v]) => (
+              <div key={k as string} className="flex gap-2"><span className="w-20 shrink-0 font-bold text-[#6B7280]">{k}</span><span className="font-bold">{(v as string) || "미입력"}</span></div>
+            ))}
+            <div className="pt-1 font-bold text-[#6B7280]">방별 짐</div>
+            {Object.entries(cur.form.rooms ?? {}).map(([room, picks]) => (
+              <div key={room}><span className="font-black">{room}</span> {Object.keys(picks ?? {}).length ? Object.entries(picks ?? {}).map(([id, p]) => `${id} ${(p as { qty: number }).qty}개${(p as { disposal?: boolean }).disposal ? "(폐기)" : ""}`).join(", ") : "품목 없음"}</div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** 방문 일정 저장·변경·취소, 통신사 문자, 방문견적 시작 (같은 요청 행 하나에만 저장) */
 function VisitPanel({ row }: { row: IntakeRow }) {

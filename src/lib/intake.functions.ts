@@ -21,7 +21,7 @@ import { houseForm, mergeHouseDestination, mergeHouseEstimate, type SharedDestin
 
 const ADMIN_SENDER = "01075662542";
 const OWNER_COLS =
-  "id, estimate_id, source_estimate_id, customer_name, customer_phone, status, expires_at, submission, first_opened_at, last_opened_at, editing_started_at, first_submitted_at, last_submitted_at, submit_count, consent_at, confirmed_at, cancelled_at, owner_seen_at, last_sent_at, last_send_method, last_send_error, created_at, updated_at, visit_date, visit_time, visit_status, visit_memo, visit_sms_opened_at, visit_sms_confirmed_at, visit_customer_confirmed_at, visit_completed_at, deleted_at, second_token_hash";
+  "id, estimate_id, source_estimate_id, customer_name, customer_phone, status, expires_at, submission, first_opened_at, last_opened_at, editing_started_at, first_submitted_at, last_submitted_at, submit_count, consent_at, confirmed_at, cancelled_at, owner_seen_at, last_sent_at, last_send_method, last_send_error, created_at, updated_at, visit_date, visit_time, visit_status, visit_memo, visit_sms_opened_at, visit_sms_confirmed_at, visit_customer_confirmed_at, visit_completed_at, deleted_at, second_token_hash, second_submission, second_draft, draft";
 
 export interface IntakeRow {
   id: string;
@@ -62,6 +62,9 @@ export interface IntakeRow {
   visit_completed_at: string | null;
   deleted_at: string | null;
   second_token_hash?: string | null;
+  second_submission?: Partial<IntakeForm> | Record<string, never>;
+  second_draft?: Partial<IntakeForm> | Record<string, never>;
+  draft?: Partial<IntakeForm> | Record<string, never>;
 }
 
 const phoneSchema = z.string().trim().regex(/^0\d{1,2}-?\d{3,4}-?\d{4}$/, "휴대전화 번호를 확인해 주세요.");
@@ -648,7 +651,13 @@ export const openIntake = createServerFn({ method: "POST" })
     }).eq("id", row.id);
     const ownDraft = origin === 2 ? row.second_draft : row.draft;
     const ownSubmission = origin === 2 ? row.second_submission : row.submission;
-    const saved = houseForm((ownDraft && Object.keys(ownDraft).length ? ownDraft : ownSubmission) ?? {}, row.customer_phone, row.second_token_hash ? linkedDestination(row) : {}) as Partial<IntakeForm>;
+    const ownSaved = (ownDraft && Object.keys(ownDraft).length ? ownDraft : ownSubmission) ?? {};
+    // A fresh second-house link starts with the same move's name/packing/date; origin and items stay empty.
+    const firstSaved = (row.draft && Object.keys(row.draft).length ? row.draft : row.submission) ?? {};
+    const seed = origin === 2 && !Object.keys(ownSaved).length
+      ? Object.fromEntries(Object.entries({ customerName: firstSaved.customerName, moveType: firstSaved.moveType, moveDate: firstSaved.moveDate }).filter(([, v]) => v !== undefined && v !== ""))
+      : {};
+    const saved = houseForm({ ...seed, ...ownSaved }, row.customer_phone, row.second_token_hash ? linkedDestination(row) : {}) as Partial<IntakeForm>;
     const form: IntakeForm = {
       // 이름은 고객이 1단계에서 직접 입력합니다(업체가 저장한 이름을 미리 채우지 않음).
       customerName: saved.customerName ?? "", phone: saved.phone ?? row.customer_phone,
