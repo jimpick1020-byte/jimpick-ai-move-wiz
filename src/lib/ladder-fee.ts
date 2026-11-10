@@ -43,10 +43,15 @@ export function ladderAutoFee(floor: number, truck5t: number, truck1t: number): 
 }
 
 type LadderFields = {
+  extraOrigin?: import('./multi-origin').ExtraOrigin;
   fromFloor: number;
   toFloor: number;
   truck1t: number;
   truck5t: number;
+  ladderFromTruck5t?: number;
+  ladderFromTruck1t?: number;
+  ladderToTruck5t?: number;
+  ladderToTruck1t?: number;
   ladderFrom: boolean;
   ladderTo: boolean;
   ladderFromPrice: number;
@@ -59,7 +64,7 @@ type LadderFields = {
   ladderToNote?: string;
 };
 
-const TRIGGERS = ["fromFloor", "toFloor", "truck1t", "truck5t", "ladderFrom", "ladderTo", "fromEnv", "toEnv"];
+const TRIGGERS = ["fromFloor", "toFloor", "truck1t", "truck5t", "ladderFrom", "ladderTo", "fromEnv", "toEnv", "extraOrigin", "ladderFromTruck5t", "ladderFromTruck1t", "ladderToTruck5t", "ladderToTruck1t"];
 
 /**
  * 층수·차량·사다리차 선택이 바뀐 수정에서만 호출됩니다(견적을 열기만 하면 바뀌지 않음).
@@ -69,6 +74,16 @@ const TRIGGERS = ["fromFloor", "toFloor", "truck1t", "truck5t", "ladderFrom", "l
 export function applyLadderAuto<T extends LadderFields>(next: T, patch: Partial<T>): T {
   if (!Object.keys(patch).some((k) => TRIGGERS.includes(k))) return next;
   const out: T = { ...next };
+  if (out.extraOrigin) {
+    const o = { ...out.extraOrigin };
+    if (!o.ladder) { o.ladderPrice = 0; o.ladderNote = undefined; }
+    else if (!o.ladderManual) {
+      const auto = ladderAutoFee(o.floor ?? 0, o.truck5t ?? out.truck5t, o.truck1t ?? out.truck1t);
+      o.ladderPrice = auto.amount ?? 0;
+      o.ladderNote = auto.amount === null ? auto.reason : undefined;
+    }
+    out.extraOrigin = o;
+  }
   for (const side of ["from", "to"] as const) {
     const on = side === "from" ? !!out.ladderFrom : !!out.ladderTo;
     const P = side === "from" ? "ladderFrom" : "ladderTo";
@@ -80,7 +95,9 @@ export function applyLadderAuto<T extends LadderFields>(next: T, patch: Partial<
     if (turnedOn) Object.assign(out, { [`${P}Manual`]: false });
     if ((out as Record<string, unknown>)[`${P}Manual`]) continue;
     const floor = side === "from" ? out.fromFloor : out.toFloor;
-    const auto = ladderAutoFee(floor, out.truck5t, out.truck1t);
+    const t5 = side === 'from' ? out.ladderFromTruck5t : out.ladderToTruck5t;
+    const t1 = side === 'from' ? out.ladderFromTruck1t : out.ladderToTruck1t;
+    const auto = ladderAutoFee(floor, t5 ?? out.truck5t, t1 ?? out.truck1t);
     Object.assign(out, auto.amount === null
       ? { [`${P}Price`]: 0, [`${P}Note`]: auto.reason }
       : { [`${P}Price`]: auto.amount, [`${P}Note`]: undefined });

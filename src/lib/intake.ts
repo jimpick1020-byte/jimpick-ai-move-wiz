@@ -131,6 +131,7 @@ export interface IntakePick {
 export type IntakeRooms = Record<string, Record<string, IntakePick>>;
 
 export interface IntakeForm {
+  extraOrigin?: import('./multi-origin').ExtraOrigin;
   customerName: string;
   phone: string;
   moveDate: string;
@@ -319,6 +320,7 @@ export function mergeIntakeIntoDraft(
   }
   const out: Record<string, unknown> = {
     ...base,
+    extraOrigin: form.extraOrigin,
     customerName: form.customerName.trim(),
     phone: form.phone,
     moveDate: form.moveDate,
@@ -342,14 +344,25 @@ export function mergeIntakeIntoDraft(
   };
   // 평수는 추천용 참고 정보로만 남깁니다(사장님 화면의 평수·기본 품목은 바꾸지 않음).
   out.intakeFromSize = form.fromSize ?? "";
-  if (form.fromSize && (INTAKE_SIZES as readonly string[]).includes(form.fromSize)) out.sizeTab = form.fromSize;
+  if (form.fromSize) out.sizeTab = form.fromSize;
   out.intakeToSize = form.toSize ?? "";
-  if (form.toSize && (INTAKE_SIZES as readonly string[]).includes(form.toSize)) out.toSizeTab = form.toSize;
+  if (form.toSize) out.toSizeTab = form.toSize;
   if (form.moveType) out.moveType = form.moveType;
   if (form.storageEnabled !== undefined) out.storageEnabled = form.storageEnabled;
   if (form.memo !== undefined) out.memo = form.memo;
+  if (form.extraOrigin && !rooms.some(r => (r as DraftRoom & { originId?: string }).originId === 'origin-2')) {
+    for (const r of rooms) {
+      Object.assign(r, { originId: 'origin-1', kind: r.name });
+      if (!r.name.startsWith('출발지 1 · ')) r.name = `출발지 1 · ${r.name}`;
+    }
+    for (const [i, name] of ['안방', '작은방', '거실'].entries()) {
+      rooms.push({ id: `origin-2-room-${i}`, name: `출발지 2 · ${name}`, items: {}, disposal: {}, ...{ originId: 'origin-2', kind: name } });
+    }
+    out.roomsCustomized = true;
+    out.routeMode = 'sequential';
+  }
   for (const name of form.spaces ?? []) {
-    if (!rooms.some(r => r.name === name)) rooms.push({ id: `r_${name}`, name, items: {}, disposal: {} });
+    if (!rooms.some(r => r.name === name || (form.extraOrigin && r.name === `출발지 1 · ${name}`))) rooms.push({ id: `r_${name}`, name, items: {}, disposal: {} });
   }
   // 층수: 사장님이 직접 고친 값은 덮어쓰지 않고, 확실한 경우만 넣습니다.
   if (!base.fromFloorEdited) out.fromFloor = fromFloor;

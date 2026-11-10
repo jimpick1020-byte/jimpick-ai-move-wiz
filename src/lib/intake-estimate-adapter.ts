@@ -7,6 +7,7 @@ export function intakeToEstimate(form: IntakeForm): Estimate {
   const names = [...new Set([...(form.spaces ?? base.rooms.map(r => r.name)), ...Object.keys(form.rooms)])];
   return {
     ...base, id: "intake-current", customerName: form.customerName, phone: form.phone,
+    extraOrigin: form.extraOrigin,
     moveDate: form.moveDate, moveTime: form.moveTime || "오전 09:00",
     moveType: form.moveType ?? base.moveType, storageEnabled: form.storageEnabled ?? false, memo: form.memo ?? "",
     fromAddress: form.fromAddress, fromDetail: form.fromDetail, toAddress: form.toAddress, toDetail: form.toDetail,
@@ -33,6 +34,8 @@ export function intakeToEstimate(form: IntakeForm): Estimate {
 export function estimateToIntake(draft: Estimate, previous: IntakeForm): IntakeForm {
   return {
     ...previous, customerName: draft.customerName, phone: draft.phone, moveDate: draft.moveDate, moveTime: draft.moveTime,
+    extraOrigin: draft.extraOrigin,
+    toSize: draft.toSizeTab,
     moveType: draft.moveType, storageEnabled: draft.storageEnabled, memo: draft.memo,
     fromAddress: draft.fromAddress, fromDetail: draft.fromDetail, toAddress: draft.toAddress, toDetail: draft.toDetail,
     fromX: draft.fromX, fromY: draft.fromY, toX: draft.toX, toY: draft.toY,
@@ -42,7 +45,7 @@ export function estimateToIntake(draft: Estimate, previous: IntakeForm): IntakeF
     fromFloorEdited: draft.fromFloorEdited, toFloorEdited: draft.toFloorEdited,
     ladderFrom: draft.ladderFrom, ladderTo: draft.ladderTo,
     fromDecideOnVisit: draft.fromDecideOnVisit, toDecideOnVisit: draft.toDecideOnVisit,
-    fromSize: draft.sizeTab, spaces: draft.rooms.map(r => r.name),
-    rooms: Object.fromEntries(draft.rooms.map(r => [r.name, Object.fromEntries(Object.entries(r.items).filter(([, qty]) => qty > 0).map(([id, qty]) => [id, { qty, disposal: !!r.disposal?.[id] }]))])),
+    fromSize: draft.sizeTab, spaces: draft.rooms.filter(r => !r.originId).map(r => r.name),
+    rooms: Object.fromEntries(draft.rooms.filter(r => !r.originId).map(r => [r.name, Object.fromEntries(Object.entries(r.items).filter(([, qty]) => qty > 0).map(([id, qty]) => [id, { qty, disposal: !!r.disposal?.[id] }]))])),
   };
 }
