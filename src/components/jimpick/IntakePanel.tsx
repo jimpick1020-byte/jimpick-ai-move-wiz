@@ -18,7 +18,7 @@ import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   deleteIntakeRequest, cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
   listIntakeDrafts, listIntakeRequests, loadIntakeDraft, markIntakeSeen, removeIntakeItem, saveIntakeItemSetting, saveIntakeOrder, sendIntakeSms,
-  setIntakeVisit, prepareVisitSms, confirmVisitSmsSent,
+  setIntakeVisit, prepareVisitSms, confirmVisitSmsSent, prepareOtherHouseSms,
   type IntakeItem, type IntakeRow,
 } from "@/lib/intake.functions";
 import { Button } from "@/components/ui/button";
@@ -160,6 +160,14 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
       setSmsOpened(true);
     });
   });
+  const otherHouseSms = () => run("otherHouse", async () => {
+    await smsComposerGate.current(async () => {
+      if (!row || closed) throw new Error("먼저 기존 고객 요청을 선택해 주세요.");
+      const prepared = await prepareOtherHouseSms({ data: { id: row.id } });
+      if (!prepared.ok || !prepared.body) throw new Error(prepared.error ?? "다른 집 링크를 만들지 못했습니다.");
+      return intakeSmsHref(p, prepared.body);
+    }, href => { window.location.href = href; });
+  });
   const smsSent = () => run("smsSent", async () => {
     const link = await linkOf("sms"); if (link) { setSmsOpened(false); toast.success("문자 보냄을 기록했습니다."); }
   });
@@ -229,6 +237,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
         {label !== "사장님 확인 완료" && (
           <div className="grid grid-cols-2 gap-2">
             <ActionBtn icon={Send} onClick={sms} busy={busy === "sms"} primary>{row?.last_sent_at ? "다시 보내기(문자)" : "문자로 보내기"}</ActionBtn>
+            {row && !closed && <ActionBtn icon={Send} onClick={otherHouseSms} busy={busy === "otherHouse"}>다른 집 입력 링크 보내기</ActionBtn>}
             {smsOpened && <ActionBtn icon={CheckCircle2} onClick={smsSent} busy={busy === "smsSent"}>문자 보냄 확인</ActionBtn>}
             <ActionBtn icon={MessageCircle} onClick={kakao} busy={busy === "kakao"}>카카오톡으로 보내기</ActionBtn>
             <ActionBtn icon={Copy} onClick={copy} busy={busy === "copy"}>링크 복사</ActionBtn>

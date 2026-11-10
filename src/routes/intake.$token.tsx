@@ -27,5 +27,5 @@ export const Route = createFileRoute("/intake/$token")({
 
 function IntakeRoute() {
   const { token } = Route.useParams();
-  return <IntakePage token={token} />;
+  return <IntakePage key={token} token={token} />;
 }
