@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, Settings2, Plus, GripVertical, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { FileText, X, Send, Copy, MessageCircle, Ban, CheckCircle2, ArrowRight, Settings2, Plus, GripVertical, Trash2, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { useVisitEstimate } from "@/lib/use-visit-estimate";
 import { isUnreadIntake } from "@/lib/intake-unread";
 import { useApp, type Estimate } from "@/lib/jimpick";
@@ -629,6 +629,7 @@ export function RequestsScreenBody() {
   };
   const [openId, setOpenId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [houseSel, setHouseSel] = useState<Record<string, 1 | 2>>({});
   const [filter, setFilter] = useState<"active" | "cancelled">("active");
   useEffect(() => {
     const id = sessionStorage.getItem("jp_intake_open_target");
