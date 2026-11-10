@@ -1,3 +1,4 @@
+import { activeHouseOf, houseLabel } from "@/lib/house-workspace";
 /**
  * 짐픽 이사 견적서 (사장님 화면 · 고객 화면 공용).
  *

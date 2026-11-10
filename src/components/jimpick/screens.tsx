@@ -1,3 +1,4 @@
+import { activeHouseOf, houseLabel, roomHouse } from "@/lib/house-workspace";
 import { PaymentSmsButton } from "./PaymentSmsButton";
 import { extraLadderIncluded } from '@/lib/multi-origin';
 import { OptionAddDialog } from "./OptionAddDialog";
