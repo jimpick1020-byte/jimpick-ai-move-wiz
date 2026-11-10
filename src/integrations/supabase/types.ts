@@ -789,7 +789,13 @@ export type Database = {
           last_send_method: string | null
           last_sent_at: string | null
           last_submitted_at: string | null
+          link_revision: number
           owner_seen_at: string | null
+          second_draft: Json
+          second_submission: Json
+          second_token_enc: string | null
+          second_token_hash: string | null
+          shared_destination: Json
           source_estimate_id: string | null
           status: string
           submission: Json
@@ -829,7 +835,13 @@ export type Database = {
           last_send_method?: string | null
           last_sent_at?: string | null
           last_submitted_at?: string | null
+          link_revision?: number
           owner_seen_at?: string | null
+          second_draft?: Json
+          second_submission?: Json
+          second_token_enc?: string | null
+          second_token_hash?: string | null
+          shared_destination?: Json
           source_estimate_id?: string | null
           status?: string
           submission?: Json
@@ -869,7 +881,13 @@ export type Database = {
           last_send_method?: string | null
           last_sent_at?: string | null
           last_submitted_at?: string | null
+          link_revision?: number
           owner_seen_at?: string | null
+          second_draft?: Json
+          second_submission?: Json
+          second_token_enc?: string | null
+          second_token_hash?: string | null
+          shared_destination?: Json
           source_estimate_id?: string | null
           status?: string
           submission?: Json
@@ -2040,6 +2058,15 @@ export type Database = {
       }
       delete_intake_request: { Args: { p_request_id: string }; Returns: Json }
       disable_worker_contact: { Args: { _id: string }; Returns: boolean }
+      ensure_intake_house_link: {
+        Args: {
+          p_company: string
+          p_enc: string
+          p_hash: string
+          p_request: string
+        }
+        Returns: Json
+      }
       estimate_unpaid_notice_due: {
         Args: { _est: string; _today: string; _user: string }
         Returns: boolean
@@ -2100,6 +2127,19 @@ export type Database = {
       }
       save_edited_estimate_sheet: {
         Args: { p_estimate_id: string; p_payload: Json; p_revision: number }
+        Returns: Json
+      }
+      save_intake_house_link: {
+        Args: {
+          p_company: string
+          p_destination: Json
+          p_expected: number
+          p_form: Json
+          p_origin: number
+          p_payload: Json
+          p_request: string
+          p_submit: boolean
+        }
         Returns: Json
       }
       save_payapp_test_state: {

@@ -17,9 +17,11 @@ import {
   type IntakeForm, type IntakeRooms, customerItemLabel, isLargeCustomerItem, customerCatalogRoleAllowed,
 } from "./intake";
 
+import { houseForm, mergeHouseDestination, mergeHouseEstimate, type SharedDestination } from "./intake-house";
+
 const ADMIN_SENDER = "01075662542";
 const OWNER_COLS =
-  "id, estimate_id, source_estimate_id, customer_name, customer_phone, status, expires_at, submission, first_opened_at, last_opened_at, editing_started_at, first_submitted_at, last_submitted_at, submit_count, consent_at, confirmed_at, cancelled_at, owner_seen_at, last_sent_at, last_send_method, last_send_error, created_at, updated_at, visit_date, visit_time, visit_status, visit_memo, visit_sms_opened_at, visit_sms_confirmed_at, visit_customer_confirmed_at, visit_completed_at, deleted_at";
+  "id, estimate_id, source_estimate_id, customer_name, customer_phone, status, expires_at, submission, first_opened_at, last_opened_at, editing_started_at, first_submitted_at, last_submitted_at, submit_count, consent_at, confirmed_at, cancelled_at, owner_seen_at, last_sent_at, last_send_method, last_send_error, created_at, updated_at, visit_date, visit_time, visit_status, visit_memo, visit_sms_opened_at, visit_sms_confirmed_at, visit_customer_confirmed_at, visit_completed_at, deleted_at, second_token_hash";
 
 export interface IntakeRow {
   id: string;
@@ -59,11 +61,13 @@ export interface IntakeRow {
   visit_customer_confirmed_at: string | null;
   visit_completed_at: string | null;
   deleted_at: string | null;
+  second_token_hash?: string | null;
 }
 
 const phoneSchema = z.string().trim().regex(/^0\d{1,2}-?\d{3,4}-?\d{4}$/, "휴대전화 번호를 확인해 주세요.");
 const pickSchema = z.object({ qty: z.number().int().min(1).max(20), disposal: z.boolean() });
 const formSchema = z.object({
+  destinationSnapshot: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
   extraOrigin: z.object({
     id: z.literal('origin-2'), address: z.string().max(200), detail: z.string().max(100),
     x: z.number().nullable().optional(), y: z.number().nullable().optional(),
@@ -232,6 +236,26 @@ export const getIntakeLink = createServerFn({ method: "POST" })
     return { ok: true, link: intakeLink(tok) };
   });
 
+
+/** Issue/reuse the second house credential only after owner-scoped request verification. */
+export const prepareOtherHouseSms = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; body?: string; link?: string; error?: string }> => {
+    const row = await ownRow(context.supabase, context.userId, data.id);
+    if (!row || row.deleted_at) return { ok: false, error: "요청을 찾지 못했습니다." };
+    const { makeIntakeToken, hashIntakeToken, encryptToken, decryptToken, intakeLink } = await import("./intake.server");
+    const token = makeIntakeToken();
+    const sb = await admin();
+    const result = await sb.rpc("ensure_intake_house_link", { p_request: row.id, p_company: context.userId, p_hash: await hashIntakeToken(token), p_enc: await encryptToken(token) });
+    const value = result.data as { ok?: boolean; token_enc?: string; error?: string } | null;
+    if (result.error || !value?.ok) return { ok: false, error: value?.error || "다른 집 링크를 만들지 못했습니다." };
+    const persisted = await decryptToken(value.token_enc);
+    if (!persisted) return { ok: false, error: "저장된 링크를 불러오지 못했습니다." };
+    const link = intakeLink(persisted);
+    return { ok: true, link, body: ["두 번째 집 출발지 입력", "", intakeSmsText({ link })].join("\n") };
+  });
+
 export const sendIntakeSms = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
@@ -248,7 +272,7 @@ export const sendIntakeSms = createServerFn({ method: "POST" })
     if (!tok) return { ok: false, error: "링크를 다시 만들어 주세요." };
     // Compatibility entry point now prepares the native composer only.
     // No Aligo calls, delivery inserts, or sent-status writes.
-    return { ok: true, to, body: intakeSmsText({ link: intakeLink(tok) }) };
+    return { ok: true, to, body: (row.second_token_hash ? "첫 번째 집 출발지 입력\n\n" : "") + intakeSmsText({ link: intakeLink(tok) }) };
   });
 
 /** Remove a request and only its unconverted draft in one owner-scoped transaction. */
@@ -531,10 +555,68 @@ const tokenSchema = z.string().regex(/^[0-9a-f]{64}$/);
 async function findByToken(token: string) {
   const { hashIntakeToken } = await import("./intake.server");
   const sb = await admin();
-  const { data } = await sb.from("intake_requests")
-    .select("id, company_id, estimate_id, customer_name, customer_phone, status, deleted_at, expires_at, submission, draft, first_opened_at, editing_started_at, first_submitted_at, submit_count")
-    .eq("token_hash", await hashIntakeToken(token)).maybeSingle();
-  return { sb, row: data as any };
+  const hash = await hashIntakeToken(token);
+  const { data, error } = await sb.from("intake_requests").select("*")
+    .or(`token_hash.eq.${hash},second_token_hash.eq.${hash}`).maybeSingle();
+  if (error) throw new Error("입력 정보를 불러오지 못했습니다. 다시 시도해 주세요.");
+  return { sb, row: data as any, origin: data?.second_token_hash === hash ? 2 : 1 };
+}
+
+function linkedDestination(row: any): SharedDestination {
+  const first = row.draft && Object.keys(row.draft).length ? row.draft : row.submission;
+  return mergeHouseDestination(row.shared_destination ?? {}, houseForm(first ?? {}, row.customer_phone, {}));
+}
+
+async function persistHouseInput(token: string, incoming: IntakeForm, submit: boolean): Promise<{ ok: boolean; closed?: boolean; error?: string; destination?: SharedDestination }> {
+  const { baseEstimate } = await import("./intake.server");
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const { sb, row, origin } = await findByToken(token);
+    const blocked = blockReason(row);
+    if (blocked) return { ok: false, error: blocked };
+    if (row.status === "confirmed" || row.estimate_completed_at) return { ok: false, closed: true };
+    const linked = !!row.second_token_hash;
+    const destination = linked ? mergeHouseDestination(linkedDestination(row), incoming) : {};
+    const form = linked ? houseForm(incoming, row.customer_phone, destination) : incoming;
+    let merged: Record<string, unknown> = {};
+    if (submit) {
+      const { data: draftRow, error } = await sb.from("estimate_drafts").select("payload,deleted_at")
+        .eq("user_id", row.company_id).eq("estimate_id", row.estimate_id).maybeSingle();
+      if (error) return { ok: false, error: "견적을 불러오지 못했습니다." };
+      if (draftRow?.deleted_at) return { ok: false, error: "삭제된 견적은 다시 만들 수 없습니다." };
+      const base = (draftRow?.payload as Record<string, unknown> | null) ?? baseEstimate(row.estimate_id);
+      const first = houseForm(origin === 1 ? form : Object.keys(row.draft ?? {}).length ? row.draft : row.submission ?? {}, row.customer_phone, destination);
+      const second = houseForm(origin === 2 ? form : Object.keys(row.second_draft ?? {}).length ? row.second_draft : row.second_submission ?? {}, row.customer_phone, destination);
+      merged = base.intakeOwnerStartedAt ? { ...base } : linked
+        ? mergeHouseEstimate(base as unknown as import("./jimpick").Estimate, first, second, row.id) as unknown as Record<string, unknown>
+        : mergeIntakeIntoDraft(base, form, row.submission?.rooms ?? null, { intakeRequestId: row.id });
+      const company = await itemsFor(sb, row.company_id, false);
+      const forms = linked ? [first, second] : [form];
+      const pickedIds = new Set(forms.flatMap(f => Object.values(f.rooms).flatMap(p => Object.keys(p))));
+      const snapshots = (base.customItems as any[] | undefined) ?? [];
+      const { data: storedIcons } = await sb.from("item_icons").select("id,item_id,image_path,storage_path")
+        .in("item_id", [...pickedIds, ...(pickedIds.has("bookshelf-01") ? ["bookself-01"] : [])])
+        .or(`customer_only.eq.true,user_id.eq.${row.company_id}`).eq("active", true);
+      const pictureFor = (id: string) => (storedIcons ?? []).find(r => (r.item_id === id || (id === "bookshelf-01" && r.item_id === "bookself-01")) && (r.image_path || r.storage_path));
+      if (!base.intakeOwnerStartedAt) {
+        merged.customItems = [...snapshots.filter(i => !pickedIds.has(i.id)), ...company.filter(i => pickedIds.has(i.id)).map(i => ({
+          id: i.id, name: i.name, cat: i.group, extra: 0.5, active: true,
+          icon: pictureFor(i.id) ? `/api/public/item-icon/${pictureFor(i.id)?.id}.png` : (INTAKE_BASE_ITEMS.find(b => b.id === i.id || b.id === i.family)?.img ?? i.icon),
+        }))];
+        const { ITEM_CATALOG } = await import("./jimpick");
+        const nameOf = (id: string) => ITEM_CATALOG.find(c => c.id === id)?.name ?? intakeItemName(id) ?? company.find(c => c.id === id)?.name ?? id;
+        merged.intakeNote = forms.flatMap((f, i) => intakeSummary(f, nameOf).map(line => linked ? `${i + 1}번째 집 · ${line}` : line)).join("\n");
+      }
+      merged.intakeDisposalFee = "방문 후 확인";
+      merged.intakeSubmittedAt = new Date().toISOString();
+    }
+    const result = await sb.rpc("save_intake_house_link", { p_request: row.id, p_company: row.company_id,
+      p_origin: origin, p_expected: Number(row.link_revision), p_form: form as never, p_destination: destination as never,
+      p_submit: submit, p_payload: merged as never });
+    if (result.error) return { ok: false, error: "저장하지 못했습니다. 다시 시도해 주세요." };
+    const value = result.data as { ok: boolean; stale?: boolean; closed?: boolean; error?: string; destination?: SharedDestination };
+    if (!value.stale) return value;
+  }
+  return { ok: false, error: "다른 화면에서 저장 중입니다. 잠시 후 다시 시도해 주세요." };
 }
 
 function blockReason(row: any): string | null {
@@ -552,7 +634,7 @@ export const openIntake = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<IntakeOpen> => {
     const staffGuard = await import("./customer-link-guard.server");
     if (await staffGuard.signedInAccountId()) return { ok: false, error: INTAKE_STAFF_BLOCK };
-    const { sb, row } = await findByToken(data.token);
+    const { sb, row, origin } = await findByToken(data.token);
     const blocked = blockReason(row);
     if (blocked) return { ok: false, error: blocked };
     const { data: prof } = await sb.from("profiles").select("company_name, phone").eq("id", row.company_id).maybeSingle();
@@ -564,7 +646,9 @@ export const openIntake = createServerFn({ method: "POST" })
       first_opened_at: row.first_opened_at ?? now, last_opened_at: now,
       ...(row.status === "created" || row.status === "sent" ? { status: "opened" } : {}),
     }).eq("id", row.id);
-    const saved = (row.draft && Object.keys(row.draft).length ? row.draft : row.submission) as Partial<IntakeForm>;
+    const ownDraft = origin === 2 ? row.second_draft : row.draft;
+    const ownSubmission = origin === 2 ? row.second_submission : row.submission;
+    const saved = houseForm((ownDraft && Object.keys(ownDraft).length ? ownDraft : ownSubmission) ?? {}, row.customer_phone, row.second_token_hash ? linkedDestination(row) : {}) as Partial<IntakeForm>;
     const form: IntakeForm = {
       // 이름은 고객이 1단계에서 직접 입력합니다(업체가 저장한 이름을 미리 채우지 않음).
       customerName: saved.customerName ?? "", phone: saved.phone ?? row.customer_phone,
@@ -573,7 +657,7 @@ export const openIntake = createServerFn({ method: "POST" })
       fromX: saved.fromX ?? null, fromY: saved.fromY ?? null, toX: saved.toX ?? null, toY: saved.toY ?? null,
       fromJibun: saved.fromJibun ?? "", fromZip: saved.fromZip ?? "", toJibun: saved.toJibun ?? "", toZip: saved.toZip ?? "",
       fromSize: saved.fromSize ?? "", toSize: saved.toSize ?? "",
-      extraOrigin: saved.extraOrigin,
+      extraOrigin: saved.extraOrigin, destinationSnapshot: saved.destinationSnapshot,
       spaces: Array.isArray(saved.spaces) ? saved.spaces : undefined,
       moveType: saved.moveType, storageEnabled: saved.storageEnabled, memo: saved.memo,
       fromEnv: saved.fromEnv, toEnv: saved.toEnv, fromFloor: saved.fromFloor, toFloor: saved.toFloor,
@@ -591,19 +675,10 @@ export const openIntake = createServerFn({ method: "POST" })
 
 export const saveIntakeProgress = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ token: tokenSchema, form: formSchema }).parse(d))
-  .handler(async ({ data }): Promise<{ ok: boolean; closed?: boolean; error?: string }> => {
+  .handler(async ({ data }): Promise<{ ok: boolean; closed?: boolean; error?: string; destination?: SharedDestination }> => {
     const staffGuard = await import("./customer-link-guard.server");
     if (await staffGuard.signedInAccountId()) return { ok: false, error: INTAKE_STAFF_BLOCK };
-    const { sb, row } = await findByToken(data.token);
-    const blocked = blockReason(row);
-    if (blocked) return { ok: false, error: blocked };
-    if (row.status === "confirmed") return { ok: false, closed: true };
-    const now = new Date().toISOString();
-    const { error } = await sb.from("intake_requests").update({
-      draft: data.form as never, editing_started_at: row.editing_started_at ?? now,
-      ...(row.status !== "submitted" ? { status: "editing" } : {}),
-    }).eq("id", row.id).neq("status", "confirmed");
-    return error ? { ok: false, error: "임시 저장하지 못했습니다." } : { ok: true };
+    return persistHouseInput(data.token, data.form as IntakeForm, false);
   });
 
 export const submitIntake = createServerFn({ method: "POST" })
@@ -611,60 +686,10 @@ export const submitIntake = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: boolean; closed?: boolean; error?: string }> => {
     const staffGuard = await import("./customer-link-guard.server");
     if (await staffGuard.signedInAccountId()) return { ok: false, error: INTAKE_STAFF_BLOCK };
-    const { sb, row } = await findByToken(data.token);
-    const blocked = blockReason(row);
-    if (blocked) return { ok: false, error: blocked };
-    if (row.status === "confirmed") return { ok: false, closed: true };
     const f = data.form;
     if (!f.customerName.trim()) return { ok: false, error: "이름을 입력해 주세요." };
-    if (f.extraOrigin && !f.extraOrigin.address.trim()) return { ok: false, error: '출발지 2 주소를 입력해 주세요.' };
     if (!phoneSchema.safeParse(f.phone).success) return { ok: false, error: "휴대전화 번호를 확인해 주세요." };
-    const form: IntakeForm = { ...f, phone: formatTel(f.phone), customerName: f.customerName.trim() };
-
-    // 견적 초안은 요청마다 미리 정해 둔 견적 ID 한 건만 씁니다 (같은 업체·같은 ID는 데이터베이스에서 하나만 허용).
-    const { baseEstimate } = await import("./intake.server");
-    const { data: draftRow } = await sb.from("estimate_drafts").select("id, payload, revision, deleted_at")
-      .eq("user_id", row.company_id).eq("estimate_id", row.estimate_id).maybeSingle();
-    const prevRooms = (row.submission?.rooms ?? null) as IntakeRooms | null;
-    const base = (draftRow?.payload as Record<string, unknown> | null) ?? baseEstimate(row.estimate_id);
-    const company = await itemsFor(sb, row.company_id, false);
-    const { ITEM_CATALOG } = await import("./jimpick");
-    const nameOf = (id: string) => ITEM_CATALOG.find((c) => c.id === id)?.name ?? intakeItemName(id) ?? company.find((c) => c.id === id)?.name ?? id;
-    const merged = base.intakeOwnerStartedAt ? { ...base } : mergeIntakeIntoDraft(base, form, prevRooms, { intakeRequestId: row.id });
-    const pickedIds = new Set(Object.values(form.rooms).flatMap(p => Object.keys(p)));
-    const snapshots = (base.customItems as any[] | undefined) ?? [];
-    const {data:storedIcons}=await sb.from("item_icons").select("id,item_id,image_path,storage_path").in("item_id",[...Array.from(pickedIds), ...(pickedIds.has("bookshelf-01") ? ["bookself-01"] : [])]).or(`customer_only.eq.true,user_id.eq.${row.company_id}`).eq("active",true);
-    const pictureFor = (id:string) => (storedIcons ?? []).find(r => (r.item_id===id || (id==="bookshelf-01" && r.item_id==="bookself-01")) && (r.image_path || r.storage_path));
-    if (!base.intakeOwnerStartedAt) merged.customItems = [...snapshots.filter(i => !pickedIds.has(i.id)), ...company.filter(i => pickedIds.has(i.id)).map(i => ({
-      id:i.id,name:i.name,cat:i.group,extra:0.5,active:true,icon:pictureFor(i.id) ? `/api/public/item-icon/${pictureFor(i.id)?.id}.png` : (INTAKE_BASE_ITEMS.find(b=>b.id===i.id || b.id===i.family)?.img ?? i.icon)
-    }))];
-    if (!base.intakeOwnerStartedAt) merged.intakeNote = intakeSummary(form, nameOf).join("\n");
-    merged.intakeDisposalFee = "방문 후 확인";
-    merged.intakeSubmittedAt = new Date().toISOString();
-    const FAIL = "저장하지 못했습니다. 다시 눌러 주세요.";
-    const revision = Math.max(Number(draftRow?.revision ?? 0) + 1, Math.floor(Date.now() / 1000));
-    if (!draftRow) {
-      const { error } = await sb.from("estimate_drafts").insert({ user_id: row.company_id, estimate_id: row.estimate_id, payload: merged as never, revision });
-      if (error && error.code !== "23505") { console.error("[submitIntake] draft insert", error.code, error.message); return { ok: false, error: FAIL }; }
-      if (error) {
-        const u = await sb.from("estimate_drafts").update({ payload: merged as never, revision }).eq("user_id", row.company_id).eq("estimate_id", row.estimate_id);
-        if (u.error) { console.error("[submitIntake] draft update", u.error.code, u.error.message); return { ok: false, error: FAIL }; }
-      }
-    } else if (!draftRow.deleted_at && !base.intakeOwnerStartedAt) {
-      // 사장님이 지운 견적은 되살리지 않습니다.
-      const { error } = await sb.from("estimate_drafts").update({ payload: merged as never, revision }).eq("id", draftRow.id);
-      if (error) { console.error("[submitIntake] draft update", error.code, error.message); return { ok: false, error: FAIL }; }
-    }
-    if (draftRow?.deleted_at) return {ok:false,error:FAIL};
-    const now = new Date().toISOString();
-    const { data: submitted, error } = await sb.from("intake_requests").update({
-      submission: form as never, draft: form as never, status: "submitted", customer_name: form.customerName, consent_at: now,
-      first_submitted_at: row.first_submitted_at ?? now, last_submitted_at: now,
-      submit_count: Number(row.submit_count ?? 0) + 1, owner_seen_at: null,
-      editing_started_at: row.editing_started_at ?? now,
-    }).eq("id", row.id).neq("status", "confirmed").select("id").maybeSingle();
-    if (error || !submitted) { console.error("[submitIntake] request update", error?.code, error?.message); return { ok: false, error: FAIL }; }
-    return { ok: true };
+    return persistHouseInput(data.token, { ...f, phone: formatTel(f.phone), customerName: f.customerName.trim() } as IntakeForm, true);
   });
 
 // ───────────── 고객 방문 일정 확인 (로그인 없음) ─────────────

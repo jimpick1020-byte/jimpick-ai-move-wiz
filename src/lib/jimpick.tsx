@@ -88,6 +88,7 @@ export interface CustomItem {
 export interface Estimate {
   id: string;
   extraOrigin?: ExtraOrigin;
+  houseLinked?: boolean;
   routeMode?: 'sequential' | 'separate';
   routeSegments?: { distanceKm: number; durationMin: number }[];
   lastWritingScreen?: string;

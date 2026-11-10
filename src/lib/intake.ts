@@ -131,6 +131,7 @@ export interface IntakePick {
 export type IntakeRooms = Record<string, Record<string, IntakePick>>;
 
 export interface IntakeForm {
+  destinationSnapshot?: import('./intake-house').SharedDestination;
   extraOrigin?: import('./multi-origin').ExtraOrigin;
   customerName: string;
   phone: string;

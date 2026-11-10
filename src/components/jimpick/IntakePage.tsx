@@ -13,6 +13,7 @@ import { intakeToEstimate, estimateToIntake } from "@/lib/intake-estimate-adapte
 import { registerCustomIcons } from "@/lib/jimpick-icon3d";
 import { openIntake, saveIntakeProgress, submitIntake, type IntakeOpen } from "@/lib/intake.functions";
 import type { IntakeForm } from "@/lib/intake";
+import { DESTINATION_KEYS } from "@/lib/intake-house";
 
 const SIZE_CHOICES = ["5평 이하", "5~10평", "10~20평", "20~30평", "30~40평", "40~50평", "50~60평", "60~70평", "50평 이상", "잘 모름"] as const;
 const DONE = "입력이 완료되었습니다.";
@@ -33,9 +34,21 @@ export function IntakePage({ token }: { token: string }) {
   useEffect(() => {
     const refresh = () => {
       if (document.visibilityState !== "visible" || done || closed) return;
-      openIntake({ data: { token } }).then(r => { if (r.ok) setData(r); }).catch(() => {});
+      openIntake({ data: { token } }).then(r => {
+        if (!r.ok) return;
+        setData(r);
+        if (r.form?.destinationSnapshot) setForm(current => {
+          if (!current) return current;
+          const patch: Partial<IntakeForm> = { destinationSnapshot: r.form?.destinationSnapshot };
+          for (const key of DESTINATION_KEYS) {
+            if (current[key] === current.destinationSnapshot?.[key] || current[key] === undefined || current[key] === '' || current[key] === null)
+              Object.assign(patch, { [key]: r.form?.[key] });
+          }
+          return { ...current, ...patch };
+        });
+      }).catch(() => {});
     };
-    const id = window.setInterval(refresh, 10 * 60_000);
+    const id = window.setInterval(refresh, 15_000);
     document.addEventListener("visibilitychange", refresh);
     return () => { window.clearInterval(id); document.removeEventListener("visibilitychange", refresh); };
   }, [token, done, closed]);
@@ -58,7 +71,16 @@ export function IntakePage({ token }: { token: string }) {
     if (first.current) { first.current = false; return; }
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
-      void saveIntakeProgress({ data: { token, form } }).then((r) => { if (r.closed) setClosed(true); else if (!r.ok) setErr(r.error || "임시 저장하지 못했습니다."); }).catch(() => setErr("임시 저장하지 못했습니다."));
+      void saveIntakeProgress({ data: { token, form } }).then((r) => {
+        if (r.closed) setClosed(true);
+        else if (!r.ok) setErr(r.error || "임시 저장하지 못했습니다.");
+        else if (r.destination && Object.keys(r.destination).length) setForm(current => {
+          if (!current || JSON.stringify(current.destinationSnapshot) === JSON.stringify(r.destination)) return current;
+          const patch: Partial<IntakeForm> = { destinationSnapshot: r.destination };
+          for (const key of DESTINATION_KEYS) if (current[key] === form[key]) Object.assign(patch, { [key]: r.destination?.[key] });
+          return { ...current, ...patch };
+        });
+      }).catch(() => setErr("임시 저장하지 못했습니다."));
     }, 800);
     return () => { if (timer.current) window.clearTimeout(timer.current); };
   }, [form, token, closed, done, busy]);

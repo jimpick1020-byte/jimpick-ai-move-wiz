@@ -2332,6 +2332,7 @@ export function Step4() {
           </div>
         </Card>
         {/* 사다리차와 작업 인원 사이 간격 넓히기 */}
+        {draft.houseLinked && draft.extraOrigin?.address && <div className="text-sm font-bold text-muted-foreground">두 번째 집 · {draft.extraOrigin.address} · {draft.extraOrigin.floor ?? '미입력'}층 · {draft.extraOrigin.ladder ? draft.extraOrigin.ladderSeparate ? LADDER_SEPARATE_TEXT : draft.extraOrigin.ladderNote || `사다리차 ${won(draft.extraOrigin.ladderPrice || 0)}` : draft.extraOrigin.env || '방문 확인'}</div>}
         <div aria-hidden className="h-6" />
         <Field label="작업 인원">
           <Card selected={draft.workers > 0} className="jp-quantity-card" data-quantity-selected={draft.workers > 0}>
@@ -3815,7 +3816,7 @@ export function Step6() {
             const press = roomCardDrag.pressProps(cardId);
             const dragging = roomCardDrag.dragId === cardId;
             const dropHint = roomCardDrag.dragId !== null && !dragging && roomCardDrag.overIndex === index;
-            const art = name.replace(/^출발지 [12] · /, '');
+            const art = r?.kind || name.replace(/^(?:출발지 [12]|첫 번째 집|두 번째 집) · /, '');
             return (
               <div
                 key={cardId}
@@ -3845,10 +3846,10 @@ export function Step6() {
                       ROOM_TINT[art] || "from-[#5B93D6] to-[#3578C8]"
                     } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)] max-w-full self-start truncate align-top`}
                   >
-                    {art}
+                    {draft.houseLinked ? name : art}
                   </span>
                   <div className="jp-room-original-art relative flex w-full items-center justify-center aspect-square">
-                    <Art3D src={roomImageFor(name.replace(/^출발지 [12] · /, ''))} alt={name} size={120} />
+                    <Art3D src={roomImageFor(art)} alt={name} size={120} />
                   </div>
                   {/* 담은 품목 미리보기 — 3D 아이콘 3개까지, 나머지는 +N */}
                   {(() => {

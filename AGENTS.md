@@ -51,4 +51,4 @@
 - Owner notifications come only from DB triggers with per-company dedupe keys and push via push-dispatch + public/push-sw.js; owners may change only read_at and a one-way deleted_at soft delete (dedupe kept), keeping reads apart from payment confirmation.
 - Customer share-link server functions reject signed-in sessions via customer-link-guard and never count their views; the token link stays the customer credential.
 - MoveDateCalendar is shared by owner and customer flows (ratio-spacer cells, equal rows; customer shell overflow: clip keeps the sticky bar visible); this keeps both identical without clipping dates.
-- Second-origin entry and display are retired across owner, intake and sheet surfaces; retain legacy JSON and calculation compatibility to avoid deleting saved items or changing existing totals.
+- Customer origin entry stays single-house; additional house credentials share one intake request/estimate, token-isolated JSON and a locked revision-checked save RPC. Destination snapshots prevent stale cross-link overwrites; owner/sheet projections and origin-tagged rooms reuse existing cost calculation without duplicate destination charges.
