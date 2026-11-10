@@ -653,8 +653,10 @@ export function RequestsScreenBody() {
             <Button variant="outline" type="button" onClick={() => setOpenId(r.id)}>사전정보·문자 확인</Button>
             <div className="flex justify-end"><Button variant="ghost" size="icon" disabled={!!deleting} onClick={() => void remove(r)} aria-label={`${intakeDisplayName(r)} 요청 삭제`} title="요청 삭제" className="text-destructive"><Trash2 className="size-5" /></Button></div>
             {sub?.moveDate !== undefined && (r.status === "submitted" || r.status === "confirmed") && (
+              <>
               <div className="text-xs text-[#6B7280]">이사 {sub.moveDate || "미정"} {sub.moveTime ?? ""} · 출발지 평수 {sub.fromSize || "-"} · 도착지 평수 {sub.toSize || "미입력"} · {sub.fromAddress || "주소 미입력"}</div>
               {sub.extraOrigin && <div className="text-xs text-muted-foreground">출발지 2 · {sub.extraOrigin.address} {sub.extraOrigin.detail} · {sub.extraOrigin.size || '평수 미입력'} · {sub.extraOrigin.floor || '층수 미입력'}층 · {sub.extraOrigin.ladder ? '사다리차' : sub.extraOrigin.env || '작업 조건 미입력'}</div>}
+              </>
             )}
             {r.status !== "cancelled" && (r.status === "submitted" || r.status === "confirmed") && <VisitPanel row={r} />}
             </div>
