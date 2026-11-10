@@ -27,7 +27,7 @@ describe('두 집 한 견적', () => {
     expect(calcEstimate(applyLadderAuto(priced, { truck1t: 3 })).parts.find(p => p.label === '사다리차 비용')?.amount).toBe(300000);
   });
   it('각 지점 별도는 합계에서 제외하고 출발2는 해당 작업 차량으로 계산한다', () => {
-    const d = applyLadderAuto({ ...newEstimate(), ladderFrom: true, fromFloor: 2, ladderFromSeparate: true, ladderTo: true, toFloor: 2, extraOrigin: { ...submitted().extraOrigin, ladder: true, floor: 2, truck5t: 0, truck1t: 4 } }, { truck1t: 3 });
+    const d = applyLadderAuto<Estimate>({ ...newEstimate(), ladderFrom: true, fromFloor: 2, ladderFromSeparate: true, ladderTo: true, toFloor: 2, extraOrigin: { ...submitted().extraOrigin, ladder: true, floor: 2, truck5t: 0, truck1t: 4 } }, { truck1t: 3 });
     expect(d.extraOrigin?.ladderPrice).toBe(180000);
     expect(calcEstimate(d).parts.find(p => p.label === '사다리차 비용')?.amount).toBe(330000);
     expect(extraLadderIncluded({ ...d, extraOrigin: { ...d.extraOrigin, id: 'origin-2', address: '', detail: '', ladder: true, ladderSeparate: true } })).toBe(0);

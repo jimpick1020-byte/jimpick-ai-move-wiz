@@ -71,12 +71,14 @@ export function KakaoMap({
   second,
   to,
   path,
+  paths,
   height = 320,
 }: {
   from?: LatLng | null;
   second?: LatLng | null;
   to?: LatLng | null;
   path?: LatLng[] | null;
+  paths?: LatLng[][];
   height?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -130,8 +132,8 @@ export function KakaoMap({
         if (second) add(second, '출발지 2', '#3578C8');
         if (to) add(to, "도착", "#D95C5C");
 
-        const line = path && path.length > 1 ? path : null;
-        if (line) {
+        const lines = paths ?? (path && path.length > 1 ? [path] : []);
+        for (const line of lines.filter(line => line.length > 1)) {
           const latlngs = line.map((p) => new kakao.maps.LatLng(p.y, p.x));
           const poly = new kakao.maps.Polyline({
             map,
@@ -163,7 +165,7 @@ export function KakaoMap({
     };
     // 경로가 바뀌면(길이가 같아도) 새로 그립니다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from?.x, from?.y, second?.x, second?.y, to?.x, to?.y, path, attempt]);
+  }, [from?.x, from?.y, second?.x, second?.y, to?.x, to?.y, path, paths, attempt]);
 
   return (
     <div className="relative w-full block" style={{ height, minHeight: height }}>

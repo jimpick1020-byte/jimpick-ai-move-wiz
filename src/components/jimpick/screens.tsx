@@ -1569,6 +1569,7 @@ function AddressSearch({
 export function Step2() {
   const { draft, updateDraft, setScreen, customerFlow } = useApp();
   const [path, setPath] = useState<{ x: number; y: number }[] | null>(null);
+  const [legPaths, setLegPaths] = useState<{ x: number; y: number }[][]>([]);
   const [routing, setRouting] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
@@ -1605,8 +1606,19 @@ export function Step2() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.fromAddress, draft.toAddress, !!from, !!to]);
+  useEffect(() => {
+    const origin = draft.extraOrigin;
+    if (!origin?.address.trim() || (origin.x && origin.y)) return;
+    let cancelled = false;
+    searchAddress({ data: { query: origin.address.replace(/\s*\(.*?\)\s*/g, ' ').trim().slice(0, 100) } }).then(res => {
+      const p = res.places?.find(p => p.x && p.y);
+      if (!cancelled && p) updateDraft({ extraOrigin: { ...origin, x: p.x, y: p.y } });
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [draft.extraOrigin?.address, draft.extraOrigin?.x, draft.extraOrigin?.y, tick]);
 
   useEffect(() => {
+    setLegPaths([]);
     // 도착지를 입력하지 않은 경우 지도와 거리를 표시하지 않습니다.
     if (!hasDestination) {
       setPath(null);
@@ -1646,6 +1658,7 @@ export function Step2() {
           return;
         }
         setPath(res.path.length > 1 ? res.path : null);
+        setLegPaths(results.map(r => r.path));
         updateDraft({ distanceKm: res.distanceKm, durationMin: res.durationMin, routeSegments: results.map(r => ({ distanceKm: r.distanceKm || 0, durationMin: r.durationMin || 0 })) });
       } catch {
         if (!cancelled) {
@@ -1730,7 +1743,7 @@ export function Step2() {
             <div className="font-bold mb-2">경로 안내</div>
             {draft.extraOrigin && !customerFlow && <div className="flex flex-wrap gap-2 mb-3" data-no-swipe><Button variant={draft.routeMode !== 'separate' ? 'default' : 'outline'} onClick={() => updateDraft({ routeMode: 'sequential' })}>두 집 순차 방문</Button><Button variant={draft.routeMode === 'separate' ? 'default' : 'outline'} onClick={() => updateDraft({ routeMode: 'separate' })}>각 집에서 출발</Button></div>}
             {draft.extraOrigin && <p className="text-sm mb-2">{draft.routeMode === 'separate' ? '출발지 1 → 도착지 / 출발지 2 → 도착지' : '출발지 1 → 출발지 2 → 도착지'}</p>}
-            <div data-no-swipe><KakaoMap from={from} second={second} to={to} path={draft.routeMode === 'separate' ? null : path} height={280} /></div>
+            <div data-no-swipe><KakaoMap from={from} second={second} to={to} path={draft.routeMode === 'separate' ? null : path} paths={draft.routeMode === 'separate' ? legPaths : undefined} height={280} /></div>
             {routeError && !routing ? (
               <div className="mt-3 rounded-xl bg-[#FFF1F1] border border-[#FFD4D4] p-3 text-center space-y-2">
                 <div className="text-xs font-semibold text-[#D95C5C] leading-relaxed">

@@ -138,6 +138,10 @@ export interface Estimate {
   ladder: number;
   /** 사다리차 상세 */
   ladderFrom: boolean;
+  ladderFromTruck5t?: number;
+  ladderFromTruck1t?: number;
+  ladderToTruck5t?: number;
+  ladderToTruck1t?: number;
   ladderTo: boolean;
   ladderFromPrice: number;
   ladderToPrice: number;

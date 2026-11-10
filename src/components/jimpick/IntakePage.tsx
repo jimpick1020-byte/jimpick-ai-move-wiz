@@ -15,7 +15,7 @@ import { registerCustomIcons } from "@/lib/jimpick-icon3d";
 import { openIntake, saveIntakeProgress, submitIntake, type IntakeOpen } from "@/lib/intake.functions";
 import type { IntakeForm } from "@/lib/intake";
 
-const SIZE_CHOICES = ["5평 이하", "5~10평", "10~20평", "20~30평", "30~40평", "40~50평", "50평 이상", "잘 모름"] as const;
+const SIZE_CHOICES = ["5평 이하", "5~10평", "10~20평", "20~30평", "30~40평", "40~50평", "50~60평", "60~70평", "50평 이상", "잘 모름"] as const;
 const DONE = "입력이 완료되었습니다.";
 const CLOSED = "사전정보 입력이 마감되었습니다. 변경사항은 방문 시 담당자에게 말씀해 주세요.";
 
