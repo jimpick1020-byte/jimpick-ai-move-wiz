@@ -5501,7 +5501,7 @@ export function Result() {
         );
         return;
       }
-      const final = await saveEstimateDraft({ data: { estimateId: draft.id, payload: JSON.stringify({ ...draft, total }), revision: nextRevision(), finalSave: true } });
+      const final = await saveEstimateDraft({ data: { estimateId: draft.id, payload: JSON.stringify({ ...draft, total, ...(adjust ? { totalOverride: total } : {}) }), revision: nextRevision(), finalSave: true } });
       if (!final.ok || final.stale || !final.payload) throw new Error(final.error || "견적 완료 상태를 저장하지 못했습니다.");
       commitSavedSheet(JSON.parse(final.payload) as Estimate);
       await reloadIntakeRequests();
@@ -5590,7 +5590,7 @@ export function Result() {
       }
 
       const r = await saveEstimateDraft({
-        data: { estimateId: draft.id, payload: JSON.stringify({ ...draft, total, status: "완료" }), revision: nextRevision(), finalSave: true },
+        data: { estimateId: draft.id, payload: JSON.stringify({ ...draft, total, ...(adjust ? { totalOverride: total } : {}), status: "완료" }), revision: nextRevision(), finalSave: true },
       });
       if (!r?.ok || r.stale || !r.payload) {
         throw new Error(r?.error || "서버 저장에 실패했습니다.");
