@@ -660,14 +660,13 @@ export function RequestsScreenBody() {
             <div className="text-xs text-muted-foreground">{r.visit_date ? `방문 ${r.visit_date} ${r.visit_time || "시간 미정"}` : "방문 일정 미정"}</div>
             <div hidden={!expanded.has(r.id)} className="space-y-2">
             <Button variant="outline" type="button" onClick={() => setOpenId(r.id)}>사전정보·문자 확인</Button>
-            <HouseRows row={r} />
+            <HouseRows row={r} selected={houseSel[r.id] ?? null} onSelect={(h) => setHouseSel((m) => ({ ...m, [r.id]: h }))} />
             <div className="flex justify-end"><Button variant="ghost" size="icon" disabled={!!deleting} onClick={() => void remove(r)} aria-label={`${intakeDisplayName(r)} 요청 삭제`} title="요청 삭제" className="text-destructive"><Trash2 className="size-5" /></Button></div>
-            {sub?.moveDate !== undefined && (r.status === "submitted" || r.status === "confirmed") && (
-              <>
-              <div className="text-xs text-[#6B7280]">이사 {sub.moveDate || "미정"} {sub.moveTime ?? ""} · 출발지 평수 {sub.fromSize || "-"} · 도착지 평수 {sub.toSize || "미입력"} · {sub.fromAddress || "주소 미입력"}</div>
-              </>
-            )}
-            {r.status !== "cancelled" && (r.status === "submitted" || r.status === "confirmed") && <VisitPanel row={r} />}
+            {sub?.moveDate !== undefined && (r.status === "submitted" || r.status === "confirmed") && (() => {
+              const hf = houseSel[r.id] === 2 ? houseFormOf(r, 2) : sub;
+              return <div className="text-xs text-[#6B7280]">이사 {sub.moveDate || "미정"} {sub.moveTime ?? ""} · 출발지 평수 {hf.fromSize || "-"} · 도착지 평수 {sub.toSize || "미입력"} · {hf.fromAddress || "주소 미입력"}</div>;
+            })()}
+            {r.status !== "cancelled" && (r.status === "submitted" || r.status === "confirmed") && <VisitPanel row={r} house={houseSel[r.id] ?? null} />}
             </div>
           </div>
         );
@@ -680,7 +679,10 @@ export function RequestsScreenBody() {
 
 const filled = (v: unknown) => !!v && typeof v === "object" && Object.keys(v as object).length > 0;
 /** Per-link house status lines; each opens only that link's own saved answer. */
-function HouseRows({ row }: { row: IntakeRow }) {
+const houseFormOf = (row: IntakeRow, n: 1 | 2): Partial<IntakeForm> => (n === 1
+  ? (filled(row.submission) ? row.submission : row.draft ?? {})
+  : (filled(row.second_submission) ? row.second_submission : row.second_draft ?? {})) as Partial<IntakeForm>;
+function HouseRows({ row, selected, onSelect }: { row: IntakeRow; selected: 1 | 2 | null; onSelect: (h: 1 | 2) => void }) {
   const [open, setOpen] = useState<1 | 2 | null>(null);
   const houses: { n: 1 | 2; label: string; form: Partial<IntakeForm>; state: string }[] = [
     { n: 1, label: "첫 번째 집", form: (filled(row.submission) ? row.submission : row.draft ?? {}) as Partial<IntakeForm>, state: filled(row.submission) ? "입력 완료" : filled(row.draft) ? "작성 중" : "입력 대기" },
@@ -690,9 +692,13 @@ function HouseRows({ row }: { row: IntakeRow }) {
   return (
     <div className="space-y-1.5" data-house-rows>
       {houses.map(h => (
-        <button key={h.n} type="button" data-house={h.n} onClick={() => setOpen(h.n)} className="w-full rounded-xl border border-[#E5E7EB] px-3 py-2 text-left text-sm">
-          <span className="font-black text-[#25282D]">{h.label}</span> · <span className="text-[#4B5563]">{h.form.fromAddress || "주소 미입력"}</span> · <span className={`font-black ${h.state === "입력 완료" ? "text-[#047857]" : "text-[#B45309]"}`}>{h.state}</span>
-        </button>
+        <div key={h.n} className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-sm ${houses.length > 1 && selected === h.n ? "border-2 border-[#2F80ED] bg-[#EFF6FF]" : "border-[#E5E7EB]"}`}>
+          <button type="button" data-house={h.n} aria-pressed={selected === h.n} onClick={() => onSelect(h.n)} className="min-w-0 flex-1 text-left">
+            {houses.length > 1 && selected === h.n && <Check className="mr-1 inline size-4 text-[#2F80ED]" aria-label="선택됨" />}
+            <span className="font-black text-[#25282D]">{h.label}</span> · <span className="text-[#4B5563]">{h.form.fromAddress || "주소 미입력"}</span> · <span className={`font-black ${h.state === "입력 완료" ? "text-[#047857]" : "text-[#B45309]"}`}>{h.state}</span>
+          </button>
+          <button type="button" data-house-answer={h.n} onClick={() => setOpen(h.n)} className="shrink-0 pt-0.5 text-xs font-bold text-[#6B7280] underline">답변</button>
+        </div>
       ))}
       {cur && (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40" onClick={() => setOpen(null)}>
@@ -713,7 +719,7 @@ function HouseRows({ row }: { row: IntakeRow }) {
 }
 
 /** 방문 일정 저장·변경·취소, 통신사 문자, 방문견적 시작 (같은 요청 행 하나에만 저장) */
-function VisitPanel({ row }: { row: IntakeRow }) {
+function VisitPanel({ row, house }: { row: IntakeRow; house: 1 | 2 | null }) {
   const { openVisit, opening, hasLinked } = useVisitEstimate();
   const [date, setDate] = useState(row.visit_date ?? "");
   const [time, setTime] = useState(row.visit_time ?? "");
@@ -748,7 +754,8 @@ function VisitPanel({ row }: { row: IntakeRow }) {
     toast.success("문자 보냄을 기록했습니다.");
   });
   const start = () => go("start", async () => {
-    await openVisit(row);
+    if (row.second_token_hash && !house) { toast.error("견적을 작성할 집을 선택해 주세요"); return; }
+    await openVisit(row, row.second_token_hash ? (house === 2 ? "origin-2" : "origin-1") : undefined);
   });
   const t = (v: string | null) => (v ? new Date(v).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
   return (
