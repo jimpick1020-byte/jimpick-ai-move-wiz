@@ -45,7 +45,7 @@ function PayappReturn() {
       <h1 className="text-2xl font-bold">페이앱 구독 테스트</h1>
       <p className="font-semibold">실제 청구 없음</p>
       <p role="status" className="text-sm leading-6">{message}</p>
-      <p className="text-sm leading-6 text-muted-foreground">이 화면에 돌아온 것만으로 결제 완료나 유료 이용권이 적용되지 않습니다. 가입 후 10일 무료 체험 · 이후 월 30,000원, 체험 종료 후 별도 동의가 필요합니다.</p>
+      <p className="text-sm leading-6 text-muted-foreground">이 화면에 돌아온 것만으로 결제 완료나 유료 이용권이 적용되지 않습니다. 가입 후 10일 무료 체험 · 월 30,000원. 체험 중 즉시 구독 또는 체험 종료 후 구독 모두 별도 동의와 서버 결제 성공 확인이 필요합니다.</p>
       <Button asChild className="w-full"><Link to="/">견적잇으로 돌아가기</Link></Button>
     </div>
   </main>;

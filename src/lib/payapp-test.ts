@@ -32,6 +32,7 @@ export function registerTest(at: string, trialEndsAt: string): PayappTestState {
 
 export function notifyTest(state: PayappTestState, event: string, amount: number) {
   if (state.events.includes(event)) return { state, duplicate: true };
+  if (state.checkout && !state.firstPaidAt) throw new Error("첫 결제 승인 후 갱신 시험을 진행해 주세요.");
   if (state.status === "canceled") throw new Error("해지한 시험 구독은 갱신할 수 없습니다.");
   if (amount !== 30000) throw new Error("구독 금액이 일치하지 않습니다.");
   return { duplicate: false, state: { ...state, status: "active" as const,
