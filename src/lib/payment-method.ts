@@ -15,8 +15,12 @@ export function remainingPayment(total: number, deposit: number, balance: number
  * 결제 상태 카드에 넣는 금액.
  * '남은 금액' 라벨은 쓰지 않고, 잔금 자리에 계산 값(총액 − 확인된 예약금 − 확인된 잔금)을 넣습니다.
  */
-export function paymentSummaryParts(total: number, depositPaid: number, balancePaid: number) {
+export function paymentSummaryParts(total: number, depositPaid: number, balancePaid: number, quotedDeposit?: number) {
   const t = Math.max(0, Number(total) || 0);
+  if (quotedDeposit !== undefined) {
+    const deposit = Math.min(t, Math.max(0, Number(quotedDeposit) || 0));
+    return { total: t, deposit, balance: t - deposit };
+  }
   const deposit = Math.max(0, Number(depositPaid) || 0);
   return { total: t, deposit, balance: remainingPayment(t, deposit, Number(balancePaid) || 0) };
 }
