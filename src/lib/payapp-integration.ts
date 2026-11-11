@@ -10,13 +10,14 @@ export const PAYAPP_URLS = {
 };
 
 export function firstChargeEligibility(input: {
-  now: string; trialEndsAt: string; consentedAt: string | null; amount: number;
+  now: string; trialEndsAt: string; consentedAt: string | null; amount: number; immediate?: boolean;
 }) {
   const now = Date.parse(input.now);
   const end = Date.parse(input.trialEndsAt);
   const consent = input.consentedAt ? Date.parse(input.consentedAt) : NaN;
-  if (!Number.isFinite(now) || !Number.isFinite(end) || now < end) return "trial";
-  if (!Number.isFinite(consent) || consent < end || consent > now) return "consent_required";
+  if (!Number.isFinite(now) || !Number.isFinite(end)) return "trial";
+  if (!input.immediate && now < end) return "trial";
+  if (!Number.isFinite(consent) || (!input.immediate && consent < end) || consent > now) return "consent_required";
   if (input.amount !== 30000) return "wrong_amount";
   return "merchant_verification_required";
 }
