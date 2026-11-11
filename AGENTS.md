@@ -33,7 +33,7 @@
 - Shared address selection appends provider-returned building names to the existing address string through address-label; this preserves names across intake, estimates and saved drafts without changing coordinates or detail fields.
 
 - Deposit acknowledgement uses the owner-locked confirm_payment_receipt RPC to atomically and idempotently sync receipt sums and contract payment state; balance completion delegates to complete_estimate_payment, preventing duplicate sums, total changes or messaging side effects.
-- Receipt highlighting uses bank methods/known alerts; direct bank confirmation audits the expected amount via RPC; PaymentPanel shows only pendingBalanceReceipts, so confirmed balances can't be reconfirmed.
+- PaymentPanel separates saved quoted deposits from confirmed receipts; review borders retain actual amounts, so editing a quote cannot invent payment. Only pendingBalanceReceipts are offered for review.
 - Customer claims use stage-specific dedupe and stored totals; only owner acknowledgement confirms receipts, and payment SMS prep is read-only native-composer only.
 - History opens receipt-review months by default; SMS groups use Asia/Seoul; archive deletion reuses authenticated soft-delete and refreshes only after success to preserve payments and SMS.
 - Bank SMS are stored first in bank_sms_messages (deduped by event ID or text hash, never name/account/estimate), then matched via bank-sms-match into one pending deposit_records row; detection never completes payment. Forward URLs use publicUrl (preview blocks external POSTs); SMS dates parse as Asia/Seoul.

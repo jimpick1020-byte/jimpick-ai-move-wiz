@@ -7181,10 +7181,14 @@ export function History() {
                               계좌이체 확인 필요 · {review.amount.toLocaleString("ko-KR")}원
                               {review.receipts.map((r, i) => <div key={r.id ?? i} className="break-words text-sm font-semibold">{r.paymentKind === "balance" ? "잔금" : r.paymentKind === "deposit" ? "예약금" : "계좌 입금"} 입금 · 입금자 {r.depositorName || "이름 미확인"} · {r.amount.toLocaleString("ko-KR")}원 · 확인 필요</div>)}
                               {(() => {
-                                // 잔금 확인 대기 금액이 예정 잔금과 다르면 차액을 안내합니다 (계약금액은 바꾸지 않습니다).
-                                if (review.kind !== "balance" || !ts.row) return null;
-                                const note = paymentDiffNote("balance", remainingPayment(ts.row.total, ts.row.depositPaid, ts.row.balancePaid), review.amount);
-                                return note ? <div className="break-words text-sm font-semibold text-[#1D4ED8]" data-payment-diff>{note}</div> : null;
+                                if (!ts.row) return null;
+                                const expected = review.kind === "deposit"
+                                  ? e.depositOverride ?? e.deposit
+                                  : remainingPayment(ts.row.total, ts.row.depositPaid, ts.row.balancePaid);
+                                if (expected === undefined) return null;
+                                const actual = review.receipts.filter(r => r.paymentKind === review.kind).reduce((sum, r) => sum + r.amount, 0);
+                                const note = paymentDiffNote(review.kind, expected, actual);
+                                return note ? <div className="break-words text-sm font-semibold text-foreground" data-payment-diff>{note}</div> : null;
                               })()}
                             </div>
                           )}
@@ -7357,6 +7361,7 @@ export function History() {
                           <PaymentPanel
                             estimateId={e.id}
                             total={ts.row.total}
+                            quotedDeposit={e.depositOverride ?? e.deposit}
                             row={ts.row}
                             onSaved={loadTerms}
                           />
