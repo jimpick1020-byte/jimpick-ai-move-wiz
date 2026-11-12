@@ -696,9 +696,10 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
  * 날짜별(YYYY-MM-DD) 확정 계약 건수 — 달력 표시에 씁니다.
  *
  *  · 로그인한 업체(user_id)의 계약만 셉니다 (RLS + user_id 필터 → 다른 업체와 섞이지 않음).
- *  · 확정 계약 = terms_acceptances 에 확정 기록(accepted_at)이 있고 reservation_status 가
- *    'canceled' 가 아닌 건. 고객이 링크에서 동의한 건(confirmed_by='customer')과
- *    사장님이 직접 계약완료한 건(confirmed_by='company_admin') 모두 포함합니다.
+ *  · 확정 계약 = 견적내역이 「예약 확정」·「결제 완료」로 표시하는 견적
+ *    (calendarReservationShown). 고객이 링크에서 동의한 건(confirmed_by='customer')과
+ *    사장님이 직접 계약완료한 건(confirmed_by='company_admin') 모두 포함하며,
+ *    예약금이 확인된 견적은 고객 동의 기록이 없어도 달력에 올립니다.
  *  · 같은 날짜에 몇 건이든 모두 셉니다(하루 건수 제한 없음).
  */
 export interface ReservationRow {
@@ -762,12 +763,7 @@ export const getReservationCounts = createServerFn({ method: "POST" })
         if (error) console.error("[getReservationCounts]", error.message);
         return { ok: false, counts: {}, reservations: {} };
       }
-      const { calendarDepositConfirmed } = await import("./calendar-deposit");
-      const { data: receipts, error: receiptError } = await context.supabase.from("deposit_records")
-        .select("estimate_id").eq("user_id", context.userId).eq("payment_kind", "deposit")
-        .eq("status", "confirmed").gt("amount", 0).not("confirmed_at", "is", null).not("confirmed_by", "is", null);
-      if (receiptError) return { ok: false, counts: {}, reservations: {} };
-      const receiptIds = new Set((receipts ?? []).map(r => r.estimate_id));
+      const { calendarReservationShown } = await import("./calendar-visibility");
       const latestVersions = new Map<string, number>();
       for (const t of terms) latestVersions.set(t.estimate_id, Math.max(latestVersions.get(t.estimate_id) ?? 0, t.sheet_version));
       // 동의 기록은 「내 견적서 id」로 맞춥니다. 동의는 고객이 남기기 때문에 기록에 업체 id가
@@ -817,9 +813,8 @@ export const getReservationCounts = createServerFn({ method: "POST" })
       }[]) {
         if (!row.move_date) continue;
         if (Number(row.sheet_version) !== latestVersions.get(row.estimate_id)) continue;
-        if (!calendarDepositConfirmed(row, receiptIds.has(row.estimate_id))) continue;
+        if (!calendarReservationShown(row)) continue;
         const conf = confirmed.get(String(row.id));
-        if (!conf) continue;
         const key = String(row.estimate_id);
         const version = Number(row.sheet_version ?? 0);
         const prev = byEstimate.get(key);
@@ -832,8 +827,8 @@ export const getReservationCounts = createServerFn({ method: "POST" })
           moveDate: String(row.move_date).slice(0, 10),
           total: Number(row.total ?? 0),
           sheetNo: row.sheet_no ?? null,
-          acceptedAt: conf.at,
-          confirmedBy: conf.by,
+          acceptedAt: conf?.at ?? null,
+          confirmedBy: conf?.by ?? "company_admin",
           moveTime: null,
           fromArea: null,
           toArea: null,
@@ -893,7 +888,7 @@ export const getReservationCounts = createServerFn({ method: "POST" })
     },
   );
 
-/** 첫 화면 계약 일정 — 예약금 완료·일부결제·결제완료 계약만 업체별로 반환합니다. */
+/** 첫 화면 계약 일정 — 견적내역의 「예약 확정」·「결제 완료」 견적을 업체별로 반환합니다. */
 export const getHomeContractSchedule = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ ok: boolean; reservations: Record<string, ReservationRow[]> }> => {
@@ -910,13 +905,7 @@ export const getHomeContractSchedule = createServerFn({ method: "GET" })
       return { ok: false, reservations: {} };
     }
 
-    const { data: receipts, error: receiptError } = await context.supabase.from("deposit_records")
-      .select("estimate_id,amount,confirmed_at,confirmed_by").eq("user_id", context.userId)
-      .eq("payment_kind", "deposit").eq("status", "confirmed").gt("amount", 0)
-      .not("confirmed_at", "is", null).not("confirmed_by", "is", null);
-    if (receiptError) return { ok: false, reservations: {} };
-    const confirmedDeposits = new Set((receipts ?? []).map(r => r.estimate_id));
-    const { calendarDepositConfirmed } = await import("./calendar-deposit");
+    const { calendarReservationShown } = await import("./calendar-visibility");
     const latestVersions = new Map<string, number>();
     for (const t of terms) latestVersions.set(t.estimate_id, Math.max(latestVersions.get(t.estimate_id) ?? 0, t.sheet_version));
 
@@ -947,9 +936,8 @@ export const getHomeContractSchedule = createServerFn({ method: "GET" })
       const moveDate = String(raw["move_date"] ?? "").slice(0, 10);
       if (!estimateId || !/^\d{4}-\d{2}-\d{2}$/.test(moveDate)) continue;
       if (Number(raw["sheet_version"] ?? 0) !== latestVersions.get(estimateId)) continue;
-      if (!calendarDepositConfirmed({ payment_status: String(raw["payment_status"] ?? "unpaid"), deposit_paid: Number(raw["deposit_paid"] ?? 0), deposit_paid_at: raw["deposit_paid_at"] as string | null, payment_confirmed_at: raw["payment_confirmed_at"] as string | null }, confirmedDeposits.has(estimateId))) continue;
+      if (!calendarReservationShown({ payment_status: String(raw["payment_status"] ?? "unpaid"), deposit_paid: Number(raw["deposit_paid"] ?? 0), balance_paid: Number(raw["balance_paid"] ?? 0) })) continue;
       const acceptance = acceptanceByTerms.get(String(raw["id"]));
-      if (acceptance?.canceled) continue;
       const version = Number(raw["sheet_version"] ?? 0);
       const previous = byEstimate.get(estimateId);
       if (previous && previous.version >= version) continue;
