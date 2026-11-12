@@ -3850,7 +3850,7 @@ export function Step6() {
                       ROOM_TINT[art] || "from-[#5B93D6] to-[#3578C8]"
                     } shadow-[0_3px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.45)] max-w-full self-start truncate align-top`}
                   >
-                    {draft.houseLinked ? name : art}
+                    {name.replace(/^(?:출발지 [12]|첫 번째 집|두 번째 집) · /, "")}
                   </span>
                   <div className="jp-room-original-art relative flex w-full items-center justify-center aspect-square">
                     <Art3D src={roomImageFor(art)} alt={name} size={120} />
