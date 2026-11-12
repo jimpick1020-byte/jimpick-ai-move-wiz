@@ -12,8 +12,8 @@ export function calcDeposit(total: number | null | undefined): number {
 export function plannedDeposit(total: number | null | undefined, override?: number): number {
   const t = Math.max(0, Math.floor(Number(total) || 0));
   const o = Math.floor(Number(override));
-  // 비어 있거나(null) 0 이하인 값은 "직접 정함"이 아니므로 자동 10% 계산을 씁니다.
-  return override == null || !Number.isFinite(o) || o <= 0 ? calcDeposit(t) : Math.min(t, o);
+  // 비어 있거나(null) 0원인 값은 "직접 정함"이 아니므로 자동 10% 계산을 씁니다.
+  return override == null || !Number.isFinite(o) || o <= 0 ? calcDeposit(t) : Math.min(t, Math.max(0, o));
 }
 
 export function calcBalance(total: number | null | undefined): number {

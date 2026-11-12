@@ -6364,7 +6364,7 @@ export function Result() {
                   <MoneyInput
                     value={plannedDeposit(total, draft.depositOverride)}
                     step={10000}
-                    onChange={(n) => updateDraft({ depositOverride: plannedDeposit(total, n) })}
+                    onChange={(n) => updateDraft({ depositOverride: n > 0 ? Math.floor(n) : undefined })}
                   />
                 </Field>
                 <div className="flex items-center justify-between rounded-2xl bg-[#F7F8F5] px-4 py-3">

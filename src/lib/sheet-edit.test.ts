@@ -11,10 +11,10 @@ describe('owner sheet edits', () => {
     expect(reopened.deposit).toBe(200000);
     expect(reopened.total - (reopened.deposit ?? 0)).toBe(1280000);
   });
-  it('keeps zero deposit and prevents negative or above-total deposits', () => {
+  it('falls back to automatic 10% for empty or zero deposit and caps above-total deposits', () => {
     const before = { ...newEstimate(), totalOverride: 1480000 };
-    expect(editedSheet(before, { depositOverride: 0 }).deposit).toBe(0);
-    expect(editedSheet(before, { depositOverride: -10000 }).deposit).toBe(0);
+    expect(editedSheet(before, { depositOverride: 0 }).deposit).toBe(150000);
+    expect(editedSheet(before, { depositOverride: -10000 }).deposit).toBe(150000);
     expect(editedSheet(before, { depositOverride: 2000000 }).deposit).toBe(1480000);
     expect(editedSheet(before, {}).deposit).toBe(150000);
   });
