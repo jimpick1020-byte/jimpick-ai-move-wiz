@@ -1,6 +1,6 @@
 
 import { plannedDeposit as pd2 } from "./deposit-rule";
-import { test as t2, expect as e2 } from "bun:test";
+import { test as t2, expect as e2 } from "vitest";
 t2("빈 예약금은 자동 10%", () => {
   e2(pd2(1430000, null as unknown as number)).toBe(140000);
   e2(pd2(1430000, 0)).toBe(140000);
