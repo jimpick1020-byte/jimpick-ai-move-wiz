@@ -10,9 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/billing/payapp/return")({
   head: () => ({ meta: [
     { title: "페이앱 구독 결제 확인 — 견적잇" },
-    { name: "description", content: "견적잇 페이앱 서버 확인 구독 결제 상태." },
+    { name: "description", content: "견적잇 페이앱 구독 결제 상태를 확인합니다." },
     { property: "og:title", content: "페이앱 구독 결제 확인 — 견적잇" },
-    { property: "og:description", content: "서버에서 확인한 견적잇 구독 결제 상태를 확인합니다." },
+    { property: "og:description", content: "견적잇 구독 결제와 이용기간을 확인합니다." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary" },
     { name: "robots", content: "noindex, nofollow" },
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/billing/payapp/return")({
 function PayappReturn() {
   const readSubscription = useServerFn(getPayappSubscription);
   const readAccount = useServerFn(getMyAccount);
-  const [message, setMessage] = useState("서버에서 결제 확인 중…");
+  const [message, setMessage] = useState("결제 확인 중…");
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -36,11 +36,11 @@ function PayappReturn() {
         const order = result.order;
         const sub = account.subscription;
         setMessage(order?.first_paid_at && sub?.payapp_order_id === order.id && sub?.plan === "pro" && sub.status === "active"
-          ? `서버 결제 확인 완료 · 월 30,000원 · ${result.schedule?.needsReregistration ? "자동결제 만료 · 기존 결제 관계 확인 후 새 동의로 재등록 필요" : order.canceled_at ? "다음 자동청구 중단" : "다음 자동결제일 확인 필요"} · 이용기간 종료일 ${new Date(sub.current_period_end).toLocaleDateString("ko-KR", {timeZone:"Asia/Seoul"})}`
-          : order?.status === "pending" || order?.status === "creating" ? order.status === "pending" && !result.pendingReusable ? "이전 날짜의 미승인 요청은 다시 열 수 없습니다. 기존 요청 확인·취소 후 새 동의가 필요합니다. 페이앱 직접 링크 만료 여부는 별도 확인이 필요합니다." : "결제 확인 중입니다. 아직 유료 구독으로 전환되지 않았습니다. 중복 결제를 시작하지 마세요."
+          ? `결제 확인 완료 · 월 30,000원 · ${result.schedule?.needsReregistration ? result.schedule.expired ? "자동결제 등록 만료 · 새 동의로 재등록 필요" : "다음 자동청구 없음 · 이용기간 종료 후 새 등록 필요" : order.canceled_at ? "다음 자동청구 중단" : "다음 자동결제일 확인 중"} · 이용기간 종료일 ${new Date(sub.current_period_end).toLocaleDateString("ko-KR", {timeZone:"Asia/Seoul"})}`
+          : order?.status === "pending" || order?.status === "creating" ? order.status === "pending" && !result.pendingReusable ? "이전 결제 요청의 유효기간을 확인해야 합니다. 기존 요청 확인·취소 후 다시 신청해 주세요." : "결제 확인 중입니다. 아직 유료 구독으로 전환되지 않았습니다. 중복 결제를 시작하지 마세요."
           : order?.status === "canceled" || order?.status === "failed" ? "결제가 취소되었거나 승인되지 않았습니다. 남은 무료체험은 유지됩니다."
           : order?.status === "review" ? "결제 상태 확인이 필요합니다. 중복 결제를 시작하지 마세요."
-          : "서버에서 확인된 구독 결제가 없습니다.");
+          : !result.ready ? "구독 결제를 준비 중입니다. 현재는 결제가 진행되지 않습니다." : "확인된 구독 결제가 없습니다.");
         if ((order?.status === "pending" || order?.status === "creating") && attempts++ < 12) timer = setTimeout(() => void check(), 5000);
       } catch {
         if (alive) setMessage("결제 상태를 확인하지 못했습니다. 견적잇으로 돌아가 로그인 후 다시 확인해 주세요. 확인 전에는 중복 결제하지 마세요.");
@@ -54,7 +54,7 @@ function PayappReturn() {
       <p className="font-bold text-primary">견적잇</p>
       <h1 className="text-2xl font-bold">페이앱 구독 결제 확인</h1>
       <p role="status" className="text-sm leading-6">{message}</p>
-      <p className="text-sm leading-6 text-muted-foreground">이 화면에 돌아온 것만으로 결제 완료나 유료 이용권이 적용되지 않습니다. 가입 후 10일 무료 체험 · 월 30,000원. 체험 중 즉시 구독 또는 체험 종료 후 구독 모두 별도 동의와 서버 결제 성공 확인이 필요합니다.</p>
+      <p className="text-sm leading-6 text-muted-foreground">가입 후 10일 무료 체험 · 월 30,000원. 구독은 직접 동의하고 결제가 확인된 뒤 시작됩니다. 결제를 취소하거나 실패하면 남은 무료체험은 유지됩니다.</p>
       <Button asChild className="w-full"><Link to="/">견적잇으로 돌아가기</Link></Button>
     </div>
   </main>;
