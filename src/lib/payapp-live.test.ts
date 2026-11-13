@@ -19,13 +19,13 @@ describe("PayApp authenticated live boundaries (no external billing)",()=>{
     const parsed = await authenticatePayappNotice(await notice({card_num:"synthetic-card-field",cvc:"synthetic-cvc"}),fixture,now);
     expect(Object.keys(parsed).includes("card_num")).toBe(false); expect(Object.keys(parsed).includes("cvc")).toBe(false);
   });
-  test("merchant approval alone cannot enable live requests",()=>{
-    const r=payappReadiness(fixture,new Date(now)); expect(r.ready).toBe(false); expect(r.issues.length).toBe(3);
+  test("missing calendar policy and expiration still block unsupported requests",()=>{
+    const r=payappReadiness(fixture,new Date(now)); expect(r.ready).toBe(false); expect(r.issues.length).toBe(2);
   });
-  test("explicit verified permission, calendar and configured expiry enable requests",()=>{
-    expect(payappReadiness({...fixture,PAYAPP_REBILL_APPROVED:"true",PAYAPP_MONTH_POLICY_CONFIRMED:"true",PAYAPP_REBILL_EXPIRE:"2027-11-13"},new Date(now)).ready).toBe(true);
+  test("API integration requires no invented separate approval flag",()=>{
+    expect(payappReadiness({...fixture,PAYAPP_MONTH_POLICY_CONFIRMED:"true",PAYAPP_REBILL_EXPIRE:"2027-11-13"},new Date(now)).ready).toBe(true);
   });
-  test("expired provider contract disables requests",()=>{expect(payappReadiness({...fixture,PAYAPP_REBILL_APPROVED:"true",PAYAPP_MONTH_POLICY_CONFIRMED:"true",PAYAPP_REBILL_EXPIRE:"2025-11-13"},new Date(now)).ready).toBe(false);});
+  test("expired provider contract disables requests",()=>{expect(payappReadiness({...fixture,PAYAPP_MONTH_POLICY_CONFIRMED:"true",PAYAPP_REBILL_EXPIRE:"2025-11-13"},new Date(now)).ready).toBe(false);});
   test("payment URL must use HTTPS and actual PayApp domain",()=>{
     expect(safePayappUrl("https://payapp.kr/payment")).toBe("https://payapp.kr/payment");
     for(const url of ["http://payapp.kr/payment","https://payapp.kr.evil.example/payment","https://evil.example/payment"]) expect(()=>safePayappUrl(url)).toThrow();

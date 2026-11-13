@@ -30,7 +30,6 @@ export function payappNextDate(first: string, paid: string) {
 export function payappReadiness(env: Record<string, string | undefined>, now = new Date()) {
   const issues: string[] = [];
   if (["PAYAPP_USER_ID","PAYAPP_LINK_KEY","PAYAPP_LINK_VALUE","PAYAPP_REQUEST_KEY"].some(k => !env[k])) issues.push("페이앱 필수 연동 정보가 누락되어 있습니다.");
-  if (env.PAYAPP_REBILL_APPROVED !== "true") issues.push("승인 계정의 API 정기결제 이용 권한 확인이 필요합니다.");
   if (env.PAYAPP_MONTH_POLICY_CONFIRMED !== "true") issues.push("최초 승인일 기준 갱신·29~31일 말일 처리 정책 확인이 필요합니다.");
   const expire = env.PAYAPP_REBILL_EXPIRE ?? "";
   const validExpire = /^\d{4}-\d{2}-\d{2}$/.test(expire) && Number.isFinite(Date.parse(expire)) && new Date(expire).toISOString().slice(0,10) === expire;
