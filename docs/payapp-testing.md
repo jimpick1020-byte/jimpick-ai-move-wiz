@@ -1,5 +1,34 @@
 # 페이앱 전환: 무청구 시험 결과와 운영 연결 준비
 
+## 2026-11-13 운영 연결 준비 결과 (이 절이 이전 상태보다 우선)
+- 기존 4개 Secrets 이름 존재 확인, 값 출력·변경 없음. API HTTPS 접속 200은 확인했으나 계정 정기결제 권한을 증명하지 않는다.
+- DB 확인: 기존 billing_keys 0건, 유료 active 구독 0건, 페이앱 실결제 0건. cron에는 문자 알림·견적 정리만 있고 구독 청구 작업은 없다. 기존 체험 만료일과 고객/견적 기록은 변경하지 않았다.
+- 공식 https://docs.payapp.kr/dev_center01.html 최신 조회: rebillRegist → 구매자 최초 승인 → 다음 주기 제공자 자동결제. billRegist는 변경/이용불가 예고로 사용하지 않는다. rebillCancel은 다음 청구를 중단하며 해지는 되돌릴 수 없다.
+- 공식 문서에 rebillCycleMonth=1~31 또는 90(매월 말일), rebillExpire=yyyy-mm-dd 필수는 확인된다. 29~31일의 짧은 달 처리, 요청일/승인일 차이의 변경 방법, 만료 최대 기간·무기한 설정, 계정 권한을 조회하는 비청구 API는 확인되지 않았다. 90은 모든 달 말일이며 첫 승인일 29/30을 영구 말일로 바꾸는 것과 같지 않으므로 임의 적용하지 않는다.
+- 운영 전 필요한 서버 설정: PAYAPP_REBILL_APPROVED=true (계정 API 정기결제 권한 증빙 후), PAYAPP_MONTH_POLICY_CONFIRMED=true (제공자 갱신 정책 확인 후), PAYAPP_REBILL_EXPIRE (제공자가 허용한 실제 계약 만료일). 값은 임의로 만들지 않았고 미확인 시 요청 생성 자체가 차단된다. 기존 결제 Secrets는 다시 요청하지 않는다.
+- 기존 카드/화면 배치 보존, 모의 성공 버튼은 실제 가입 경로에서 제거. 로그인 ‘한 달 무료’는 ‘10일’로 통일. 오늘 30,000원·자동갱신·첫 성공 기준 다음 달·해지·취소/실패 체험 보존 고지 후 직접 동의한다.
+- startPayappSubscription은 업체 연락처와 동의를 확인하고 잠금 RPC/열린 주문 고유 인덱스로 하나의 요청만 생성한다. 공급자 요청의 타임아웃·저장 실패는 잠금을 유지하여 임의 재요청하지 않는다. 기존 pending 결제창만 재사용한다. 생성 성공은 이용권이 아니다.
+- 인증 통보는 linkkey/linkval/userid, responsedate와 hash 검증 → 주문 UUID/업체 UUID/정기번호/정확히 30,000원 비교 → 거래번호+상태 고유키와 DB 잠금 → 결제내역/구독 원자 저장. 카드번호/CVC 등 추가 필드는 파싱 결과와 DB에서 제외하고 요청 본문 로그를 남기지 않는다.
+- 앱 자체 청구 작업은 없음. PayApp이 유일한 자동청구 주체. 첫 승인일과 요청일이 다른 경우 잘못된 주기를 유지하지 않도록 공급자 해지를 요청하고 이미 승인된 이용기간은 유지한다. 이는 날짜 정책 미확인 상태를 해결한 것이 아니며 운영 활성화 전 제공자 확인이 여전히 필요하다.
+- 실패 통보는 성공 이용권을 부여하지 않음. 1회차 실패는 공식 문서상 Noti되지 않아 복귀는 확인 중/미승인으로 표시. 2회차 이후 pay_state=99 실패 내역을 기록한다. 승인취소/부분취소는 검토 상태로 분리한다. 실제 환불은 실행하지 않는다.
+- GET/POST 복귀 모두 303으로 읽기 전용 /billing/payapp/return 이동. URL의 success/amount는 무시. 인증 복구 후 DB 읽기만 하며 pending은 최대 1분 폴링한다. 새 인앱 브라우저에 세션이 없으면 로그인 후 확인 안내, 유료권한 변경 없음.
+- 기존 Toss 발급/청구 함수와 callback의 실제 호출을 차단. 기존 Secrets/기록은 보존.
+
+### 검증 범위
+- Vitest 34건 통과: 기존 모의 18건 + 통보 인증/정확한 금액/위조/타임스탬프/카드필드 제외/HTTPS/운영 차단/KST/29~31일/윤년/지연 승인 표시 16건.
+- 본인 로그인 384×800 모바일: 기존 카드→동의 안내→체크→미확인 설정 차단, 복귀에 success=true&amount=30000을 붙여도 ‘서버에서 확인된 구독 결제가 없습니다’, POST 복귀 303, 미인증 통보 401 확인.
+- DB RPC 서비스 전용 권한 확인. 실제 주문 0건, 실제 청구/문자/환불/이용권 변경 없음.
+- 실제 신규 체험 업체의 결제창 승인·공식 통보 성공·공급자 해지·동시 DB 이벤트 저장 E2E, Android/iPhone/카카오톡 실기기 복귀는 미검증. 자체 규칙시험은 페이앱 승인 시험이 아니다.
+- 게시 여부와 운영 HTTP 확인 결과는 후속 보고에서 구분한다.
+
+### 변경 파일
+- src/lib/payapp-live.ts / payapp-live.server.ts / payapp-live.functions.ts / payapp-live.test.ts
+- src/components/jimpick/account.tsx / screens.tsx
+- src/routes/api/public/payapp/feedback.ts / return.ts / billing.payapp.return.tsx / billing.callback.tsx
+- src/lib/toss.functions.ts / subscription.functions.ts, AGENTS.md
+- drizzle/migrations/0043_payapp_verified_subscription_orders.sql / 0044_payapp_optional_notice_dates.sql (+ 관리 스냅샷), 자동 생성 types.ts
+- docs/payapp-testing.md / roadmap.md
+
 ## 현재 상태
 - 기존 디자인 유지, ‘지금 구독 시작 · 월 30,000원’ 버튼은 체험 중에도 페이앱 **자체 모의시험**을 연다.
 - 실제 페이앱 API 연결·카드 등록·승인·갱신은 아직 구현/검증되지 않았다. 외부 결제 요청을 보내는 코드가 없는 안전한 준비 단계다.

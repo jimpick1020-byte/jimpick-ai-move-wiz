@@ -1241,6 +1241,94 @@ export type Database = {
         }
         Relationships: []
       }
+      payapp_events: {
+        Row: {
+          amount: number
+          mul_no: string
+          order_id: string
+          paid_at: string | null
+          pay_state: string
+          received_at: string
+        }
+        Insert: {
+          amount: number
+          mul_no: string
+          order_id: string
+          paid_at?: string | null
+          pay_state: string
+          received_at?: string
+        }
+        Update: {
+          amount?: number
+          mul_no?: string
+          order_id?: string
+          paid_at?: string | null
+          pay_state?: string
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payapp_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "payapp_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payapp_orders: {
+        Row: {
+          amount: number
+          canceled_at: string | null
+          consented_at: string
+          created_at: string
+          first_paid_at: string | null
+          id: string
+          last_paid_at: string | null
+          payurl: string | null
+          rebill_no: string | null
+          requested_day: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          canceled_at?: string | null
+          consented_at?: string
+          created_at?: string
+          first_paid_at?: string | null
+          id?: string
+          last_paid_at?: string | null
+          payurl?: string | null
+          rebill_no?: string | null
+          requested_day: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          canceled_at?: string | null
+          consented_at?: string
+          created_at?: string
+          first_paid_at?: string | null
+          id?: string
+          last_paid_at?: string | null
+          payurl?: string | null
+          rebill_no?: string | null
+          requested_day?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payapp_orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payapp_test_subscriptions: {
         Row: {
           state: Json
@@ -1946,6 +2034,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_payapp_event: {
+        Args: {
+          p_amount: number
+          p_mul: string
+          p_next?: string
+          p_order: string
+          p_paid?: string
+          p_rebill: string
+          p_state: string
+          p_user: string
+        }
+        Returns: Json
+      }
+      apply_payapp_event_internal: {
+        Args: {
+          p_amount: number
+          p_mul: string
+          p_next: string
+          p_order: string
+          p_paid: string
+          p_rebill: string
+          p_state: string
+          p_user: string
+        }
+        Returns: Json
+      }
       auto_archive_past_estimate_notices: { Args: never; Returns: number }
       cancel_contract: { Args: { _terms_id: string }; Returns: Json }
       cancel_reservation: { Args: { _terms_id: string }; Returns: boolean }
@@ -2075,6 +2189,10 @@ export type Database = {
         Args: { p_estimate_id: string; p_payload: Json; p_revision: number }
         Returns: Json
       }
+      finish_payapp_cancel: {
+        Args: { p_order: string; p_user: string }
+        Returns: undefined
+      }
       has_confirmed_calendar_deposit: {
         Args: { p_company: string; p_estimate: string }
         Returns: boolean
@@ -2113,6 +2231,10 @@ export type Database = {
       }
       reserve_free_sms: {
         Args: { _count?: number; _key: string; _user_id: string }
+        Returns: Json
+      }
+      reserve_payapp_order: {
+        Args: { p_day: number; p_user: string }
         Returns: Json
       }
       resume_intake_estimate: {

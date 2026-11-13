@@ -1,0 +1,6 @@
+ALTER FUNCTION public.apply_payapp_event(uuid,uuid,text,text,text,integer,timestamptz,timestamptz) RENAME TO apply_payapp_event_internal;
+REVOKE ALL ON FUNCTION public.apply_payapp_event_internal(uuid,uuid,text,text,text,integer,timestamptz,timestamptz) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_payapp_event_internal(uuid,uuid,text,text,text,integer,timestamptz,timestamptz) TO service_role;
+CREATE OR REPLACE FUNCTION public.apply_payapp_event(p_order uuid,p_user uuid,p_rebill text,p_mul text,p_state text,p_amount integer,p_paid timestamptz DEFAULT NULL,p_next timestamptz DEFAULT NULL) RETURNS jsonb LANGUAGE sql SECURITY DEFINER SET search_path=public AS $$ SELECT public.apply_payapp_event_internal(p_order,p_user,p_rebill,p_mul,p_state,p_amount,p_paid,p_next) $$;
+REVOKE ALL ON FUNCTION public.apply_payapp_event(uuid,uuid,text,text,text,integer,timestamptz,timestamptz) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_payapp_event(uuid,uuid,text,text,text,integer,timestamptz,timestamptz) TO service_role;

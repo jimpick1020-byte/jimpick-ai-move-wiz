@@ -597,7 +597,7 @@ export function Login() {
           업체 회원가입
         </Button>
         <p className="-mt-3 text-center text-sm text-auth-muted">
-          가입 후 한 달 동안 모든 기능을 무료로 체험할 수 있습니다.
+          가입 후 10일 동안 모든 기능을 무료로 체험할 수 있습니다.
         </p>
         <Button
           type="button"

@@ -21,17 +21,13 @@ import {
   PLANS,
   getMyAccount,
   subscribePlan,
-  cancelSubscription,
-  resumeSubscription,
   type PlanId,
 } from "@/lib/subscription.functions";
 
-import {
-  getPayappTest,
-  runPayappTest,
-} from "@/lib/payapp.functions";
 import { tap } from "@/lib/feedback";
-import { nextMonth } from "@/lib/payapp-test";
+import { payappNextDate } from "@/lib/payapp-live";
+import { getPayappSubscription, startPayappSubscription, cancelPayappSubscription } from "@/lib/payapp-live.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Check, Crown, CreditCard, LogOut } from "lucide-react";
 import { Eye, EyeOff } from "lucide-react";
@@ -553,7 +549,10 @@ export function SubscriptionScreen() {
   const { userId, email, loading } = useSession();
   const [account, setAccount] = useState<Account | null>(null);
   const [busy, setBusy] = useState<PlanId | null>(null);
-  const [payapp, setPayapp] = useState<Awaited<ReturnType<typeof getPayappTest>> | null>(null);
+  const [payapp, setPayapp] = useState<Awaited<ReturnType<typeof getPayappSubscription>> | null>(null);
+  const readPayapp = useServerFn(getPayappSubscription);
+  const startPayapp = useServerFn(startPayappSubscription);
+  const stopPayapp = useServerFn(cancelPayappSubscription);
   const [testOpen, setTestOpen] = useState(false);
   const [testBusy, setTestBusy] = useState(false);
   const [consent, setConsent] = useState(false);
@@ -574,7 +573,7 @@ export function SubscriptionScreen() {
     // 결제·해지 후 이용 권한(체험/구독)을 다시 읽어 화면과 서버를 맞춥니다
     await refreshEnt();
     try {
-      setPayapp(await getPayappTest({ headers }));
+      setPayapp(await readPayapp());
     } catch {
       /* 카드 정보는 없어도 화면은 그대로 보여 줍니다 */
     }
@@ -629,7 +628,8 @@ export function SubscriptionScreen() {
       return;
     }
     try {
-      const r = await cancelSubscription({ headers });
+      await stopPayapp();
+      const r = { cancelAt: current?.current_period_end };
       toast.success("해지가 예약되었습니다", {
         description: r.cancelAt
           ? `${new Date(r.cancelAt).toLocaleDateString("ko-KR")} 까지 이용 후 해지`
@@ -641,36 +641,18 @@ export function SubscriptionScreen() {
     }
   };
 
-  const resume = async () => {
-    const headers = await authHeader();
-    if (!headers) {
-      toast.error("로그인이 만료되었습니다. 다시 로그인해 주세요.");
-      setScreen("signup");
-      return;
-    }
-    try {
-      await resumeSubscription({ headers });
-      toast.success("해지 예약을 취소했습니다");
-      await refresh();
-    } catch {
-      toast.error("해지 예약 취소에 실패했습니다");
-    }
-  };
 
   const current = account?.subscription;
-  const runTest = async (action: "start" | "approve" | "fail" | "abandon" | "renew" | "duplicate" | "cancel") => {
-    if (testLock.current) return;
-    testLock.current = true;
-    setTestBusy(true);
+  const beginCheckout = async () => {
+    if (testLock.current || !consent) return;
+    testLock.current = true; setTestBusy(true);
     try {
-      const headers = await authHeader();
-      if (!headers) throw new Error("다시 로그인해 주세요.");
-      const r = await runPayappTest({ data: { action, consent: action === "start" ? consent : undefined }, headers });
-      if (!r) throw new Error("시험 결과를 확인하지 못했습니다.");
-      setPayapp({ mode: "test", state: r.state });
-      toast.success(r.duplicate ? "중복 없이 기존 시험 결과를 유지했습니다" : action === "fail" || action === "abandon" ? "실제 무료체험은 그대로 유지됩니다" : "모의시험 결과를 저장했습니다 · 실제 청구 없음");
-    } catch (e) { toast.error(e instanceof Error ? e.message : "시험에 실패했습니다"); }
-    finally { testLock.current = false; setTestBusy(false); }
+      const result = await startPayapp({ data: { consent: true } });
+      window.location.assign(result.payurl);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "결제 요청을 확인하지 못했습니다.");
+      await refresh();
+    } finally { testLock.current = false; setTestBusy(false); }
   };
   const statusLabel: Record<string, string> = {
     trialing: "무료 체험 중",
@@ -757,7 +739,7 @@ export function SubscriptionScreen() {
               <br />이 날짜까지는 그대로 이용할 수 있고, 이후에는 결제되지 않습니다.
             </div>
           )}
-          <div className="mt-2 text-xs font-bold text-muted-foreground">페이앱 · 테스트 결제 모드 (실제 청구 없음)</div>
+          <div className="mt-2 text-xs font-bold text-muted-foreground">페이앱 · 월 정기결제</div>
         </Card>
 
         {PLANS.map((p) => {
@@ -813,38 +795,23 @@ export function SubscriptionScreen() {
         <Dialog open={testOpen} onOpenChange={(open) => { if (!testBusy) setTestOpen(open); }}>
           <DialogContent className="max-h-[85dvh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>페이앱 정기결제 모의시험</DialogTitle>
-              <DialogDescription>실제 청구 없음 · 페이앱 승인 확인 전에는 모의시험만 진행합니다. 실제 무료체험과 이용 권한은 변경되지 않습니다.</DialogDescription>
+              <DialogTitle>페이앱 구독 시작</DialogTitle>
+              <DialogDescription>결제는 페이앱의 안전한 결제창에서 직접 승인합니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-2 text-sm leading-6">
-              <p className="font-semibold">운영 결제 승인 시: 오늘 30,000원이 결제되며, 무료체험이 종료되고 유료 구독이 시작됩니다.</p>
-              <p>다음 결제일: {checkoutAt ? new Date(nextMonth(checkoutAt)).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" }) : "첫 결제 성공일 한 달 뒤"} (예정 · 첫 결제 성공일 기준)</p>
-              <p className="text-muted-foreground">월 30,000원 정기결제 · 체험 종료 청구는 중복하지 않습니다. 취소·실패 시 남은 10일 무료체험을 유지하며, 동의 없이 자동 청구하지 않습니다.</p>
+              <p className="font-semibold">오늘 30,000원이 결제되며, 무료체험이 종료되고 유료 구독이 시작됩니다.</p>
+              <p>매월 30,000원 자동갱신 · 다음 결제일: {checkoutAt ? new Date(payappNextDate(checkoutAt, checkoutAt)).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" }) : "첫 결제 성공일 한 달 뒤"} (예정 · 실제 최초 승인일 기준)</p>
+              <p>해지: 구독 · 결제 화면의 ‘구독 해지하기’. 페이앱 해지 확인 후 다음 청구가 중단되며, 이미 결제한 기간까지 이용합니다.</p>
+              <p className="text-muted-foreground">취소·실패 시 남은 무료체험은 유지됩니다. 동의 없이 체험 종료만으로 청구하지 않습니다.</p>
+              {!payapp?.ready && <div role="status" className="text-destructive">{payapp?.issues.join(" ") || "결제 설정 확인 중입니다."}</div>}
+              {payapp?.order && <p role="status">{payapp.order.status === "creating" ? "기존 결제 요청 확인 중 · 중복 신청하지 마세요." : payapp.order.status === "pending" ? "페이앱 결제 승인 대기 중 · 기존 결제창을 이어서 열 수 있습니다." : payapp.order.status === "review" ? "결제 확인이 필요합니다. 중복 신청은 차단됩니다." : "저장된 구독 상태를 확인했습니다."}</p>}
               <label className="flex items-start gap-2">
-                <Checkbox checked={consent} onCheckedChange={(checked) => setConsent(checked === true)} disabled={testBusy} aria-label="즉시 결제 및 월 정기결제 모의시험 동의" className="mt-1" />
-                <span>위 즉시 결제·체험 종료·월 정기결제 조건에 동의하여 모의시험을 진행합니다.</span>
+                <Checkbox checked={consent} onCheckedChange={(checked) => setConsent(checked === true)} disabled={testBusy} aria-label="즉시 결제 및 월 자동갱신 동의" className="mt-1" />
+                <span>오늘 30,000원 결제·체험 종료·매월 자동갱신 및 해지 방법을 확인하고 동의합니다.</span>
               </label>
-              <Button className="w-full h-auto whitespace-normal" disabled={testBusy || !consent || payapp?.state?.checkout === "pending" || !!payapp?.state?.firstPaidAt} onClick={() => runTest("start")}>동의하고 즉시 구독 모의시험 시작</Button>
+              <Button className="w-full h-auto whitespace-normal" disabled={testBusy || !consent || !payapp?.ready || ["creating", "active", "review"].includes(payapp?.order?.status ?? "")} onClick={beginCheckout}>{testBusy ? "결제 요청 확인 중…" : "동의하고 페이앱 결제창 열기"}</Button>
             </div>
-            <div className="space-y-2 text-sm" aria-live="polite">
-              <div>시험 상태: {payapp?.state?.checkout === "pending" ? "승인 대기" : payapp?.state?.checkout === "failed" ? "결제 실패 · 실제 체험 유지" : payapp?.state?.checkout === "canceled" ? "결제 취소 · 실제 체험 유지" : payapp?.state ? ({ registered: "등록됨", active: "시험 구독 중", canceled: "해지됨" }[payapp.state.status]) : "미등록"}</div>
-              <div>모의 승인 횟수: {payapp?.state?.events.length ?? 0}회</div>
-              <div>모의 승인 합계: {won(payapp?.state?.simulatedTotal ?? 0)}</div>
-              <div>실제 청구: {won(payapp?.state?.actualCharged ?? 0)}</div>
-              {payapp?.state && <div>시험 다음 결제일: {new Date(payapp.state.nextBillingAt).toLocaleDateString("ko-KR")}</div>}
-              {payapp?.state?.firstPaidAt && <div>시험 첫 결제일: {new Date(payapp.state.firstPaidAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}</div>}
-              {payapp?.state?.trialBillingCanceled && <div>시험 체험 종료일 청구: 제외 (중복 청구 방지)</div>}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {([
-                ["approve", "결제 성공 시험"], ["fail", "결제 실패 시험"], ["abandon", "결제 취소 시험"], ["renew", "갱신 시험"],
-                ["duplicate", "중복 통보 시험"], ["cancel", "해지 시험"],
-              ] as const).map(([action, label]) => (
-                <Button key={action} variant="outline" disabled={testBusy || (["approve", "fail", "abandon"].includes(action) ? payapp?.state?.checkout !== "pending" : !payapp?.state?.firstPaidAt)}
-                  onClick={() => runTest(action)}>{label}</Button>
-              ))}
-            </div>
-            <Button asChild variant="outline"><Link to="/billing/payapp/return">시험 결과 · 복귀 화면 확인</Link></Button>
+            <Button asChild variant="outline"><Link to="/billing/payapp/return">결제 상태 확인</Link></Button>
           </DialogContent>
         </Dialog>
 
@@ -919,16 +886,10 @@ export function SubscriptionScreen() {
           )}
 
         {current && current.plan !== "free" && !current.cancel_at_period_end && (
-          <button onClick={cancel} className="w-full py-3 text-sm text-[#6B7280] font-semibold">
-            구독 해지하기
-          </button>
+          <Button onClick={cancel} variant="ghost" className="w-full py-3 text-sm text-muted-foreground font-semibold">구독 해지하기</Button>
         )}
 
-        {current?.cancel_at_period_end && (
-          <button onClick={resume} className="w-full py-3 text-sm font-bold text-[#25282D]">
-            해지 예약 취소하고 계속 이용하기
-          </button>
-        )}
+        {current?.cancel_at_period_end && <p className="text-sm text-muted-foreground">페이앱 해지는 되돌릴 수 없습니다. 이용기간 종료 후 새 구독을 시작할 수 있습니다.</p>}
 
         <button
           onClick={async () => {

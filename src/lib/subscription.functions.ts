@@ -111,26 +111,13 @@ export const subscribePlan = createServerFn({ method: "POST" })
 export const cancelSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ ok: boolean; cancelAt?: string }> => {
-    const { data, error } = await context.supabase
-      .from("subscriptions")
-      .update({ cancel_at_period_end: true })
-      .eq("user_id", context.userId)
-      .select("current_period_end")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    const row = data as { current_period_end: string } | null;
-    return { ok: true, ...(row ? { cancelAt: row.current_period_end } : {}) };
+    throw new Error("구독 · 결제 화면에서 페이앱 해지를 진행해 주세요. 공급자 해지 확인 전에는 청구 중단으로 표시하지 않습니다.");
   });
 
 /** 해지 예약 취소 (계속 이용하기) */
 export const resumeSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ ok: boolean }> => {
-    const { error } = await context.supabase
-      .from("subscriptions")
-      .update({ cancel_at_period_end: false })
-      .eq("user_id", context.userId);
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    throw new Error("페이앱 해지는 되돌릴 수 없습니다. 이용기간 종료 후 새 구독을 시작해 주세요.");
   });
 

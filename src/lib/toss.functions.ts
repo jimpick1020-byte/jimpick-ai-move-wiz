@@ -66,6 +66,8 @@ async function tossFetch(
   path: string,
   init: { body: unknown; idempotencyKey?: string },
 ): Promise<{ ok: boolean; status: number; json: Record<string, unknown> | null }> {
+  throw new Error("토스 구독 결제는 종료되었습니다. 구독 · 결제 화면에서 페이앱을 이용해 주세요.");
+  /* Legacy implementation retained only for historical reference. Never call the provider.
   const secretKey = process.env["TOSS_SECRET_KEY"]?.trim();
   if (!secretKey) throw new Error("결제 설정이 준비되지 않았습니다. 관리자에게 문의해 주세요.");
 
@@ -87,6 +89,7 @@ async function tossFetch(
     json = null;
   }
   return { ok: res.ok, status: res.status, json };
+  */
 }
 
 /** 카드 등록창에 필요한 값 (클라이언트 키는 공개용 키입니다) */

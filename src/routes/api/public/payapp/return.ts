@@ -6,5 +6,8 @@ export const Route = createFileRoute("/api/public/payapp/return")({
     GET: () => new Response(null, { status: 303, headers: {
       Location: "/billing/payapp/return", "Cache-Control": "no-store",
     } }),
+    POST: () => new Response(null, { status: 303, headers: {
+      Location: "/billing/payapp/return", "Cache-Control": "no-store",
+    } }),
   } },
 });
