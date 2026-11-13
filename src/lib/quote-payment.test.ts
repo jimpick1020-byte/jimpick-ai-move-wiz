@@ -26,3 +26,7 @@ test('pending bank evidence is not counted as paid in the summary', () => {
   assert.equal(paymentReview([receipt], 'unpaid', 0, 0, 2160000)?.amount, 200000);
   assert.deepEqual(paymentSummaryParts(2160000, 0, 0, 216000), { total: 2160000, deposit: 216000, balance: 1944000, planned: true });
 });
+import { receivedWithNew } from './payment-method';
+test('overpayment check counts 100,000 deposit, 300,000 partial balance and the new 1,200,000 receipt', () => {
+  assert.equal(receivedWithNew(100000, 300000, 1200000), 1600000);
+});

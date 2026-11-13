@@ -433,51 +433,35 @@ export function staleTermTotalIds(
   return rows.filter((r) => Number(r.total ?? 0) !== total).map((r) => r.id);
 }
 
+/**
+ * 사장님이 최종 총액을 직접 조정할 때: 작성본(총액·totalOverride·견적서 원본 항목)과
+ * 최신 고객 견적서를 한 번에 저장합니다. 품목 단가는 다시 계산하지 않고 「할인·조정」 차액만 더합니다.
+ * expectedTotal 이 서버 최신 금액과 다르면 저장하지 않습니다(경쟁 수정 보호).
+ */
 export const updateEstimateTotal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z
       .object({
         estimateId: z.string().min(1).max(80),
-        /** 화면에서 확정한 총액 (원) */
-        total: z.number().int().min(0).max(1_000_000_000),
+        total: z.number().int().min(1).max(1_000_000_000),
+        expectedTotal: z.number().int().min(0).max(1_000_000_000),
+        revision: z.number().int().positive(),
       })
       .parse(d),
   )
   .handler(
-    async ({
-      data,
-      context,
-    }): Promise<{ ok: boolean; changed: boolean; error?: string }> => {
-      const { data: rows, error: readErr } = await context.supabase
-        .from("estimate_terms")
-        .select("id, total")
-        .eq("user_id", context.userId)
-        .eq("estimate_id", data.estimateId)
-        .is("deleted_at", null)
-        .is("cancelled_at", null)
-        // 최신 활성 차수만 고칩니다. 과거 차수·동의 기록의 금액은 그대로 둡니다.
-        .order("sheet_version", { ascending: false })
-        .limit(1);
-      if (readErr) {
-        console.error("[updateEstimateTotal] read", readErr.message);
-        return { ok: false, changed: false, error: "저장된 견적서를 읽지 못했습니다." };
+    async ({ data, context }): Promise<{ ok: boolean; changed: boolean; stale?: boolean; payload?: string; error?: string }> => {
+      const { data: res, error } = await context.supabase.rpc("adjust_estimate_total", {
+        p_estimate_id: data.estimateId, p_total: data.total, p_expected_total: data.expectedTotal, p_revision: data.revision,
+      });
+      if (error) {
+        console.error("[updateEstimateTotal]", error.code);
+        return { ok: false, changed: false, error: "견적 금액을 저장하지 못했습니다. 다시 열어 확인해 주세요." };
       }
-      const staleIds = staleTermTotalIds(
-        (rows ?? []) as { id: string; total: number | null }[],
-        data.total,
-      );
-      if (staleIds.length === 0) return { ok: true, changed: false };
-      const { error: upErr } = await context.supabase
-        .from("estimate_terms")
-        .update({ total: data.total } as never)
-        .in("id", staleIds)
-        .eq("user_id", context.userId);
-      if (upErr) {
-        console.error("[updateEstimateTotal] update", upErr.message);
-        return { ok: false, changed: false, error: "견적 금액을 저장하지 못했습니다." };
-      }
-      return { ok: true, changed: true };
+      const r = res as { ok?: boolean; changed?: boolean; stale?: boolean; error?: string; payload?: unknown };
+      if (!r?.ok) return { ok: false, changed: false, stale: !!r?.stale, error: r?.error ?? "견적 금액을 저장하지 못했습니다." };
+      return { ok: true, changed: !!r.changed, payload: JSON.stringify(r.payload) };
     },
   );
 

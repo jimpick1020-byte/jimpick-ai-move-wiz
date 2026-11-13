@@ -5392,6 +5392,15 @@ export function Result() {
 
       // Use the exact token accepted by the server, including collision recovery.
       let publishedToken = shareToken();
+      // 고객에게 공유하는 값과 작성본에 남길 견적서 원본을 하나의 값으로 만듭니다
+      const sendSnap = {
+        sheetNo: draft.sheetNo ?? "",
+        version: draft.sheetVersion ?? 1,
+        confirmedAt: draft.sheetConfirmedAt || Date.now(),
+        total,
+        parts,
+        rooms: sheetRooms,
+      };
       // 1) 견적서를 서버에 올려 둡니다. 이것이 있어야 고객이 링크를 열 수 있습니다.
       try {
         const pub = await publishEstimateTerms({
@@ -5409,10 +5418,10 @@ export function Result() {
             termsEffectiveAt: TERMS_EFFECTIVE_AT,
             accessToken: publishedToken,
             sheetSnapshot: JSON.stringify({
-              draft: { ...draft, total, deposit: plannedDeposit(total, draft.depositOverride) },
-              rooms: sheetRooms,
-              parts,
-              total,
+              draft: { ...draft, total, deposit: plannedDeposit(total, draft.depositOverride), sheetConfirmedAt: sendSnap.confirmedAt, sheetSnapshot: sendSnap },
+              rooms: sendSnap.rooms,
+              parts: sendSnap.parts,
+              total: sendSnap.total,
             }).slice(0, 300_000),
           },
         });
@@ -5426,7 +5435,8 @@ export function Result() {
         }
         if (!pub.accessToken) throw new Error("고객 링크 저장을 확인하지 못했습니다. 다시 시도해 주세요.");
         publishedToken = pub.accessToken;
-        updateDraft({ shareToken: publishedToken, shareTokenVersion: draft.sheetVersion ?? 1 });
+        updateDraft({ shareToken: publishedToken, shareTokenVersion: draft.sheetVersion ?? 1, sheetConfirmedAt: sendSnap.confirmedAt, sheetSnapshot: sendSnap });
+        saveDraft();
       } catch (e) {
         setSendResult({
           ok: false,
@@ -6713,21 +6723,7 @@ export function Result() {
                   <PrimaryButton
                     onClick={() => {
                       // 확정: 지금 금액·품목을 그대로 얼려 둡니다
-                      // 보내는 금액·품목과 현재 견적서 원본을 항상 맞춥니다 (처음 확정 시각은 유지)
-                      const confirmedAt = draft.sheetConfirmedAt || Date.now();
-                      const prev = draft.sheetSnapshot;
-                      if (!draft.sheetConfirmedAt || prev?.total !== total || prev?.version !== (draft.sheetVersion ?? 1) || JSON.stringify(prev?.parts) !== JSON.stringify(parts)) {
-                        const snap = {
-                          sheetNo: draft.sheetNo ?? "",
-                          version: draft.sheetVersion ?? 1,
-                          confirmedAt,
-                          total,
-                          parts,
-                          rooms: sheetRooms,
-                        };
-                        updateDraft({ sheetConfirmedAt: confirmedAt, sheetSnapshot: snap });
-                        saveDraft();
-                      }
+                      // 견적서 원본(금액·항목·방)은 서버 공유 저장이 성공한 뒤 같은 값으로 기록합니다 (doSendSmsInner)
                       void doSendSms();
                     }}
                     disabled={sending}

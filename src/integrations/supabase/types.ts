@@ -2092,6 +2092,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adjust_estimate_total: {
+        Args: {
+          p_estimate_id: string
+          p_expected_total: number
+          p_revision: number
+          p_total: number
+        }
+        Returns: Json
+      }
       apply_payapp_event: {
         Args: {
           p_amount: number

@@ -26,3 +26,8 @@ export function paymentSummaryParts(total: number, depositPaid: number, balanceP
   const deposit = Math.min(t, Math.max(0, Number(quotedDeposit) || 0));
   return { total: t, deposit, balance: t - deposit, planned: true };
 }
+
+/** 최종 계약금액 하한: 이미 확인된 예약금 + 확인된 잔금 + 이번에 확인할 입금 */
+export function receivedWithNew(depositPaid: number, balancePaid: number, incoming: number) {
+  return Math.max(0, Number(depositPaid) || 0) + Math.max(0, Number(balancePaid) || 0) + Math.max(0, Number(incoming) || 0);
+}

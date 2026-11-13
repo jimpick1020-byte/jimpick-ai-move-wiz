@@ -12,7 +12,7 @@
 - Intake and visit previews use versioned public image pointers in leaf SSR head metadata with absolute URLs; version query parameters do not alter token lookup, keeping existing customer links valid.
 - Customer catalog edits use item_icons customer_* fields and authenticated platform-role checks before privileged access; customer_only rows are excluded from the ordinary company catalog and deletion only retires customer visibility, preserving historic estimates and images.
 - Intake customer images use short-lived signed Storage URLs; submitted drafts snapshot Korean names and durable image routes into customItems so existing estimate views can render them after re-login.
-- History merges company-owned rows by estimate ID; final and sheet-save revisions replace older copies and atomically synchronized terms totals repair legacy amounts, while intake resubmissions preserve owner edits.
+- History merges company-owned rows by estimate ID; final, sheet-save and adjust_estimate_total revisions replace older copies; manual total adjustments keep saved line items and add only a 할인·조정 difference, writing draft and latest active terms in one revision-checked call, while intake resubmissions preserve owner edits.
 - Unconverted submitted intake drafts are retired with estimate_drafts deletion markers and cancelled intake status, never by deleting requests or touching formal estimate_terms; existing tombstone synchronization keeps device lists consistent.
 
 - Customer intake reuses Step1/Step2/Step3 and a single house-size fourth step; the owner visit estimate uses the existing full estimate flow and shared item catalog.

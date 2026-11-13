@@ -4,9 +4,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { setPaymentState, confirmOwnerBankBalance, PAYMENT_STATUS_CHOICES, PAYMENT_STATUS_LABEL, normalizePaymentStatus, type PaymentStatus } from "@/lib/payment.functions";
-import { PAYMENT_METHOD_LABEL, PAYMENT_METHODS, completedPaymentLabel, normalizePaymentMethod, paymentSummaryParts, remainingPayment, type PaymentMethod } from "@/lib/payment-method";
+import { PAYMENT_METHOD_LABEL, PAYMENT_METHODS, completedPaymentLabel, normalizePaymentMethod, paymentSummaryParts, receivedWithNew, remainingPayment, type PaymentMethod } from "@/lib/payment-method";
 import { pendingBalanceReceipts, pendingReceipt } from "@/lib/payment-review";
 import { updateEstimateTotal, type TermsStatusRow } from "@/lib/terms.functions";
+import { nextRevision } from "@/lib/use-draft-autosave";
+import { useApp, type Estimate } from "@/lib/jimpick";
 
 type ReceiptRow = NonNullable<TermsStatusRow["paymentReceipts"]>[number];
 
@@ -23,6 +25,7 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
   const savePayment = useServerFn(setPaymentState);
   const confirmBank = useServerFn(confirmOwnerBankBalance);
   const updateTotal = useServerFn(updateEstimateTotal);
+  const { upsertServerEstimates, commitSavedSheet } = useApp();
   const [finalTotals, setFinalTotals] = useState<Record<string, string>>({});
   const remain = remainingPayment(total, row.depositPaid, row.balancePaid);
   const summary = paymentSummaryParts(total, row.depositPaid, row.balancePaid, quotedDeposit);
@@ -57,12 +60,16 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
     if (locked.current || !r.id) return;
     const finalTotal = Number(String(finalTotals[r.id] ?? total + (r.amount - remain)).replace(/[^0-9]/g, ""));
     if (!finalTotal || finalTotal <= 0) { toast.error("최종 계약금액을 입력해 주세요."); return; }
-    const receivedSum = row.depositPaid + r.amount;
+    // 이미 확인된 예약금·잔금과 이번 입금을 모두 더합니다
+    const receivedSum = receivedWithNew(row.depositPaid, row.balancePaid, r.amount);
     if (finalTotal < receivedSum) { toast.error("최종 계약금액이 실제 받은 금액보다 적습니다.", { description: `받은 금액 합계 ${won(receivedSum)} 이상이어야 합니다.` }); return; }
     locked.current = true; setBusy(true);
     try {
-      const t = await updateTotal({ data: { estimateId, total: finalTotal } });
-      if (!t.ok) { toast.error("금액 저장 실패", { description: t.error ?? "" }); return; }
+      const t = await updateTotal({ data: { estimateId, total: finalTotal, expectedTotal: total, revision: nextRevision() } });
+      if (!t.ok || !t.payload) { toast.error("금액 저장 실패", { description: t.error ?? "" }); onSaved?.(); return; }
+      // 서버가 확정한 저장본으로 작성본·견적 내역을 바로 맞춥니다
+      const saved = JSON.parse(t.payload) as Estimate;
+      upsertServerEstimates([saved]); commitSavedSheet(saved);
       const result = await savePayment({ data: { estimateId, status: "completed", note, method: "bank_transfer", receiptId: r.id } });
       if (!result.ok) { toast.error("확인 실패", { description: result.error }); return; }
       cancel(); onSaved?.(); window.dispatchEvent(new Event("jimpick:payment-updated"));
