@@ -83,7 +83,7 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
   };
   return <section className="mt-2 rounded-lg bg-muted p-3 text-foreground" aria-label="결제 상태">
     <Button variant="ghost" className="w-full justify-between px-0 text-xs" onClick={() => setOpen(!open)}><span>결제 상태 · {label}</span><span>{open ? "닫기" : "열기"}</span></Button>
-    <div className="mt-1 text-xs text-muted-foreground">{quotedDeposit !== undefined ? "견적 총" : "총"} {won(summary.total)} · 예약금 {won(summary.deposit)}{row.depositPaid > 0 || storedStatus === "completed" ? <> · 잔금 <b>{won(summary.balance)}</b></> : <> · <span>입금 전 · 잔금은 예약금 입금 확인 후 계산</span></>}</div>
+    <div className="mt-1 text-xs text-muted-foreground">{quotedDeposit !== undefined ? "견적 총" : "총"} {won(summary.total)} · {summary.planned ? "예정 예약금" : "예약금"} {won(summary.deposit)}{!summary.planned || storedStatus === "completed" ? <> · 잔금 <b>{won(summary.balance)}</b></> : <> · <span>입금 전 · 잔금은 예약금 입금 확인 후 계산</span></>}</div>
     {open && <div className="mt-3 space-y-3">
       <div className="grid grid-cols-2 gap-2">{PAYMENT_STATUS_CHOICES.map((s) => <Button key={s} aria-pressed={status === s} variant={status === s ? "staff" : "outline"} disabled={busy || (s === "completed" && normalizePaymentStatus(row.paymentStatus) === "completed")} onClick={() => { if (s === "completed") { setStatus("completed"); setAskComplete(true); setMethod(null); } else { cancel(); setStatus(s); } }}>{status === s && <Check aria-hidden="true" className="size-4 shrink-0" />}{PAYMENT_STATUS_LABEL[s]}</Button>)}</div>
       {askComplete && <div className="space-y-3 border-t border-border pt-3" aria-label="결제완료 확인">

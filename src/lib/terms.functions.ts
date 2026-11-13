@@ -454,7 +454,11 @@ export const updateEstimateTotal = createServerFn({ method: "POST" })
         .select("id, total")
         .eq("user_id", context.userId)
         .eq("estimate_id", data.estimateId)
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .is("cancelled_at", null)
+        // 최신 활성 차수만 고칩니다. 과거 차수·동의 기록의 금액은 그대로 둡니다.
+        .order("sheet_version", { ascending: false })
+        .limit(1);
       if (readErr) {
         console.error("[updateEstimateTotal] read", readErr.message);
         return { ok: false, changed: false, error: "저장된 견적서를 읽지 못했습니다." };

@@ -6713,16 +6713,19 @@ export function Result() {
                   <PrimaryButton
                     onClick={() => {
                       // 확정: 지금 금액·품목을 그대로 얼려 둡니다
-                      if (!draft.sheetConfirmedAt) {
+                      // 보내는 금액·품목과 현재 견적서 원본을 항상 맞춥니다 (처음 확정 시각은 유지)
+                      const confirmedAt = draft.sheetConfirmedAt || Date.now();
+                      const prev = draft.sheetSnapshot;
+                      if (!draft.sheetConfirmedAt || prev?.total !== total || prev?.version !== (draft.sheetVersion ?? 1) || JSON.stringify(prev?.parts) !== JSON.stringify(parts)) {
                         const snap = {
                           sheetNo: draft.sheetNo ?? "",
                           version: draft.sheetVersion ?? 1,
-                          confirmedAt: Date.now(),
+                          confirmedAt,
                           total,
                           parts,
                           rooms: sheetRooms,
                         };
-                        updateDraft({ sheetConfirmedAt: snap.confirmedAt, sheetSnapshot: snap });
+                        updateDraft({ sheetConfirmedAt: confirmedAt, sheetSnapshot: snap });
                         saveDraft();
                       }
                       void doSendSms();

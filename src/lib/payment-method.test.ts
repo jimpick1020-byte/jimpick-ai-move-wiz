@@ -24,7 +24,7 @@ test("owner reviews 950000 bank balance after 80000 deposit without changing tot
   assert.equal(normalizePaymentMethod("bank_transfer"), "bank_transfer");
 });
 test("payment card 잔금 slot carries the calculated 1000000, not the stored zero", () => {
-  assert.deepEqual(paymentSummaryParts(1110000, 110000, 0), { total: 1110000, deposit: 110000, balance: 1000000 });
+  assert.deepEqual(paymentSummaryParts(1110000, 110000, 0), { total: 1110000, deposit: 110000, balance: 1000000, planned: false });
 });
 test("payment card 잔금 falls to zero once the 1000000 balance is confirmed", () => {
   assert.equal(paymentSummaryParts(1110000, 110000, 1000000).balance, 0);

@@ -13,14 +13,16 @@ export function remainingPayment(total: number, deposit: number, balance: number
 }
 /**
  * 결제 상태 카드에 넣는 금액.
- * '남은 금액' 라벨은 쓰지 않고, 잔금 자리에 계산 값(총액 − 확인된 예약금 − 확인된 잔금)을 넣습니다.
+ * 확인된 실제 입금(예약금·잔금)이 하나라도 있으면 그 금액이 기준입니다: 잔금 = 총액 − 확인 예약금 − 확인 잔금 (0 하한).
+ * 확인된 입금이 없을 때만 견적상 예정 예약금을 보여 주며, planned=true 로 입금 전임을 알립니다.
  */
 export function paymentSummaryParts(total: number, depositPaid: number, balancePaid: number, quotedDeposit?: number) {
   const t = Math.max(0, Number(total) || 0);
-  if (quotedDeposit !== undefined) {
-    const deposit = Math.min(t, Math.max(0, Number(quotedDeposit) || 0));
-    return { total: t, deposit, balance: t - deposit };
+  const paidDeposit = Math.max(0, Number(depositPaid) || 0);
+  const paidBalance = Math.max(0, Number(balancePaid) || 0);
+  if (paidDeposit > 0 || paidBalance > 0 || quotedDeposit === undefined) {
+    return { total: t, deposit: paidDeposit, balance: remainingPayment(t, paidDeposit, paidBalance), planned: false };
   }
-  const deposit = Math.max(0, Number(depositPaid) || 0);
-  return { total: t, deposit, balance: remainingPayment(t, deposit, Number(balancePaid) || 0) };
+  const deposit = Math.min(t, Math.max(0, Number(quotedDeposit) || 0));
+  return { total: t, deposit, balance: t - deposit, planned: true };
 }
