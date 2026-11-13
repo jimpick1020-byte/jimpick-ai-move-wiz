@@ -323,6 +323,13 @@
       "when": 1794554399554,
       "tag": "0045_payapp_order_isolation_and_cancellation_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1794560807862,
+      "tag": "0046_payapp_order_expiry_snapshot",
+      "breakpoints": true
     }
   ]
 }

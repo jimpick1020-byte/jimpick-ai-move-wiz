@@ -1,5 +1,7 @@
 # Customer intake link rules
 
+- PayApp new orders snapshot KST request date and five-year exclusive expiry; full first-approval dates and same-day pending checks preserve locks, while paid access stays separate from provider expiry. Never enable registration before same-day validity and card month-end policy are verified.
+
 - Reminder resend previews read only company-owned rows and share the sender's message builder; opening or cancelling a preview never sends SMS or reserves usage.
 
 - Owner selected-item removal uses an authenticated security-invoker RPC locking the company request and matching draft; it removes only room quantity/disposal JSON, never catalog rows.

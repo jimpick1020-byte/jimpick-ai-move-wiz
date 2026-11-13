@@ -11,7 +11,7 @@
 
 - The home contract calendar uses one authenticated company-scoped server query and opens contracts by `estimate_id`; this prevents cross-company or duplicate schedule entries.
 - Reservation stages come from `reservation-status.ts`: customer consent is a request, confirmed deposit is confirmation, and full payment is completion; this prevents consent from falsely appearing as payment confirmation.
-- PayApp locks order-scoped entitlements and original cancellation references; only definitive rejection unlocks registration. Returns read only; provider alone renews; verified calendar/expiry settings gate billing, preventing stale orders and duplicate charges.
+- PayApp keeps order-scoped entitlement/cancellation locks; only definite rejection unlocks creation. Returns read only; provider alone renews; verified same-day validity/card calendar gate billing. New orders snapshot exclusive expiry separately from paid access.
 - The Step6 room picker keeps its base list mounted behind history-backed ItemListLayer views and RoomPickedStrip, all reading draft rooms via one optimistic serialized save queue (non-blocking, ignores server responses, rolls back to last saved); this preserves scroll and prevents divergent selections.
 - Owner picker drag uses direct transforms and DOM drop hints, resolves release anchors against the displayed array, cancels on touchcancel, and serializes verified saves only for changed positions; this keeps long lists smooth and prevents stale/no-op success without changing estimate data.
 - Owner scan navigation and sequential progress use ai-scan-setting helpers with a post-hydration account-scoped device preference; settings alone controls inclusion, keeping existing scans independent of the writing flow.

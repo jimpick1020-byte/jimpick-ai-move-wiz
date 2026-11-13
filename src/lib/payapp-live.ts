@@ -1,6 +1,31 @@
 import { z } from "zod";
 
 export const PAYAPP_PRICE = 30000;
+export function payappKstDate(at: string | Date) {
+  return kstStamp(new Date(at)).slice(0, 8).replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
+}
+// Merchant answer confirms date-only, exclusive expiry; service chooses five years.
+export function payappRegistrationQuote(now = new Date()) {
+  const requestDate = payappKstDate(now);
+  const [year, month, day] = requestDate.split("-").map(Number);
+  const last = new Date(Date.UTC(year + 5, month, 0)).getUTCDate();
+  const expire = new Date(Date.UTC(year + 5, month - 1, Math.min(day, last))).toISOString().slice(0, 10);
+  return { requestDate, expire, day, amount: PAYAPP_PRICE };
+}
+export function payappPendingReusable(order: { status: string; created_at: string; request_date?: string | null; first_paid_at?: string | null }, now = new Date()) {
+  return order.status === "pending" && !order.first_paid_at && (order.request_date ?? payappKstDate(order.created_at)) === payappKstDate(now);
+}
+export function payappFirstApprovalMatches(order: { request_date?: string | null; created_at: string; first_paid_at: string | null }, paid: string) {
+  return (order.request_date ?? payappKstDate(order.created_at)) === payappKstDate(order.first_paid_at ?? paid);
+}
+export function payappBillingSchedule(order: { rebill_expire?: string | null; canceled_at?: string | null }, next: string | null, now = new Date()) {
+  const expired = Boolean(order.rebill_expire && payappKstDate(now) >= order.rebill_expire);
+  const needsReregistration = expired || Boolean(order.rebill_expire && next && payappKstDate(next) >= order.rebill_expire);
+  return { expired, needsReregistration, nextBillingAt: !needsReregistration && !order.canceled_at ? next : null };
+}
+// The public rebillRegist table does not identify a same-day validity field.
+// Do not turn this on from a general month-policy flag or invent a parameter.
+export const PAYAPP_SAME_DAY_VALIDITY_VERIFIED = false;
 export function kstStamp(at: Date) {
   return new Date(at.getTime() + 9 * 3600000).toISOString().slice(0, 19).replace(/\D/g, "");
 }
@@ -33,11 +58,9 @@ export function payappNextDate(first: string, paid: string) {
 export function payappReadiness(env: Record<string, string | undefined>, now = new Date()) {
   const issues: string[] = [];
   if (["PAYAPP_USER_ID","PAYAPP_LINK_KEY","PAYAPP_LINK_VALUE","PAYAPP_REQUEST_KEY"].some(k => !env[k])) issues.push("페이앱 필수 연동 정보가 누락되어 있습니다.");
-  if (env.PAYAPP_MONTH_POLICY_CONFIRMED !== "true") issues.push("최초 승인일 기준 갱신·29~31일 말일 처리 정책 확인이 필요합니다.");
-  const expire = env.PAYAPP_REBILL_EXPIRE ?? "";
-  const validExpire = /^\d{4}-\d{2}-\d{2}$/.test(expire) && Number.isFinite(Date.parse(expire)) && new Date(expire).toISOString().slice(0,10) === expire;
-  if (!validExpire || expire <= kstStamp(now).slice(0,8).replace(/(\d{4})(\d{2})(\d{2})/,"$1-$2-$3")) issues.push("페이앱이 허용하는 정기결제 만료일 설정이 필요합니다.");
-  return { ready: issues.length === 0, issues };
+  if (env.PAYAPP_MONTH_POLICY_CONFIRMED !== "true") issues.push("카드 29~31일의 짧은 달 결제일과 다음 달 원래 날짜 복원 정책 확인이 필요합니다.");
+  if (!PAYAPP_SAME_DAY_VALIDITY_VERIFIED) issues.push("정기결제 요청의 당일 유효기간 설정과 API 적용범위 확인이 필요합니다.");
+  return { ready: issues.length === 0, issues, quote: payappRegistrationQuote(now) };
 }
 export const payappNoticeSchema = z.object({
   userid: z.string().min(1).max(200), linkkey: z.string().min(1).max(500), linkval: z.string().min(1).max(500),

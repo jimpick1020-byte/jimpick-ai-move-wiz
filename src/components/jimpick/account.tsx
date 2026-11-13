@@ -25,7 +25,6 @@ import {
 } from "@/lib/subscription.functions";
 
 import { tap } from "@/lib/feedback";
-import { payappNextDate } from "@/lib/payapp-live";
 import { getPayappSubscription, startPayappSubscription, cancelPayappSubscription } from "@/lib/payapp-live.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -557,7 +556,6 @@ export function SubscriptionScreen() {
   const [testBusy, setTestBusy] = useState(false);
   const [consent, setConsent] = useState(false);
   const testLock = useRef(false);
-  const [checkoutAt, setCheckoutAt] = useState("");
   const { entitlement, blocked, remainingText, refresh: refreshEnt } = useEntitlement();
 
   const refresh = async () => {
@@ -603,7 +601,7 @@ export function SubscriptionScreen() {
       }
 
       setConsent(false);
-      setCheckoutAt(new Date().toISOString());
+      setPayapp(await readPayapp());
       setTestOpen(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "결제에 실패했습니다");
@@ -644,10 +642,10 @@ export function SubscriptionScreen() {
 
   const current = account?.subscription;
   const beginCheckout = async () => {
-    if (testLock.current || !consent) return;
+    if (testLock.current || !consent || !payapp) return;
     testLock.current = true; setTestBusy(true);
     try {
-      const result = await startPayapp({ data: { consent: true } });
+      const result = await startPayapp({ data: { consent: true, requestDate: payapp.quote.requestDate, expire: payapp.quote.expire } });
       window.location.assign(result.payurl);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "결제 요청을 확인하지 못했습니다.");
@@ -720,10 +718,8 @@ export function SubscriptionScreen() {
               )}
               {entitlement?.state === "active" && entitlement.periodEnd && (
                 <div className="mt-2 rounded-xl bg-[#E7F3EE] p-2.5 text-xs font-semibold leading-5 text-[#3E9B78]">
-                  구독 이용 중 · 다음 결제 예정일{" "}
-                  {new Date(entitlement.periodEnd).toLocaleDateString("ko-KR", {
-                    timeZone: "Asia/Seoul",
-                  })}
+                  구독 이용 중 · {payapp?.schedule?.needsReregistration ? "자동결제 만료 · 기존 결제 관계 확인 후 새 동의로 재등록 필요" : payapp?.order?.canceled_at ? "다음 자동청구 중단" : payapp?.schedule?.nextBillingAt && payapp.ready ? `다음 결제 예정일 ${new Date(payapp.schedule.nextBillingAt).toLocaleDateString("ko-KR", {timeZone:"Asia/Seoul"})}` : "다음 자동결제일 확인 필요"}
+                  <br />이용기간 종료일 {new Date(entitlement.periodEnd).toLocaleDateString("ko-KR", {timeZone:"Asia/Seoul"})}
                 </div>
               )}
               {blocked && (
@@ -800,16 +796,17 @@ export function SubscriptionScreen() {
             </DialogHeader>
             <div className="space-y-2 text-sm leading-6">
               <p className="font-semibold">오늘 30,000원이 결제되며, 무료체험이 종료되고 유료 구독이 시작됩니다.</p>
-              <p>매월 30,000원 자동갱신 · 다음 결제일: {checkoutAt ? new Date(payappNextDate(checkoutAt, checkoutAt)).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" }) : "첫 결제 성공일 한 달 뒤"} (예정 · 실제 최초 승인일 기준)</p>
+              <p>매월 30,000원 자동결제 · 요청일 {payapp?.quote.requestDate ?? "확인 중"}에 승인해 주세요. 결제일은 요청한 매월 {payapp?.order?.requested_day ?? payapp?.quote.day ?? "해당"}일로 고정되며, 다른 날 승인해도 자동 변경되지 않습니다. 다음 예정일은 서버 주문과 결제일 정책 확인 후 표시합니다.</p>
+              <p>자동결제 등록 만료일: {payapp?.order && !["failed","canceled"].includes(payapp.order.status) ? payapp.order.rebill_expire ?? "기존 등록 정보 확인 필요" : payapp?.quote.expire ?? "확인 중"}. 만료일 당일부터 자동결제되지 않고 연장할 수 없습니다. 약 5년의 등록기간이며 5년 약정이나 선결제가 아닙니다. 만료 후 기존 결제 관계 확인과 새 동의로 재등록이 필요합니다.</p>
               <p>해지: 구독 · 결제 화면의 ‘구독 해지하기’. 페이앱 해지 확인 후 다음 청구가 중단되며, 이미 결제한 기간까지 이용합니다.</p>
               <p className="text-muted-foreground">취소·실패 시 남은 무료체험은 유지됩니다. 동의 없이 체험 종료만으로 청구하지 않습니다.</p>
               {!payapp?.ready && <div role="status" className="text-destructive">{payapp?.issues.join(" ") || "결제 설정 확인 중입니다."}</div>}
-              {payapp?.order && <p role="status">{payapp.order.status === "creating" ? "기존 결제 요청 확인 중 · 중복 신청하지 마세요." : payapp.order.status === "pending" ? "페이앱 결제 승인 대기 중 · 기존 결제창을 이어서 열 수 있습니다." : payapp.order.status === "review" ? "결제 확인이 필요합니다. 중복 신청은 차단됩니다." : "저장된 구독 상태를 확인했습니다."}</p>}
+              {payapp?.order && <p role="status">{payapp.order.status === "creating" ? "기존 결제 요청 확인 중 · 중복 신청하지 마세요." : payapp.order.status === "pending" ? payapp.pendingReusable ? "당일 결제 승인 대기 중입니다." : "이전 날짜의 미승인 요청은 다시 열 수 없습니다. 기존 요청 확인·취소 후 새 동의가 필요합니다. 앱 차단은 페이앱 직접 링크의 만료를 보장하지 않습니다." : payapp.order.status === "review" ? "결제 확인이 필요합니다. 중복 신청은 차단됩니다." : "저장된 구독 상태를 확인했습니다."}</p>}
               <label className="flex items-start gap-2">
                 <Checkbox checked={consent} onCheckedChange={(checked) => setConsent(checked === true)} disabled={testBusy} aria-label="즉시 결제 및 월 자동갱신 동의" className="mt-1" />
-                <span>오늘 30,000원 결제·체험 종료·매월 자동갱신 및 해지 방법을 확인하고 동의합니다.</span>
+                <span>오늘 30,000원 결제·체험 종료·고정 결제일·매월 자동결제·해지 및 5년 후 새 등록 필요를 확인하고 동의합니다.</span>
               </label>
-              <Button className="w-full h-auto whitespace-normal" disabled={testBusy || !consent || !payapp?.ready || ["creating", "active", "review"].includes(payapp?.order?.status ?? "")} onClick={beginCheckout}>{testBusy ? "결제 요청 확인 중…" : "동의하고 페이앱 결제창 열기"}</Button>
+              <Button className="w-full h-auto whitespace-normal" disabled={testBusy || !consent || !payapp?.ready || (payapp.order?.status === "pending" && !payapp.pendingReusable) || ["creating", "active", "review"].includes(payapp?.order?.status ?? "")} onClick={beginCheckout}>{testBusy ? "결제 요청 확인 중…" : "동의하고 페이앱 결제창 열기"}</Button>
             </div>
             <Button asChild variant="outline"><Link to="/billing/payapp/return">결제 상태 확인</Link></Button>
           </DialogContent>
@@ -863,7 +860,7 @@ export function SubscriptionScreen() {
                         )}
                         {paid && pay.next_billing_at && (
                           <div className="text-xs text-[#6B7280]">
-                            다음 결제 예정일{" "}
+                            {pay.provider === "payapp" ? "지급된 이용기간 종료일" : "다음 결제 예정일"}{" "}
                             {new Date(pay.next_billing_at).toLocaleDateString("ko-KR", {timeZone:"Asia/Seoul"})}
                           </div>
                         )}

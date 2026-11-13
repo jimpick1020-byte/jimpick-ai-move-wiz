@@ -36,8 +36,8 @@ function PayappReturn() {
         const order = result.order;
         const sub = account.subscription;
         setMessage(order?.first_paid_at && sub?.payapp_order_id === order.id && sub?.plan === "pro" && sub.status === "active"
-          ? `서버 결제 확인 완료 · 월 30,000원 · ${order.canceled_at ? "다음 자동청구 중단 · 이용기간 종료일" : "다음 결제 예정일"} ${new Date(sub.current_period_end).toLocaleDateString("ko-KR", {timeZone:"Asia/Seoul"})}`
-          : order?.status === "pending" || order?.status === "creating" ? "결제 확인 중입니다. 아직 유료 구독으로 전환되지 않았습니다. 중복 결제를 시작하지 마세요."
+          ? `서버 결제 확인 완료 · 월 30,000원 · ${result.schedule?.needsReregistration ? "자동결제 만료 · 기존 결제 관계 확인 후 새 동의로 재등록 필요" : order.canceled_at ? "다음 자동청구 중단" : "다음 자동결제일 확인 필요"} · 이용기간 종료일 ${new Date(sub.current_period_end).toLocaleDateString("ko-KR", {timeZone:"Asia/Seoul"})}`
+          : order?.status === "pending" || order?.status === "creating" ? order.status === "pending" && !result.pendingReusable ? "이전 날짜의 미승인 요청은 다시 열 수 없습니다. 기존 요청 확인·취소 후 새 동의가 필요합니다. 페이앱 직접 링크 만료 여부는 별도 확인이 필요합니다." : "결제 확인 중입니다. 아직 유료 구독으로 전환되지 않았습니다. 중복 결제를 시작하지 마세요."
           : order?.status === "canceled" || order?.status === "failed" ? "결제가 취소되었거나 승인되지 않았습니다. 남은 무료체험은 유지됩니다."
           : order?.status === "review" ? "결제 상태 확인이 필요합니다. 중복 결제를 시작하지 마세요."
           : "서버에서 확인된 구독 결제가 없습니다.");

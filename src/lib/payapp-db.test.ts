@@ -15,7 +15,7 @@ beforeAll(async () => {
     CREATE TABLE public.subscriptions(user_id uuid PRIMARY KEY,plan text DEFAULT 'free',status text DEFAULT 'trialing',price integer DEFAULT 0,interval text DEFAULT 'month',current_period_start timestamptz DEFAULT now(),current_period_end timestamptz DEFAULT now()+interval '10 days',cancel_at_period_end boolean DEFAULT false,trial_ends_at timestamptz DEFAULT now()+interval '10 days');
     CREATE TABLE public.billing_keys(user_id uuid);
     CREATE TABLE public.payments(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),user_id uuid,plan text,amount integer,method text,status text,provider text,order_id text,payment_key text,paid_at timestamptz DEFAULT now(),next_billing_at timestamptz,test_mode boolean,receipt_no text,fail_reason text,created_at timestamptz DEFAULT now());`);
-  for (const file of ["0043_payapp_verified_subscription_orders.sql", "0044_payapp_optional_notice_dates.sql", "0045_payapp_order_isolation_and_cancellation_audit.sql"]) {
+  for (const file of ["0043_payapp_verified_subscription_orders.sql", "0044_payapp_optional_notice_dates.sql", "0045_payapp_order_isolation_and_cancellation_audit.sql", "0046_payapp_order_expiry_snapshot.sql"]) {
     await db.exec(readFileSync(`drizzle/migrations/${file}`, "utf8"));
   }
 });
@@ -40,6 +40,31 @@ async function sub() { return (await db.query<{payapp_order_id: string; cancel_a
 async function payments() { return (await db.query<{status: string; amount: number}>("SELECT status,amount FROM payments WHERE user_id=$1", [user])).rows; }
 
 describe("real production RPCs in isolated rollback PostgreSQL", () => {
+  test("new reservation snapshots five-year expiry without altering trial or existing orders", () => fixture(async () => {
+    const before = await sub();
+    await db.query("SELECT reserve_payapp_order($1,13)", [user]);
+    const r = await db.query<{ok:boolean}>("SELECT request_date=(now() AT TIME ZONE 'Asia/Seoul')::date AND rebill_expire=(request_date+interval '5 years')::date AS ok FROM payapp_orders WHERE user_id=$1",[user]);
+    expect(r.rows[0].ok).toBe(true); expect(await sub()).toEqual(before);
+  }));
+  test("SQL five-year leap date clamps to February 28", async () => {
+    expect((await db.query<{expire:string}>("SELECT (date '2028-02-29'+interval '5 years')::date::text as expire")).rows[0].expire).toBe("2033-02-28");
+  });
+  test("expiry day approval cannot extend entitlement and rolls back all payment writes", () => fixture(async () => {
+    const id = await order(); const before = await sub();
+    await db.query("UPDATE payapp_orders SET rebill_expire=((now()-interval '1 hour') AT TIME ZONE 'Asia/Seoul')::date WHERE id=$1",[id]);
+    await db.exec("SAVEPOINT expired");
+    await expect(notice(id,"990","4")).rejects.toThrow("expiry");
+    await db.exec("ROLLBACK TO SAVEPOINT expired");
+    expect(await sub()).toEqual(before); expect(await payments()).toEqual([]);
+    expect((await db.query("SELECT * FROM payapp_notice_audit")).rows.length).toBe(0);
+  }));
+  test("last valid approval can grant its full paid period past registration expiry", () => fixture(async () => {
+    const id = await order();
+    await db.query("UPDATE payapp_orders SET rebill_expire=((now() AT TIME ZONE 'Asia/Seoul')::date+1) WHERE id=$1",[id]);
+    await notice(id,"991","4");
+    const r = await db.query<{full:boolean}>("SELECT current_period_end>rebill_expire::timestamptz AS full FROM subscriptions s JOIN payapp_orders o ON o.id=s.payapp_order_id WHERE s.user_id=$1",[user]);
+    expect(r.rows[0].full).toBe(true);
+  }));
   test("old canceled order late success/cancel cannot change a new subscription", () => fixture(async () => {
     const old = await order(); await notice(old,"100","4");
     await db.query("SELECT finish_payapp_cancel($1,$2)", [old,user]);

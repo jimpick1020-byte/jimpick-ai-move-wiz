@@ -1327,7 +1327,9 @@ export type Database = {
           id: string
           last_paid_at: string | null
           payurl: string | null
+          rebill_expire: string | null
           rebill_no: string | null
+          request_date: string | null
           requested_day: number
           status: string
           user_id: string
@@ -1341,7 +1343,9 @@ export type Database = {
           id?: string
           last_paid_at?: string | null
           payurl?: string | null
+          rebill_expire?: string | null
           rebill_no?: string | null
+          request_date?: string | null
           requested_day: number
           status?: string
           user_id: string
@@ -1355,7 +1359,9 @@ export type Database = {
           id?: string
           last_paid_at?: string | null
           payurl?: string | null
+          rebill_expire?: string | null
           rebill_no?: string | null
+          request_date?: string | null
           requested_day?: number
           status?: string
           user_id?: string

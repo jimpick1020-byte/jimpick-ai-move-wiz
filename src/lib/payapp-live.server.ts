@@ -1,10 +1,19 @@
-import { authenticatePayappNotice, kstStamp, payappDate, payappNextDate, sha256 } from "./payapp-live";
+import { authenticatePayappNotice, kstStamp, payappDate, payappNextDate, payappFirstApprovalMatches, payappKstDate, sha256 } from "./payapp-live";
 
 export class PayappRequestError extends Error {
   constructor(readonly definitive: boolean, readonly code: string | null = null) {
     super(definitive ? `페이앱이 등록 요청을 거절했습니다${code ? ` (오류 코드 ${code})` : ""}. 설정 확인 후 다시 시도할 수 있습니다.` : "페이앱 요청 결과를 확인하지 못했습니다. 중복 신청하지 말고 기존 요청을 확인해 주세요.");
     this.name = "PayappRequestError";
   }
+}
+
+export function payappRegistrationFields(order: {id:string;user_id:string;requested_day:number;rebill_expire:string}, phone:string) {
+  return {
+    goodname:"견적잇 업체 월 구독",goodprice:"30000",recvphone:phone,rebillCycleType:"Month",rebillCycleMonth:String(order.requested_day),
+    rebillExpire:order.rebill_expire,smsuse:"n",openpaytype:"card",var1:order.id,var2:order.user_id,
+    feedbackurl:"https://gyeonjeokit.lovable.app/api/public/payapp/feedback",failurl:"https://gyeonjeokit.lovable.app/api/public/payapp/feedback",
+    returnurl:"https://gyeonjeokit.lovable.app/api/public/payapp/return",
+  };
 }
 
 export async function payappRequest(cmd: "rebillRegist" | "rebillCancel", fields: Record<string,string>) {
@@ -53,6 +62,7 @@ export async function handlePayappFeedback(request: Request) {
     const partial = notice.pay_state === "70" || notice.pay_state === "71";
     if (!order || order.rebill_no !== notice.rebill_no || order.amount !== (partial ? notice.orig_price : notice.price)) return new Response("Payment mismatch",{status:409,headers});
     const paid = notice.pay_date ? payappDate(notice.pay_date) : null;
+    if (notice.pay_state === "4" && paid && order.rebill_expire && payappKstDate(paid) >= order.rebill_expire) return new Response("Expired registration requires reconciliation",{status:409,headers});
     const next = paid ? payappNextDate(order.first_paid_at ?? paid,paid) : null;
     const dates = paid && next ? { p_paid: paid, p_next: next } : {};
     const { data: applied, error: saveError } = await supabaseAdmin.rpc("apply_payapp_notice",{
@@ -63,7 +73,7 @@ export async function handlePayappFeedback(request: Request) {
     // A link approved on a different KST day cannot silently use the request-day schedule.
     // Stop provider renewal, retain the verified paid month, and require reconciliation.
     const isolated = typeof applied === "object" && applied !== null && !Array.isArray(applied) && applied.isolated === true;
-    if (notice.pay_state === "4" && !isolated && !order.canceled_at && paid && Number(kstStamp(new Date(order.first_paid_at ?? paid)).slice(6,8)) !== order.requested_day) {
+    if (notice.pay_state === "4" && !isolated && !order.canceled_at && paid && !payappFirstApprovalMatches(order,paid)) {
       await payappRequest("rebillCancel",{rebill_no:notice.rebill_no});
       const { error: cancelError } = await supabaseAdmin.rpc("finish_payapp_cancel",{p_order:order.id,p_user:order.user_id});
       if (cancelError) throw new Error("Cancellation persistence failure");

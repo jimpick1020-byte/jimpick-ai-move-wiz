@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { authenticatePayappNotice, payappDate, payappNextDate, payappReadiness, safePayappUrl, sha256 } from "./payapp-live";
+import { authenticatePayappNotice, payappDate, payappNextDate, payappReadiness, payappRegistrationQuote, payappPendingReusable, payappFirstApprovalMatches, payappBillingSchedule, safePayappUrl, sha256 } from "./payapp-live";
 
 // Explicit synthetic fixture, never read project credentials or call a payment provider.
 const fixture = {PAYAPP_USER_ID:"fixture-merchant",PAYAPP_LINK_KEY:"fixture-link",PAYAPP_LINK_VALUE:"fixture-value",PAYAPP_REQUEST_KEY:"fixture-request"};
@@ -19,16 +19,54 @@ describe("PayApp authenticated live boundaries (no external billing)",()=>{
     const parsed = await authenticatePayappNotice(await notice({card_num:"synthetic-card-field",cvc:"synthetic-cvc"}),fixture,now);
     expect(Object.keys(parsed).includes("card_num")).toBe(false); expect(Object.keys(parsed).includes("cvc")).toBe(false);
   });
-  test("missing calendar policy and expiration still block unsupported requests",()=>{
+  test("only unverified month and same-day validity policy block configured requests",()=>{
     const r=payappReadiness(fixture,new Date(now)); expect(r.ready).toBe(false); expect(r.issues.length).toBe(2);
   });
-  test("API integration requires no invented separate approval flag",()=>{
-    expect(payappReadiness({...fixture,PAYAPP_MONTH_POLICY_CONFIRMED:"true",PAYAPP_REBILL_EXPIRE:"2027-11-13"},new Date(now)).ready).toBe(true);
+  test("general month flag cannot bypass unverified same-day validity",()=>{
+    const r = payappReadiness({...fixture,PAYAPP_MONTH_POLICY_CONFIRMED:"true"},new Date(now));
+    expect(r.ready).toBe(false); expect(r.issues.length).toBe(1);
   });
-  test("expired provider contract disables requests",()=>{expect(payappReadiness({...fixture,PAYAPP_MONTH_POLICY_CONFIRMED:"true",PAYAPP_REBILL_EXPIRE:"2025-11-13"},new Date(now)).ready).toBe(false);});
+  test("old fixed expiry setting never determines a new order",()=>{expect(payappReadiness({...fixture,PAYAPP_REBILL_EXPIRE:"2025-11-13"},new Date(now)).quote.expire).toBe("2031-11-13");});
   test("payment URL must use HTTPS and actual PayApp domain",()=>{
     expect(safePayappUrl("https://payapp.kr/payment")).toBe("https://payapp.kr/payment");
     for(const url of ["http://payapp.kr/payment","https://payapp.kr.evil.example/payment","https://evil.example/payment"]) expect(()=>safePayappUrl(url)).toThrow();
+  });
+});
+
+describe("confirmed merchant date policy, synthetic inputs only", () => {
+  test("new registration uses KST request date plus five years, price 30000", () => {
+    expect(payappRegistrationQuote(new Date("2026-11-12T15:01:00Z"))).toEqual({requestDate:"2026-11-13",expire:"2031-11-13",day:13,amount:30000});
+    expect(payappRegistrationQuote(new Date("2026-11-13T15:01:00Z")).expire).toBe("2031-11-14");
+  });
+  test("February 29 five years later clamps to February 28", () => {
+    expect(payappRegistrationQuote(new Date("2028-02-28T15:00:00Z")).expire).toBe("2033-02-28");
+  });
+  test.each(["2031-11-12T15:00:00Z","2031-11-13T15:00:00Z"])("exclusive expiry %s never becomes a billing date", at => {
+    expect(payappBillingSchedule({rebill_expire:"2031-11-13"},at,new Date("2031-11-12T00:00:00Z")).nextBillingAt).toBeNull();
+  });
+  test("last valid payment period remains separate from registration expiry", () => {
+    const end = payappNextDate("2026-11-13T06:00:00Z","2031-10-13T01:00:00Z");
+    expect(end).toBe("2031-11-13T06:00:00.000Z");
+    expect(payappBillingSchedule({rebill_expire:"2031-11-13"},end).needsReregistration).toBe(true);
+    expect(payappBillingSchedule({rebill_expire:"2031-11-13"},end,new Date("2031-11-13T00:00:00Z")).expired).toBe(true);
+  });
+  test("no expired contract means no fabricated expiration for historical order", () => {
+    expect(payappBillingSchedule({},"2031-12-13T01:00:00Z").expired).toBe(false);
+  });
+  const order = {status:"pending",created_at:"2026-11-13T00:00:00Z",request_date:"2026-11-13",first_paid_at:null};
+  test("previous KST day pending is blocked; same day is reusable", () => {
+    expect(payappPendingReusable(order,new Date("2026-11-13T14:59:00Z"))).toBe(true);
+    expect(payappPendingReusable(order,new Date("2026-11-13T15:00:00Z"))).toBe(false);
+  });
+  test("next month same day is not a matching first approval", () => {
+    expect(payappFirstApprovalMatches(order,"2026-12-13T00:00:00Z")).toBe(false);
+  });
+  test("delayed NOTI uses actual approval date, not received date", () => {
+    expect(payappFirstApprovalMatches(order,payappDate("20261113235959"))).toBe(true);
+    expect(payappFirstApprovalMatches(order,payappDate("20261114000000"))).toBe(false);
+  });
+  test("renewals keep verified first approval rather than compare renewal to request day", () => {
+    expect(payappFirstApprovalMatches({...order,first_paid_at:"2026-11-13T00:00:00Z"},"2026-12-13T00:00:00Z")).toBe(true);
   });
 });
 describe("Korean actual approval anchored calendar",()=>{
