@@ -71,7 +71,12 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
       const saved = JSON.parse(t.payload) as Estimate;
       upsertServerEstimates([saved]); commitSavedSheet(saved);
       const result = await savePayment({ data: { estimateId, status: "completed", note, method: "bank_transfer", receiptId: r.id } });
-      if (!result.ok) { toast.error("확인 실패", { description: result.error }); return; }
+      if (!result.ok) {
+        // 금액은 저장됐으니 새 총액을 다시 불러오되, 결제완료로는 표시하지 않습니다
+        onSaved?.(); window.dispatchEvent(new Event("jimpick:payment-updated"));
+        toast.error("최종 금액은 저장했지만 결제완료 처리에 실패했습니다", { description: result.error });
+        return;
+      }
       cancel(); onSaved?.(); window.dispatchEvent(new Event("jimpick:payment-updated"));
       toast.success("최종 계약금액을 반영하고 결제완료했습니다");
     } catch (error) { toast.error("확인 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요." }); }

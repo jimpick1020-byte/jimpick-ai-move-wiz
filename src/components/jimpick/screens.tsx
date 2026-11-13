@@ -5308,6 +5308,13 @@ export function Result() {
       alive = false;
     };
   }, [draft.id]);
+  // 입금 확인·금액 조정 뒤 서버의 최신 확인 입금액으로 견적서를 다시 그립니다
+  useEffect(() => {
+    const reload = () => loadTermsStatus();
+    window.addEventListener("jimpick:payment-updated", reload);
+    return () => window.removeEventListener("jimpick:payment-updated", reload);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.id]);
 
   /** 예약금 입금이 DB에서 확인된 계약인지 (취소 계약 제외) */
   const depositConfirmed =
@@ -6448,6 +6455,7 @@ export function Result() {
                 companyPhone={draft.staffPhone ?? ""}
                 acceptedAt={termsStatus?.acceptedAt ?? null}
                 paymentStatus={termsStatus?.paymentStatus ?? null}
+                paidDeposit={termsStatus?.depositPaid ?? 0}
                 acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
                 acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
               />
@@ -6776,6 +6784,7 @@ export function Result() {
                   companyPhone={draft.staffPhone ?? ""}
                   acceptedAt={termsStatus?.acceptedAt ?? null}
                 paymentStatus={termsStatus?.paymentStatus ?? null}
+                paidDeposit={termsStatus?.depositPaid ?? 0}
                   acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
                   acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
                   forCustomer
