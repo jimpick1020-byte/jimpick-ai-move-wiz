@@ -24,7 +24,10 @@ export function payappNextDate(first: string, paid: string) {
     d.setUTCDate(Math.min(anchor.getUTCDate(),last));
     return new Date(d.getTime()-9*3600000).toISOString();
   };
-  while (Date.parse(candidate(months)) <= Date.parse(paid)) months++;
+  // A renewal consumes the entire KST calendar anniversary, even when approved
+  // before the first payment's clock time. This is entitlement math, not a
+  // claim about the provider's (still unconfirmed) charge scheduling policy.
+  while (kstStamp(new Date(candidate(months))).slice(0, 8) <= kstStamp(new Date(paid)).slice(0, 8)) months++;
   return candidate(months);
 }
 export function payappReadiness(env: Record<string, string | undefined>, now = new Date()) {
@@ -40,8 +43,15 @@ export const payappNoticeSchema = z.object({
   userid: z.string().min(1).max(200), linkkey: z.string().min(1).max(500), linkval: z.string().min(1).max(500),
   responsedate: z.string().regex(/^\d{14}$/), hash: z.string().regex(/^[a-fA-F0-9]{64}$/),
   var1: z.string().uuid(), var2: z.string().uuid(), rebill_no: z.string().regex(/^\d+$/).max(100),
-  mul_no: z.string().regex(/^\d+$/).max(100), price: z.coerce.number().int().refine(n => n === PAYAPP_PRICE),
+  mul_no: z.string().regex(/^\d+$/).max(100), price: z.coerce.number().int().positive().max(PAYAPP_PRICE),
+  orig_mul_no: z.string().regex(/^\d+$/).max(100).optional(),
+  orig_price: z.coerce.number().int().positive().max(PAYAPP_PRICE).optional(),
   pay_state: z.enum(["1","4","8","32","9","64","10","70","71","99"]), pay_date: z.string().max(30).optional(),
+}).superRefine((n, ctx) => {
+  const partial = n.pay_state === "70" || n.pay_state === "71";
+  if (partial ? !n.orig_mul_no || n.orig_price !== PAYAPP_PRICE || n.price >= PAYAPP_PRICE : n.price !== PAYAPP_PRICE || n.orig_mul_no !== undefined || n.orig_price !== undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Payment amount/reference mismatch" });
+  }
 });
 export type PayappNotice = z.infer<typeof payappNoticeSchema>;
 export async function sha256(value: string) {

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { kstStamp, payappReadiness, safePayappUrl } from "./payapp-live";
-import { payappRequest } from "./payapp-live.server";
+import { payappRequest, PayappRequestError } from "./payapp-live.server";
 
 export const getPayappSubscription = createServerFn({method:"GET"}).middleware([requireSupabaseAuth]).handler(async ({context}) => {
   const { data: orders,error } = await context.supabase.from("payapp_orders").select("id,status,first_paid_at,last_paid_at,canceled_at,payurl,created_at").eq("user_id",context.userId).order("created_at",{ascending:false}).limit(1);
@@ -27,12 +27,19 @@ export const startPayappSubscription = createServerFn({method:"POST"}).middlewar
       throw new Error("기존 결제 요청 확인 중입니다. 중복 신청하지 말고 잠시 후 다시 확인해 주세요.");
     }
     // Provider lacks a documented idempotency key: a network-ambiguous create stays locked.
-    const result = await payappRequest("rebillRegist",{
+    let result: URLSearchParams;
+    try { result = await payappRequest("rebillRegist",{
       goodname:"견적잇 업체 월 구독",goodprice:"30000",recvphone:phone,rebillCycleType:"Month",rebillCycleMonth:String(day),
       rebillExpire:process.env["PAYAPP_REBILL_EXPIRE"] ?? "",smsuse:"n",openpaytype:"card",var1:reserved.order.id,var2:context.userId,
       feedbackurl:"https://gyeonjeokit.lovable.app/api/public/payapp/feedback",failurl:"https://gyeonjeokit.lovable.app/api/public/payapp/feedback",
       returnurl:"https://gyeonjeokit.lovable.app/api/public/payapp/return",
-    });
+    }); } catch (error) {
+      if (error instanceof PayappRequestError && error.definitive) {
+        const {error: releaseError} = await supabaseAdmin.rpc("reject_payapp_registration",{p_order:reserved.order.id,p_user:context.userId});
+        if (releaseError) throw new Error("등록 거절 후 상태 저장을 확인하지 못했습니다. 중복 신청하지 마세요.");
+      }
+      throw error;
+    }
     const rebill = result.get("rebill_no") ?? "";
     if (!/^\d+$/.test(rebill)) throw new Error("페이앱 등록 번호 확인 중입니다. 다시 신청하지 마세요.");
     const url = safePayappUrl(result.get("payurl") ?? "");

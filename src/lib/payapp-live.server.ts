@@ -1,5 +1,12 @@
 import { authenticatePayappNotice, kstStamp, payappDate, payappNextDate, sha256 } from "./payapp-live";
 
+export class PayappRequestError extends Error {
+  constructor(readonly definitive: boolean, readonly code: string | null = null) {
+    super(definitive ? `페이앱이 등록 요청을 거절했습니다${code ? ` (오류 코드 ${code})` : ""}. 설정 확인 후 다시 시도할 수 있습니다.` : "페이앱 요청 결과를 확인하지 못했습니다. 중복 신청하지 말고 기존 요청을 확인해 주세요.");
+    this.name = "PayappRequestError";
+  }
+}
+
 export async function payappRequest(cmd: "rebillRegist" | "rebillCancel", fields: Record<string,string>) {
   const user = process.env["PAYAPP_USER_ID"];
   const key = process.env["PAYAPP_LINK_KEY"];
@@ -7,12 +14,23 @@ export async function payappRequest(cmd: "rebillRegist" | "rebillCancel", fields
   if (!user || !key || !request) throw new Error("페이앱 연동 설정을 확인해 주세요.");
   const stamp = kstStamp(new Date());
   const body = new URLSearchParams({ ...fields,cmd,userid:user,linkkey:key,requestdate:stamp,hash:await sha256(user+stamp+request) });
-  const response = await fetch("https://api.payapp.kr/oapi/v2", { method:"POST",body,signal:AbortSignal.timeout(30000) });
-  if (!response.ok) throw new Error("페이앱 응답을 확인하지 못했습니다. 다시 신청하지 말고 기존 요청을 확인해 주세요.");
-  const result = new URLSearchParams(await response.text());
+  let response: Response;
+  let text: string;
+  try {
+    response = await fetch("https://api.payapp.kr/oapi/v2", { method:"POST",body,signal:AbortSignal.timeout(30000) });
+    if (!response.ok) throw new PayappRequestError(false);
+    text = await response.text();
+  } catch { throw new PayappRequestError(false); }
+  const result = new URLSearchParams(text);
   // Never expose provider responses, which may contain merchant credentials or PII.
-  if (result.get("state") !== "1") throw new Error("페이앱에서 요청을 승인하지 않았습니다. 기존 요청 상태를 확인해 주세요.");
-  return result;
+  const code = result.get("errno");
+  const safeCode = code && /^\d{5}$/.test(code) ? code : null;
+  const hasRegistration = Boolean(result.get("rebill_no") || result.get("payurl"));
+  if (result.getAll("state").length !== 1 || result.get("state") !== "1") {
+    throw new PayappRequestError(result.getAll("state").length === 1 && result.get("state") === "0" && !hasRegistration && safeCode !== "99999", safeCode);
+  }
+  // Allowlist response fields; errorMessage/card/customer/credential fields never escape.
+  return new URLSearchParams(["rebill_no", "payurl"].flatMap(k => result.getAll(k).length === 1 ? [[k, result.get(k) ?? ""]] : []));
 }
 export async function handlePayappFeedback(request: Request) {
   const headers = { "Cache-Control":"no-store" };
@@ -32,17 +50,20 @@ export async function handlePayappFeedback(request: Request) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order,error } = await supabaseAdmin.from("payapp_orders").select("*").eq("id",notice.var1).eq("user_id",notice.var2).maybeSingle();
     if (error) throw new Error("Read failure");
-    if (!order || order.rebill_no !== notice.rebill_no || order.amount !== notice.price) return new Response("Payment mismatch",{status:409,headers});
+    const partial = notice.pay_state === "70" || notice.pay_state === "71";
+    if (!order || order.rebill_no !== notice.rebill_no || order.amount !== (partial ? notice.orig_price : notice.price)) return new Response("Payment mismatch",{status:409,headers});
     const paid = notice.pay_date ? payappDate(notice.pay_date) : null;
     const next = paid ? payappNextDate(order.first_paid_at ?? paid,paid) : null;
     const dates = paid && next ? { p_paid: paid, p_next: next } : {};
-    const { error: saveError } = await supabaseAdmin.rpc("apply_payapp_event",{
+    const { data: applied, error: saveError } = await supabaseAdmin.rpc("apply_payapp_notice",{
       p_order:order.id,p_user:order.user_id,p_rebill:notice.rebill_no,p_mul:notice.mul_no,p_state:notice.pay_state,p_amount:notice.price,...dates,
+      ...(partial ? {p_orig_mul:notice.orig_mul_no,p_orig_price:notice.orig_price} : {}),
     });
     if (saveError) throw new Error("Apply failure");
     // A link approved on a different KST day cannot silently use the request-day schedule.
     // Stop provider renewal, retain the verified paid month, and require reconciliation.
-    if (notice.pay_state === "4" && !order.canceled_at && paid && Number(kstStamp(new Date(order.first_paid_at ?? paid)).slice(6,8)) !== order.requested_day) {
+    const isolated = typeof applied === "object" && applied !== null && !Array.isArray(applied) && applied.isolated === true;
+    if (notice.pay_state === "4" && !isolated && !order.canceled_at && paid && Number(kstStamp(new Date(order.first_paid_at ?? paid)).slice(6,8)) !== order.requested_day) {
       await payappRequest("rebillCancel",{rebill_no:notice.rebill_no});
       const { error: cancelError } = await supabaseAdmin.rpc("finish_payapp_cancel",{p_order:order.id,p_user:order.user_id});
       if (cancelError) throw new Error("Cancellation persistence failure");

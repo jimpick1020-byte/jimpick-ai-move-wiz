@@ -845,7 +845,7 @@ export function SubscriptionScreen() {
                                   : "bg-[#FBEAEA] text-[#D95C5C]"
                             }`}
                           >
-                            {paid ? "결제 완료" : testApproved ? "테스트 승인" : "결제 실패"}
+                            {paid ? "결제 완료" : testApproved ? "테스트 승인" : pay.status === "partially_canceled" ? "부분취소 · 확인 필요" : pay.status === "canceled" ? "승인 취소" : "결제 실패"}
                           </span>
                           {pay.test_mode && (
                             <span className="rounded-full bg-[#FEF3C7] px-1.5 py-0.5 text-[11px] font-bold text-[#92400E]">
@@ -864,7 +864,7 @@ export function SubscriptionScreen() {
                         {paid && pay.next_billing_at && (
                           <div className="text-xs text-[#6B7280]">
                             다음 결제 예정일{" "}
-                            {new Date(pay.next_billing_at).toLocaleDateString("ko-KR")}
+                            {new Date(pay.next_billing_at).toLocaleDateString("ko-KR", {timeZone:"Asia/Seoul"})}
                           </div>
                         )}
                         {!paid && pay.fail_reason && (
@@ -887,6 +887,9 @@ export function SubscriptionScreen() {
 
         {current && current.plan !== "free" && !current.cancel_at_period_end && (
           <Button onClick={cancel} variant="ghost" className="w-full py-3 text-sm text-muted-foreground font-semibold">구독 해지하기</Button>
+        )}
+        {current?.plan === "free" && payapp?.order?.status === "pending" && (
+          <Button onClick={cancel} variant="ghost" className="w-full py-3 text-sm text-muted-foreground font-semibold">결제 요청 취소</Button>
         )}
 
         {current?.cancel_at_period_end && <p className="text-sm text-muted-foreground">페이앱 해지는 되돌릴 수 없습니다. 이용기간 종료 후 새 구독을 시작할 수 있습니다.</p>}

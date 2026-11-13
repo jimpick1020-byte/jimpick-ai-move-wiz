@@ -1276,6 +1276,47 @@ export type Database = {
           },
         ]
       }
+      payapp_notice_audit: {
+        Row: {
+          amount: number
+          mul_no: string
+          order_id: string
+          orig_mul_no: string | null
+          orig_price: number | null
+          paid_at: string | null
+          pay_state: string
+          received_at: string
+        }
+        Insert: {
+          amount: number
+          mul_no: string
+          order_id: string
+          orig_mul_no?: string | null
+          orig_price?: number | null
+          paid_at?: string | null
+          pay_state: string
+          received_at?: string
+        }
+        Update: {
+          amount?: number
+          mul_no?: string
+          order_id?: string
+          orig_mul_no?: string | null
+          orig_price?: number | null
+          paid_at?: string | null
+          pay_state?: string
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payapp_notice_audit_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "payapp_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payapp_orders: {
         Row: {
           amount: number
@@ -1792,6 +1833,7 @@ export type Database = {
           current_period_start: string
           id: string
           interval: string
+          payapp_order_id: string | null
           plan: Database["public"]["Enums"]["plan_tier"]
           price: number
           status: Database["public"]["Enums"]["sub_status"]
@@ -1807,6 +1849,7 @@ export type Database = {
           current_period_start?: string
           id?: string
           interval?: string
+          payapp_order_id?: string | null
           plan?: Database["public"]["Enums"]["plan_tier"]
           price?: number
           status?: Database["public"]["Enums"]["sub_status"]
@@ -1822,6 +1865,7 @@ export type Database = {
           current_period_start?: string
           id?: string
           interval?: string
+          payapp_order_id?: string | null
           plan?: Database["public"]["Enums"]["plan_tier"]
           price?: number
           status?: Database["public"]["Enums"]["sub_status"]
@@ -1830,7 +1874,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_payapp_order_id_fkey"
+            columns: ["payapp_order_id"]
+            isOneToOne: false
+            referencedRelation: "payapp_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       terms_acceptances: {
         Row: {
@@ -2060,6 +2112,21 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_payapp_notice: {
+        Args: {
+          p_amount: number
+          p_mul: string
+          p_next?: string
+          p_order: string
+          p_orig_mul?: string
+          p_orig_price?: number
+          p_paid?: string
+          p_rebill: string
+          p_state: string
+          p_user: string
+        }
+        Returns: Json
+      }
       auto_archive_past_estimate_notices: { Args: never; Returns: number }
       cancel_contract: { Args: { _terms_id: string }; Returns: Json }
       cancel_reservation: { Args: { _terms_id: string }; Returns: boolean }
@@ -2220,6 +2287,10 @@ export type Database = {
           _total: number
         }
         Returns: Json
+      }
+      reject_payapp_registration: {
+        Args: { p_order: string; p_user: string }
+        Returns: undefined
       }
       release_free_sms: {
         Args: { _key: string; _user_id: string }

@@ -35,7 +35,7 @@ function PayappReturn() {
         if (!alive) return;
         const order = result.order;
         const sub = account.subscription;
-        setMessage(order?.first_paid_at && sub?.plan === "pro" && sub.status === "active"
+        setMessage(order?.first_paid_at && sub?.payapp_order_id === order.id && sub?.plan === "pro" && sub.status === "active"
           ? `서버 결제 확인 완료 · 월 30,000원 · ${order.canceled_at ? "다음 자동청구 중단 · 이용기간 종료일" : "다음 결제 예정일"} ${new Date(sub.current_period_end).toLocaleDateString("ko-KR", {timeZone:"Asia/Seoul"})}`
           : order?.status === "pending" || order?.status === "creating" ? "결제 확인 중입니다. 아직 유료 구독으로 전환되지 않았습니다. 중복 결제를 시작하지 마세요."
           : order?.status === "canceled" || order?.status === "failed" ? "결제가 취소되었거나 승인되지 않았습니다. 남은 무료체험은 유지됩니다."

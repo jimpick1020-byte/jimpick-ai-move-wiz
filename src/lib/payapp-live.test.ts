@@ -32,6 +32,17 @@ describe("PayApp authenticated live boundaries (no external billing)",()=>{
   });
 });
 describe("Korean actual approval anchored calendar",()=>{
+  test.each(["01:00:00", "06:00:00", "10:00:00"])("same renewal date at %s advances to January", (time) => {
+    expect(payappNextDate("2026-11-13T06:00:00Z", `2026-12-13T${time}Z`)).toBe("2027-01-13T06:00:00.000Z");
+  });
+  test.each([29, 30, 31])("early clamped February renewal restores day %s", (day) => {
+    expect(payappNextDate(`2026-01-${day}T06:00:00Z`, "2026-02-28T01:00:00Z")).toBe(`2026-03-${day}T06:00:00.000Z`);
+    expect(payappNextDate(`2028-01-${day}T06:00:00Z`, "2028-02-29T01:00:00Z")).toBe(`2028-03-${day}T06:00:00.000Z`);
+  });
+  test("delayed notification uses approval timestamp, not receipt timestamp", () => {
+    expect(payappNextDate("2026-11-13T06:00:00Z", "2027-02-13T01:00:00Z")).toBe("2027-03-13T06:00:00.000Z");
+    expect(payappNextDate("2026-11-13T06:00:00Z", "2026-12-14T01:00:00Z")).toBe("2027-01-13T06:00:00.000Z");
+  });
   test("KST parse and invalid date rejection",()=>{expect(payappDate("20261113110000")).toBe("2026-11-13T02:00:00.000Z");expect(()=>payappDate("20260230110000")).toThrow();});
   test.each([29,30,31])("January %s clamps to February and restores March anchor",(day: number)=>{
     const first=`2026-01-${day}T01:00:00.000Z`;
@@ -41,4 +52,17 @@ describe("Korean actual approval anchored calendar",()=>{
   test("UTC prior day still follows Korean calendar day",()=>{const at="2026-01-30T15:10:00.000Z";expect(payappNextDate(at,at)).toBe("2026-02-27T15:10:00.000Z");});
   test("leap February clamps to the 29th",()=>{const at="2028-01-31T01:00:00.000Z";expect(payappNextDate(at,at)).toBe("2028-02-29T01:00:00.000Z");});
   test("request date does not determine displayed next payment",()=>{const approved="2026-11-14T02:00:00.000Z";expect(payappNextDate(approved,approved)).toBe("2026-12-14T02:00:00.000Z");});
+});
+
+describe("partial cancellation fields", () => {
+  test.each(["70", "71"])("state %s retains original transaction and cancellation amount", async (state) => {
+    const n = await authenticatePayappNotice(await notice({pay_state: state, price: "5000", orig_mul_no: "456", orig_price: "30000", mul_no: "789"}), fixture, now);
+    expect(n.price).toBe(5000); expect(n.orig_mul_no).toBe("456"); expect(n.orig_price).toBe(30000);
+  });
+  test.each([{orig_price: "29000"}, {orig_mul_no: undefined}, {price: "30000"}])("rejects mismatched partial reference %j", async (override) => {
+    await expect(authenticatePayappNotice(await notice({pay_state: "70", price: "5000", orig_mul_no: "456", orig_price: "30000", ...override}), fixture, now)).rejects.toThrow();
+  });
+  test("a cancellation amount cannot masquerade as a successful subscription", async () => {
+    await expect(authenticatePayappNotice(await notice({pay_state: "4", price: "5000", orig_mul_no: "456", orig_price: "30000"}), fixture, now)).rejects.toThrow();
+  });
 });
