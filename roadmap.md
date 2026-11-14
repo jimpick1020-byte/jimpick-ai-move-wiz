@@ -236,6 +236,7 @@
 
 
 ## 잔금 확인 표시 (2026-11-14)
+- [x] Add settings access, guarded forwarding-address replacement and manual original-message registration; synthetic mobile mocks and existing isolated regressions passed, without hosted writes or publishing.
 - [x] Connect balance review home/month/badge and latest-term receipt criteria.
 - [x] Verify existing notifications and repair completed-receipt acknowledgement without widening permissions.
 - [x] Run focused synthetic/isolated tests and 320–390px mobile checks; preview build OK. No publishing, customer edits, real SMS/push tests or PayApp calls.

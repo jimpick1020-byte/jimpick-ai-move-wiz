@@ -93,3 +93,18 @@ test("deposit and balance notify independently and reviewing one cannot hide the
   await confirm(d); expect((await state()).queues).toEqual(["balance_waiting"]);
   expect((await db.query("SELECT * FROM owner_notifications")).rows).toHaveLength(2);
 }));
+test("same customer 10000 deposit acknowledged then 90000 balance remains pending until owner confirms", () => fixture(async () => {
+  await db.query("UPDATE estimate_terms SET total=100000,deposit_paid=0,payment_status='unpaid' WHERE user_id=$1 AND sheet_version=2", [owner]);
+  const deposit = await insert("test-deposit-10000", 10000, "pending_review", "deposit");
+  expect(await confirm(deposit)).toMatchObject({ ok: true });
+  const balance = await insert("test-balance-90000", 90000);
+  expect((await state()).t).toMatchObject({ payment_status: "deposit_paid", balance_paid: 0 });
+  expect((await state()).review?.kind).toBe("balance");
+  expect((await state()).count).toBe(1);
+  await insert("test-balance-90000", 90000);
+  expect((await state()).receipts).toHaveLength(2);
+  expect((await db.query("SELECT * FROM owner_notifications")).rows).toHaveLength(2);
+  expect(await confirm(balance)).toMatchObject({ ok: true, completed: true });
+  expect((await state()).t).toMatchObject({ payment_status: "completed", balance_paid: 90000 });
+  expect((await state()).count).toBe(0);
+}));

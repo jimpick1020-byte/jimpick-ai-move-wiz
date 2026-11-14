@@ -8000,6 +8000,9 @@ export function SettingsScreen() {
         {/* 업체 화면에는 문자 사용 가능 여부와 내 업체 발송 현황만 보여 줍니다 */}
         {!settingsEnt?.isSuperAdmin && <SmsNoticeCard />}
         <BusinessInfoCard onNeedLogin={() => setScreen("login")} />
+        <Button variant="outline" className="h-auto w-full justify-between p-4 text-base font-bold" onClick={() => setScreen("bankSms")}>
+          <span>입금 문자 연결</span><span aria-hidden="true">›</span>
+        </Button>
         {/* 문자발송 설정·시험 발송은 서비스 관리자 전용입니다 */}
         {settingsEnt?.isSuperAdmin && (
           <SmsConnectionCard

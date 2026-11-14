@@ -18,6 +18,18 @@ test("예약금 확인 후 같은 이름 180,000원 입금은 잔금으로 연�
   assert.equal(m.status === "matched" && m.estimateId, "est_a");
 });
 
+test("테스트고객 예약금 10000 확인 후 90000은 별도 잔금 거래로 연결", async () => {
+  const { customerPaymentDue } = await import("./customer-payment");
+  const before = kim({ customerName: "테스트고객", total: 100000 });
+  const deposit = matchBankSms(sms(10000, "테스트고객"), [before]);
+  assert.equal(deposit.status === "matched" && deposit.kind, "deposit");
+  const after = { ...before, depositPaid: 10000, paymentStatus: "deposit_paid" };
+  assert.deepEqual(customerPaymentDue(100000, 10000, 0, "deposit_paid"), { kind: "balance", amount: 90000 });
+  const balance = matchBankSms(sms(90000, "테스트고객"), [after]);
+  assert.equal(balance.status === "matched" && balance.kind, "balance");
+  assert.notEqual(bankSmsDedupeKey({ eventId: "deposit-10000", rawText: "" }, ""), bankSmsDedupeKey({ eventId: "balance-90000", rawText: "" }, ""));
+});
+
 test("같은 이름·금액 견적이 둘이면 확정하지 않고 확인 필요", () => {
   const m = matchBankSms(sms(180000), [kim({ depositPaid: 20000 }), kim({ estimateId: "est_b", depositPaid: 20000 })]);
   assert.equal(m.status, "review");
