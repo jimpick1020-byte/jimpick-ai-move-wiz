@@ -337,6 +337,13 @@
       "when": 1794570911038,
       "tag": "0047_adjust_estimate_total_atomic",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1794615447479,
+      "tag": "0048_pending_balance_review_completion",
+      "breakpoints": true
     }
   ]
 }

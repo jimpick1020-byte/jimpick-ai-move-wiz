@@ -39,11 +39,21 @@ export function pendingReceipt(record: { amount: number; status: string; payment
 
 /** Confirmed balances are already deducted from remainingPayment; never offer them for review again. */
 export function pendingBalanceReceipts<T extends PaymentEvidence>(records: T[]): T[] {
-  return records.filter((record) => record.paymentKind === "balance" && pendingReceipt(record));
+  return uniquePaymentReceipts(records).filter((record) => record.paymentKind === "balance" && pendingReceipt(record));
+}
+
+export function uniquePaymentReceipts<T extends PaymentEvidence>(records: T[]): T[] {
+  const seen = new Set<string>();
+  return records.filter((record) => {
+    if (!record.id) return true;
+    if (seen.has(record.id)) return false;
+    seen.add(record.id);
+    return true;
+  });
 }
 
 export function paymentReview(records: PaymentEvidence[], _paymentStatus: string, _depositPaid: number, _balancePaid: number, _total: number) {
-  const pending = records.filter(pendingReceipt);
+  const pending = uniquePaymentReceipts(records).filter(pendingReceipt);
   if (!pending.length) return null;
   const kind = pending.some((r) => r.paymentKind === "balance") ? ("balance" as const) : ("deposit" as const);
   return { kind, amount: pending.reduce((s, r) => s + r.amount, 0), names: [...new Set(pending.map((r) => r.depositorName).filter(Boolean))], receipts: pending };
@@ -59,8 +69,8 @@ export function claimAlreadyRecorded(records: Pick<PaymentEvidence, "amount" | "
 }
 /** Fixed full classes so Tailwind always generates them (no dynamic class names). 예약금=밝은 주황, 잔금=밝은 파랑. */
 export const PAYMENT_REVIEW_BORDER = {
-  deposit: "border-4 border-[#FF8A00]",
-  balance: "border-4 border-[#3B82F6]",
+  deposit: "jp-payment-review-deposit",
+  balance: "jp-payment-review-balance",
 } as const;
 
 /** 확인 대기 입금액이 예정 금액과 다를 때 카드에 보여 줄 안내. 같으면 null (금액은 바꾸지 않고 안내만 합니다). */

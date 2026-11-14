@@ -25,6 +25,7 @@
 - Live camera outlines run on-device through the shared src/lib/live-vision.ts singleton (WASM pinned to the installed MediaPipe version, magic_touch via InteractiveSegmenterLegacy), loaded once after the camera is ready; this keeps detection free of AI credits and the shutter is never auto-triggered or blocked.
 - Public intake renders the actual Step1/Step2/Step3 through CustomerFlowProvider and a field adapter, with token-scoped persistence and no company auth store; this prevents separate UI drift or authenticated company operations from public links.
 - Payment review uses actual receipts, not claims/stored balances; locked owner RPC completes, history polls every 15s. Explicit deposit/balance registration prevents pre-confirmation misclassification.
+- Home and monthly review queues share homeReviewStages and latestTermsByEstimate independently of completion; both receipt kinds remain visible, and completed-contract extra receipts are acknowledged without changing paid totals or entitlement.
 - History retires only unconverted intake drafts through an owner-scoped locked RPC, leaving request snapshots and formal estimates or receipt-linked drafts intact; tombstones prevent device copies from reappearing.
 
 - Request deletion uses the owner-scoped locked delete_intake_request RPC and soft markers; formal estimate/receipt-linked drafts are protected and audit snapshots are retained.

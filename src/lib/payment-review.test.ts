@@ -1,9 +1,14 @@
 import { describe, test } from "node:test";
 import { strict as assert } from "node:assert";
-import { paymentReview, pendingReceipt, pendingBalanceReceipts, balanceReceiptReady, receiptPaymentKind, PAYMENT_REVIEW_BORDER, type PaymentEvidence } from "./payment-review";
+import { paymentReview, pendingReceipt, pendingBalanceReceipts, balanceReceiptReady, receiptPaymentKind, type PaymentEvidence } from "./payment-review";
 import { remainingPayment } from "./payment-method";
 const receipt: PaymentEvidence = { amount: 950000, status: "pending_review", source: "sms_paste", depositorName: "시험 입금자", paymentKind: "deposit", paymentMethod: "bank_transfer" };
 describe("owner receipt review", () => {
+  test("same receipt ID from refresh cannot inflate pending sum", () => {
+    const r = { ...receipt, id: "same", amount: 100000, paymentKind: "balance" };
+    assert.equal(paymentReview([r, r], "partial", 100000, 300000, 1400000)?.amount, 100000);
+    assert.equal(pendingBalanceReceipts([r, r]).length, 1);
+  });
   test("80000 deposit and 950000 balance both stay pending with their own depositor", () => {
     const deposit = { ...receipt, amount: 80000, depositorName: "예약금 입금자", paymentKind: "deposit" };
     const balance = { ...receipt, amount: 950000, depositorName: "잔금 입금자", paymentKind: "balance" };
@@ -47,8 +52,6 @@ describe("deposit orange / balance blue border", () => {
   const receipt = { id: "r1", amount: 80000, status: "pending_review", source: "sms_paste", depositorName: "김호영", paymentKind: "deposit", paymentMethod: "bank_transfer" };
   test("pending deposit receipt gives deposit kind", () => assert.equal(paymentReview([receipt], "unpaid", 0, 0, 1030000)?.kind, "deposit"));
   test("pending balance receipt gives balance kind", () => assert.equal(paymentReview([{ ...receipt, amount: 950000, paymentKind: "balance" }], "deposit_paid", 80000, 0, 1030000)?.kind, "balance"));
-  test("deposit border is thick bright orange", () => assert.equal(PAYMENT_REVIEW_BORDER.deposit, "border-4 border-[#FF8A00]"));
-  test("balance border is thick bright blue", () => assert.equal(PAYMENT_REVIEW_BORDER.balance, "border-4 border-[#3B82F6]"));
   test("balance auto-calculates after 80000 deposit on 1030000 total", () => assert.equal(remainingPayment(1030000, 80000, 0), 950000));
 });
 

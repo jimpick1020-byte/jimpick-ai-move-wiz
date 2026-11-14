@@ -233,3 +233,9 @@
 - 완료: wrangler.jsonc 추가, Cloudflare Workers 빌드 확인, workerd 로컬 시험(홈·공유·훅 401·아이콘) 통과, docs/external-hosting.md 작성
 - 대기(사장님 필요): Cloudflare 계정 연결 후 시험 주소 배포, 로그인 허용 주소에 시험 주소 추가
 - 제약: SUPABASE_SERVICE_ROLE_KEY·LOVABLE_API_KEY는 Lovable 밖으로 반출 불가 → 외부 서버에서는 입금 확인 처리·문자 발송·AI 촬영 등이 동작하지 않음. 완전 이전은 자체 Supabase 이전 작업이 필요
+
+
+## 잔금 확인 표시 (2026-11-14)
+- [x] Connect balance review home/month/badge and latest-term receipt criteria.
+- [x] Verify existing notifications and repair completed-receipt acknowledgement without widening permissions.
+- [x] Run focused synthetic/isolated tests and 320–390px mobile checks; preview build OK. No publishing, customer edits, real SMS/push tests or PayApp calls.

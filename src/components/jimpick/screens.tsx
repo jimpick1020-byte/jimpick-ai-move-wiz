@@ -9,7 +9,7 @@ import { StaffSendScreen } from "./StaffSendScreen";
 import { paymentReview, paymentDiffNote, PAYMENT_REVIEW_BORDER } from "@/lib/payment-review";
 import { NotificationBell } from "./NotificationBell";
 import { isWaitingHistoryTarget } from "@/lib/history-focus";
-import { homeReservationStageOf, HOME_STAGE_LABEL, type HomeReservationStage } from "@/lib/home-reservation-stage";
+import { homeReservationStageOf, homeReviewStages, latestTermsByEstimate, HOME_STAGE_LABEL, type HomeReservationStage } from "@/lib/home-reservation-stage";
 import { WorkerContacts } from "./WorkerContacts";
 import { workerSmsHref, type WorkerContact } from "@/lib/worker-contact";
 import { RoomPickedStrip } from "./RoomPickedStrip";
@@ -614,6 +614,7 @@ export function Login() {
 
 // ============ Home ============
 export function HomeScreen() {
+  useServerEstimateRestore();
   const { openVisit } = useVisitEstimate();
   const { setScreen, resetDraft, estimates, loadEstimate, loadEstimateToStep1, openEstimate, openEstimateToStep1, draft } = useApp();
   const newRequests = useNewRequestCount();
@@ -783,9 +784,14 @@ export function HomeScreen() {
     balance_waiting: [],
     payment_completed: [],
   };
+  const homeTerms = latestTermsByEstimate(termsRows);
+  const seenStageEstimates = new Set<string>();
   for (const estimate of estimates) {
-    if (!stats.currentIds.has(estimate.id)) continue;
-    const row = termsRows.find((item) => item.estimateId === estimate.id);
+    if (seenStageEstimates.has(estimate.id) || stats.excludedIds.has(estimate.id)) continue;
+    seenStageEstimates.add(estimate.id);
+    const row = homeTerms.find((item) => item.estimateId === estimate.id);
+    const reviewStages = homeReviewStages(row ?? {});
+    if (!stats.currentIds.has(estimate.id) && !reviewStages.length) continue;
     const stage = homeReservationStageOf({
       paymentStatus: row?.paymentStatus,
       depositPaid: row?.depositPaid,
@@ -795,20 +801,23 @@ export function HomeScreen() {
       depositClaimPending: Boolean(row?.depositClaimId),
       paymentReceipts: row?.paymentReceipts,
     });
-    stageCounts[stage] += 1;
-    if (stage === "payment_completed") continue;
-    const depositPaid = Number(row?.depositPaid ?? 0);
-    const showDeposit = stage === "reservation_confirmed" && depositPaid > 0;
-    stageLists[stage].push({
-      key: estimate.id,
-      estimateId: estimate.id,
-      name: estimate.customerName || "이름 없음",
-      amount: stage === "balance_waiting" ? remainingPayment(row?.total ?? estimate.total, depositPaid, row?.balancePaid ?? 0) : showDeposit ? depositPaid : estimate.total || 0,
-      amountLabel: stage === "balance_waiting" ? "잔금" : showDeposit ? "예약금" : "견적금액",
-      moveDate: estimate.moveDate,
-      moveTime: estimate.moveTime,
-      createdAt: estimate.createdAt,
-    });
+    const queues = reviewStages.length ? reviewStages : stage === "payment_completed" ? [] : [stage];
+    for (const queue of queues) {
+      stageCounts[queue] += 1;
+      const depositPaid = Number(row?.depositPaid ?? 0);
+      const showDeposit = stage === "reservation_confirmed" && depositPaid > 0;
+      const pendingAmount = row?.paymentReceipts?.filter(r => reviewStages.includes(queue) && r.status === "pending_review" && (queue === "balance_waiting" ? r.paymentKind === "balance" : r.paymentKind !== "balance"));
+      stageLists[queue].push({
+        key: estimate.id,
+        estimateId: estimate.id,
+        name: estimate.customerName || "이름 없음",
+        amount: reviewStages.includes(queue) ? paymentReview(pendingAmount ?? [], "unpaid", 0, 0, 0)?.amount ?? 0 : showDeposit ? depositPaid : estimate.total || 0,
+        amountLabel: reviewStages.includes(queue) ? queue === "balance_waiting" ? "잔금 입금" : "예약금 입금" : showDeposit ? "예약금" : "견적금액",
+        moveDate: estimate.moveDate,
+        moveTime: estimate.moveTime,
+        createdAt: estimate.createdAt,
+      });
+    }
   }
   // 결제 완료 목록: 완료 보관함 + 현재 목록의 완료 건 (같은 견적은 한 번만)
   {
@@ -1039,7 +1048,7 @@ export function HomeScreen() {
             <div className="text-[17px] font-bold">견적 현황</div>
           </div>
           <div className="grid grid-cols-2 gap-2 text-center">
-            {(["estimate_notice", "deposit_waiting", "reservation_confirmed", "payment_completed"] as const).map((stage) => (
+            {(["estimate_notice", "deposit_waiting", "reservation_confirmed", "payment_completed", "balance_waiting"] as const).map((stage) => (
               <Button
                 type="button"
                 key={stage}
@@ -1048,7 +1057,7 @@ export function HomeScreen() {
                   setOpenStage(stage);
                   setOpenStageMonths(nearestStageMonth(stageLists[stage]));
                 }}
-                className="h-auto min-w-0 flex-col rounded-[14px] bg-muted py-3 active:scale-[0.98]"
+                className={`h-auto min-w-0 flex-col rounded-[14px] bg-muted py-3 active:scale-[0.98] ${stage === "balance_waiting" ? "col-span-2" : ""}`}
               >
                 <div className="text-2xl font-black text-foreground">
                   {statsReady ? stageCounts[stage] : "…"}
@@ -6957,7 +6966,9 @@ export function History() {
     const r = intakeById.get(e.intakeRequestId);
     return r?.visit_status === "scheduled" && r.visit_date ? "visit" : "intake";
   };
-  const allCurrent = estimates.filter((e) => stats.currentIds.has(e.id));
+  const historyTerms = latestTermsByEstimate(termsRows);
+  const reviewIds = new Set(historyTerms.filter(r => homeReviewStages(r).length > 0).map(r => r.estimateId));
+  const allCurrent = [...new Map(estimates.filter((e) => !stats.excludedIds.has(e.id) && (stats.currentIds.has(e.id) || reviewIds.has(e.id))).map(e => [e.id, e])).values()];
   const kindCount = {
     all: allCurrent.length,
     intake: allCurrent.filter((e) => kindOf(e) === "intake").length,
@@ -6978,14 +6989,14 @@ export function History() {
   const defaultOpen = defaultOpenMonths(groups);
   useEffect(() => {
     if (!waitingTargetId || !termsReady) return;
-    const row = termsRows.find((r) => r.estimateId === waitingTargetId);
+    const row = historyTerms.find((r) => r.estimateId === waitingTargetId);
     const stage = homeReservationStageOf({
       paymentStatus: row?.paymentStatus, depositPaid: row?.depositPaid,
       balancePaid: row?.balancePaid, acceptedAt: row?.acceptedAt,
       reservationStatus: row?.reservationStatus, depositClaimPending: Boolean(row?.depositClaimId),
       paymentReceipts: row?.paymentReceipts,
     });
-    if (!isWaitingHistoryTarget(waitingTargetId, waitingTargetId, stage)) {
+    if (!isWaitingHistoryTarget(waitingTargetId, waitingTargetId, homeReviewStages(row ?? {})[0] ?? stage)) {
       setWaitingTargetId(null);
       try { sessionStorage.removeItem("jp_waiting_history_target"); } catch { /* 저장소 제한 */ }
       return;
@@ -6999,6 +7010,7 @@ export function History() {
     const frame = requestAnimationFrame(() => {
       const card = historyCards.current.get(waitingTargetId);
       if (!card) return;
+      setOpenCard((cards) => ({ ...cards, [waitingTargetId]: true }));
       card.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
       scrolledTarget.current = waitingTargetId;
     });
@@ -7013,7 +7025,7 @@ export function History() {
   });
   /** 약관 진행 상태 — 발송 성공과 고객 열람·동의는 서로 다른 상태로 표시합니다 */
   const termsState = (id: string) => {
-    const r = termsRows.find((t) => t.estimateId === id);
+    const r = historyTerms.find((t) => t.estimateId === id);
     if (!r)
       return {
         text: "약관 미발송",
@@ -7129,10 +7141,9 @@ export function History() {
           <div className="text-center text-[#6B7280] py-16">저장된 견적이 없습니다.</div>
         )}
         {groups.map((g) => {
-          const pendingCount = g.items.filter((e) => {
-            const row = termsRows.find((t) => t.estimateId === e.id);
-            return Boolean(paymentReview(row?.paymentReceipts ?? [], row?.paymentStatus ?? "unpaid", row?.depositPaid ?? 0, row?.balancePaid ?? 0, row?.total ?? e.total));
-          }).length;
+          const depositCount = g.items.filter(e => homeReviewStages(historyTerms.find(t => t.estimateId === e.id) ?? {}).includes("deposit_waiting")).length;
+          const balanceCount = g.items.filter(e => homeReviewStages(historyTerms.find(t => t.estimateId === e.id) ?? {}).includes("balance_waiting")).length;
+          const pendingCount = depositCount + balanceCount;
           const gOpen = q.trim() ? true : (openMonths[g.key] ?? (pendingCount > 0 || defaultOpen.has(g.key)));
           return (
             <div key={g.key} className="space-y-3">
@@ -7141,16 +7152,17 @@ export function History() {
                 onClick={() => setOpenMonths((m) => ({ ...m, [g.key]: !gOpen }))}
                 className="flex w-full items-center justify-between rounded-xl bg-[#F3F4F6] px-3 py-2 text-[14.5px] font-black text-[#25282D]"
               >
-                <span>
+                <span className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-left">
                   {g.title} · {g.items.length}건
-                  {pendingCount > 0 && <span className="ml-2 text-payment-review">입금 확인 {pendingCount}건</span>}
+                  {depositCount > 0 && <span className="text-payment-review">입금 확인 {depositCount}건</span>}
+                  {balanceCount > 0 && <span className="text-payment-review-balance">잔금 확인 {balanceCount}건</span>}
                 </span>
-                <span className="text-[13px] font-semibold text-[#6B7280]">{gOpen ? "접기 ▲" : "펼치기 ▾"}</span>
+                <span className="ml-2 shrink-0 text-[13px] font-semibold text-[#6B7280]">{gOpen ? "접기 ▲" : "펼치기 ▾"}</span>
               </button>
               {gOpen && g.items.map((e) => {
           const ts = termsState(e.id);
           const review = paymentReview(ts.row?.paymentReceipts ?? [], ts.row?.paymentStatus ?? "unpaid", ts.row?.depositPaid ?? 0, ts.row?.balancePaid ?? 0, ts.row?.total ?? e.total);
-          const waitingSelected = termsReady && isWaitingHistoryTarget(waitingTargetId, e.id, homeReservationStageOf({
+          const waitingSelected = termsReady && isWaitingHistoryTarget(waitingTargetId, e.id, homeReviewStages(ts.row ?? {})[0] ?? homeReservationStageOf({
             paymentStatus: ts.row?.paymentStatus, depositPaid: ts.row?.depositPaid,
             balancePaid: ts.row?.balancePaid, acceptedAt: ts.row?.acceptedAt,
             reservationStatus: ts.row?.reservationStatus, depositClaimPending: Boolean(ts.row?.depositClaimId),
@@ -7214,8 +7226,8 @@ export function History() {
                             depositClaimPending: Boolean(ts.row?.depositClaimId),
                           });
                           return (
-                            <span className={`text-xs px-2 py-1 rounded-full font-semibold ${RESERVATION_STAGE_CLASS[stage]}`}>
-                              {RESERVATION_STAGE_LABEL[stage]}
+                            <span className={`shrink-0 text-xs px-2 py-1 rounded-full font-semibold ${review ? review.kind === "balance" ? "bg-payment-review-balance-soft text-payment-review-balance" : "bg-payment-review-soft text-payment-review" : RESERVATION_STAGE_CLASS[stage]}`}>
+                              {review ? review.kind === "balance" ? "잔금 확인" : "입금 확인" : RESERVATION_STAGE_LABEL[stage]}
                             </span>
                           );
                         })()}

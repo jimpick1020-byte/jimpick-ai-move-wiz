@@ -14,6 +14,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { z } from "zod";
 import { saveTermsWithStableToken } from "./terms-publish";
+import { latestTermsByEstimate } from "./home-reservation-stage";
 
 export interface TermsLinkInfo {
   ok: boolean;
@@ -598,7 +599,8 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .is("deleted_at", null);
     if (data?.estimateId) q = q.eq("estimate_id", data.estimateId);
-    const { data: rows, error } = await q.order("created_at", { ascending: false }).limit(300);
+    const { data: versions, error } = await q.order("sheet_version", { ascending: false }).order("created_at", { ascending: false }).limit(2000);
+    const rows = versions ? latestTermsByEstimate(versions.map((r) => ({ ...r, estimateId: r.estimate_id, sheetVersion: r.sheet_version }))) : null;
     if (error || !rows) {
       if (error) console.error("[getTermsStatuses]", error.message);
       return { ok: false, rows: [] };

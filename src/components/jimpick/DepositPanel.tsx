@@ -47,10 +47,13 @@ export function DepositPanel({
       listDeposits({ data: { estimateId } }).then((r) => { if (alive && r.ok) setRows(r.rows); }).catch(() => {});
     };
     window.addEventListener("jimpick:payment-updated", refresh);
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    document.addEventListener("visibilitychange", onVisible);
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 15000);
     return () => {
       alive = false;
       window.removeEventListener("jimpick:payment-updated", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
       window.clearInterval(timer);
     };
   }, [estimateId]);

@@ -335,7 +335,9 @@ export function useServerEstimateRestore() {
     run();
     const onVisible = () => { if (document.visibilityState === "visible") run(); };
     document.addEventListener("visibilitychange", onVisible);
-    return () => { alive = false; document.removeEventListener("visibilitychange", onVisible); };
+    window.addEventListener("jimpick:payment-updated", run);
+    const timer = window.setInterval(onVisible, 15000);
+    return () => { alive = false; window.clearInterval(timer); window.removeEventListener("jimpick:payment-updated", run); document.removeEventListener("visibilitychange", onVisible); };
   }, [loggedIn]);
 }
 

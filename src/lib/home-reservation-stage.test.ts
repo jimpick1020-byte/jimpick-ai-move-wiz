@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { homeReservationStageOf } from "./home-reservation-stage";
+import { homeReservationStageOf, homeReviewStages, latestTermsByEstimate } from "./home-reservation-stage";
 
 const balance = { amount: 200000, paymentKind: "balance", paymentMethod: "bank_transfer", status: "pending_review", source: "customer_claim", depositorName: "김호영" };
 test("동의 후 미입금 고객은 예약 요청 대신 입금 대기", () => {
@@ -26,4 +26,31 @@ test("은행 문자로 연결된 잔금 180,000원 확인 대기는 잔금 대�
 test("은행 문자로 연결된 예약금 확인 대기는 입금 대기", () => {
   const sms = { ...balance, amount: 20000, paymentKind: "deposit", source: "sms_paste" };
   assert.equal(homeReservationStageOf({ paymentStatus: "unpaid", paymentReceipts: [sms] }), "deposit_waiting");
+});
+test("completed contract retains its stage but extra balance stays in the review queue", () => {
+  assert.equal(homeReservationStageOf({ paymentStatus: "completed", paymentReceipts: [balance] }), "payment_completed");
+  assert.deepEqual(homeReviewStages({ paymentStatus: "completed", paymentReceipts: [balance] }), ["balance_waiting"]);
+});
+test("both receipt kinds count in their own queue; short balance still needs review", () => {
+  assert.deepEqual(homeReviewStages({ paymentReceipts: [balance, { ...balance, paymentKind: "deposit", amount: 100000 }] }), ["deposit_waiting", "balance_waiting"]);
+});
+test("confirmed/rejected and mere unpaid balances never count", () => {
+  for (const status of ["confirmed", "rejected"]) assert.deepEqual(homeReviewStages({ paymentStatus: "partial", paymentReceipts: [{ ...balance, status }] }), []);
+  assert.deepEqual(homeReviewStages({ paymentStatus: "deposit_paid", depositPaid: 100000 }), []);
+});
+test("cancelled and refunded contracts are excluded without modifying receipts", () => {
+  for (const input of [{ contractCancelled: true }, { paymentStatus: "canceled" }, { paymentStatus: "refunded" }]) assert.deepEqual(homeReviewStages({ ...input, paymentReceipts: [balance] }), []);
+});
+test("one of multiple balances confirmed keeps review; last confirmed clears; new receipt restores", () => {
+  const a = { ...balance, id: "a", status: "confirmed" };
+  const b = { ...balance, id: "b" };
+  assert.deepEqual(homeReviewStages({ paymentStatus: "partial", paymentReceipts: [a, b] }), ["balance_waiting"]);
+  assert.deepEqual(homeReviewStages({ paymentStatus: "partial", paymentReceipts: [a, { ...b, status: "confirmed" }] }), []);
+  assert.deepEqual(homeReviewStages({ paymentStatus: "partial", paymentReceipts: [a, { ...b, status: "confirmed" }, { ...balance, id: "c" }] }), ["balance_waiting"]);
+});
+test("latest version and unique estimate IDs drive both month and home queues", () => {
+  const latest = { estimateId: "e", sheetVersion: 2, paymentReceipts: [balance] };
+  const rows = latestTermsByEstimate([latest, { ...latest, paymentReceipts: [] }, { ...latest, sheetVersion: 1, paymentReceipts: [] }]);
+  assert.deepEqual(rows, [latest]);
+  assert.equal(rows.filter(r => homeReviewStages(r).includes("balance_waiting")).length, 1);
 });

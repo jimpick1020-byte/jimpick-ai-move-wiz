@@ -20,6 +20,9 @@
 
 @theme inline {
   --color-payment-review: var(--payment-review);
+  --color-payment-review-balance: var(--payment-review-balance);
+  --color-payment-review-soft: var(--payment-review-soft);
+  --color-payment-review-balance-soft: var(--payment-review-balance-soft);
   --color-calendar-selected: var(--calendar-selected);
   --color-home-calendar-highlight: var(--home-calendar-highlight);
   --radius-sm: calc(var(--radius) - 4px);
@@ -87,6 +90,9 @@
   --sheet-disposal: #FF3B30;
   --home-calendar-highlight: #FF3B30;
   --payment-review: #FF8A00;
+  --payment-review-balance: #3B82F6;
+  --payment-review-soft: #FFF3E0;
+  --payment-review-balance-soft: #EAF2FC;
   --scan-outline-auto: oklch(0.62 0.15 150);
   --scan-outline-check: oklch(0.75 0.16 75);
   --scan-label-fill: oklch(1 0 0);
@@ -698,3 +704,7 @@ html.jp-force-light, html.jp-force-light body { color-scheme: light only; backgr
 
 /* 견적 단계 좌우 밀기를 브라우저 뒤로가기 제스처가 가로채지 않도록 합니다. */
 html, body, .jp-estimate-flow, .jp-estimate-flow * { overscroll-behavior-x: none; }
+
+/* Receipt review overrides category borders without changing any payment state. */
+.jp-payment-review-deposit { border: 4px solid var(--payment-review) !important; }
+.jp-payment-review-balance { border: 4px solid var(--payment-review-balance) !important; }
