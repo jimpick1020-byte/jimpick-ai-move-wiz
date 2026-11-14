@@ -25,7 +25,7 @@ export const TRIAL_EXPIRED_MESSAGE =
 export const FREE_SMS_LIMIT = 20;
 
 export const SMS_LIMIT_MESSAGE =
-  "무료 문자 사용량을 확인해 주세요. 계속 이용하려면 구독해 주세요.";
+  "문자 발송 한도를 확인해 주세요. 계속 이용하려면 구독해 주세요.";
 
 export type EntitlementState = "admin" | "trial" | "active" | "expired";
 

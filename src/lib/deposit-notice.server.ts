@@ -78,7 +78,7 @@ export async function sendDepositConfirmedSms(companyId: string, receiptId: stri
   const usageKey = `usage:deposit-confirmed:${receiptId}`;
   const { data: reserved } = await usage.rpc("reserve_free_sms", { _user_id: companyId, _key: usageKey, _count: 1 });
   if (reserved?.["allowed"] !== true) {
-    return fail(reserved?.["reason"] === "duplicate" ? "이미 처리된 발송 요청입니다." : "무료 문자 사용 기간이 끝나 발송하지 않았습니다.", String(reserved?.["reason"] ?? "quota"), to, msgType);
+    return fail(reserved?.["reason"] === "duplicate" ? "이미 처리된 발송 요청입니다." : "문자 발송 한도를 확인해 주세요. 발송하지 않았습니다.", String(reserved?.["reason"] ?? "quota"), to, msgType);
   }
   const out = await sendViaAligo({ to, text, title: "", msgType, ...creds, sender: ADMIN_SENDER, companyId });
   await usage.rpc(out.ok ? "confirm_free_sms" : "release_free_sms", { _user_id: companyId, _key: usageKey });

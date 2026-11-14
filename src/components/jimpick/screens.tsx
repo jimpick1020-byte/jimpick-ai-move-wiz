@@ -6542,7 +6542,7 @@ export function Result() {
                 </button>
                 {sendEnt?.freeSmsLimited && (
                   <div className="mt-2 text-center text-[12px] font-bold text-[#6B7280] break-keep">
-                    무료 문자 {sendEnt.freeSmsUsed}/{sendEnt.freeSmsLimit}건 사용 ·{" "}
+                    문자 발송 {sendEnt.freeSmsUsed}/{sendEnt.freeSmsLimit}건 사용 ·{" "}
                     {sendEnt.freeSmsRemaining}건 남음
                   </div>
                 )}
