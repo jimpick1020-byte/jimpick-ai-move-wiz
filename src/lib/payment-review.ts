@@ -80,3 +80,26 @@ export function paymentDiffNote(kind: "deposit" | "balance", expected: number, a
   const diff = actual - expected;
   return `예정 ${kind === "balance" ? "잔금" : "예약금"} ${won(expected)}원 / 실제 입금 ${won(actual)}원 / 차액 ${diff > 0 ? "+" : "-"}${won(Math.abs(diff))}원`;
 }
+
+/**
+ * 고객 잔금 신고를 받을 수 있는지 판단합니다. 받을 수 없으면 고객에게 보여 줄 안내를, 받을 수 있으면 null을 돌려줍니다.
+ * 금액·단계는 항상 서버에 저장된 현재 유효 계약 기준입니다.
+ */
+export function balanceClaimBlock(input: {
+  confirmed: boolean;
+  seenAmount?: number;
+  dueKind: "deposit" | "balance";
+  dueAmount: number;
+  depositPaid: number;
+  paymentStatus: string;
+  contractCancelled: boolean;
+  latest: boolean;
+}): string | null {
+  if (!input.confirmed) return "실제로 잔금을 입금했는지 체크해 주세요.";
+  if (input.contractCancelled || ["canceled", "refunded"].includes(input.paymentStatus)) return "취소된 계약은 잔금 신고를 할 수 없습니다.";
+  if (input.paymentStatus === "completed") return "이미 결제가 완료된 견적입니다.";
+  if (!input.latest) return "새 견적서가 있습니다. 업체에서 받은 최신 링크를 열어 주세요.";
+  if (input.dueKind !== "balance" || input.depositPaid <= 0 || input.dueAmount <= 0) return "잔금 신고를 할 수 없는 상태입니다. 견적서를 새로 열어 확인해 주세요.";
+  if (input.seenAmount !== input.dueAmount) return "잔금 금액이 바뀌었습니다. 견적서를 새로 열어 금액을 다시 확인해 주세요.";
+  return null;
+}

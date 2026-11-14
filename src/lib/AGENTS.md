@@ -41,3 +41,4 @@
 - Owner room edits go by room ID via room-manage.ts (roomsCustomized), so items never follow names.
 - Two-house estimates keep the house being edited in from* fields and the other in extraOrigin, swapped only by house-workspace switchHouse (activeHouse, per-house houseSteps); Step4 shows only active-house rooms, so one estimate ID holds both houses without cross-overwrites.
 - Payment summaries use confirmed receipts first (balance = total − confirmed deposit − confirmed balance, floor 0); the quoted deposit appears only as a labelled planned value before any confirmed payment, so quotes never hide real money.
+- Customer balance claims reuse claimCustomerDeposit with kind/confirmed/seenAmount validated by balanceClaimBlock against the latest server terms; pending flags are split by kind (depositClaimPending/balanceClaimPending) so an old deposit claim never blocks a balance claim.

@@ -14,7 +14,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { parseDepositSms, isSameName, normalizeName } from "./deposit-parse";
-import { receiptPaymentKind, claimAlreadyRecorded } from "./payment-review";
+import { receiptPaymentKind, claimAlreadyRecorded, balanceClaimBlock } from "./payment-review";
 import { customerPaymentDue, sheetPlannedDeposit } from "./customer-payment";
 
 export interface DepositRow {
@@ -163,7 +163,17 @@ async function recalcAndSave(
  * 「확인하기 → 입금 확인 완료」를 눌러야 예약금이 반영됩니다.
  */
 export const claimCustomerDeposit = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ token: z.string().min(8).max(80) }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        token: z.string().min(8).max(80),
+        /** 잔금 신고는 종류·고객 확인·본 금액을 함께 보냅니다 */
+        kind: z.enum(["deposit", "balance"]).optional(),
+        confirmed: z.boolean().optional(),
+        seenAmount: z.number().int().min(0).max(1_000_000_000).optional(),
+      })
+      .parse(d),
+  )
   .handler(
     async ({
       data,
@@ -175,7 +185,7 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
       const { data: row } = await supabaseAdmin
         .from("estimate_terms")
         .select(
-          "id, user_id, estimate_id, sheet_no, sheet_version, customer_name, total, deposit_paid, balance_paid, payment_status, sheet_snapshot",
+          "id, user_id, estimate_id, sheet_no, sheet_version, customer_name, total, deposit_paid, balance_paid, payment_status, contract_status, sheet_snapshot",
         )
         .eq("access_token", data.token)
         .is("deleted_at", null)
@@ -192,11 +202,38 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
         deposit_paid: number | null;
         balance_paid: number | null;
         payment_status: string;
+        contract_status: string | null;
         sheet_snapshot: string | null;
       };
 
       const { kind, amount } = customerPaymentDue(Number(t.total ?? 0), Number(t.deposit_paid ?? 0), Number(t.balance_paid ?? 0), t.payment_status, sheetPlannedDeposit(Number(t.total ?? 0), t.sheet_snapshot));
       if (amount <= 0) return { ok: false, error: "신고할 입금 금액이 없습니다." };
+      if (data.kind === "balance") {
+        const { data: latest } = await supabaseAdmin
+          .from("estimate_terms")
+          .select("id")
+          .eq("user_id", t.user_id)
+          .eq("estimate_id", t.estimate_id)
+          .is("deleted_at", null)
+          .order("sheet_version", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const block = balanceClaimBlock({
+          confirmed: data.confirmed === true,
+          seenAmount: data.seenAmount,
+          dueKind: kind,
+          dueAmount: amount,
+          depositPaid: Number(t.deposit_paid ?? 0),
+          paymentStatus: t.payment_status,
+          contractCancelled: String(t.contract_status ?? "active") === "cancelled",
+          latest: !!latest && (latest as { id: string }).id === (row as { id: string }).id,
+        });
+        if (block) return { ok: false, error: block };
+      } else if (kind === "balance") {
+        // 예전 화면(종류 없이 호출)으로는 잔금 신고를 받지 않습니다.
+        return { ok: false, error: "견적서를 새로 열어 잔금 금액을 다시 확인해 주세요." };
+      }
 
       // 같은 견적·같은 종류·같은 금액의 확인 대기/확인 기록이 어떤 경로로든 이미 있으면
       // 새 기록을 만들지 않습니다. 은행 문자가 먼저 연결된 뒤 고객이 「입금했습니다」를
@@ -208,13 +245,17 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
         .eq("estimate_id", t.estimate_id)
         .in("status", ["pending_review", "confirmed"])
         .limit(50);
-      const existing = (existingRows ?? []).map((r: { amount: number | null; status: string | null; payment_kind: string | null }) => ({
+      const existing = (existingRows ?? [])
+        // 잔금은 확인된 금액이 이미 남은 잔금에서 빠지므로, 분납의 다음 입금을 막지 않게 확인 대기만 비교합니다.
+        .filter((r: { status: string | null }) => kind !== "balance" || r.status === "pending_review")
+        .map((r: { amount: number | null; status: string | null; payment_kind: string | null }) => ({
         amount: Number(r.amount ?? 0),
         status: String(r.status ?? ""),
         paymentKind: r.payment_kind ?? undefined,
       }));
       if (claimAlreadyRecorded(existing, kind, amount)) return { ok: true, already: true, amount };
 
+      const claimKey = kind === "deposit" ? `claim|${t.estimate_id}|${Number(t.sheet_version ?? 1)}` : `claim|${t.estimate_id}|balance|${Number(t.balance_paid ?? 0)}`;
       const { error } = await supabaseAdmin.from("deposit_records").insert({
         user_id: t.user_id,
         estimate_id: t.estimate_id,
@@ -230,12 +271,16 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
         raw_text: null,
         name_matched: true,
         status: "pending_review",
-        review_note: "고객이 견적서에서 「입금했습니다」를 눌렀습니다. 통장 확인이 필요합니다.",
-        dedupe_key: kind === "deposit" ? `claim|${t.estimate_id}|${Number(t.sheet_version ?? 1)}` : `claim|${t.estimate_id}|balance|${Number(t.balance_paid ?? 0)}`,
+        review_note: kind === "balance" ? "고객이 견적서에서 「잔금 입금했습니다」를 눌렀습니다(고객 자기확인). 통장 확인이 필요합니다." : "고객이 견적서에서 「입금했습니다」를 눌렀습니다. 통장 확인이 필요합니다.",
+        dedupe_key: claimKey,
       } as never);
       if (error) {
         if (/duplicate key|unique/i.test(error.message)) {
-          return { ok: true, already: true, amount };
+          // 같은 신고가 이미 있으면 그 기록의 실제 상태로만 답합니다 (거절된 기록을 대기로 표시하지 않음).
+          const { data: same } = await supabaseAdmin.from("deposit_records").select("status").eq("user_id", t.user_id).eq("dedupe_key", claimKey).maybeSingle();
+          const st = String((same as { status?: string } | null)?.status ?? "");
+          if (st === "pending_review" || st === "confirmed") return { ok: true, already: true, amount };
+          return { ok: false, error: "이전 신고가 처리되었습니다. 업체에 입금 내용을 문의해 주세요." };
         }
         console.error("[claimCustomerDeposit]", error.message);
         return { ok: false, error: "입금 알림을 저장하지 못했습니다. 다시 시도해 주세요." };

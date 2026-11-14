@@ -47,6 +47,8 @@ export interface TermsLinkInfo {
   depositPaidAt?: string | null;
   /** 고객이 「입금했습니다」를 눌렀고 사장님이 아직 확인하지 않은 상태인지 (서버 기록 기준) */
   depositClaimPending?: boolean;
+  /** 고객 잔금 입금 신고가 업체 확인 대기 중인지 (서버 기록 기준, 예약금 신고와 별도) */
+  balanceClaimPending?: boolean;
   /** 업체·관리자 로그인 기기라서 고객용 링크를 거부했는지 */
   staffBlocked?: boolean;
 }
@@ -191,17 +193,19 @@ export const getTermsLink = createServerFn({ method: "POST" })
     // 고객이 「입금했습니다」를 누른 기록 — 서버에 저장된 실제 기록만 봅니다.
     // 새로고침해도 이 기록으로 「입금 확인 대기」 상태가 그대로 유지됩니다.
     let depositClaimPending = false;
+    let balanceClaimPending = false;
     {
-      const { data: claim } = await supabaseAdmin
+      const { data: claims } = await supabaseAdmin
         .from("deposit_records")
-        .select("id, status")
+        .select("id, status, payment_kind")
         .eq("user_id", (row as { user_id?: string }).user_id ?? "")
         .eq("estimate_id", (row as { estimate_id?: string }).estimate_id ?? "")
         .eq("source", "customer_claim")
         .eq("status", "pending_review")
-        .limit(1)
-        .maybeSingle();
-      depositClaimPending = !!claim;
+        .limit(20);
+      // 종류별로 나눠 예전 예약금 신고가 잔금 신고를 막지 않게 합니다.
+      depositClaimPending = (claims ?? []).some((c) => (c as { payment_kind?: string | null }).payment_kind !== "balance");
+      balanceClaimPending = (claims ?? []).some((c) => (c as { payment_kind?: string | null }).payment_kind === "balance");
     }
 
     // 고객 이름은 계약에 저장된 최신 이름이 정답입니다.
@@ -249,6 +253,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
       balancePaid: Number((row as { balance_paid?: number | null }).balance_paid ?? 0) || 0,
       paymentStatus: String((row as { payment_status?: string | null }).payment_status ?? "unpaid"),
       depositClaimPending,
+      balanceClaimPending,
     };
   });
 
