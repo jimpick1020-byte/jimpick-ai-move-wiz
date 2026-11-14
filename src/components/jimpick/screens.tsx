@@ -917,9 +917,9 @@ export function HomeScreen() {
         )}
         {!blocked && entitlement?.state === "trial" && remainingText && (
           <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-2.5 text-xs font-semibold text-[#25282D] break-keep">
-            무료체험 · 문자 무제한 ({entitlement.freeSmsUsed}건 사용)
+            10일 무료체험
             <div className="mt-0.5 font-medium text-[#1D4ED8]">
-              무료체험 {entitlement.trialDaysLeft}일 남음 · 문자는 체험 기간 동안 무제한
+              무료체험 {entitlement.trialDaysLeft}일 남음
             </div>
           </div>
         )}

@@ -703,9 +703,9 @@ export function SubscriptionScreen() {
               )}
               {entitlement?.state === "trial" && remainingText && (
                 <div className="mt-2 rounded-xl bg-[#EFF6FF] p-2.5 text-xs font-semibold leading-5 text-[#25282D] break-keep">
-                  무료체험 · 문자 무제한 ({entitlement.freeSmsUsed}건 사용)
+                  10일 무료체험
                   <br />
-                  무료체험 {entitlement.trialDaysLeft}일 남음 · 문자는 체험 기간 동안 무제한
+                  무료체험 {entitlement.trialDaysLeft}일 남음
                   {entitlement.trialEndsAt
                     ? ` (종료 ${new Date(entitlement.trialEndsAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })})`
                     : ""}
