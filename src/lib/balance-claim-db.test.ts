@@ -14,7 +14,7 @@ beforeAll(async () => {
     CREATE TABLE estimate_terms(id uuid DEFAULT gen_random_uuid() PRIMARY KEY,user_id uuid,estimate_id text,sheet_no text,sheet_version int,customer_name text DEFAULT '테스트고객',access_token text UNIQUE,created_at timestamptz DEFAULT now(),deleted_at timestamptz,contract_status text DEFAULT 'active',total int,deposit_paid int DEFAULT 10000,deposit_paid_at timestamptz,balance_paid int DEFAULT 0,balance_paid_at timestamptz,payment_status text DEFAULT 'deposit_paid',payment_method text,payment_amount int,payment_confirmed_at timestamptz,payment_confirmed_by uuid,paid_at timestamptz,payment_note text,card_approval_number text,calendar_archived boolean DEFAULT false,calendar_archived_at timestamptz,calendar_archived_by uuid,calendar_selected boolean DEFAULT false);
     CREATE TABLE deposit_records(id uuid DEFAULT gen_random_uuid() PRIMARY KEY,user_id uuid NOT NULL,estimate_id text NOT NULL,sheet_no text,estimate_version int NOT NULL DEFAULT 1,depositor_name text NOT NULL DEFAULT '',customer_name text NOT NULL DEFAULT '',amount int NOT NULL,deposited_at timestamptz,source text NOT NULL,raw_text text,name_matched boolean NOT NULL DEFAULT true,status text NOT NULL DEFAULT 'pending_review',review_note text,confirmed_at timestamptz,confirmed_by uuid,dedupe_key text NOT NULL,created_at timestamptz NOT NULL DEFAULT clock_timestamp(),updated_at timestamptz DEFAULT now(),payment_kind text NOT NULL DEFAULT 'deposit',payment_method text,UNIQUE(user_id,dedupe_key));
     CREATE TABLE owner_notifications(id uuid DEFAULT gen_random_uuid() PRIMARY KEY,company_id uuid,kind text,ref_id text,dedupe_key text,title text,body text,url text,read_at timestamptz,UNIQUE(company_id,dedupe_key));`);
-  for (const f of ["0048_pending_balance_review_completion.sql", "0049_serialized_balance_receipts.sql"]) await db.exec(readFileSync(`drizzle/migrations/${f}`, "utf8"));
+  for (const f of ["0048_pending_balance_review_completion.sql", "0049_serialized_balance_receipts.sql", "0050_bank_receipt_evidence_aliases.sql"]) await db.exec(readFileSync(`drizzle/migrations/${f}`, "utf8"));
   await db.exec("CREATE TRIGGER deposit_records_notify AFTER INSERT ON deposit_records FOR EACH ROW EXECUTE FUNCTION notify_deposit_record();");
 });
 afterAll(async () => { await db?.close(); });
@@ -66,4 +66,29 @@ test("은행 먼저면 고객 신고는 새 기록 없이 대기, 차단 조건�
   expect((await claim(80000)).ok).toBe(false);
   expect((await claim(90000, true, "tokB_123456")).ok).toBe(true);
   expect((await view()).receipts.length).toBe(0);
+}));
+
+const v2 = async (dedupe: string, ev: string | null, evt: string | null, raw = "농협 입금 90,000원 11/14 09:45 테스트고객") =>
+  (await db.query<{ r: { ok: boolean; id?: string; review?: boolean } }>("SELECT record_bank_receipt_v2($1,'est','balance',90000,'테스트고객',now(),$2,'sms_paste',$3,NULL,true,$4,$5) r", [A, raw, dedupe, ev, evt])).rows[0].r;
+
+test("같은 원문은 직접 등록·자동 전달·견적 내 등록·고객 신고가 1건, 업체 확인 뒤 재전달도 1건", () => fixture(async () => {
+  await claim();
+  await v2("banksms|p1", "ev:E", null);
+  await v2("banksms|f1", "ev:E", "evtX");
+  await v2("est|90000|t|테스트고객", "ev:E", null);
+  let v = await view();
+  expect([v.receipts.length, v.notifications]).toEqual([1, 1]);
+  await db.query("SELECT set_config('t.uid',$1,true)", [A]);
+  await db.query("SELECT complete_estimate_payment('est','bank_transfer',$1)", [v.receipts[0].id]);
+  await v2("banksms|f2", "ev:E", "evtX");
+  v = await view();
+  expect([v.receipts.length, v.notifications, v.t.payment_status]).toEqual([1, 1, "completed"]);
+}));
+
+test("이벤트 ID가 다른 별개 거래는 2건, 증거 부족한 같은 금액 원문은 확인 필요", () => fixture(async () => {
+  await v2("banksms|f1", "ev:E", "evtX");
+  await v2("banksms|f2", "ev:E", "evtY");
+  expect((await view()).receipts.length).toBe(2);
+  expect((await v2("banksms|n1", null, null, "입금 90,000원 테스트고객")).review).toBe(true);
+  expect((await view()).notifications).toBe(2);
 }));

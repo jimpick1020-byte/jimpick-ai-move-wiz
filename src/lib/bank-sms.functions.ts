@@ -74,7 +74,7 @@ export const linkBankSms = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), estimateId: z.string().min(1).max(80) }).parse(d))
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
-    const { data: msg } = await context.supabase.from("bank_sms_messages").select("id,depositor_name,amount,deposited_at,raw_text,match_status,deposit_record_id").eq("id", data.id).eq("company_id", context.userId).is("deleted_at", null).maybeSingle();
+    const { data: msg } = await context.supabase.from("bank_sms_messages").select("id,depositor_name,amount,deposited_at,raw_text,event_id,match_status,deposit_record_id").eq("id", data.id).eq("company_id", context.userId).is("deleted_at", null).maybeSingle();
     if (!msg) return { ok: false, error: "문자를 찾지 못했습니다." };
     if (msg.deposit_record_id) return { ok: true };
     if (!(Number(msg.amount) > 0)) return { ok: false, error: "금액을 읽지 못한 문자는 연결할 수 없습니다." };
@@ -84,7 +84,12 @@ export const linkBankSms = createServerFn({ method: "POST" })
     if (!target || target.contractCancelled || ["completed", "canceled", "refunded"].includes(target.paymentStatus)) return { ok: false, error: "연결할 수 없는 견적입니다." };
     const kind = customerPaymentDue(target.total, target.depositPaid, target.balancePaid, target.paymentStatus).kind;
     try {
-      const recordId = await attachReceipt(context.supabase, context.userId, msg, data.estimateId, kind);
+      const att = await attachReceipt(context.supabase, context.userId, msg, data.estimateId, kind);
+      if ("review" in att) {
+        await context.supabase.from("bank_sms_messages").update({ match_status: "review", match_note: att.note }).eq("id", data.id).eq("company_id", context.userId);
+        return { ok: false, error: att.note };
+      }
+      const recordId = att.id;
       await context.supabase.from("bank_sms_messages").update({ match_status: "matched", match_note: "사장님이 직접 연결", matched_estimate_id: data.estimateId, payment_kind: kind, deposit_record_id: recordId }).eq("id", data.id).eq("company_id", context.userId);
       return { ok: true };
     } catch (e) {

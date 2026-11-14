@@ -6,7 +6,7 @@
  * 입금 감지만으로 결제완료하지 않습니다. 사장님 확인은 기존 확인 RPC가 담당합니다.
  */
 import { parseDepositSms } from "./deposit-parse";
-import { bankSmsDedupeKey, matchBankSms, normalizeSmsText, type MatchCandidate } from "./bank-sms-match";
+import { bankEvidenceText, bankSmsDedupeKey, matchBankSms, normalizeSmsText, type MatchCandidate } from "./bank-sms-match";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Client = any;
@@ -44,16 +44,24 @@ export async function loadCandidates(client: Client, companyId: string): Promise
 }
 
 /** 매칭된 견적에 입금 기록을 연결합니다. 같은 종류·금액의 확인 대기 기록(고객 「입금했습니다」)이 있으면 그 기록에 연결해 이중 집계를 막습니다. */
+export type AttachResult = { id: string } | { review: true; note: string };
+
+/** 은행 원문의 경로 무관 증거 키 (충분한 증거가 없으면 null) */
+export async function bankEvidenceKey(raw: string): Promise<string | null> {
+  const text = bankEvidenceText(raw, parseDepositSms(raw));
+  return text ? `ev:${await sha256Hex(text)}` : null;
+}
+
 export async function attachReceipt(
   _client: Client,
   companyId: string,
-  msg: { id: string; depositor_name: string | null; amount: number | null; deposited_at: string | null; raw_text: string },
+  msg: { id: string; depositor_name: string | null; amount: number | null; deposited_at: string | null; raw_text: string; event_id?: string | null },
   estimateId: string,
   kind: "deposit" | "balance",
-): Promise<string> {
-  // 회사+견적 잠금 안에서 원문 ID 중복 확인 → 미연결 고객 신고 1:1 연결 → 새 기록 순으로 처리합니다 (서버 전용 함수).
+): Promise<AttachResult> {
+  // 회사+견적 잠금 안에서: 같은 경로 재시도 → 다른 경로의 같은 원문(별칭) → 증거 부족 시 확인 필요 → 고객 신고 1:1 연결 → 새 기록.
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.rpc("record_bank_receipt" as never, {
+  const { data, error } = await supabaseAdmin.rpc("record_bank_receipt_v2" as never, {
     p_company: companyId,
     p_estimate: estimateId,
     p_kind: kind,
@@ -65,10 +73,13 @@ export async function attachReceipt(
     p_dedupe: `banksms|${msg.id}`,
     p_note: "은행 입금 문자에서 연결했습니다. 사장님 확인이 필요합니다.",
     p_name_matched: true,
+    p_evidence: await bankEvidenceKey(msg.raw_text),
+    p_event: msg.event_id ?? null,
   } as never);
-  const r = data as { ok?: boolean; id?: string; error?: string } | null;
+  const r = data as { ok?: boolean; id?: string; review?: boolean; error?: string } | null;
+  if (r?.review) return { review: true, note: r.error ?? "확인이 필요합니다." };
   if (error || !r?.ok || !r.id) throw new Error(r?.error ?? "입금 기록을 저장하지 못했습니다.");
-  return String(r.id);
+  return { id: String(r.id) };
 }
 
 export interface IngestResult {
@@ -126,7 +137,17 @@ export async function ingestBankSms(
   try {
     const match = matchBankSms({ depositorName: parsed.depositorName, amount: parsed.amount, looksLikeDeposit: parsed.looksLikeDeposit }, await loadCandidates(client, companyId));
     let recordId: string | null = null;
-    if (match.status === "matched") recordId = await attachReceipt(client, companyId, msg, match.estimateId, match.kind);
+    let review: string | null = null;
+    if (match.status === "matched") {
+      const att = await attachReceipt(client, companyId, { ...msg, event_id: input.eventId ?? null }, match.estimateId, match.kind);
+      if ("review" in att) review = att.note;
+      else recordId = att.id;
+    }
+    if (review) {
+      // 연결이 애매하면 기록을 만들지 않고 받은 문자함 「확인 필요」로 남깁니다.
+      await client.from("bank_sms_messages").update({ match_status: "review", match_note: review, candidate_estimate_ids: match.candidates }).eq("id", msg.id).eq("company_id", companyId);
+      return { ok: true, id: msg.id, matchStatus: "review" };
+    }
     await client.from("bank_sms_messages").update({
       match_status: match.status,
       match_note: match.note,

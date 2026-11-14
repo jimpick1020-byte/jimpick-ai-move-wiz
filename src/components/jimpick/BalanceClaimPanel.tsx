@@ -26,7 +26,7 @@ export function BalanceClaimPanel({
   useEffect(() => {
     setChecked(false);
     setError(null);
-  }, [resetKey]);
+  }, [resetKey, state, amount]);
 
   if (state === "hidden") return null;
   if (state === "pending") {
@@ -63,6 +63,7 @@ export function BalanceClaimPanel({
           id={id}
           type="checkbox"
           checked={checked}
+          disabled={claiming}
           onChange={(e) => {
             setChecked(e.target.checked);
             setError(null);

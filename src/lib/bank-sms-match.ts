@@ -61,6 +61,16 @@ export function bankSmsDedupeKey(input: { eventId?: string | null; rawText: stri
   return id ? `evt:${id.slice(0, 200)}` : `txt:${textHash}`;
 }
 
+/**
+ * 수신 경로(직접 붙여넣기·자동 전달·견적 내 등록)와 무관하게 같은 은행 문자를 알아보는 정규화 원문.
+ * 금액·입금 일시·입금자가 원문에서 모두 읽힐 때만 충분한 증거로 보고, 아니면 null(자동 병합 안 함).
+ */
+export function bankEvidenceText(raw: string, parsed: { amount: number; depositedAt: string | null; depositorName: string }): string | null {
+  if (!(parsed.amount > 0) || !parsed.depositedAt || !parsed.depositorName) return null;
+  const canon = String(raw ?? "").replace(/\[\s*web\s*발신\s*\]/gi, "").replace(/[\s\u00a0]+/g, "");
+  return canon.length >= 10 ? canon : null;
+}
+
 /** 원문을 비교용으로 다듬습니다 (공백 차이만 무시). */
 export function normalizeSmsText(raw: string): string {
   return String(raw ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();

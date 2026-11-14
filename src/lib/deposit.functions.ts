@@ -341,7 +341,9 @@ export const registerDeposit = createServerFn({ method: "POST" })
     ].join("|");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rec, error: recErr } = await supabaseAdmin.rpc("record_bank_receipt" as never, {
+    const { bankEvidenceKey } = await import("./bank-sms.server");
+    const { normalizeSmsText } = await import("./bank-sms-match");
+    const { data: rec, error: recErr } = await supabaseAdmin.rpc("record_bank_receipt_v2" as never, {
       p_company: context.userId,
       p_estimate: data.estimateId,
       p_kind: paymentKind,
@@ -353,8 +355,11 @@ export const registerDeposit = createServerFn({ method: "POST" })
       p_dedupe: dedupeKey,
       p_note: null,
       p_name_matched: matched,
+      p_evidence: data.text ? await bankEvidenceKey(normalizeSmsText(data.text).slice(0, 2000)) : null,
+      p_event: null,
     } as never);
-    const r = rec as { ok?: boolean; id?: string; duplicate?: boolean; error?: string } | null;
+    const r = rec as { ok?: boolean; id?: string; duplicate?: boolean; review?: boolean; error?: string } | null;
+    if (r?.review) return { ok: false, needsReview: true, error: `${r.error} 받은 문자함에서 확인해 주세요.` };
     if (recErr || !r?.ok || !r.id) {
       if (recErr) console.error("[registerDeposit]", recErr.message);
       return { ok: false, error: r?.error ?? "입금 기록을 저장하지 못했습니다. 다시 시도해 주세요." };

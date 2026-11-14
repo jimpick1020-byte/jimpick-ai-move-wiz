@@ -241,6 +241,38 @@ export type Database = {
         }
         Relationships: []
       }
+      deposit_receipt_aliases: {
+        Row: {
+          alias_key: string
+          created_at: string
+          event_id: string | null
+          record_id: string
+          user_id: string
+        }
+        Insert: {
+          alias_key: string
+          created_at?: string
+          event_id?: string | null
+          record_id: string
+          user_id: string
+        }
+        Update: {
+          alias_key?: string
+          created_at?: string
+          event_id?: string | null
+          record_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_receipt_aliases_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deposit_records: {
         Row: {
           amount: number
@@ -2318,6 +2350,24 @@ export type Database = {
           p_deposited_at: string
           p_depositor: string
           p_estimate: string
+          p_kind: string
+          p_name_matched: boolean
+          p_note: string
+          p_raw: string
+          p_source: string
+        }
+        Returns: Json
+      }
+      record_bank_receipt_v2: {
+        Args: {
+          p_amount: number
+          p_company: string
+          p_dedupe: string
+          p_deposited_at: string
+          p_depositor: string
+          p_estimate: string
+          p_event: string
+          p_evidence: string
           p_kind: string
           p_name_matched: boolean
           p_note: string

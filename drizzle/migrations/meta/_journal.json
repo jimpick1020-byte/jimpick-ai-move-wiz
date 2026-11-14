@@ -351,6 +351,13 @@
       "when": 1794642939319,
       "tag": "0049_serialized_balance_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1794643481197,
+      "tag": "0050_bank_receipt_evidence_aliases",
+      "breakpoints": true
     }
   ]
 }
