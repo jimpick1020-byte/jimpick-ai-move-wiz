@@ -14,7 +14,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { parseDepositSms, isSameName, normalizeName } from "./deposit-parse";
-import { receiptPaymentKind, claimAlreadyRecorded, balanceClaimBlock } from "./payment-review";
+import { receiptPaymentKind, claimAlreadyRecorded } from "./payment-review";
 import { customerPaymentDue, sheetPlannedDeposit } from "./customer-payment";
 
 export interface DepositRow {
@@ -207,30 +207,22 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
       };
 
       const { kind, amount } = customerPaymentDue(Number(t.total ?? 0), Number(t.deposit_paid ?? 0), Number(t.balance_paid ?? 0), t.payment_status, sheetPlannedDeposit(Number(t.total ?? 0), t.sheet_snapshot));
-      if (amount <= 0) return { ok: false, error: "신고할 입금 금액이 없습니다." };
       if (data.kind === "balance") {
-        const { data: latest } = await supabaseAdmin
-          .from("estimate_terms")
-          .select("id")
-          .eq("user_id", t.user_id)
-          .eq("estimate_id", t.estimate_id)
-          .is("deleted_at", null)
-          .order("sheet_version", { ascending: false })
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const block = balanceClaimBlock({
-          confirmed: data.confirmed === true,
-          seenAmount: data.seenAmount,
-          dueKind: kind,
-          dueAmount: amount,
-          depositPaid: Number(t.deposit_paid ?? 0),
-          paymentStatus: t.payment_status,
-          contractCancelled: String(t.contract_status ?? "active") === "cancelled",
-          latest: !!latest && (latest as { id: string }).id === (row as { id: string }).id,
-        });
-        if (block) return { ok: false, error: block };
-      } else if (kind === "balance") {
+        // 잔금 신고는 회사+견적 잠금 안에서 서버 저장 계약 기준으로만 접수합니다 (은행 원문 연결과 같은 잠금).
+        const { data: res, error: rpcErr } = await supabaseAdmin.rpc("claim_customer_balance" as never, {
+          p_token: data.token,
+          p_confirmed: data.confirmed === true,
+          p_seen: data.seenAmount ?? -1,
+        } as never);
+        const r = res as { ok?: boolean; already?: boolean; amount?: number; error?: string } | null;
+        if (rpcErr || !r) {
+          if (rpcErr) console.error("[claimCustomerBalance]", rpcErr.message);
+          return { ok: false, error: "입금 알림을 저장하지 못했습니다. 다시 시도해 주세요." };
+        }
+        return r.ok ? { ok: true, already: r.already === true, amount: r.amount } : { ok: false, error: r.error ?? "잔금 신고를 접수하지 못했습니다." };
+      }
+      if (amount <= 0) return { ok: false, error: "신고할 입금 금액이 없습니다." };
+      if (kind === "balance") {
         // 예전 화면(종류 없이 호출)으로는 잔금 신고를 받지 않습니다.
         return { ok: false, error: "견적서를 새로 열어 잔금 금액을 다시 확인해 주세요." };
       }
@@ -245,10 +237,7 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
         .eq("estimate_id", t.estimate_id)
         .in("status", ["pending_review", "confirmed"])
         .limit(50);
-      const existing = (existingRows ?? [])
-        // 잔금은 확인된 금액이 이미 남은 잔금에서 빠지므로, 분납의 다음 입금을 막지 않게 확인 대기만 비교합니다.
-        .filter((r: { status: string | null }) => kind !== "balance" || r.status === "pending_review")
-        .map((r: { amount: number | null; status: string | null; payment_kind: string | null }) => ({
+      const existing = (existingRows ?? []).map((r: { amount: number | null; status: string | null; payment_kind: string | null }) => ({
         amount: Number(r.amount ?? 0),
         status: String(r.status ?? ""),
         paymentKind: r.payment_kind ?? undefined,
@@ -271,7 +260,7 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
         raw_text: null,
         name_matched: true,
         status: "pending_review",
-        review_note: kind === "balance" ? "고객이 견적서에서 「잔금 입금했습니다」를 눌렀습니다(고객 자기확인). 통장 확인이 필요합니다." : "고객이 견적서에서 「입금했습니다」를 눌렀습니다. 통장 확인이 필요합니다.",
+        review_note: "고객이 견적서에서 「입금했습니다」를 눌렀습니다. 통장 확인이 필요합니다.",
         dedupe_key: claimKey,
       } as never);
       if (error) {
@@ -351,46 +340,29 @@ export const registerDeposit = createServerFn({ method: "POST" })
       normalizeName(depositorName),
     ].join("|");
 
-    const insert = {
-      user_id: context.userId,
-      estimate_id: data.estimateId,
-      sheet_no: terms.sheet_no ?? null,
-      estimate_version: Number(terms.sheet_version ?? 1),
-      depositor_name: depositorName,
-      customer_name: customerName,
-      amount,
-      deposited_at: depositedAt,
-      source: data.text ? "sms_paste" : "manual",
-      raw_text: (data.text ?? "").slice(0, 2000) || null,
-      name_matched: matched,
-      payment_kind: paymentKind,
-      payment_method: "bank_transfer",
-      status: "pending_review",
-      confirmed_at: null,
-      confirmed_by: null,
-      dedupe_key: dedupeKey,
-    };
-
-    const { data: created, error: insErr } = await context.supabase
-      .from("deposit_records")
-      .insert(insert)
-      .select(SELECT)
-      .maybeSingle();
-    if (insErr) {
-      if (/duplicate key|unique/i.test(insErr.message)) {
-        return { ok: false, duplicated: true, error: "이미 기록된 입금 문자입니다." };
-      }
-      console.error("[registerDeposit]", insErr.message);
-      return { ok: false, error: `입금 기록을 저장하지 못했습니다: ${insErr.message}` };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rec, error: recErr } = await supabaseAdmin.rpc("record_bank_receipt" as never, {
+      p_company: context.userId,
+      p_estimate: data.estimateId,
+      p_kind: paymentKind,
+      p_amount: amount,
+      p_depositor: depositorName,
+      p_deposited_at: depositedAt,
+      p_raw: (data.text ?? "").slice(0, 2000) || null,
+      p_source: data.text ? "sms_paste" : "manual",
+      p_dedupe: dedupeKey,
+      p_note: null,
+      p_name_matched: matched,
+    } as never);
+    const r = rec as { ok?: boolean; id?: string; duplicate?: boolean; error?: string } | null;
+    if (recErr || !r?.ok || !r.id) {
+      if (recErr) console.error("[registerDeposit]", recErr.message);
+      return { ok: false, error: r?.error ?? "입금 기록을 저장하지 못했습니다. 다시 시도해 주세요." };
     }
-
+    if (r.duplicate) return { ok: false, duplicated: true, error: "이미 기록된 입금 문자입니다." };
+    const { data: created } = await context.supabase.from("deposit_records").select(SELECT).eq("id", r.id).eq("user_id", context.userId).maybeSingle();
     if (created) {
-      return {
-        ok: true,
-        applied: false,
-        needsReview: true,
-        row: created ? toRow(created as RowDb) : undefined,
-      };
+      return { ok: true, applied: false, needsReview: true, row: toRow(created as RowDb) };
     }
 
     return { ok: false, error: "입금 기록 저장 결과를 확인하지 못했습니다. 다시 조회해 주세요." };

@@ -1,3 +1,4 @@
+import { BalanceClaimPanel } from "./BalanceClaimPanel";
 import { customerPaymentDue, sheetPlannedDeposit } from "@/lib/customer-payment";
 import { CharacterImg } from "./CharacterGuide";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -176,20 +177,14 @@ export function SharePage() {
   const [claimSent, setClaimSent] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
-  /** 잔금 신고 — 서버 상태만 기준으로 하며 이 기기에 기억하지 않습니다 */
-  const balanceLock = useRef(false);
-  const [balanceChecked, setBalanceChecked] = useState(false);
-  const [balanceClaiming, setBalanceClaiming] = useState(false);
-  const [balanceError, setBalanceError] = useState<string | null>(null);
-  useEffect(() => {
-    setBalanceChecked(false);
-    setBalanceError(null);
-  }, [token]);
-  // 금액·단계가 바뀌면 고객이 다시 확인해야 합니다.
+  /** 토큰이 바뀐 뒤 도착한 이전 링크 응답이 새 견적 상태를 덮어쓰지 않게 합니다 */
+  const tokenRef = useRef(token);
+  tokenRef.current = token;
+  const setLinkFor = (reqToken: string) => (info: TermsLinkInfo | null) => {
+    if (tokenRef.current === reqToken) setLink(info);
+  };
+  // 금액·단계·차수가 바뀌면 고객이 다시 확인해야 합니다.
   const balanceKey = link?.ok ? `${link.total ?? 0}|${link.depositPaid ?? 0}|${link.balancePaid ?? 0}|${link.paymentStatus ?? ""}|${link.sheetVersion ?? ""}` : "";
-  useEffect(() => {
-    setBalanceChecked(false);
-  }, [balanceKey]);
   useEffect(() => {
     try {
       setClaimSent(localStorage.getItem(`jimpick.deposit.claim.${token}`) === "1");
@@ -198,29 +193,15 @@ export function SharePage() {
     }
   }, [token]);
 
-  /** 고객이 잔금을 보냈다고 알립니다 — 저장 성공 후에만 대기로 바뀌고 금액 반영은 업체 확인 후 */
-  const sendBalanceClaim = async (amount: number) => {
-    if (balanceLock.current || !balanceChecked || (link?.ok && link.balanceClaimPending === true)) return;
-    balanceLock.current = true;
-    setBalanceClaiming(true);
-    setBalanceError(null);
-    try {
-      const { claimCustomerDeposit } = await import("@/lib/deposit.functions");
-      const r = await claimCustomerDeposit({ data: { token, kind: "balance", confirmed: true, seenAmount: amount } });
-      if (r.ok) {
-        setLink((current) => (current?.ok ? { ...current, balanceClaimPending: true } : current));
-      } else {
-        setBalanceChecked(false);
-        setBalanceError(r.error ?? "알리지 못했습니다. 금액을 다시 확인해 주세요.");
-      }
-      void getTermsLink({ data: { token } }).then(setLink).catch(() => {});
-    } catch {
-      setBalanceChecked(false);
-      setBalanceError("알리지 못했습니다. 금액을 다시 확인한 뒤 다시 시도해 주세요.");
-    } finally {
-      balanceLock.current = false;
-      setBalanceClaiming(false);
-    }
+  /** 고객이 잔금을 보냈다고 알립니다 — 저장 성공 응답 뒤에만 대기로 바뀌고 금액 반영은 업체 확인 후 */
+  const sendBalanceClaim = async (amount: number): Promise<{ ok: boolean; error?: string }> => {
+    const reqToken = token;
+    const { claimCustomerDeposit } = await import("@/lib/deposit.functions");
+    const r = await claimCustomerDeposit({ data: { token: reqToken, kind: "balance", confirmed: true, seenAmount: amount } });
+    if (tokenRef.current !== reqToken) return { ok: false, error: "다른 견적서가 열렸습니다. 다시 확인해 주세요." };
+    if (r.ok) setLink((current) => (current?.ok ? { ...current, balanceClaimPending: true, canClaimBalance: false } : current));
+    void getTermsLink({ data: { token: reqToken } }).then(setLinkFor(reqToken)).catch(() => {});
+    return r.ok ? { ok: true } : { ok: false, error: r.error };
   };
 
   /** 고객이 예약금을 보냈다고 알립니다 (금액 반영은 사장님 확인 후) */
@@ -240,7 +221,7 @@ export function SharePage() {
         } catch {
           /* 저장할 수 없는 브라우저는 그냥 넘어갑니다 */
         }
-        void getTermsLink({ data: { token } }).then(setLink).catch(() => {});
+        void getTermsLink({ data: { token } }).then(setLinkFor(token)).catch(() => {});
       } else {
         setClaimError(r.error ?? "알리지 못했습니다. 다시 시도해 주세요.");
       }
@@ -321,8 +302,10 @@ export function SharePage() {
     setAccepted(null);
     termsLogged.current = false;
     // 보안 토큰으로 이 견적 한 건만 조회합니다 (다른 견적번호로는 열리지 않습니다)
+    const reqToken = token;
     void getTermsLink({ data: { token, ownerView } })
       .then((info) => {
+        if (tokenRef.current !== reqToken) return;
         setLink(info);
         // 고객이 실제로 링크를 연 것만 기록합니다 (직원용 화면은 세지 않습니다)
         if (preview.valid && info.ok && info.estimateId === id && !staffMode && !ownerView) {
@@ -343,8 +326,8 @@ export function SharePage() {
           });
         }
       })
-      .catch(() => setLink(null))
-      .finally(() => setLoading(false));
+      .catch(() => { if (tokenRef.current === reqToken) setLink(null); })
+      .finally(() => { if (tokenRef.current === reqToken) setLoading(false); });
   }, [id, token, staffMode, ownerView, preview.valid]);
 
   // 업체가 입금을 확인하면 새로고침 없이도 다음 단계(잔금 입금)가 보이도록 저장된 기록을 다시 읽습니다.
@@ -352,8 +335,9 @@ export function SharePage() {
     if (!token || staffMode || ownerView) return;
     const refresh = () => {
       if (document.visibilityState !== "visible") return;
+      const reqToken = token;
       void getTermsLink({ data: { token } })
-        .then((info) => { if (info.ok) setLink((current) => (current?.ok ? { ...current, ...info } : current)); })
+        .then((info) => { if (info.ok && tokenRef.current === reqToken) setLink((current) => (current?.ok ? { ...current, ...info } : current)); })
         .catch(() => {});
     };
     const timer = window.setInterval(refresh, 10000);
@@ -438,43 +422,12 @@ export function SharePage() {
       );
     }
     if (due.kind === "balance") {
-      const contractOpen = !["completed", "canceled", "refunded"].includes(link?.ok ? link.paymentStatus ?? "" : "");
-      const balancePending = link?.ok ? link.balanceClaimPending === true : false;
-      const balanceErrorBox = balanceError && (
-        <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">{balanceError}</div>
-      );
+      const canClaim = !ownerView && !staffMode && link?.ok === true && link.canClaimBalance === true;
+      const balanceState = link?.ok && link.balanceClaimPending === true && !ownerView && !staffMode ? "pending" : canClaim ? "form" : "hidden";
       return <div className="space-y-2">
         {confirmedDeposit}
         <div className="flex items-center justify-between py-2 text-base font-bold text-foreground"><span>잔금</span><span>{won(due.amount)}</span></div>
-        {paidDeposit > 0 && contractOpen && (balancePending ? (
-          <div className="rounded-[14px] border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-3.5" data-balance-claim="pending">
-            <div className="text-center text-[15.5px] font-bold leading-snug text-[#1D4ED8]">잔금 입금 확인 대기</div>
-            <div className="mt-1 text-center text-[14px] font-semibold text-[#3B5B8F]">업체 확인 후 결제가 완료됩니다.</div>
-          </div>
-        ) : (
-          <div className="rounded-[14px] border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-3.5" data-balance-claim="form">
-            <label htmlFor={`balance-claim-${token}`} className="flex items-center gap-2.5 py-1 text-[16px] font-bold text-[#1E3A8A]">
-              <input
-                id={`balance-claim-${token}`}
-                type="checkbox"
-                checked={balanceChecked}
-                onChange={(e) => { setBalanceChecked(e.target.checked); setBalanceError(null); }}
-                className="h-5 w-5 shrink-0 accent-[#2F80ED]"
-              />
-              실제로 잔금을 입금했습니다
-            </label>
-            <button
-              type="button"
-              onClick={() => void sendBalanceClaim(due.amount)}
-              disabled={!balanceChecked || balanceClaiming}
-              className="mt-2 w-full rounded-[14px] bg-[#2F80ED] py-3.5 text-[17px] font-black text-white disabled:bg-[#93C5FD]"
-            >
-              {balanceClaiming ? "알리는 중…" : "잔금 입금했습니다"}
-            </button>
-            <div className="mt-1.5 text-center text-[14px] font-semibold text-[#3B5B8F]">업체 확인 후 결제가 완료됩니다.</div>
-            {balanceErrorBox}
-          </div>
-        ))}
+        {paidDeposit > 0 && <BalanceClaimPanel state={balanceState} amount={due.amount} resetKey={`${token}|${balanceKey}|${due.amount}`} onSubmit={sendBalanceClaim} />}
       </div>;
     }
     const pending = link?.ok ? link.depositClaimPending === true : claimSent;

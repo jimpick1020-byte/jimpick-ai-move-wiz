@@ -49,6 +49,8 @@ export interface TermsLinkInfo {
   depositClaimPending?: boolean;
   /** 고객 잔금 입금 신고가 업체 확인 대기 중인지 (서버 기록 기준, 예약금 신고와 별도) */
   balanceClaimPending?: boolean;
+  /** 서버가 판단한 고객 잔금 신고 가능 여부 (취소·구버전·완료·업체 보기는 false) */
+  canClaimBalance?: boolean;
   /** 업체·관리자 로그인 기기라서 고객용 링크를 거부했는지 */
   staffBlocked?: boolean;
 }
@@ -155,7 +157,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("estimate_terms")
       .select(
-         "id, user_id, estimate_id, customer_name, move_date, total, contact_phone, company_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at, balance_paid, payment_status, deleted_at",
+         "id, user_id, estimate_id, customer_name, move_date, total, contact_phone, company_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at, balance_paid, payment_status, contract_status, created_at, deleted_at",
       )
       .eq("access_token", data.token)
       .maybeSingle();
@@ -205,7 +207,41 @@ export const getTermsLink = createServerFn({ method: "POST" })
         .limit(20);
       // 종류별로 나눠 예전 예약금 신고가 잔금 신고를 막지 않게 합니다.
       depositClaimPending = (claims ?? []).some((c) => (c as { payment_kind?: string | null }).payment_kind !== "balance");
-      balanceClaimPending = (claims ?? []).some((c) => (c as { payment_kind?: string | null }).payment_kind === "balance");
+    }
+    {
+      // 잔금은 은행 문자·직접 등록·고객 신고 어느 경로든 실제 확인 대기 기록이 있으면 대기입니다.
+      const { data: pendingBal } = await supabaseAdmin
+        .from("deposit_records")
+        .select("id")
+        .eq("user_id", (row as { user_id?: string }).user_id ?? "")
+        .eq("estimate_id", (row as { estimate_id?: string }).estimate_id ?? "")
+        .eq("payment_kind", "balance")
+        .eq("status", "pending_review")
+        .gt("amount", 0)
+        .limit(1);
+      balanceClaimPending = (pendingBal ?? []).length > 0;
+    }
+
+    let canClaimBalance = false;
+    if (!data.ownerView && !signedIn) {
+      const r = row as { user_id?: string; estimate_id?: string; id?: string; total?: number | null; deposit_paid?: number | null; balance_paid?: number | null; payment_status?: string | null; contract_status?: string | null };
+      const { data: latest } = await supabaseAdmin
+        .from("estimate_terms")
+        .select("id")
+        .eq("user_id", r.user_id ?? "")
+        .eq("estimate_id", r.estimate_id ?? "")
+        .is("deleted_at", null)
+        .order("sheet_version", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const due = Math.max(0, Number(r.total ?? 0) - Number(r.deposit_paid ?? 0) - Number(r.balance_paid ?? 0));
+      canClaimBalance =
+        (latest as { id?: string } | null)?.id === r.id &&
+        String(r.contract_status ?? "active") !== "cancelled" &&
+        !["completed", "canceled", "refunded"].includes(String(r.payment_status ?? "")) &&
+        Number(r.deposit_paid ?? 0) > 0 &&
+        due > 0;
     }
 
     // 고객 이름은 계약에 저장된 최신 이름이 정답입니다.
@@ -254,6 +290,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
       paymentStatus: String((row as { payment_status?: string | null }).payment_status ?? "unpaid"),
       depositClaimPending,
       balanceClaimPending,
+      canClaimBalance,
     };
   });
 

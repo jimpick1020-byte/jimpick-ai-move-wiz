@@ -254,6 +254,7 @@ export type Database = {
           estimate_id: string
           estimate_version: number
           id: string
+          linked_evidence_key: string | null
           name_matched: boolean
           notified_at: string | null
           notify_error: string | null
@@ -279,6 +280,7 @@ export type Database = {
           estimate_id: string
           estimate_version?: number
           id?: string
+          linked_evidence_key?: string | null
           name_matched?: boolean
           notified_at?: string | null
           notify_error?: string | null
@@ -304,6 +306,7 @@ export type Database = {
           estimate_id?: string
           estimate_version?: number
           id?: string
+          linked_evidence_key?: string | null
           name_matched?: boolean
           notified_at?: string | null
           notify_error?: string | null
@@ -2150,6 +2153,10 @@ export type Database = {
         Args: { _terms_id: string; _user_id: string }
         Returns: Json
       }
+      claim_customer_balance: {
+        Args: { p_confirmed: boolean; p_seen: number; p_token: string }
+        Returns: Json
+      }
       claim_move_reminders: {
         Args: { _limit?: number }
         Returns: {
@@ -2300,6 +2307,22 @@ export type Database = {
           _sheet_no: string
           _sheet_version: number
           _total: number
+        }
+        Returns: Json
+      }
+      record_bank_receipt: {
+        Args: {
+          p_amount: number
+          p_company: string
+          p_dedupe: string
+          p_deposited_at: string
+          p_depositor: string
+          p_estimate: string
+          p_kind: string
+          p_name_matched: boolean
+          p_note: string
+          p_raw: string
+          p_source: string
         }
         Returns: Json
       }

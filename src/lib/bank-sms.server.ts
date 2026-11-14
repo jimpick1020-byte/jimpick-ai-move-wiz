@@ -45,66 +45,30 @@ export async function loadCandidates(client: Client, companyId: string): Promise
 
 /** 매칭된 견적에 입금 기록을 연결합니다. 같은 종류·금액의 확인 대기 기록(고객 「입금했습니다」)이 있으면 그 기록에 연결해 이중 집계를 막습니다. */
 export async function attachReceipt(
-  client: Client,
+  _client: Client,
   companyId: string,
   msg: { id: string; depositor_name: string | null; amount: number | null; deposited_at: string | null; raw_text: string },
   estimateId: string,
   kind: "deposit" | "balance",
 ): Promise<string> {
-  const amount = Number(msg.amount ?? 0);
-  const { data: existing } = await client
-    .from("deposit_records")
-    .select("id")
-    .eq("user_id", companyId)
-    .eq("estimate_id", estimateId)
-    .eq("payment_kind", kind)
-    .eq("status", "pending_review")
-    .eq("amount", amount)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  if (existing?.id) return String(existing.id);
-  const { data: terms } = await client
-    .from("estimate_terms")
-    .select("sheet_no,sheet_version,customer_name")
-    .eq("user_id", companyId)
-    .eq("estimate_id", estimateId)
-    .is("deleted_at", null)
-    .order("sheet_version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!terms) throw new Error("견적을 찾지 못했습니다.");
-  const dedupe = `banksms|${msg.id}`;
-  const { data: created, error } = await client
-    .from("deposit_records")
-    .insert({
-      user_id: companyId,
-      estimate_id: estimateId,
-      sheet_no: terms.sheet_no ?? null,
-      estimate_version: Number(terms.sheet_version ?? 1),
-      depositor_name: String(msg.depositor_name ?? ""),
-      customer_name: String(terms.customer_name ?? ""),
-      amount,
-      deposited_at: msg.deposited_at ?? new Date().toISOString(),
-      source: "sms_paste",
-      raw_text: msg.raw_text.slice(0, 2000),
-      name_matched: true,
-      payment_kind: kind,
-      payment_method: "bank_transfer",
-      status: "pending_review",
-      review_note: "은행 입금 문자에서 연결했습니다. 사장님 확인이 필요합니다.",
-      dedupe_key: dedupe,
-    })
-    .select("id")
-    .maybeSingle();
-  if (error) {
-    if (/duplicate key|unique/i.test(error.message)) {
-      const { data: again } = await client.from("deposit_records").select("id").eq("user_id", companyId).eq("dedupe_key", dedupe).maybeSingle();
-      if (again?.id) return String(again.id);
-    }
-    throw new Error("입금 기록을 저장하지 못했습니다.");
-  }
-  return String(created?.id ?? "");
+  // 회사+견적 잠금 안에서 원문 ID 중복 확인 → 미연결 고객 신고 1:1 연결 → 새 기록 순으로 처리합니다 (서버 전용 함수).
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.rpc("record_bank_receipt" as never, {
+    p_company: companyId,
+    p_estimate: estimateId,
+    p_kind: kind,
+    p_amount: Number(msg.amount ?? 0),
+    p_depositor: String(msg.depositor_name ?? ""),
+    p_deposited_at: msg.deposited_at ?? new Date().toISOString(),
+    p_raw: msg.raw_text,
+    p_source: "sms_paste",
+    p_dedupe: `banksms|${msg.id}`,
+    p_note: "은행 입금 문자에서 연결했습니다. 사장님 확인이 필요합니다.",
+    p_name_matched: true,
+  } as never);
+  const r = data as { ok?: boolean; id?: string; error?: string } | null;
+  if (error || !r?.ok || !r.id) throw new Error(r?.error ?? "입금 기록을 저장하지 못했습니다.");
+  return String(r.id);
 }
 
 export interface IngestResult {
