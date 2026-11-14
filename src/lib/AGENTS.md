@@ -5,7 +5,6 @@
 - Reminder resend previews read only company-owned rows and share the sender's message builder; opening or cancelling a preview never sends SMS or reserves usage.
 
 - Owner selected-item removal uses an authenticated security-invoker RPC locking the company request and matching draft; it removes only room quantity/disposal JSON, never catalog rows.
-- Shared picker art uses a responsive square with an inset safety area and centered contain images without fit scaling or clipped overflow; this keeps wide items intact in both owner and customer three-column lists without altering source assets.
 
 - Customer intake house links live in one `intake_requests` row (company-scoped RLS; each token SHA-256 indexed and AES-GCM encrypted); separate draft/submission JSON and shared destination snapshots commit through locked revision-checked service-only RPCs to one preassigned estimate ID, preventing cross-house and concurrent overwrite.
 - Intake customer functions look up rows only by token hash; owner-scoped request preparation supplies text and a valid customer link to the gated native SMS composer using the current input phone, without file sharing or preparation dialogs; intake and visit composer opening never invokes a provider or records sending without separate owner confirmation.
@@ -23,10 +22,8 @@
 - Photo item recognition is two-stage: a cheap low-detail detect pass, then only ambiguous boxes are cropped (jpeg-js) and verified at high detail; thresholds live in src/lib/scan-rules.ts and user corrections go to scan_feedback as prompt hints, keeping credit use low.
 - Scan geometry is stored in existing room_scans result JSON and rendered in the photo's natural coordinate space; missing outlines are not replaced by boxes, shelf tiers require complete confident internal shelf lines, and crop geometry maps back using exact JPEG crop bounds to avoid drift without altering catalog IDs.
 - Live camera outlines run on-device through the shared src/lib/live-vision.ts singleton (WASM pinned to the installed MediaPipe version, magic_touch via InteractiveSegmenterLegacy), loaded once after the camera is ready; this keeps detection free of AI credits and the shutter is never auto-triggered or blocked.
-- Public intake renders the actual Step1/Step2/Step3 through CustomerFlowProvider and a field adapter, with token-scoped persistence and no company auth store; this prevents separate UI drift or authenticated company operations from public links.
 - Payment review uses actual receipts, not claims/stored balances; locked owner RPC completes, history polls every 15s. Explicit deposit/balance registration prevents pre-confirmation misclassification.
 - Home and monthly review queues share homeReviewStages and latestTermsByEstimate independently of completion; both receipt kinds remain visible, and completed-contract extra receipts are acknowledged without changing paid totals or entitlement.
-- Settings opens the existing bank SMS inbox; manual paste reuses authenticated ingestion and read-only refresh never rotates forwarding credentials, preventing duplicate payment paths or silent key replacement.
 - History retires only unconverted intake drafts through an owner-scoped locked RPC, leaving request snapshots and formal estimates or receipt-linked drafts intact; tombstones prevent device copies from reappearing.
 
 - Request deletion uses the owner-scoped locked delete_intake_request RPC and soft markers; formal estimate/receipt-linked drafts are protected and audit snapshots are retained.
