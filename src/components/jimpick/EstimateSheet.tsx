@@ -57,7 +57,8 @@ function ymd(v: string | number | Date): string {
 export interface SheetRoom {
   id?: string;
   name: string;
-  items: { id: string; name: string; qty: number; disposal?: boolean }[];
+  /** 공유 자료의 명시적 그림 주소 — 있으면 다른 견적과 공용인 등록 목록 대신 이것만 씁니다 */
+  items: { id: string; name: string; qty: number; disposal?: boolean; icon?: string }[];
 }
 
 /** 폐기물 품목 사진 위 빨간 X */

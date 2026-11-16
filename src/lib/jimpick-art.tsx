@@ -185,7 +185,10 @@ export function ItemArt({
   size = 64,
   className = "",
   cutout = false,
+  src,
 }: {
+  /** 공유 자료에 고정된 그림 주소 — 있으면 이 그림만 씁니다 */
+  src?: string;
   /** 카탈로그 품목 id (옵션처럼 id 가 없으면 비워 두세요) */
   id?: string;
   name: string;
@@ -195,6 +198,7 @@ export function ItemArt({
 }) {
   // 옵션·작업(에어컨 이전 설치, 입주 청소 …)은 3D 사진이 없어 라인 아이콘을 씁니다
   // 품목에 저장된 그림이 있으면 이름(예: '조립식')과 관계없이 그 그림을 그대로 씁니다
+  if (src) return <Icon3D src={src} alt={name} size={size} className={className} cutout={cutout} />;
   const work = hasStoredIcon(id) ? undefined : guessWorkLineKey(name);
   if (work) return <LineArt name={work} alt={name} size={size} className={className} />;
 

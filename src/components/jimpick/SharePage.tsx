@@ -38,7 +38,6 @@ import {
   LADDER_SEPARATE_TEXT,
   type Estimate,
 } from "@/lib/jimpick";
-import { registerCustomIcons } from "@/lib/jimpick-icon3d";
 import { isPlaceholderName, UNKNOWN_ITEM_NAME } from "@/lib/shared-item-repair";
 import { ItemArt } from "@/lib/jimpick-art";
 import { OptionArt } from "./OptionArt";
@@ -368,8 +367,7 @@ export function SharePage() {
         total?: number;
       };
       if (!v?.draft || !Array.isArray(v.rooms)) return null;
-      // 직접 추가·AI 로 만든 품목 아이콘도 고객 화면에서 그대로 보이게 등록합니다
-      registerCustomIcons(v.draft.customItems);
+      // 품목 그림은 각 카드에 고정된 주소로만 그립니다(다른 견적과 공용인 등록 목록을 쓰지 않음)
       return {
         draft: v.draft,
         rooms: v.rooms,

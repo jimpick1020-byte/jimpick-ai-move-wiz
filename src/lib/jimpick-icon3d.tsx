@@ -627,7 +627,9 @@ export function Icon3D({
   className?: string;
   cutout?: boolean;
 }) {
-  const [failed, setFailed] = useState(false);
+  // 실패는 그 주소에만 적용합니다 — 새 그림 주소가 오면 다시 불러옵니다
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const failed = failedSrc === src;
   // 업체 저장 그림이 깨지면 기본 상자 대신 「그림 없음」으로 바꿉니다
   const storedArt = !src.startsWith(BASE);
   const noImage = src === NO_IMAGE_ICON || (failed && storedArt);
@@ -664,7 +666,7 @@ export function Icon3D({
         width={size}
         height={size}
         loading="lazy"
-        onError={() => setFailed(true)}
+        onError={() => setFailedSrc(src)}
         className="h-full w-full object-contain"
         style={cutout ? undefined : { transform: `scale(${fit})`, transformOrigin: "center" }}
       />

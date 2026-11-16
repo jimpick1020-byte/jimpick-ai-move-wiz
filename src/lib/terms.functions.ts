@@ -263,31 +263,31 @@ export const getTermsLink = createServerFn({ method: "POST" })
       }
     }
 
-    // 공유 품목 이름·그림 복구 — 이 견적 업체(user_id)의 카탈로그만 읽고, 목록은 내보내지 않습니다.
+    // 공유 품목 이름·그림 — 항상 행별로 정리하고, 선택한 품목만 공개합니다.
+    // 카탈로그 보완은 토큰으로 확인한 견적 소유 업체(user_id)의 일반 품목·선택 ID만 읽습니다.
     if (snapshot) {
       try {
         const repair = await import("./shared-item-repair");
-        const { itemNameById } = await import("./jimpick");
-        const { ICON3D } = await import("./jimpick-icon3d");
-        const isBuiltin = (id: string) => !!itemNameById(id) || !!ICON3D[id];
+        const { builtinItemOf } = await import("./shared-item-builtin");
         const snap = JSON.parse(snapshot);
-        const ids = repair.idsNeedingCatalog(snap, isBuiltin);
-        if (ids.length) {
-          const { data: rows } = await supabaseAdmin
+        const ownerId = String((row as { user_id?: string }).user_id ?? "");
+        const ids = repair.idsNeedingCatalog(snap, builtinItemOf);
+        const rows = await repair.loadOwnerCatalogRows(async (owner, part) => {
+          const { data: found, error: lookupError } = await supabaseAdmin
             .from("item_icons")
             .select("id, item_id, display_name, requested_name, original_name, name, status, active, image_path, storage_path")
-            .eq("user_id", (row as { user_id?: string }).user_id ?? "")
-            .in("item_id", ids)
+            .eq("user_id", owner)
+            .eq("customer_only", false)
+            .in("item_id", part)
             .order("updated_at", { ascending: false });
-          const seen = new Set<string>();
-          const latest = ((rows ?? []) as import("./shared-item-repair").CatalogRow[]).filter((r) => !seen.has(r.item_id) && seen.add(r.item_id));
-          snapshot = JSON.stringify(repair.repairSharedSnapshot(snap, latest, isBuiltin));
-        }
+          if (lookupError) throw new Error(lookupError.message);
+          return (found ?? []) as import("./shared-item-repair").CatalogRow[];
+        }, ownerId, ids);
+        snapshot = JSON.stringify(repair.compactSharedSnapshot(snap, rows, builtinItemOf));
       } catch (e) {
         console.error("[getTermsLink] item repair", e instanceof Error ? e.message : e);
       }
     }
-
 
     return {
       ok: true,

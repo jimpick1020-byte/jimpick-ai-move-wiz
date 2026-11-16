@@ -277,6 +277,8 @@ import { EstimateSheet, DisposalX, type SheetRoom } from "./EstimateSheet";
 import { Switch } from "@/components/ui/switch";
 import { afterWorkConditions, beforeItemSelection } from "@/lib/ai-scan-setting";
 import { editedSheet, sheetRoomsOf } from "@/lib/sheet-edit";
+import { serializeSharedSnapshot } from "@/lib/shared-item-repair";
+import { builtinItemOf } from "@/lib/shared-item-builtin";
 import { saveEditedSheet } from "@/lib/sheet-edit.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { printSheet } from "@/lib/sheet-export";
@@ -5403,6 +5405,18 @@ export function Result() {
         parts,
         rooms: sheetRooms,
       };
+      // 고객 공유 자료 — 작성 카드에 보이는 이름·그림을 품목별로 고정하고 선택한 품목만 담습니다.
+      const sharedJson = serializeSharedSnapshot({
+        draft: { ...draft, total, deposit: plannedDeposit(total, draft.depositOverride), sheetConfirmedAt: sendSnap.confirmedAt, sheetSnapshot: sendSnap },
+        rooms: sendSnap.rooms.map((room) => ({ ...room, items: room.items.map((it) => ({ ...it, icon: icon3dFor(it.id, it.name) })) })),
+        parts: sendSnap.parts,
+        total: sendSnap.total,
+      } as never, builtinItemOf);
+      if (!sharedJson) {
+        setSendResult({ ok: false, error: "견적서 자료가 너무 커서 보낼 수 없습니다. 품목 수를 줄인 뒤 다시 시도해 주세요." });
+        setSending(false);
+        return;
+      }
       // 1) 견적서를 서버에 올려 둡니다. 이것이 있어야 고객이 링크를 열 수 있습니다.
       try {
         const pub = await publishEstimateTerms({
@@ -5419,12 +5433,7 @@ export function Result() {
             termsVersion: TERMS_VERSION,
             termsEffectiveAt: TERMS_EFFECTIVE_AT,
             accessToken: publishedToken,
-            sheetSnapshot: JSON.stringify({
-              draft: { ...draft, total, deposit: plannedDeposit(total, draft.depositOverride), sheetConfirmedAt: sendSnap.confirmedAt, sheetSnapshot: sendSnap },
-              rooms: sendSnap.rooms,
-              parts: sendSnap.parts,
-              total: sendSnap.total,
-            }).slice(0, 300_000),
+            sheetSnapshot: sharedJson,
           },
         });
         if (!pub.ok) {

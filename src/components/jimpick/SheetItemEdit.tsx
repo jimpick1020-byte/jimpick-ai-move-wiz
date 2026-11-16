@@ -6,7 +6,7 @@ import type { Estimate } from '@/lib/jimpick';
 import { DisposalX } from './EstimateSheet';
 
 export function SheetItemEdit({ item, roomId, draft, onSave }: {
-  item: { id: string; name: string; qty: number; disposal?: boolean }; roomId: string; draft: Estimate;
+  item: { id: string; name: string; qty: number; disposal?: boolean; icon?: string }; roomId: string; draft: Estimate;
   onSave?: (patch: Partial<Estimate>) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -37,7 +37,7 @@ export function SheetItemEdit({ item, roomId, draft, onSave }: {
           if (isDoubleTap(first.current, tap)) { first.current = null; void toggle(); }
           else first.current = tap;
         }} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') void toggle(); }}>
-        <ItemArt id={item.id} name={item.name} size={40} />{item.disposal && <DisposalX />}
+        <ItemArt id={item.id} name={item.name} src={item.icon} size={40} />{item.disposal && <DisposalX />}
       </span>
       {onSave ? <Button variant="ghost" className="h-auto min-w-0 justify-start whitespace-normal p-0 text-left" aria-label={`${item.name} 품목 수정`} onClick={() => { setName(item.name); setQty(item.qty); setEditing(true); setError(''); }}><span><span className="block break-words">{item.name}</span><span className="block">{item.qty}</span></span></Button> : <span className="min-w-0 text-base text-foreground"><span className="block break-words">{item.name}</span><span className="block font-bold">{item.qty}</span></span>}
     </div>

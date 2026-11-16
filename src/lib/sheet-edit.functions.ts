@@ -35,10 +35,15 @@ export const syncEditedSheet = createServerFn({ method: 'POST' })
       .is('deleted_at', null).is('cancelled_at', null).order('sheet_version', { ascending: false }).limit(1).maybeSingle();
     if (readError) return { ok: false, error: '고객 견적서를 읽지 못했습니다. 편집본은 보존되었습니다.' };
     if (!row) return { ok: true };
+    const { serializeSharedSnapshot } = await import('./shared-item-repair');
+    const { builtinItemOf } = await import('./shared-item-builtin');
+    // 공개 자료에는 선택한 품목만 담습니다. 너무 크면 자르지 않고 저장하지 않습니다.
+    const sharedJson = serializeSharedSnapshot({ draft, rooms: sheetRoomsOf(draft), parts: draft.sheetSnapshot.parts, total: draft.total } as never, builtinItemOf);
+    if (!sharedJson) return { ok: false, error: '편집본은 저장했지만 고객 견적서 자료가 너무 커서 반영하지 못했습니다.' };
     const { error } = await context.supabase.from('estimate_terms').update({
       customer_name: draft.customerName, contact_phone: draft.phone, move_date: draft.moveDate || null,
       company_phone: draft.staffPhone || null, total: draft.total,
-      sheet_snapshot: JSON.stringify({ draft, rooms: sheetRoomsOf(draft), parts: draft.sheetSnapshot.parts, total: draft.total }),
+      sheet_snapshot: sharedJson,
     }).eq('id', row.id).eq('user_id', context.userId);
     if (error) return { ok: false, error: '편집본은 저장했지만 고객 견적서 반영에 실패했습니다. 다시 저장해 주세요.' };
     try {
