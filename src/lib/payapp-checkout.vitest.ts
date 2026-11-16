@@ -1,0 +1,57 @@
+import { beforeEach, describe, expect, test, vi } from "vitest";
+import { PAYAPP_POLICY_VERSION } from "./payapp-live";
+
+const fake = vi.hoisted(() => ({ admin: {rpc:vi.fn(),from:vi.fn()}, context: {userId:"11111111-1111-4111-8111-111111111111",supabase:{from:vi.fn()}}, request:vi.fn() }));
+vi.mock("@tanstack/react-start", () => ({createServerFn:() => {
+  let validator:(input:unknown)=>unknown = input=>input;
+  const chain = {middleware:()=>chain,inputValidator:(fn:typeof validator)=>{validator=fn;return chain;},handler:(fn:(arg:unknown)=>unknown)=>async(args:{data:unknown})=>fn({context:fake.context,data:validator(args.data)})};
+  return chain;
+}}));
+vi.mock("@/integrations/supabase/auth-middleware",()=>({requireSupabaseAuth:{}}));
+vi.mock("@/integrations/supabase/client.server",()=>({supabaseAdmin:fake.admin}));
+vi.mock("./payapp-live.server",async importOriginal=>({...(await importOriginal<typeof import("./payapp-live.server")>()),payappRequest:fake.request}));
+import { startPayappSubscription } from "./payapp-live.functions";
+import { PayappRequestError } from "./payapp-live.server";
+
+const consent={consent:true as const,requestDate:"2026-11-16",expire:"2031-11-16",policyVersion:PAYAPP_POLICY_VERSION};
+const order={id:"22222222-2222-4222-8222-222222222222",payurl:null,status:"creating",created_at:"2026-11-16T14:00:00Z",requested_at:"2026-11-16T14:00:00Z",request_date:consent.requestDate,rebill_expire:consent.expire,first_paid_at:null,requested_day:16,policy_version:PAYAPP_POLICY_VERSION};
+beforeEach(()=>{
+  vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-16T14:00:00Z")); vi.clearAllMocks();
+  for(const key of ["PAYAPP_USER_ID","PAYAPP_LINK_KEY","PAYAPP_LINK_VALUE","PAYAPP_REQUEST_KEY"]) vi.stubEnv(key,"synthetic-only");
+  fake.context.supabase.from.mockReturnValue({select:()=>({eq:()=>({single:async()=>({data:{phone:"010-0000-0000"},error:null})})})});
+  fake.admin.rpc.mockResolvedValue({data:{created:true,order},error:null});
+  fake.admin.from.mockReturnValue({update:()=>({eq:()=>({eq:()=>({select:()=>({maybeSingle:async()=>({data:{id:order.id},error:null})})})})})});
+  fake.request.mockResolvedValue(new URLSearchParams("rebill_no=123&payurl=https%3A%2F%2Fpayapp.kr%2Fsynthetic"));
+});
+import { afterEach } from "vitest";
+afterEach(()=>{vi.useRealTimers();vi.unstubAllEnvs();});
+describe("actual checkout server orchestration with fake provider/isolated records",()=>{
+  test("unchecked consent never reserves or requests payment",async()=>{
+    await expect(startPayappSubscription({data:{...consent,consent:false} as never})).rejects.toThrow(); expect(fake.admin.rpc).not.toHaveBeenCalled(); expect(fake.request).not.toHaveBeenCalled();
+  });
+  test("consented 30000/card/no-SMS registration returns validated same-tab destination only",async()=>{
+    expect(await startPayappSubscription({data:consent})).toEqual({payurl:"https://payapp.kr/synthetic"});
+    expect(fake.request).toHaveBeenCalledWith("rebillRegist",expect.objectContaining({goodprice:"30000",smsuse:"n",openpaytype:"card",rebillCycleMonth:"16",rebillExpire:"2031-11-16"}));
+    expect(fake.admin.from).toHaveBeenCalledTimes(1); expect(fake.admin.from).toHaveBeenCalledWith("payapp_orders");
+  });
+  test("cross-midnight resume reuses original quote without provider call or consent rewrite",async()=>{
+    vi.setSystemTime(new Date("2026-11-17T01:00:00Z"));
+    fake.admin.rpc.mockResolvedValue({data:{created:false,order:{...order,status:"pending",payurl:"https://payapp.kr/synthetic"}},error:null});
+    await startPayappSubscription({data:{...consent,resumeOrderId:order.id}});
+    expect(fake.request).not.toHaveBeenCalled(); expect(fake.admin.rpc).toHaveBeenCalledWith("reserve_payapp_order_v2",expect.objectContaining({p_request:"2026-11-16",p_resume:order.id}));
+  });
+  test("midnight before registration rejects stale consent without new request",async()=>{
+    vi.setSystemTime(new Date("2026-11-16T15:00:00Z")); await expect(startPayappSubscription({data:consent})).rejects.toThrow("날짜"); expect(fake.request).not.toHaveBeenCalled();
+  });
+  test.each([true,false])("definite rejection %s only releases proven failure",async definitive=>{
+    fake.request.mockRejectedValue(new PayappRequestError(definitive)); await expect(startPayappSubscription({data:consent})).rejects.toThrow();
+    expect(fake.admin.rpc.mock.calls.filter(call=>call[0]==="reject_payapp_registration").length).toBe(definitive ? 1 : 0);
+  });
+  test("unsafe URL keeps request locked and never returns redirect",async()=>{
+    fake.request.mockResolvedValue(new URLSearchParams("rebill_no=123&payurl=https%3A%2F%2Fevil.example%2Fsynthetic")); await expect(startPayappSubscription({data:consent})).rejects.toThrow("URL"); expect(fake.admin.rpc).toHaveBeenCalledTimes(1);
+  });
+  test("24-hour exact boundary does not reopen or unlock",async()=>{
+    vi.setSystemTime(new Date("2026-11-17T14:00:00Z"));fake.admin.rpc.mockResolvedValue({data:{created:false,order:{...order,status:"pending",payurl:"https://payapp.kr/synthetic"}},error:null});
+    await expect(startPayappSubscription({data:{...consent,resumeOrderId:order.id}})).rejects.toThrow("기간");expect(fake.request).not.toHaveBeenCalled();expect(fake.admin.rpc).toHaveBeenCalledTimes(1);
+  });
+});

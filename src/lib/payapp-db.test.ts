@@ -15,7 +15,7 @@ beforeAll(async () => {
     CREATE TABLE public.subscriptions(user_id uuid PRIMARY KEY,plan text DEFAULT 'free',status text DEFAULT 'trialing',price integer DEFAULT 0,interval text DEFAULT 'month',current_period_start timestamptz DEFAULT now(),current_period_end timestamptz DEFAULT now()+interval '10 days',cancel_at_period_end boolean DEFAULT false,trial_ends_at timestamptz DEFAULT now()+interval '10 days');
     CREATE TABLE public.billing_keys(user_id uuid);
     CREATE TABLE public.payments(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),user_id uuid,plan text,amount integer,method text,status text,provider text,order_id text,payment_key text,paid_at timestamptz DEFAULT now(),next_billing_at timestamptz,test_mode boolean,receipt_no text,fail_reason text,created_at timestamptz DEFAULT now());`);
-  for (const file of ["0043_payapp_verified_subscription_orders.sql", "0044_payapp_optional_notice_dates.sql", "0045_payapp_order_isolation_and_cancellation_audit.sql", "0046_payapp_order_expiry_snapshot.sql"]) {
+  for (const file of ["0043_payapp_verified_subscription_orders.sql", "0044_payapp_optional_notice_dates.sql", "0045_payapp_order_isolation_and_cancellation_audit.sql", "0046_payapp_order_expiry_snapshot.sql", "0051_payapp_versioned_card_consent.sql", "0052_payapp_paid_period_separate.sql"]) {
     await db.exec(readFileSync(`drizzle/migrations/${file}`, "utf8"));
   }
 });
@@ -40,6 +40,32 @@ async function sub() { return (await db.query<{payapp_order_id: string; cancel_a
 async function payments() { return (await db.query<{status: string; amount: number}>("SELECT status,amount FROM payments WHERE user_id=$1", [user])).rows; }
 
 describe("real production RPCs in isolated rollback PostgreSQL", () => {
+  test("new consent snapshot, pending resume and duplicate reservation keep original trial", () => fixture(async () => {
+    const before=await sub();
+    const reserve = async (resume:string|null=null) => (await db.query<{result:{created:boolean;order:{id:string;policy_version:string;consent_snapshot:{amount:number};requested_day:number}}}>("SELECT reserve_payapp_order_v2($1,(now() AT TIME ZONE 'Asia/Seoul')::date,((now() AT TIME ZONE 'Asia/Seoul')::date+interval '5 years')::date,'card-fixed-kst-2026-11-16',$2) result",[user,resume])).rows[0].result;
+    const first=await reserve(); expect(first.created).toBe(true); expect(first.order.consent_snapshot.amount).toBe(30000);
+    await db.query("UPDATE payapp_orders SET status='pending',payurl='https://payapp.kr/synthetic',rebill_no='12345' WHERE id=$1",[first.order.id]);
+    const second=await reserve(first.order.id); expect(second.created).toBe(false); expect(second.order.id).toBe(first.order.id);
+    expect(await sub()).toEqual(before);
+  }));
+  test("cross-midnight approval uses fixed requested day but full paid period; duplicate stays one", () => fixture(async () => {
+    const id=await order();
+    await db.query("UPDATE payapp_orders SET policy_version='card-fixed-kst-2026-11-16',request_date='2026-01-31',requested_day=31,consented_at='2026-01-31T14:00:00Z' WHERE id=$1",[id]);
+    for(let i=0;i<2;i++) await db.query("SELECT apply_payapp_notice(id,user_id,rebill_no,'987','4',30000,'2026-02-01T01:00:00Z','2026-03-01T01:00:00Z') FROM payapp_orders WHERE id=$1",[id]);
+    const r=await db.query<{bill:string;end:string;start:string}>("SELECT p.next_billing_at::text bill,s.current_period_end::text end,s.current_period_start::text start FROM payments p JOIN subscriptions s ON p.user_id=s.user_id WHERE p.payment_key='987'");
+    expect(r.rows[0].bill).toBe('2026-02-27 15:00:00+00'); expect(r.rows[0].end).toBe('2026-03-01 01:00:00+00'); expect(r.rows[0].start).toBe('2026-02-01 01:00:00+00'); expect((await payments()).length).toBe(1);
+  }));
+  test("24h boundary rejects reopening without clearing pending lock or trial", () => fixture(async () => {
+    const before=await sub(); const id=await order();
+    await db.query("UPDATE payapp_orders SET policy_version='card-fixed-kst-2026-11-16',request_date=(now() AT TIME ZONE 'Asia/Seoul')::date,requested_at=now()-interval '24 hours',payurl='https://payapp.kr/synthetic' WHERE id=$1",[id]);
+    await db.exec("SAVEPOINT boundary");
+    await expect(db.query("SELECT reserve_payapp_order_v2(user_id,request_date,rebill_expire,policy_version,id) FROM payapp_orders WHERE id=$1",[id])).rejects.toThrow('Reopen limit');
+    await db.exec("ROLLBACK TO SAVEPOINT boundary"); expect(await sub()).toEqual(before); expect((await db.query<{status:string}>("SELECT status FROM payapp_orders WHERE id=$1",[id])).rows[0].status).toBe('pending');
+  }));
+  test("stale unregistered quote rolls back instead of silently changing consent", () => fixture(async () => {
+    await db.exec("SAVEPOINT quote"); await expect(db.query("SELECT reserve_payapp_order_v2($1,(now() AT TIME ZONE 'Asia/Seoul')::date-1,((now() AT TIME ZONE 'Asia/Seoul')::date-1+interval '5 years')::date,'card-fixed-kst-2026-11-16')",[user])).rejects.toThrow('Consent quote');
+    await db.exec("ROLLBACK TO SAVEPOINT quote"); expect((await db.query("SELECT * FROM payapp_orders")).rows).toEqual([]);
+  }));
   test("new reservation snapshots five-year expiry without altering trial or existing orders", () => fixture(async () => {
     const before = await sub();
     await db.query("SELECT reserve_payapp_order($1,13)", [user]);

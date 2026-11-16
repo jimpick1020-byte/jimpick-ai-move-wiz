@@ -40,7 +40,7 @@ function PayappReturn() {
           : order?.status === "pending" || order?.status === "creating" ? order.status === "pending" && !result.pendingReusable ? "이전 결제 요청의 유효기간을 확인해야 합니다. 기존 요청 확인·취소 후 다시 신청해 주세요." : "결제 확인 중입니다. 아직 유료 구독으로 전환되지 않았습니다. 중복 결제를 시작하지 마세요."
           : order?.status === "canceled" || order?.status === "failed" ? "결제가 취소되었거나 승인되지 않았습니다. 남은 무료체험은 유지됩니다."
           : order?.status === "review" ? "결제 상태 확인이 필요합니다. 중복 결제를 시작하지 마세요."
-          : !result.ready ? "구독 결제를 준비 중입니다. 현재는 결제가 진행되지 않습니다." : "확인된 구독 결제가 없습니다.");
+          : !result.ready ? "구독 결제 연동 설정을 확인해 주세요." : "확인된 구독 결제가 없습니다.");
         if ((order?.status === "pending" || order?.status === "creating") && attempts++ < 12) timer = setTimeout(() => void check(), 5000);
       } catch {
         if (alive) setMessage("결제 상태를 확인하지 못했습니다. 견적잇으로 돌아가 로그인 후 다시 확인해 주세요. 확인 전에는 중복 결제하지 마세요.");

@@ -1,4 +1,4 @@
-import { authenticatePayappNotice, kstStamp, payappDate, payappNextDate, payappFirstApprovalMatches, payappKstDate, sha256 } from "./payapp-live";
+import { authenticatePayappNotice, kstStamp, payappDate, payappNextBillingDate, payappFirstApprovalMatches, payappKstDate, sha256 } from "./payapp-live";
 
 export class PayappRequestError extends Error {
   constructor(readonly definitive: boolean, readonly code: string | null = null) {
@@ -63,15 +63,15 @@ export async function handlePayappFeedback(request: Request) {
     if (!order || order.rebill_no !== notice.rebill_no || order.amount !== (partial ? notice.orig_price : notice.price)) return new Response("Payment mismatch",{status:409,headers});
     const paid = notice.pay_date ? payappDate(notice.pay_date) : null;
     if (notice.pay_state === "4" && paid && order.rebill_expire && payappKstDate(paid) >= order.rebill_expire) return new Response("Expired registration requires reconciliation",{status:409,headers});
-    const next = paid ? payappNextDate(order.first_paid_at ?? paid,paid) : null;
+    const next = paid ? payappNextBillingDate(order,paid) : null;
     const dates = paid && next ? { p_paid: paid, p_next: next } : {};
     const { data: applied, error: saveError } = await supabaseAdmin.rpc("apply_payapp_notice",{
       p_order:order.id,p_user:order.user_id,p_rebill:notice.rebill_no,p_mul:notice.mul_no,p_state:notice.pay_state,p_amount:notice.price,...dates,
       ...(partial ? {p_orig_mul:notice.orig_mul_no,p_orig_price:notice.orig_price} : {}),
     });
     if (saveError) throw new Error("Apply failure");
-    // A link approved on a different KST day cannot silently use the request-day schedule.
-    // Stop provider renewal, retain the verified paid month, and require reconciliation.
+    // Preserve the old consent guard only for legacy orders. New versioned
+    // consent explicitly covers approval after midnight on the original day schedule.
     const isolated = typeof applied === "object" && applied !== null && !Array.isArray(applied) && applied.isolated === true;
     if (notice.pay_state === "4" && !isolated && !order.canceled_at && paid && !payappFirstApprovalMatches(order,paid)) {
       await payappRequest("rebillCancel",{rebill_no:notice.rebill_no});

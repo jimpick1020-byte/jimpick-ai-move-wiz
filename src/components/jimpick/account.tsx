@@ -556,6 +556,9 @@ export function SubscriptionScreen() {
   const [testBusy, setTestBusy] = useState(false);
   const [consent, setConsent] = useState(false);
   const testLock = useRef(false);
+  const checkoutOrder = payapp?.order && !["failed", "canceled"].includes(payapp.order.status) ? payapp.order : null;
+  const checkoutQuote = checkoutOrder ? { requestDate: checkoutOrder.request_date, expire: checkoutOrder.rebill_expire, day: checkoutOrder.requested_day, policyVersion: checkoutOrder.policy_version ?? "legacy-same-day" } : payapp?.quote;
+  useEffect(() => { setConsent(false); }, [checkoutQuote?.requestDate, checkoutQuote?.expire, checkoutQuote?.policyVersion, checkoutOrder?.id, testOpen]);
   const { entitlement, blocked, remainingText, refresh: refreshEnt } = useEntitlement();
 
   const refresh = async () => {
@@ -642,12 +645,13 @@ export function SubscriptionScreen() {
 
   const current = account?.subscription;
   const beginCheckout = async () => {
-    if (testLock.current || !consent || !payapp) return;
+    if (testLock.current || !consent || !payapp || !checkoutQuote?.requestDate || !checkoutQuote.expire) return;
     testLock.current = true; setTestBusy(true);
     try {
-      const result = await startPayapp({ data: { consent: true, requestDate: payapp.quote.requestDate, expire: payapp.quote.expire } });
+      const result = await startPayapp({ data: { consent: true, requestDate: checkoutQuote.requestDate, expire: checkoutQuote.expire, policyVersion: checkoutQuote.policyVersion, ...(checkoutOrder ? {resumeOrderId:checkoutOrder.id} : {}) } });
       window.location.assign(result.payurl);
     } catch (error) {
+      setConsent(false);
       toast.error(error instanceof Error ? error.message : "결제 요청을 확인하지 못했습니다.");
       await refresh();
     } finally { testLock.current = false; setTestBusy(false); }
@@ -795,16 +799,17 @@ export function SubscriptionScreen() {
               <DialogDescription>결제는 페이앱의 안전한 결제창에서 직접 승인합니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-2 text-sm leading-6">
-              <p className="font-semibold">오늘 30,000원이 결제되며, 무료체험이 종료되고 유료 구독이 시작됩니다.</p>
-              <p>요청일 {payapp?.quote.requestDate ?? "확인 중"} 당일에 결제를 승인해 주세요. 매월 {payapp?.order?.requested_day ?? payapp?.quote.day ?? "해당"}일에 30,000원이 자동결제됩니다. 결제일은 고정되며, 다음 결제 예정일은 확인 중입니다.</p>
-              <p>등록 만료일: {payapp?.order && !["failed","canceled"].includes(payapp.order.status) ? payapp.order.rebill_expire ?? "확인 필요" : payapp?.quote.expire ?? "확인 중"}. 이 날짜부터 추가 청구는 없으며 연장할 수 없습니다. 새 동의로 재등록할 수 있습니다. 5년 등록기간이며 약정이나 선결제가 아닙니다.</p>
+              <p className="font-semibold">카드를 처음 승인할 때 30,000원이 청구되고 유료 구독이 시작됩니다. 승인 통지 확인 전에는 남은 무료체험을 유지합니다.</p>
+              <p>동의한 한국시간 요청일 {checkoutQuote?.requestDate ?? "확인 중"} 기준 매월 {checkoutQuote?.day ?? "해당"}일에 30,000원이 자동결제됩니다. 해당 날짜가 없는 달만 말일에 결제하고 다음 달에는 원래 날짜로 돌아옵니다. 승인일이 달라도 고정 결제일은 바뀌지 않습니다. 신용카드만 이용합니다.</p>
+              <p>등록 만료일: {checkoutQuote?.expire ?? "확인 중"}. 이 날짜부터 추가 청구는 없으며 연장할 수 없습니다. 기존 결제 관계 확인 및 새 동의 후 재등록할 수 있습니다. 5년 등록기간이며 약정이나 선결제가 아닙니다. 이미 결제한 이용기간은 유지됩니다.</p>
               <p>언제든 ‘구독 · 결제’ 화면에서 구독을 해지할 수 있습니다. 해지 후 추가 청구는 중단되며 이미 결제한 기간까지 이용합니다.</p>
               <p className="text-muted-foreground">취소·실패 시 남은 무료체험은 유지됩니다. 동의 없이 체험 종료만으로 청구하지 않습니다.</p>
-              {!payapp?.ready && <div role="status" className="text-destructive">구독 결제를 준비 중입니다. 현재는 결제가 진행되지 않습니다.</div>}
-              {payapp?.order && <p role="status">{payapp.order.status === "creating" ? "기존 결제 요청 확인 중 · 중복 신청하지 마세요." : payapp.order.status === "pending" ? payapp.pendingReusable ? "당일 결제 승인 대기 중입니다." : "이전 결제 요청의 유효기간을 확인해야 합니다. 기존 요청 확인·취소 후 다시 신청해 주세요." : payapp.order.status === "review" ? "결제 확인이 필요합니다. 다시 신청하지 말고 결제 상태를 확인해 주세요." : "구독 상태를 확인했습니다."}</p>}
+              <p className="text-muted-foreground">앱에서는 같은 요청을 요청 시각부터 24시간 미만 동안 다시 열 수 있습니다. 페이앱 링크의 실제 유효기간은 판매자 설정에 따르며 앱의 재열기 제한과 다를 수 있습니다. 기존 요청은 원래 동의한 날짜와 조건으로 이어집니다.</p>
+              {!payapp?.ready && <div role="status" className="text-destructive">{payapp?.issues.join(" ") || "구독 결제 설정을 확인하고 있습니다."}</div>}
+              {payapp?.order && <p role="status">{payapp.order.status === "creating" ? "기존 결제 요청 확인 중 · 중복 신청하지 마세요." : payapp.order.status === "pending" ? payapp.pendingReusable ? "기존 요청의 카드 승인 대기 중입니다." : "앱의 재열기 기간이 지났습니다. 페이앱의 실제 취소·만료 확인 전에는 새로 신청하지 마세요." : payapp.order.status === "review" ? "결제 확인이 필요합니다. 다시 신청하지 말고 결제 상태를 확인해 주세요." : "구독 상태를 확인했습니다."}</p>}
               <label className="flex items-start gap-2">
                 <Checkbox checked={consent} onCheckedChange={(checked) => setConsent(checked === true)} disabled={testBusy} aria-label="즉시 결제 및 월 자동갱신 동의" className="mt-1" />
-                <span>오늘 30,000원 결제·체험 종료·고정 결제일·매월 자동결제·해지 및 5년 후 새 등록 필요를 확인하고 동의합니다.</span>
+                <span>첫 카드 승인 시 30,000원 청구·유료 시작·위 요청일의 고정 결제일·짧은 달 말일 및 다음 달 복귀·매월 자동결제·해지·5년 만료를 확인하고 동의합니다.</span>
               </label>
               <Button className="w-full h-auto whitespace-normal" disabled={testBusy || !consent || !payapp?.ready || (payapp.order?.status === "pending" && !payapp.pendingReusable) || ["creating", "active", "review"].includes(payapp?.order?.status ?? "")} onClick={beginCheckout}>{testBusy ? "결제 요청 확인 중…" : "동의하고 페이앱 결제창 열기"}</Button>
             </div>

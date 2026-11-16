@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { authenticatePayappNotice, payappDate, payappNextDate, payappReadiness, payappRegistrationQuote, payappPendingReusable, payappFirstApprovalMatches, payappBillingSchedule, safePayappUrl, sha256 } from "./payapp-live";
+import { authenticatePayappNotice, payappDate, payappNextDate, payappNextBillingDate, PAYAPP_POLICY_VERSION, payappReadiness, payappRegistrationQuote, payappPendingReusable, payappFirstApprovalMatches, payappBillingSchedule, safePayappUrl, sha256 } from "./payapp-live";
 
 // Explicit synthetic fixture, never read project credentials or call a payment provider.
 const fixture = {PAYAPP_USER_ID:"fixture-merchant",PAYAPP_LINK_KEY:"fixture-link",PAYAPP_LINK_VALUE:"fixture-value",PAYAPP_REQUEST_KEY:"fixture-request"};
@@ -19,12 +19,13 @@ describe("PayApp authenticated live boundaries (no external billing)",()=>{
     const parsed = await authenticatePayappNotice(await notice({card_num:"synthetic-card-field",cvc:"synthetic-cvc"}),fixture,now);
     expect(Object.keys(parsed).includes("card_num")).toBe(false); expect(Object.keys(parsed).includes("cvc")).toBe(false);
   });
-  test("only unverified month and same-day validity policy block configured requests",()=>{
-    const r=payappReadiness(fixture,new Date(now)); expect(r.ready).toBe(false); expect(r.issues.length).toBe(2);
+  test("official November 16 policy removes obsolete gates, four real keys still required",()=>{
+    const r=payappReadiness(fixture,new Date(now)); expect(r.ready).toBe(true); expect(r.issues).toEqual([]);
+    for (const key of Object.keys(fixture)) expect(payappReadiness({...fixture,[key]:undefined}).ready).toBe(false);
   });
   test("general month flag cannot bypass unverified same-day validity",()=>{
     const r = payappReadiness({...fixture,PAYAPP_MONTH_POLICY_CONFIRMED:"true"},new Date(now));
-    expect(r.ready).toBe(false); expect(r.issues.length).toBe(1);
+    expect(r.ready).toBe(true); expect(r.issues.length).toBe(0);
   });
   test("old fixed expiry setting never determines a new order",()=>{expect(payappReadiness({...fixture,PAYAPP_REBILL_EXPIRE:"2025-11-13"},new Date(now)).quote.expire).toBe("2031-11-13");});
   test("payment URL must use HTTPS and actual PayApp domain",()=>{
@@ -35,7 +36,7 @@ describe("PayApp authenticated live boundaries (no external billing)",()=>{
 
 describe("confirmed merchant date policy, synthetic inputs only", () => {
   test("new registration uses KST request date plus five years, price 30000", () => {
-    expect(payappRegistrationQuote(new Date("2026-11-12T15:01:00Z"))).toEqual({requestDate:"2026-11-13",expire:"2031-11-13",day:13,amount:30000});
+    expect(payappRegistrationQuote(new Date("2026-11-12T15:01:00Z"))).toEqual({requestDate:"2026-11-13",expire:"2031-11-13",day:13,amount:30000,policyVersion:PAYAPP_POLICY_VERSION});
     expect(payappRegistrationQuote(new Date("2026-11-13T15:01:00Z")).expire).toBe("2031-11-14");
   });
   test("February 29 five years later clamps to February 28", () => {
@@ -102,5 +103,28 @@ describe("partial cancellation fields", () => {
   });
   test("a cancellation amount cannot masquerade as a successful subscription", async () => {
     await expect(authenticatePayappNotice(await notice({pay_state: "4", price: "5000", orig_mul_no: "456", orig_price: "30000"}), fixture, now)).rejects.toThrow();
+  });
+});
+
+describe("November 16 versioned card contract", () => {
+  const order = {status:"pending",created_at:"2026-11-16T14:00:00Z",requested_at:"2026-11-16T14:00:00Z",request_date:"2026-11-16",requested_day:16,first_paid_at:null,policy_version:PAYAPP_POLICY_VERSION};
+  test("23h request crosses midnight and reopens strictly before 24h only", () => {
+    expect(payappPendingReusable(order,new Date("2026-11-16T15:00:00Z"))).toBe(true);
+    expect(payappPendingReusable(order,new Date("2026-11-17T13:59:59.999Z"))).toBe(true);
+    expect(payappPendingReusable(order,new Date("2026-11-17T14:00:00Z"))).toBe(false);
+    expect(payappPendingReusable(order,new Date("2026-11-16T13:59:59Z"))).toBe(false);
+  });
+  test("November 17 actual approval never cancels new consent and bills December 16", () => {
+    expect(payappFirstApprovalMatches(order,"2026-11-17T01:00:00Z")).toBe(true);
+    expect(payappNextBillingDate(order,"2026-11-17T01:00:00Z")).toBe("2026-12-15T15:00:00.000Z");
+  });
+  test.each([2026,2028])("January 31 requested anchor clamps and restores in %s", year => {
+    const jan={...order,request_date:`${year}-01-31`,requested_day:31};
+    expect(payappNextBillingDate(jan,`${year}-01-31T01:00:00Z`)).toBe(`${year}-02-${year===2028 ? "28" : "27"}T15:00:00.000Z`);
+    expect(payappNextBillingDate({...jan,first_paid_at:`${year}-02-01T01:00:00Z`},`${year}-02-${year===2028 ? "29" : "28"}T01:00:00Z`)).toBe(`${year}-03-30T15:00:00.000Z`);
+  });
+  test("legacy pending and first approval rules are not rewritten", () => {
+    expect(payappPendingReusable({...order,policy_version:null},new Date("2026-11-16T15:00:00Z"))).toBe(false);
+    expect(payappFirstApprovalMatches({...order,policy_version:null},"2026-11-17T01:00:00Z")).toBe(false);
   });
 });

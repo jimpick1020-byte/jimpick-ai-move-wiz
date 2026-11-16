@@ -1,6 +1,6 @@
 # Customer intake link rules
 
-- PayApp new orders snapshot KST request date and five-year exclusive expiry; full first-approval dates and same-day pending checks preserve locks, while paid access stays separate from provider expiry. Never enable registration before same-day validity and card month-end policy are verified.
+- PayApp snapshots server request time, consent policy, KST fixed day and exclusive expiry through the versioned reservation RPC; new-policy billing uses requested_day, legacy orders keep their original approval rules, and elapsed-time reopen limits never imply provider expiry or unlock an unresolved order.
 
 - Reminder resend previews read only company-owned rows and share the sender's message builder; opening or cancelling a preview never sends SMS or reserves usage.
 

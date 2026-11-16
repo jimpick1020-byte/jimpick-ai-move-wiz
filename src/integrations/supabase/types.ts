@@ -1356,15 +1356,18 @@ export type Database = {
         Row: {
           amount: number
           canceled_at: string | null
+          consent_snapshot: Json | null
           consented_at: string
           created_at: string
           first_paid_at: string | null
           id: string
           last_paid_at: string | null
           payurl: string | null
+          policy_version: string | null
           rebill_expire: string | null
           rebill_no: string | null
           request_date: string | null
+          requested_at: string | null
           requested_day: number
           status: string
           user_id: string
@@ -1372,15 +1375,18 @@ export type Database = {
         Insert: {
           amount?: number
           canceled_at?: string | null
+          consent_snapshot?: Json | null
           consented_at?: string
           created_at?: string
           first_paid_at?: string | null
           id?: string
           last_paid_at?: string | null
           payurl?: string | null
+          policy_version?: string | null
           rebill_expire?: string | null
           rebill_no?: string | null
           request_date?: string | null
+          requested_at?: string | null
           requested_day: number
           status?: string
           user_id: string
@@ -1388,15 +1394,18 @@ export type Database = {
         Update: {
           amount?: number
           canceled_at?: string | null
+          consent_snapshot?: Json | null
           consented_at?: string
           created_at?: string
           first_paid_at?: string | null
           id?: string
           last_paid_at?: string | null
           payurl?: string | null
+          policy_version?: string | null
           rebill_expire?: string | null
           rebill_no?: string | null
           request_date?: string | null
+          requested_at?: string | null
           requested_day?: number
           status?: string
           user_id?: string
@@ -2342,6 +2351,10 @@ export type Database = {
         }
         Returns: Json
       }
+      payapp_fixed_next: {
+        Args: { p_day: number; p_paid: string; p_request: string }
+        Returns: string
+      }
       record_bank_receipt: {
         Args: {
           p_amount: number
@@ -2394,6 +2407,16 @@ export type Database = {
       }
       reserve_payapp_order: {
         Args: { p_day: number; p_user: string }
+        Returns: Json
+      }
+      reserve_payapp_order_v2: {
+        Args: {
+          p_expire: string
+          p_policy: string
+          p_request: string
+          p_resume?: string
+          p_user: string
+        }
         Returns: Json
       }
       resume_intake_estimate: {
