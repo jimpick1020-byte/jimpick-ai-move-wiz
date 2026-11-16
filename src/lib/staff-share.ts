@@ -27,6 +27,11 @@ export interface StaffSheetSnapshot {
   fromDetail: string;
   toAddress: string;
   toDetail: string;
+  /** 길안내 목적지 좌표 (경도 x, 위도 y) — 없으면 티맵 주소 검색 */
+  fromX?: number | null;
+  fromY?: number | null;
+  toX?: number | null;
+  toY?: number | null;
   fromFloor: number;
   toFloor: number;
   workEnv: string;

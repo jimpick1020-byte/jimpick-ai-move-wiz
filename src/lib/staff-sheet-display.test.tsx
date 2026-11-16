@@ -58,3 +58,13 @@ describe("staff sheet selected details", () => {
     writeFileSync("/tmp/staff-sheet-fixture.html", html);
   });
 });
+describe("staff sheet TMAP address taps", () => {
+  it("each address row and map button targets its own side without unit details", async () => {
+    const { StaffSheetView } = await import("@/components/jimpick/StaffSheet");
+    const snap = { customerName: "", customerPhone: "", moveDate: "", moveTime: "", moveType: "", fromAddress: "서울 강남구 테헤란로 152", fromDetail: "101동 1203호", toAddress: "경기 성남시 분당구 정자동 178-1 302동 501호", toDetail: "", fromX: 127.0364, fromY: 37.5, toX: null, toY: null, fromFloor: 0, toFloor: 0, workEnv: "", truckText: "", distanceKm: 0, durationMin: 0, extraWork: [], note: "", staffName: "", staffPhone: "", rooms: [] };
+    const html = renderToStaticMarkup(createElement(StaffSheetView, { state: { loading: false, snap } }));
+    expect(html.match(/aria-label="출발지 서울 강남구 테헤란로 152 티맵 길안내 열기"/g)?.length).toBe(2);
+    expect(html.match(/aria-label="도착지 경기 성남시 분당구 정자동 178-1 티맵 길안내 열기"/g)?.length).toBe(2);
+    expect(html).not.toMatch(/aria-label="[^"]*(1203호|501호)/);
+  });
+});

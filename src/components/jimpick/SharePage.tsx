@@ -1,3 +1,4 @@
+import { TmapAddress } from "./TmapAddress";
 import { BalanceClaimPanel } from "./BalanceClaimPanel";
 import { customerPaymentDue, sheetPlannedDeposit } from "@/lib/customer-payment";
 import { CharacterImg } from "./CharacterGuide";
@@ -587,13 +588,13 @@ export function SharePage() {
               <div className="flex items-start gap-2">
                 <MapPin className="mt-0.5 h-4 w-4 text-[#25282D]" />
                 <div className="min-w-0 flex-1">
-                  <div>
+                  <TmapAddress label="출발지" address={estimate.fromAddress} x={estimate.fromX} y={estimate.fromY}>
                     출발: {estimate.fromAddress} {estimate.fromDetail}
-                  </div>
+                  </TmapAddress>
                   {estimate.toAddress?.trim() && (
-                    <div>
+                    <TmapAddress label="도착지" address={estimate.toAddress} x={estimate.toX} y={estimate.toY}>
                       도착: {estimate.toAddress} {estimate.toDetail}
-                    </div>
+                    </TmapAddress>
                   )}
                 </div>
               </div>
@@ -782,13 +783,13 @@ export function SharePage() {
             <div className="flex items-start gap-2">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#25282D]" />
               <div className="min-w-0 flex-1">
-                <div>
+                <TmapAddress label="출발지" address={estimate.fromAddress} x={estimate.fromX} y={estimate.fromY}>
                   출발: {estimate.fromAddress} {estimate.fromDetail}
-                </div>
+                </TmapAddress>
                 {estimate.toAddress?.trim() && (
-                  <div>
+                  <TmapAddress label="도착지" address={estimate.toAddress} x={estimate.toX} y={estimate.toY}>
                     도착: {estimate.toAddress} {estimate.toDetail}
-                  </div>
+                  </TmapAddress>
                 )}
               </div>
             </div>

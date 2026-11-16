@@ -219,5 +219,13 @@ export const openStaffShare = createServerFn({ method: "POST" })
     let source: Parameters<typeof repairStaffSheet>[1];
     try { source = JSON.parse(terms?.sheet_snapshot ?? "null") ?? undefined; } catch { source = undefined; }
     snapshot = repairStaffSheet(snapshot, source);
+    // 예전 링크: 같은 주소일 때만 원본 견적의 저장 좌표로 보완 (다른 주소 좌표로 안내하지 않음)
+    const d = (source as { draft?: Record<string, unknown> } | undefined)?.draft;
+    if (d) for (const side of ["from", "to"] as const) {
+      const sx = d[`${side}X`], sy = d[`${side}Y`];
+      if (snapshot[`${side}X`] == null && typeof sx === "number" && typeof sy === "number" && String(d[`${side}Address`] ?? "").trim() === snapshot[`${side}Address`].trim()) {
+        snapshot = { ...snapshot, [`${side}X`]: sx, [`${side}Y`]: sy };
+      }
+    }
     return { ok: true, expiresAt: row.expires_at, snapshot };
   });

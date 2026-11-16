@@ -1,3 +1,4 @@
+import { TmapAddress } from "./TmapAddress";
 import { activeHouseOf, houseLabel, roomHouse } from "@/lib/house-workspace";
 import { PaymentSmsButton } from "./PaymentSmsButton";
 import { extraLadderIncluded } from '@/lib/multi-origin';
@@ -5786,6 +5787,10 @@ export function Result() {
     fromDetail: draft.fromDetail ?? "",
     toAddress: draft.toAddress ?? "",
     toDetail: draft.toDetail ?? "",
+    fromX: draft.fromX ?? null,
+    fromY: draft.fromY ?? null,
+    toX: draft.toX ?? null,
+    toY: draft.toY ?? null,
     fromFloor: draft.fromFloor ?? 0,
     toFloor: draft.toFloor ?? 0,
     workEnv: String(draft.workEnv ?? ""),
@@ -6183,14 +6188,14 @@ export function Result() {
               </div>
               <div>📅 {formatMoveDateTime(draft.moveDate, draft.moveTime)}</div>
               <div>🚚 {draft.moveType}</div>
-              <div className="text-[#6B7280]">
+              <TmapAddress label="출발지" address={draft.fromAddress} x={draft.fromX} y={draft.fromY} className="text-[#6B7280]">
                 출발: {draft.fromAddress} {draft.fromDetail}
-              </div>
+              </TmapAddress>
               {draft.toAddress?.trim() ? (
                 <>
-                  <div className="text-[#6B7280]">
+                  <TmapAddress label="도착지" address={draft.toAddress} x={draft.toX} y={draft.toY} className="text-[#6B7280]">
                     도착: {draft.toAddress} {draft.toDetail}
-                  </div>
+                  </TmapAddress>
                   <div>
                     실거리 {draft.distanceKm}km
                     {draft.durationMin ? ` · 약 ${draft.durationMin}분` : ""} ·{" "}

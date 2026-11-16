@@ -8,6 +8,7 @@ import { useParams } from "@tanstack/react-router";
 import { openStaffShare } from "@/lib/staff-share.functions";
 import type { StaffSheetSnapshot } from "@/lib/staff-share";
 import { Icon3D } from "@/lib/jimpick-icon3d";
+import { TmapAddress } from "./TmapAddress";
 import { repairStaffSheet } from "@/lib/staff-sheet-display";
 import {
   Phone,
@@ -32,6 +33,18 @@ function Row({ icon, label, value }: { icon: React.ReactNode; label: string; val
       <span className="min-w-0 flex-1 break-keep text-[15px] font-bold text-[#25282D]">
         {value}
       </span>
+    </div>
+  );
+}
+
+function AddrRow({ label, address, detail, x, y }: { label: string; address: string; detail?: string; x?: number | null; y?: number | null }) {
+  const value = `${address} ${detail || ""}`.trim();
+  if (!value) return null;
+  return (
+    <div className="flex items-start gap-2.5 border-b border-[#EEF3FB] py-3 last:border-0">
+      <span className="mt-0.5 shrink-0 text-[#25282D]"><MapPin className="h-5 w-5" /></span>
+      <span className="w-[86px] shrink-0 text-[14px] font-bold text-[#6B7280]">{label}</span>
+      <TmapAddress label={label} address={address} x={x} y={y} className="min-w-0 flex-1 break-keep text-[15px] font-bold text-[#25282D]">{value}</TmapAddress>
     </div>
   );
 }
@@ -83,7 +96,6 @@ export function StaffSheet() {
 
 export function StaffSheetView({ state }: { state: { loading: boolean; error?: string; snap?: StaffSheetSnapshot; expiresAt?: string } }) {
   state = { ...state, snap: state.snap ? repairStaffSheet(state.snap) : undefined };
-  const mapUrl = (addr: string) => `https://map.kakao.com/link/search/${encodeURIComponent(addr)}`;
 
   return (
     <div className="min-h-[100dvh] bg-[#E9EFF8] pb-10">
@@ -171,11 +183,7 @@ export function StaffSheetView({ state }: { state: { loading: boolean; error?: s
             )}
 
             <Card title="주소">
-              <Row
-                icon={<MapPin className="h-5 w-5" />}
-                label="출발지"
-                value={`${state.snap.fromAddress} ${state.snap.fromDetail || ""}`.trim()}
-              />
+              <AddrRow label="출발지" address={state.snap.fromAddress} detail={state.snap.fromDetail} x={state.snap.fromX} y={state.snap.fromY} />
               <Row
                 icon={<Building2 className="h-5 w-5" />}
                 label="출발 조건"
@@ -183,11 +191,7 @@ export function StaffSheetView({ state }: { state: { loading: boolean; error?: s
                   state.snap.fromEnv ?? (state.snap.fromFloor ? `${state.snap.fromFloor}층` : "")
                 }
               />
-              <Row
-                icon={<MapPin className="h-5 w-5" />}
-                label="도착지"
-                value={`${state.snap.toAddress} ${state.snap.toDetail || ""}`.trim()}
-              />
+              <AddrRow label="도착지" address={state.snap.toAddress} detail={state.snap.toDetail} x={state.snap.toX} y={state.snap.toY} />
               <Row
                 icon={<Building2 className="h-5 w-5" />}
                 label="도착 조건"
@@ -206,24 +210,10 @@ export function StaffSheetView({ state }: { state: { loading: boolean; error?: s
 
             <div className="grid grid-cols-2 gap-2.5">
               {state.snap.fromAddress && (
-                <a
-                  href={mapUrl(state.snap.fromAddress)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex min-h-[56px] items-center justify-center rounded-[16px] border border-[#E5E7EB] bg-white text-[15px] font-black text-[#25282D]"
-                >
-                  출발지 지도
-                </a>
+                <TmapAddress label="출발지" address={state.snap.fromAddress} x={state.snap.fromX} y={state.snap.fromY} className="flex min-h-[56px] flex-col justify-center rounded-[16px] border border-[#E5E7EB] bg-white px-3 text-[15px] font-black text-[#25282D]"><span className="block text-center">출발지 지도</span></TmapAddress>
               )}
               {state.snap.toAddress && (
-                <a
-                  href={mapUrl(state.snap.toAddress)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex min-h-[56px] items-center justify-center rounded-[16px] border border-[#E5E7EB] bg-white text-[15px] font-black text-[#25282D]"
-                >
-                  도착지 지도
-                </a>
+                <TmapAddress label="도착지" address={state.snap.toAddress} x={state.snap.toX} y={state.snap.toY} className="flex min-h-[56px] flex-col justify-center rounded-[16px] border border-[#E5E7EB] bg-white px-3 text-[15px] font-black text-[#25282D]"><span className="block text-center">도착지 지도</span></TmapAddress>
               )}
             </div>
 
