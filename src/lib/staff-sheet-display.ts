@@ -5,7 +5,7 @@ import { builtinItemOf } from "./shared-item-builtin";
 
 /** Reuse the customer sheet's selected-item snapshots; never consult a global company registry. */
 export function staffSheetDetails(draft: Estimate, rooms: { name: string; items: { id: string; name: string; qty: number; icon?: string; disposal?: boolean }[] }[]) {
-  const repaired = compactSharedSnapshot({ draft, rooms }, [], builtinItemOf);
+  const repaired = compactSharedSnapshot({ draft: { itemNames: draft.itemNames, customItems: draft.customItems.map(item => ({ ...item })) }, rooms }, [], builtinItemOf);
   return {
     workers: draft.workers,
     kitchenStaff: draft.kitchenStaff,

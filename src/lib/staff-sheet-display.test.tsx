@@ -12,7 +12,7 @@ import { ICON3D } from "./jimpick-icon3d";
 const draft = (): Estimate => ({ ...newEstimate(), workers: 4, kitchenStaff: 2,
   customItems: [{ id: "ci_ai_fixture", name: "합성 세탁기콤보", icon: "/assets/items-3d/appliances/drum-washing-machine.webp", cat: "가전" as const, extra: 0 }],
   rooms: [{ id: "r1", name: "안방", items: { ci_ai_fixture: 1, basket: 3 } }, { id: "r2", name: "작은방", items: { ci_ai_fixture: 2 } }],
-  options: [{ id: "op", name: "벽걸이티비", enabled: true, separate: true, price: 50000 }, { id: "off", name: "미선택", enabled: false, price: 10000 }],
+  options: [{ id: "op", name: "벽걸이티비", enabled: true, separate: true, price: 50000 }, { id: "off", name: "미선택", enabled: false, separate: false, price: 10000 }],
 });
 describe("staff sheet selected details", () => {
   it("preserves stored worker counts across serialization", () => {
