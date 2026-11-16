@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { payappRequest, payappRegistrationFields, PayappRequestError } from "./payapp-live.server";
-import { payappRegistrationQuote } from "./payapp-live";
+import { payappRegistrationQuote, safePayappUrl } from "./payapp-live";
 const keys = ["PAYAPP_USER_ID","PAYAPP_LINK_KEY","PAYAPP_REQUEST_KEY"];
 let previous: (string | undefined)[];
 let originalFetch: typeof fetch;
@@ -14,6 +14,14 @@ function setup(response: string | Error, status = 200) {
   globalThis.fetch = async () => { if (response instanceof Error) throw response; return new Response(response,{status}); };
 }
 describe("registration request result classification without external requests", () => {
+  test("official encoded HTTP success is parsed once and locally upgraded without HTTP fetch",async()=>{
+    setup("state=1&rebill_no=123&payurl=http%3A%2F%2Fpayapp.kr%2Fexample%3Fa%3D1");
+    const destinations:string[]=[];
+    globalThis.fetch=async input=>{destinations.push(String(input));return new Response("state=1&rebill_no=123&payurl=http%3A%2F%2Fpayapp.kr%2Fexample%3Fa%3D1");};
+    const response=await payappRequest("rebillRegist",{});
+    expect(safePayappUrl(response.get("payurl") ?? "")).toBe("https://payapp.kr/example?a=1");
+    expect(destinations).toEqual(["https://api.payapp.kr/oapi/v2"]);
+  });
   test("real request builder sends order-snapshot expiry and card/no-SMS without invented validity parameter", async () => {
     setup("state=1&rebill_no=123&payurl=https%3A%2F%2Fpayapp.kr%2Fpayment");
     const quote=payappRegistrationQuote(new Date("2028-02-29T02:00:00Z"));

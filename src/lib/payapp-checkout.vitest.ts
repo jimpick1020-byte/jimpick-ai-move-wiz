@@ -20,7 +20,9 @@ beforeEach(()=>{
   for(const key of ["PAYAPP_USER_ID","PAYAPP_LINK_KEY","PAYAPP_LINK_VALUE","PAYAPP_REQUEST_KEY"]) vi.stubEnv(key,"synthetic-only");
   fake.context.supabase.from.mockReturnValue({select:()=>({eq:()=>({single:async()=>({data:{phone:"010-0000-0000"},error:null})})})});
   fake.admin.rpc.mockResolvedValue({data:{created:true,order},error:null});
-  fake.admin.from.mockReturnValue({update:()=>({eq:()=>({eq:()=>({select:()=>({maybeSingle:async()=>({data:{id:order.id},error:null})})})})})});
+  const query={eq:vi.fn(),is:vi.fn(),select:vi.fn(),maybeSingle:async()=>({data:{id:order.id},error:null})};
+  query.eq.mockReturnValue(query);query.is.mockReturnValue(query);query.select.mockReturnValue(query);
+  fake.admin.from.mockReturnValue({update:vi.fn(()=>query)});
   fake.request.mockResolvedValue(new URLSearchParams("rebill_no=123&payurl=https%3A%2F%2Fpayapp.kr%2Fsynthetic"));
 });
 import { afterEach } from "vitest";
@@ -48,7 +50,24 @@ describe("actual checkout server orchestration with fake provider/isolated recor
     expect(fake.admin.rpc.mock.calls.filter(call=>call[0]==="reject_payapp_registration").length).toBe(definitive ? 1 : 0);
   });
   test("unsafe URL keeps request locked and never returns redirect",async()=>{
-    fake.request.mockResolvedValue(new URLSearchParams("rebill_no=123&payurl=https%3A%2F%2Fevil.example%2Fsynthetic")); await expect(startPayappSubscription({data:consent})).rejects.toThrow("URL"); expect(fake.admin.rpc).toHaveBeenCalledTimes(1);
+    fake.request.mockResolvedValue(new URLSearchParams("rebill_no=123&payurl=https%3A%2F%2Fevil.example%2Fsynthetic")); await expect(startPayappSubscription({data:consent})).rejects.toThrow("검토"); expect(fake.admin.rpc).toHaveBeenCalledTimes(1);
+    expect(fake.admin.from().update).toHaveBeenCalledWith({rebill_no:"123",payurl:null,status:"review"});
+    const query=fake.admin.from().update.mock.results[0].value;
+    expect(query.eq).toHaveBeenCalledWith("id",order.id);expect(query.eq).toHaveBeenCalledWith("user_id",fake.context.userId);expect(query.eq).toHaveBeenCalledWith("status","creating");expect(query.is).toHaveBeenCalledWith("rebill_no",null);
+  });
+  test("URL-encoded official HTTP response saves and redirects only HTTPS",async()=>{
+    fake.request.mockResolvedValue(new URLSearchParams("state=1&rebill_no=123&payurl=http%3A%2F%2Fpayapp.kr%2Fsynthetic"));
+    expect(await startPayappSubscription({data:consent})).toEqual({payurl:"https://payapp.kr/synthetic"});
+    expect(fake.admin.from().update).toHaveBeenCalledWith({rebill_no:"123",payurl:"https://payapp.kr/synthetic",status:"pending"});
+  });
+  test("legacy pending URL is normalized in storage before reopening, no provider request",async()=>{
+    fake.admin.rpc.mockResolvedValue({data:{created:false,order:{...order,status:"pending",payurl:"http://payapp.kr/synthetic"}},error:null});
+    expect(await startPayappSubscription({data:{...consent,resumeOrderId:order.id}})).toEqual({payurl:"https://payapp.kr/synthetic"});
+    expect(fake.admin.from().update).toHaveBeenCalledWith({payurl:"https://payapp.kr/synthetic"});expect(fake.request).not.toHaveBeenCalled();
+  });
+  test("reviewed registration cannot issue another registration or URL",async()=>{
+    fake.admin.rpc.mockResolvedValue({data:{created:false,order:{...order,status:"review"}},error:null});
+    await expect(startPayappSubscription({data:{...consent,resumeOrderId:order.id}})).rejects.toThrow("중복");expect(fake.request).not.toHaveBeenCalled();
   });
   test("24-hour exact boundary does not reopen or unlock",async()=>{
     vi.setSystemTime(new Date("2026-11-17T14:00:00Z"));fake.admin.rpc.mockResolvedValue({data:{created:false,order:{...order,status:"pending",payurl:"https://payapp.kr/synthetic"}},error:null});

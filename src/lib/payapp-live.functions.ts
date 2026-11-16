@@ -27,7 +27,14 @@ export const startPayappSubscription = createServerFn({method:"POST"}).middlewar
     if (error) throw new Error("이미 구독 중이거나 확인 중인 결제 요청이 있습니다. 기존 구독 상태를 확인해 주세요.");
     const reserved = z.object({created:z.boolean(),order:z.object({id:z.string().uuid(),payurl:z.string().nullable(),status:z.string(),created_at:z.string(),requested_at:z.string().nullable(),policy_version:z.string().nullable(),requested_day:z.number().int().min(1).max(31),request_date:z.string().nullable(),rebill_expire:z.string().nullable(),first_paid_at:z.string().nullable()})}).parse(data);
     if (!reserved.created) {
-      if (payappPendingReusable(reserved.order) && reserved.order.payurl) return {payurl:safePayappUrl(reserved.order.payurl)};
+      if (payappPendingReusable(reserved.order) && reserved.order.payurl) {
+        const url = safePayappUrl(reserved.order.payurl);
+        if (url !== reserved.order.payurl) {
+          const {data:saved,error:saveError} = await supabaseAdmin.from("payapp_orders").update({payurl:url}).eq("id",reserved.order.id).eq("user_id",context.userId).eq("status","pending").select("id").maybeSingle();
+          if (saveError || !saved) throw new Error("기존 결제 요청 저장 확인이 필요합니다. 새로 신청하지 마세요.");
+        }
+        return {payurl:url};
+      }
       if (reserved.order.status === "pending") throw new Error("앱에서 기존 결제창을 다시 여는 기간이 지났습니다. 페이앱의 실제 취소·만료 상태 확인 전에는 새로 신청하지 마세요.");
       throw new Error("기존 결제 요청 확인 중입니다. 중복 신청하지 말고 잠시 후 다시 확인해 주세요.");
     }
@@ -45,9 +52,15 @@ export const startPayappSubscription = createServerFn({method:"POST"}).middlewar
       throw error;
     }
     const rebill = result.get("rebill_no") ?? "";
-    if (!/^\d+$/.test(rebill)) throw new Error("페이앱 등록 번호 확인 중입니다. 다시 신청하지 마세요.");
-    const url = safePayappUrl(result.get("payurl") ?? "");
-    const { data: saved, error: saveError } = await supabaseAdmin.from("payapp_orders").update({rebill_no:rebill,payurl:url,status:"pending"}).eq("id",reserved.order.id).eq("status","creating").select("id").maybeSingle();
+    if (!/^\d{1,100}$/.test(rebill)) throw new Error("페이앱 등록 번호 확인 중입니다. 다시 신청하지 마세요.");
+    let url: string;
+    try { url = safePayappUrl(result.get("payurl") ?? ""); }
+    catch {
+      const {data:reviewed,error:reviewError} = await supabaseAdmin.from("payapp_orders").update({rebill_no:rebill,payurl:null,status:"review"}).eq("id",reserved.order.id).eq("user_id",context.userId).eq("status","creating").is("rebill_no",null).select("id").maybeSingle();
+      if (reviewError || !reviewed) throw new Error("페이앱 등록 결과 저장 확인이 필요합니다. 중복 신청하지 마세요.");
+      throw new Error("페이앱 결제창 주소 확인이 필요합니다. 등록은 검토 중이며 중복 신청하지 마세요.");
+    }
+    const { data: saved, error: saveError } = await supabaseAdmin.from("payapp_orders").update({rebill_no:rebill,payurl:url,status:"pending"}).eq("id",reserved.order.id).eq("user_id",context.userId).eq("status","creating").select("id").maybeSingle();
     if (saveError || !saved) throw new Error("결제 요청 저장을 확인하지 못했습니다. 중복 신청하지 마세요.");
     return {payurl:url};
   });

@@ -30,7 +30,17 @@ describe("PayApp authenticated live boundaries (no external billing)",()=>{
   test("old fixed expiry setting never determines a new order",()=>{expect(payappReadiness({...fixture,PAYAPP_REBILL_EXPIRE:"2025-11-13"},new Date(now)).quote.expire).toBe("2031-11-13");});
   test("payment URL must use HTTPS and actual PayApp domain",()=>{
     expect(safePayappUrl("https://payapp.kr/payment")).toBe("https://payapp.kr/payment");
-    for(const url of ["http://payapp.kr/payment","https://payapp.kr.evil.example/payment","https://evil.example/payment"]) expect(()=>safePayappUrl(url)).toThrow();
+    expect(safePayappUrl("http://payapp.kr/payment")).toBe("https://payapp.kr/payment");
+    for(const url of ["https://payapp.kr.evil.example/payment","https://evil.example/payment"]) expect(()=>safePayappUrl(url)).toThrow();
+  });
+  test.each(["http://payapp.kr:80/payment?example=1", "http://payapp.kr/payment?example=1"])("legacy official standard HTTP normalizes locally: %s", url => {
+    expect(safePayappUrl(url)).toBe("https://payapp.kr/payment?example=1");
+  });
+  test.each(["https://payapp.kr:443/payment", "https://api.payapp.kr/payment"])("normal HTTPS retained: %s", url => {
+    expect(safePayappUrl(url)).toBe(url.replace(":443", ""));
+  });
+  test.each(["http://api.payapp.kr/payment", "http://payapp.kr:443/payment", "https://payapp.kr:80/payment", "https://payapp.kr:8443/payment", "http://payapp.kr:8080/payment", "https://user:pass@payapp.kr/payment", "https://@payapp.kr/payment", "javascript:alert(1)", "ftp://payapp.kr/payment", "//payapp.kr/payment", "http://payapp.kr./payment", "https://payapp.kr\\@evil.example/payment"])("rejects unsafe URL: %s", url => {
+    expect(() => safePayappUrl(url)).toThrow();
   });
 });
 

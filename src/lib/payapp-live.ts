@@ -112,7 +112,12 @@ export async function authenticatePayappNotice(input: unknown, env: Record<strin
   return n;
 }
 export function safePayappUrl(value: string) {
+  if (!/^https?:\/\//i.test(value) || /[\s\\\u0000-\u001f\u007f]/.test(value)) throw new Error("Invalid payment URL");
+  const authority = value.split("/")[2];
+  if (!authority || authority.includes("@")) throw new Error("Invalid payment URL");
   const u = new URL(value);
-  if (u.protocol !== "https:" || (u.hostname !== "payapp.kr" && !u.hostname.endsWith(".payapp.kr")) || u.username || u.password) throw new Error("Invalid payment URL");
+  if (u.port || u.username || u.password) throw new Error("Invalid payment URL");
+  if (u.protocol === "http:" && /^payapp\.kr(?::80)?$/i.test(authority) && u.hostname === "payapp.kr") u.protocol = "https:";
+  if (u.protocol !== "https:" || (u.hostname !== "payapp.kr" && !u.hostname.endsWith(".payapp.kr"))) throw new Error("Invalid payment URL");
   return u.toString();
 }

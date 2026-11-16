@@ -26,6 +26,7 @@ import { Route as ApiPublicHooksSendMoveRemindersRouteImport } from './routes/ap
 import { Route as ApiPublicHooksSweepMoveRemindersRouteImport } from './routes/api/public/hooks/sweep-move-reminders'
 import { Route as ApiPublicItemIconFileRouteImport } from './routes/api/public/item-icon.$file'
 import { Route as ApiPublicPayappFeedbackRouteImport } from './routes/api/public/payapp/feedback'
+import { Route as ApiPublicPayappReadinessRouteImport } from './routes/api/public/payapp/readiness'
 import { Route as ApiPublicPayappReturnRouteImport } from './routes/api/public/payapp/return'
 
 const IndexRoute = IndexRouteImport.update({
@@ -117,6 +118,12 @@ const ApiPublicPayappFeedbackRoute = ApiPublicPayappFeedbackRouteImport.update({
   path: '/api/public/payapp/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPayappReadinessRoute =
+  ApiPublicPayappReadinessRouteImport.update({
+    id: '/api/public/payapp/readiness',
+    path: '/api/public/payapp/readiness',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicPayappReturnRoute = ApiPublicPayappReturnRouteImport.update({
   id: '/api/public/payapp/return',
   path: '/api/public/payapp/return',
@@ -141,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/sweep-move-reminders': typeof ApiPublicHooksSweepMoveRemindersRoute
   '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
   '/api/public/payapp/feedback': typeof ApiPublicPayappFeedbackRoute
+  '/api/public/payapp/readiness': typeof ApiPublicPayappReadinessRoute
   '/api/public/payapp/return': typeof ApiPublicPayappReturnRoute
 }
 export interface FileRoutesByTo {
@@ -161,6 +169,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/sweep-move-reminders': typeof ApiPublicHooksSweepMoveRemindersRoute
   '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
   '/api/public/payapp/feedback': typeof ApiPublicPayappFeedbackRoute
+  '/api/public/payapp/readiness': typeof ApiPublicPayappReadinessRoute
   '/api/public/payapp/return': typeof ApiPublicPayappReturnRoute
 }
 export interface FileRoutesById {
@@ -182,6 +191,7 @@ export interface FileRoutesById {
   '/api/public/hooks/sweep-move-reminders': typeof ApiPublicHooksSweepMoveRemindersRoute
   '/api/public/item-icon/$file': typeof ApiPublicItemIconFileRoute
   '/api/public/payapp/feedback': typeof ApiPublicPayappFeedbackRoute
+  '/api/public/payapp/readiness': typeof ApiPublicPayappReadinessRoute
   '/api/public/payapp/return': typeof ApiPublicPayappReturnRoute
 }
 export interface FileRouteTypes {
@@ -204,6 +214,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sweep-move-reminders'
     | '/api/public/item-icon/$file'
     | '/api/public/payapp/feedback'
+    | '/api/public/payapp/readiness'
     | '/api/public/payapp/return'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sweep-move-reminders'
     | '/api/public/item-icon/$file'
     | '/api/public/payapp/feedback'
+    | '/api/public/payapp/readiness'
     | '/api/public/payapp/return'
   id:
     | '__root__'
@@ -244,6 +256,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sweep-move-reminders'
     | '/api/public/item-icon/$file'
     | '/api/public/payapp/feedback'
+    | '/api/public/payapp/readiness'
     | '/api/public/payapp/return'
   fileRoutesById: FileRoutesById
 }
@@ -265,6 +278,7 @@ export interface RootRouteChildren {
   ApiPublicHooksSweepMoveRemindersRoute: typeof ApiPublicHooksSweepMoveRemindersRoute
   ApiPublicItemIconFileRoute: typeof ApiPublicItemIconFileRoute
   ApiPublicPayappFeedbackRoute: typeof ApiPublicPayappFeedbackRoute
+  ApiPublicPayappReadinessRoute: typeof ApiPublicPayappReadinessRoute
   ApiPublicPayappReturnRoute: typeof ApiPublicPayappReturnRoute
 }
 
@@ -389,6 +403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPayappFeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/payapp/readiness': {
+      id: '/api/public/payapp/readiness'
+      path: '/api/public/payapp/readiness'
+      fullPath: '/api/public/payapp/readiness'
+      preLoaderRoute: typeof ApiPublicPayappReadinessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payapp/return': {
       id: '/api/public/payapp/return'
       path: '/api/public/payapp/return'
@@ -418,6 +439,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksSweepMoveRemindersRoute: ApiPublicHooksSweepMoveRemindersRoute,
   ApiPublicItemIconFileRoute: ApiPublicItemIconFileRoute,
   ApiPublicPayappFeedbackRoute: ApiPublicPayappFeedbackRoute,
+  ApiPublicPayappReadinessRoute: ApiPublicPayappReadinessRoute,
   ApiPublicPayappReturnRoute: ApiPublicPayappReturnRoute,
 }
 export const routeTree = rootRouteImport
