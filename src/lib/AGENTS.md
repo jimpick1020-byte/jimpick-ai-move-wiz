@@ -1,5 +1,8 @@
 # Customer intake link rules
 
+- Customer paid SMS requires an authenticated service-super-admin actor before any quota/write/send and proxy purpose verification; legacy unattributed reminder queues are no-ops, native drafts never record sending, and platform owner notifications validate stored consent and recipient separately.
+- Bank forwarding is retired with an empty 410 before parsing; paste/token/raw-text registration reject without writes while manual receipts and customer claims retain their existing locked acknowledgement paths.
+
 - PayApp snapshots server request time, consent policy, KST fixed day and exclusive expiry through the versioned reservation RPC; new-policy billing uses requested_day, legacy orders keep their original approval rules, and elapsed-time reopen limits never imply provider expiry or unlock an unresolved order.
 
 - Reminder resend previews read only company-owned rows and share the sender's message builder; opening or cancelling a preview never sends SMS or reserves usage.

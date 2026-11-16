@@ -26,7 +26,6 @@ import { RoomScanScreen } from "@/components/jimpick/RoomScan";
 import { ForgotPasswordScreen } from "@/components/jimpick/password";
 import { AuthLoadingScreen } from "@/components/jimpick/AuthUi";
 import { ErrorLogScreen } from "@/components/jimpick/errors";
-import { BankSmsScreen } from "@/components/jimpick/BankSmsInbox";
 import { JimpickErrorBoundary } from "@/components/jimpick/ErrorBoundary";
 import { logAppError } from "@/lib/error-log.functions";
 
@@ -70,7 +69,7 @@ function Screens() {
     case "stats": return <StatsScreen />;
     case "adminAccounts": return <AdminAccountsScreen />;
     case "errorLogs": return <ErrorLogScreen />;
-    case "bankSms": return <BankSmsScreen />;
+    case "bankSms": return <SettingsScreen />;
     default: return <Splash />;
   }
 }

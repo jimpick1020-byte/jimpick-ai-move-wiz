@@ -4,7 +4,7 @@ import { ingestBankSms } from "./bank-sms.server";
 import { matchBankSms } from "./bank-sms-match";
 import { paymentReview } from "./payment-review";
 
-test("deleted duplicate returns retained identity without rematching or creating receipts", async () => {
+test("retired collection rejects replay without reading or modifying retained history", async () => {
   const touched: string[] = [];
   const prev = { id: "hidden-message", match_status: "matched", matched_estimate_id: "estimate", payment_kind: "balance", deleted_at: "2026-10-22T00:00:00Z" };
   const client = { from(table: string) {
@@ -16,8 +16,8 @@ test("deleted duplicate returns retained identity without rematching or creating
     return query;
   } };
   const result = await ingestBankSms(client, "owner", { rawText: "농협 입금180,000원 10/22 14:00 시험고객 잔액1,000,000원", channel: "forward" });
-  assert.equal(result.duplicated, true); assert.equal(result.id, "hidden-message");
-  assert.deepEqual(touched, ["bank_sms_messages", "bank_sms_messages"]);
+  assert.equal(result.ok, false); assert.equal(result.id, undefined);
+  assert.deepEqual(touched, []);
 });
 for (const amount of [180000, 250000]) test(`bank balance ${amount} connects and needs owner review without any customer claim`, () => {
   const candidate = { estimateId: "estimate", customerName: "시험고객", total: 200000, depositPaid: 20000, balancePaid: 0, paymentStatus: "deposit_paid" };

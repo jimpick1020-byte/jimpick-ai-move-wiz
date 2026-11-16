@@ -9,6 +9,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useEntitlement } from "@/lib/use-entitlement";
+import { hasSmsApp } from "@/lib/sms";
+import { intakeSmsHref } from "@/lib/intake-sms";
 import {
   listMoveReminders,
   retryMoveReminder,
@@ -34,11 +37,14 @@ const when = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "";
 
 export function ReminderPanel({ estimateId }: { estimateId: string }) {
+  const { entitlement } = useEntitlement();
+  const isAdmin = entitlement?.isSuperAdmin === true;
   const [rows, setRows] = useState<MoveReminderRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<MoveReminderRow | null>(null);
   const [message, setMessage] = useState("");
+  const [phone, setPhone] = useState("");
   const lock = useRef(false);
   const previewFn = useServerFn(previewMoveReminder);
   const retryFn = useServerFn(retryMoveReminder);
@@ -54,6 +60,7 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
         return;
       }
       setMessage(result.message);
+      setPhone(result.phone ?? "");
       setSelected(row);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "문자 내용을 불러오지 못했습니다");
@@ -84,6 +91,12 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
     lock.current = true;
     setBusy(true);
     try {
+      if (!isAdmin) {
+        if (hasSmsApp()) window.location.href = intakeSmsHref(phone, message);
+        else { await navigator.clipboard.writeText(`${phone}\n\n${message}`); toast.info("받는 번호와 문자 내용을 복사했습니다"); }
+        setSelected(null);
+        return;
+      }
       const r = await retryFn({ data: { id: row.id, confirmResend: already } });
       if (r.ok) {
         toast.success("문자업체가 안내 문자를 접수했습니다");
@@ -107,14 +120,14 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
       <div className="text-sm font-bold text-[#25282D]">이사 전날 안내 문자</div>
       {rows.length === 0 ? (
         <div className="mt-1 text-xs text-[#6B7280]">
-          예약이 확정되면 이사 전날 오후 6시에 보낼 안내 문자가 자동으로 예약됩니다.
+          예약 안내는 휴대폰 문자 앱에서 직접 보내 주세요.
         </div>
       ) : (
         <div className="mt-2 space-y-2">
           {rows.map((r) => (
             <div key={r.id} className="rounded-xl bg-[#F9FAFB] p-2.5 text-xs">
               <div className={`text-sm font-bold ${COLOR[r.status] ?? "text-[#25282D]"}`}>
-                {REMINDER_STATUS_LABEL[r.status] ?? r.status}
+                {!isAdmin && ["scheduled", "failed", "unknown", "processing", "sending"].includes(r.status) ? "직접 문자 발송 필요" : REMINDER_STATUS_LABEL[r.status] ?? r.status}
               </div>
               <div className="mt-0.5 text-[#6B7280] break-words">
                 이사일 {r.moveDate}
@@ -163,7 +176,7 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
                   disabled={busy}
                   className="mt-2 w-full"
                 >
-                  {r.status === "failed" || r.status === "unknown" ? "다시 발송" : "한 번 더 발송"}
+                  {isAdmin ? "다시 발송" : "문자로 보내기"}
                 </Button>
               )}
             </div>
@@ -175,7 +188,7 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
           <DialogTitle>이사 전날 안내 문자 확인</DialogTitle>
           <DialogDescription>
             {selected?.customerName} · {selected?.toMasked}
-            {selected && ["accepted", "delivered", "success"].includes(selected.status)
+            {isAdmin && selected && ["accepted", "delivered", "success"].includes(selected.status)
               ? " · 이미 보낸 문자입니다. 다시 발송하면 문자 요금이 추가됩니다."
               : " · 아래 내용을 확인한 후 발송해 주세요."}
           </DialogDescription>
@@ -183,7 +196,7 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
           <div className="grid grid-cols-2 gap-2">
             <Button variant="outline" disabled={busy} onClick={() => setSelected(null)}>취소</Button>
             <Button variant="staff" disabled={busy || !message} onClick={() => { if (selected) void retry(selected); }}>
-              {busy ? "발송 처리 중…" : "이 내용으로 발송"}
+              {busy ? "처리 중…" : isAdmin ? "이 내용으로 발송" : "문자 앱 열기 · 번호/문구 복사"}
             </Button>
           </div>
         </DialogContent>

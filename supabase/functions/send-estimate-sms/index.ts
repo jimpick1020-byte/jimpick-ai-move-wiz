@@ -28,6 +28,8 @@
  * 키 값과 전체 전화번호는 응답에도 기록에도 남기지 않습니다.
  */
 
+export {};
+declare const Deno: { env: { get(name: string): string | undefined }; serve(handler: (request: Request) => Promise<Response>): void };
 const ALIGO_ENDPOINT = "https://apis.aligo.in/send/";
 
 const cors = {
@@ -308,6 +310,8 @@ async function sendViaAligo(v: {
   userId: string;
   companyId?: string;
   serviceNotice?: boolean;
+  actorId?: string;
+  ownerNoticeEstimateId?: string;
   cardType?: "quote" | "deposit";
   cardData?: { companyName: string; customerName: string; moveDate: string; amount: string; companyPhone: string };
 }): Promise<SendOutcome> {
@@ -335,7 +339,7 @@ async function sendViaAligo(v: {
           "Content-Type": "application/json",
           "x-jimpick-secret": String(v.proxySecret ?? "").trim(),
         },
-        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, sender: v.sender, companyId: v.companyId ?? v.userId, userId: v.userId, cardType: v.cardType, cardData: v.cardData }),
+        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, sender: v.sender, companyId: v.companyId ?? v.userId, userId: v.userId, actorId: v.actorId ?? v.userId, purpose: v.ownerNoticeEstimateId ? "owner_reservation" : "customer", estimateId: v.ownerNoticeEstimateId, cardType: v.cardType, cardData: v.cardData }),
         signal: AbortSignal.timeout(25000),
       });
 
@@ -468,6 +472,7 @@ const handle = async (req: Request): Promise<Response> => {
     idempotency_key?: string;
     /** 사장님이 확인창에서 「다시 발송」을 직접 누른 경우에만 참 */
     resend?: boolean;
+    preview?: boolean;
     checkOnly?: boolean;
     /** 연결 시험 — 정해진 문구 한 줄만, 사장님이 넣은 번호로 보냅니다 */
     mode?: string;
@@ -572,16 +577,10 @@ const handle = async (req: Request): Promise<Response> => {
   }
 
   // 설정 상태 확인·시험 발송은 서비스 최고관리자(또는 우리 서버)만 할 수 있습니다.
-  const adminOnly =
-    body.checkOnly === true || body.mode === "test" || body.mode === "fix_notice";
-  if (adminOnly && !isServerCall) {
-    const admin = await isSuperAdmin(userId, supabaseUrl, serviceKey);
-    if (!admin) {
-      return json(
-        { ok: false, error: "문자발송 설정은 서비스 관리자만 확인할 수 있습니다." },
-        403,
-      );
-    }
+  const admin = !isServerCall && !!userId && await isSuperAdmin(userId, supabaseUrl, serviceKey);
+  const { smsRequestAllowed } = await import("./policy.ts");
+  if (!smsRequestAllowed({ mode: body.mode, checkOnly: body.checkOnly, isServerCall, isServiceAdmin: admin })) {
+    return json({ ok: false, error: "유료 문자 발송은 서비스 관리자만 사용할 수 있습니다. 휴대폰 문자 앱에서 직접 보내 주세요." }, 403);
   }
 
   // 설정이 되어 있는지만 알려 줍니다 — 아이디·키·발신번호 값은 절대 보내지 않습니다.
@@ -1073,6 +1072,7 @@ const handle = async (req: Request): Promise<Response> => {
       proxySecret,
       viaProxy,
       userId: ownerId,
+      ownerNoticeEstimateId: estimateIdM,
     });
     const doneAt = new Date().toISOString();
     await record({

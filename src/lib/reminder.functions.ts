@@ -247,13 +247,13 @@ export const listReminderDashboard = createServerFn({ method: "POST" })
 export const previewMoveReminder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }): Promise<{ ok: boolean; message?: string; error?: string }> => {
+  .handler(async ({ data, context }): Promise<{ ok: boolean; message?: string; phone?: string; error?: string }> => {
     const { data: row, error } = await context.supabase.from("move_reminders")
       .select("id, estimate_id, estimate_terms_id, company_id, user_id, customer_name, customer_phone, move_date, start_time, from_address, to_address, company_phone, retry_count, view_token")
       .eq("id", data.id).eq("company_id", context.userId).maybeSingle();
     if (error || !row) return { ok: false, error: "안내 문자 예약을 찾지 못했습니다." };
     const { previewReminderMessage } = await import("./reminder-send.server");
-    return previewReminderMessage(row);
+    return { ...await previewReminderMessage(row), phone: row.customer_phone };
   });
 
 export const retryMoveReminder = createServerFn({ method: "POST" })
@@ -262,6 +262,8 @@ export const retryMoveReminder = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), confirmResend: z.boolean().optional() }).parse(d),
   )
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
+    const { data: isAdmin, error: roleError } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "super_admin" });
+    if (roleError || isAdmin !== true) return { ok: false, error: "고객 문자는 휴대폰 문자 앱에서 직접 보내 주세요." };
     const { data: row, error } = await context.supabase
       .from("move_reminders")
       .select("id, status, company_id")
@@ -281,7 +283,7 @@ export const retryMoveReminder = createServerFn({ method: "POST" })
     }
 
     const { resendReminderNow } = await import("./reminder-send.server");
-    return resendReminderNow(data.id, context.userId);
+    return resendReminderNow(data.id, context.userId, context.userId);
   });
 
 /**

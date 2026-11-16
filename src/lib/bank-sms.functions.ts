@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { BANK_COLLECTION_RETIRED } from "./company-sms-policy";
 
 export interface BankSmsRow {
   id: string;
@@ -23,9 +24,8 @@ export interface BankSmsRow {
 export const submitBankSms = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ text: z.string().min(1).max(4000) }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { ingestBankSms } = await import("./bank-sms.server");
-    return ingestBankSms(context.supabase, context.userId, { rawText: data.text, channel: "paste" });
+  .handler(async (): Promise<{ ok: boolean; error?: string; duplicated?: boolean; matchStatus?: string }> => {
+    throw new Error(BANK_COLLECTION_RETIRED);
   });
 
 export const listBankSms = createServerFn({ method: "POST" })
@@ -119,12 +119,7 @@ export const deleteBankSms = createServerFn({ method: "POST" })
 export const createBankSmsToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ ok: boolean; token?: string; error?: string }> => {
-    const bytes = crypto.getRandomValues(new Uint8Array(24));
-    const token = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
-    const { sha256Hex } = await import("./bank-sms.server");
-    const { error } = await context.supabase.from("bank_sms_ingest_tokens").upsert({ company_id: context.userId, token_hash: await sha256Hex(token), created_at: new Date().toISOString(), last_received_at: null }, { onConflict: "company_id" });
-    if (error) return { ok: false, error: "주소를 만들지 못했습니다." };
-    return { ok: true, token };
+    return { ok: false, error: BANK_COLLECTION_RETIRED };
   });
 
 export const getBankSmsTokenStatus = createServerFn({ method: "POST" })

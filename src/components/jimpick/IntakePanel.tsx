@@ -14,6 +14,7 @@ import { isUnreadIntake } from "@/lib/intake-unread";
 import { useApp, type Estimate } from "@/lib/jimpick";
 import { formatTel } from "@/lib/format-input";
 import { createComposerGate, intakeSmsHref } from "@/lib/intake-sms";
+import { hasSmsApp } from "@/lib/sms";
 import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
 import {
   deleteIntakeRequest, cancelIntakeRequest, confirmIntakeRequest, createIntakeRequest, getIntakeLink, listIntakeItemsOwner,
@@ -154,6 +155,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
       const request = await ensure(); if (!request) return null;
       const prepared = await sendIntakeSms({ data: { id: request.id } });
       if (!prepared.ok || !prepared.body) throw new Error(prepared.error ?? "문자 내용을 만들지 못했습니다.");
+      if (!hasSmsApp()) { await navigator.clipboard.writeText(`${p}\n\n${prepared.body}`); toast.info("받는 번호와 문자 내용을 복사했습니다"); return null; }
       return intakeSmsHref(p, prepared.body);
     }, (href) => {
       window.location.href = href;
@@ -165,6 +167,7 @@ export function IntakeRequestSheet({ name, phone, sourceEstimateId, requestId, o
       if (!row || closed) throw new Error("먼저 기존 고객 요청을 선택해 주세요.");
       const prepared = await prepareOtherHouseSms({ data: { id: row.id } });
       if (!prepared.ok || !prepared.body) throw new Error(prepared.error ?? "다른 집 링크를 만들지 못했습니다.");
+      if (!hasSmsApp()) { await navigator.clipboard.writeText(`${p}\n\n${prepared.body}`); toast.info("받는 번호와 문자 내용을 복사했습니다"); return null; }
       return intakeSmsHref(p, prepared.body);
     }, href => { window.location.href = href; });
   });
@@ -748,6 +751,7 @@ function VisitPanel({ row, house }: { row: IntakeRow; house: 1 | 2 | null }) {
     await composerGate.current(async () => {
       const r = await prepareVisitSms({ data: { id: row.id } });
       if (!r.ok || !r.to || !r.body) throw new Error(r.error ?? "문자 내용을 만들지 못했습니다.");
+      if (!hasSmsApp()) { await navigator.clipboard.writeText(`${r.to}\n\n${r.body}`); toast.info("받는 번호와 문자 내용을 복사했습니다"); return null; }
       return intakeSmsHref(r.to, r.body);
     }, href => { window.location.href = href; });
   });

@@ -14,6 +14,7 @@ import { timingSafeEqual } from "node:crypto";
 import { sendAligo, lookupAligo, isPhone, normalizePhone } from "./aligo.js";
 import { saveDelivery, findDelivery } from "./supabase.js";
 import { renderCard } from "./card.js";
+import { authorizeSms } from "./authorization.js";
 
 const app = express();
 app.use(express.json({ limit: "12mb" }));
@@ -146,6 +147,16 @@ app.post("/send-service-fix-notice", async (req, res) => {
  */
 app.post("/send", async (req, res) => {
   if (!checkSecret(req, res)) return;
+  const authorized = await authorizeSms(req.body, async (table, filters) => {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) return null;
+    try {
+      const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/${table}?${new URLSearchParams(filters)}`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+      return response.ok ? await response.json() : null;
+    } catch { return null; }
+  });
+  if (!authorized) return res.status(403).json({ ok: false, error: "발송 주체와 목적을 확인하지 못했습니다." });
 
   const {
     to,

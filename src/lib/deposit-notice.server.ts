@@ -12,8 +12,11 @@ export interface DepositNoticeResult {
 
 const ADMIN_SENDER = "01075662542";
 
-export async function sendDepositConfirmedSms(companyId: string, receiptId: string): Promise<DepositNoticeResult> {
+export async function sendDepositConfirmedSms(companyId: string, receiptId: string, actorId?: string): Promise<DepositNoticeResult> {
+  if (!actorId) return { sent: false, error: "고객 문자는 직접 보내 주세요." };
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: role, error: roleError } = await supabaseAdmin.rpc("has_role", { _user_id: actorId, _role: "super_admin" });
+  if (roleError || role !== true) return { sent: false, error: "유료 문자 발송은 서비스 관리자만 사용할 수 있습니다." };
   const { sendViaAligo, readCreds } = await import("./reminder-send.server");
   const { data: rec } = await supabaseAdmin
     .from("deposit_records")
@@ -80,7 +83,7 @@ export async function sendDepositConfirmedSms(companyId: string, receiptId: stri
   if (reserved?.["allowed"] !== true) {
     return fail(reserved?.["reason"] === "duplicate" ? "이미 처리된 발송 요청입니다." : "문자 발송 한도를 확인해 주세요. 발송하지 않았습니다.", String(reserved?.["reason"] ?? "quota"), to, msgType);
   }
-  const out = await sendViaAligo({ to, text, title: "", msgType, ...creds, sender: ADMIN_SENDER, companyId });
+  const out = await sendViaAligo({ to, text, title: "", msgType, ...creds, sender: ADMIN_SENDER, companyId, actorId });
   await usage.rpc(out.ok ? "confirm_free_sms" : "release_free_sms", { _user_id: companyId, _key: usageKey });
   if (!out.ok) return fail(out.error ?? "문자 발송에 실패했습니다.", String(out.code ?? "send_error"), to, msgType);
 

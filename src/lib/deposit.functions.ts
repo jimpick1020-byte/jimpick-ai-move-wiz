@@ -16,6 +16,7 @@ import { z } from "zod";
 import { parseDepositSms, isSameName, normalizeName } from "./deposit-parse";
 import { receiptPaymentKind, claimAlreadyRecorded } from "./payment-review";
 import { customerPaymentDue, sheetPlannedDeposit } from "./customer-payment";
+import { BANK_COLLECTION_RETIRED } from "./company-sms-policy";
 
 export interface DepositRow {
   id: string;
@@ -310,6 +311,7 @@ export const registerDeposit = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }): Promise<RegisterDepositResult> => {
+    if (data.text.trim()) return { ok: false, error: BANK_COLLECTION_RETIRED };
     const parsed = parseDepositSms(data.text ?? "");
     const depositorName = (data.depositorName?.trim() || parsed.depositorName || "").trim();
     const amount = Number(data.amount ?? parsed.amount ?? 0) || 0;
@@ -394,18 +396,7 @@ export const confirmDeposit = createServerFn({ method: "POST" })
       const { data: result, error } = await context.supabase.rpc("confirm_payment_receipt", { _receipt_id: data.id });
       if (error) return { ok: false, error: "입금 확인을 저장하지 못했습니다." };
       const res = result as { ok: boolean; error?: string; paid?: number; confirmedAt?: string; smsSent?: boolean; smsError?: string };
-      const { shouldSendDepositNotice } = await import("./deposit-notice");
-      if (shouldSendDepositNotice(receipt.payment_kind, res.ok)) {
-        try {
-          const { sendDepositConfirmedSms } = await import("./deposit-notice.server");
-          const sms = await sendDepositConfirmedSms(context.userId, data.id);
-          if (sms.error) console.error("[deposit-notice]", data.id, sms.error);
-          return { ...res, smsSent: sms.sent, smsError: sms.error };
-        } catch (e) {
-          console.error("[deposit-notice] 오류", e instanceof Error ? e.message : e);
-          return { ...res, smsSent: false, smsError: "고객 안내 문자 발송 중 오류가 났습니다." };
-        }
-      }
+      // Acknowledgement changes payment state only. Customer notices use the native composer.
       return res;
     },
   );

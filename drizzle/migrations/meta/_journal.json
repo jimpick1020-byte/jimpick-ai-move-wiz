@@ -372,6 +372,13 @@
       "when": 1794796032250,
       "tag": "0052_payapp_paid_period_separate",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1794800673590,
+      "tag": "0053_retire_company_bank_sms_collection",
+      "breakpoints": true
     }
   ]
 }

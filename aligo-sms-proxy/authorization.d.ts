@@ -1,0 +1,1 @@
+export function authorizeSms(body: unknown, read: (table: string, filters: Record<string, string>) => Promise<unknown>): Promise<boolean>;

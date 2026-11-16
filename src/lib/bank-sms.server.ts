@@ -97,6 +97,9 @@ export async function ingestBankSms(
   companyId: string,
   input: { rawText: string; eventId?: string | null; sender?: string | null; receivedAt?: string | null; channel: "paste" | "forward" },
 ): Promise<IngestResult> {
+  // Defense in depth: no internal queue or old forwarding caller may collect anew.
+  return { ok: false, error: "은행 문자 수집이 종료되었습니다." };
+  /* Historical parser retained solely for prior-evidence tooling.
   const raw = normalizeSmsText(input.rawText).slice(0, 2000);
   if (!raw) return { ok: false, error: "문자 내용이 비어 있습니다." };
   const dedupeKey = bankSmsDedupeKey({ eventId: input.eventId, rawText: raw }, await sha256Hex(raw));
@@ -162,4 +165,5 @@ export async function ingestBankSms(
     await client.from("bank_sms_messages").update({ match_status: "review", match_note: `자동 연결 실패: ${note}` }).eq("id", msg.id).eq("company_id", companyId);
     return { ok: true, id: msg.id, matchStatus: "review" };
   }
+  */
 }

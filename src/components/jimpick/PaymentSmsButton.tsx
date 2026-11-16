@@ -15,7 +15,7 @@ export function PaymentSmsButton({ estimateId, receiptId }: { estimateId: string
       await gate.current(async () => {
         const message = await preparePaymentSms({ data: { estimateId, receiptId } });
         const href = intakeSmsHref(message.phone,message.body);
-        if (!hasSmsApp()) { await navigator.clipboard.writeText(message.body); toast.info("문자 내용을 복사했습니다"); return null; }
+        if (!hasSmsApp()) { await navigator.clipboard.writeText(`${message.phone}\n\n${message.body}`); toast.info("받는 번호와 문자 내용을 복사했습니다"); return null; }
         return href;
       }, (href) => { window.location.href = href; });
     } catch (error) { toast.error(error instanceof Error ? error.message : "문자 내용을 불러오지 못했습니다."); }

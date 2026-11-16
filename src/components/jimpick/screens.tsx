@@ -36,7 +36,6 @@ import {
   type PointerEvent as ReactPointerEvent,
   type TouchEvent as ReactTouchEvent,
 } from "react";
-import { getSmsServiceStatus } from "@/lib/sms-status.functions";
 import {
   Bell,
   ClipboardList,
@@ -163,6 +162,7 @@ import {
 
 import { SmsConnectionCard } from "./SmsConnectionCard";
 import { SmsNoticeCard } from "./SmsNoticeCard";
+import { hasSavedNoticePhone } from "@/lib/company-sms-policy";
 import { PaymentPanel } from "./PaymentPanel";
 import { completedPaymentLabel, remainingPayment } from "@/lib/payment-method";
 import {
@@ -5179,22 +5179,8 @@ export function Result() {
    */
   const backTo = (resultFrom as Screen) || "history";
   const { blocked: entBlocked, entitlement: sendEnt, refresh: refreshEnt } = useEntitlement();
-  /** 서버가 알려 준 실제 값으로만 판단합니다 (남은 무료 문자 · 체험 기간) */
-  const [senderStatus, setSenderStatus] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    void getSmsServiceStatus()
-      .then((s) => { if (alive) setSenderStatus(s.senderStatus); })
-      .catch(() => { /* 서버가 발송 직전에 다시 확인합니다 */ });
-    return () => { alive = false; };
-  }, []);
-  // 문자는 공통 발신번호로 나가므로 업체별 발신번호 등록 여부로 막지 않습니다.
-  void senderStatus;
-  const senderUnverified = false;
-  const smsBlocked = entBlocked || sendEnt?.canSendSms === false || senderUnverified;
-  const smsBlockMessage = senderUnverified
-    ? "알리고에 등록된 발신번호가 아닙니다. 알리고 발신번호 등록을 먼저 완료해 주세요."
-    : sendEnt?.smsMessage ?? TRIAL_EXPIRED_MESSAGE;
+  const smsBlocked = entBlocked;
+  const smsBlockMessage = TRIAL_EXPIRED_MESSAGE;
   /** 「견적 완료 · 처음으로」 진행 중 — 두 번 눌려도 한 번만 실행됩니다 */
   const [finishing, setFinishing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
@@ -5467,16 +5453,17 @@ export function Result() {
 
       // 2) 휴대전화 기본 문자 앱을 엽니다 (알리고·서버 발송 없음).
       //    보내기는 사장님이 문자 앱에서 직접 누르므로, 여기서는 발송 완료로 저장하지 않습니다.
-      if (!hasSmsApp()) {
-        setSendResult({ ok: false, error: "이 기기에서는 휴대폰 문자 앱을 열 수 없습니다. 휴대폰에서 이용해 주세요." });
-        return;
-      }
       const body = estimateSmsText({
         customerName: draft.customerName ?? "",
         movingDate: formatMoveDateTime(draft.moveDate, draft.moveTime),
         totalAmount: total,
         secureUrl: publicUrl(`/share/${draft.id}?t=${encodeURIComponent(publishedToken)}`),
       });
+      if (!hasSmsApp()) {
+        await navigator.clipboard.writeText(`${draft.phone ?? ""}\n\n${body}`);
+        setSendResult({ ok: true, message: "받는 번호와 문자 내용을 복사했습니다. 직접 보내 주세요." });
+        return;
+      }
       window.location.href = intakeSmsHref(draft.phone ?? "", body);
       smsOpenedAt.current = Date.now();
       setSendResult({ ok: true, message: "문자 앱을 열었습니다. 내용과 받는 번호를 확인하고 직접 보내 주세요." });
@@ -6540,7 +6527,7 @@ export function Result() {
                     <MessageSquare className="h-5 w-5" /> 견적서 문자발송
                   </span>
                 </button>
-                {sendEnt?.freeSmsLimited && (
+                {sendEnt?.isSuperAdmin && sendEnt?.freeSmsLimited && (
                   <div className="mt-2 text-center text-[12px] font-bold text-[#6B7280] break-keep">
                     문자 발송 {sendEnt.freeSmsUsed}/{sendEnt.freeSmsLimit}건 사용 ·{" "}
                     {sendEnt.freeSmsRemaining}건 남음
@@ -6559,7 +6546,7 @@ export function Result() {
               />
               <div className="relative max-h-[86vh] w-full max-w-[340px] overflow-y-auto rounded-3xl bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.3)]">
                 <div className="text-center text-[17px] font-black text-[#25282D]">
-                  실제 유료 문자가 발송됩니다. 내용을 확인하셨습니까?
+                  문자 내용을 확인하셨습니까?
                 </div>
                 {/* 무엇이 나가는지 그대로 보여 줍니다 */}
                 <div className="mt-3 space-y-1.5 rounded-2xl bg-[#F7F8F5] p-3 text-left">
@@ -7644,7 +7631,7 @@ export function Customers() {
  * 로그인한 사장님의 Supabase 프로필(profiles)에 저장하며,
  * 사업자등록증은 비공개 Storage 버킷에 올립니다.
  */
-function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
+export function BusinessInfoCard({ onNeedLogin, onSavedPhone }: { onNeedLogin: () => void; onSavedPhone?: (phone: string) => void }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -7667,6 +7654,7 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
         setCompanyName(r.data.companyName);
         setOwnerName(r.data.ownerName);
         setPhone(r.data.phone);
+        onSavedPhone?.(r.data.phone);
         setBizNo((r.data.businessNumber || "").replace(/[^0-9]/g, ""));
         setCertPath(r.data.certPath);
       }
@@ -7759,6 +7747,7 @@ function BusinessInfoCard({ onNeedLogin }: { onNeedLogin: () => void }) {
       }
 
       setCertPath(nextCertPath);
+      onSavedPhone?.(phone);
       setPickedFile(null);
       if (fileRef.current) fileRef.current.value = "";
       setEditing(false);
@@ -7955,6 +7944,7 @@ export function SettingsScreen() {
   const { logout, setScreen, draft, aiScanEnabled, setAiScanEnabled } = useApp();
   const { entitlement: settingsEnt } = useEntitlement();
   const [pricing, setPricing] = useState<Pricing>(DEFAULT_PRICING);
+  const [savedPhone, setSavedPhone] = useState<string | null>(null);
   useEffect(() => setPricing(getPricing()), []);
   const setP = (patch: Partial<Pricing>) => {
     const next = { ...pricing, ...patch };
@@ -7998,11 +7988,8 @@ export function SettingsScreen() {
           <div className="text-xs font-medium opacity-90 mt-1">요금제 변경, 결제 내역 확인</div>
         </button>
         {/* 업체 화면에는 문자 사용 가능 여부와 내 업체 발송 현황만 보여 줍니다 */}
-        {!settingsEnt?.isSuperAdmin && <SmsNoticeCard />}
-        <BusinessInfoCard onNeedLogin={() => setScreen("login")} />
-        <Button variant="outline" className="h-auto w-full justify-between p-4 text-base font-bold" onClick={() => setScreen("bankSms")}>
-          <span>입금 문자 연결</span><span aria-hidden="true">›</span>
-        </Button>
+        {!settingsEnt?.isSuperAdmin && savedPhone !== null && !hasSavedNoticePhone(savedPhone) && <SmsNoticeCard />}
+        <BusinessInfoCard onNeedLogin={() => setScreen("login")} onSavedPhone={setSavedPhone} />
         {/* 문자발송 설정·시험 발송은 서비스 관리자 전용입니다 */}
         {settingsEnt?.isSuperAdmin && (
           <SmsConnectionCard

@@ -87,7 +87,13 @@ export async function sendViaAligo(v: {
   proxySecret?: string;
   sender: string;
   companyId: string;
+  actorId?: string;
 }): Promise<SendOutcome> {
+  // Never authorize customer traffic merely because a cron/proxy owns a service secret.
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  if (!v.actorId) return { ok: false, code: 403, error: "고객 문자는 휴대폰 문자 앱에서 직접 보내 주세요." };
+  const { data: role, error: roleError } = await supabaseAdmin.rpc("has_role", { _user_id: v.actorId, _role: "super_admin" });
+  if (roleError || role !== true) return { ok: false, code: 403, error: "고객 문자는 휴대폰 문자 앱에서 직접 보내 주세요." };
   const viaProxy = !!(v.proxyUrl && v.proxySecret);
   try {
     if (viaProxy) {
@@ -97,7 +103,7 @@ export async function sendViaAligo(v: {
           "Content-Type": "application/json",
           "x-jimpick-secret": String(v.proxySecret ?? "").trim(),
         },
-        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, sender: v.sender, companyId: v.companyId, userId: v.companyId }),
+        body: JSON.stringify({ to: v.to, text: v.text, title: v.title, sender: v.sender, companyId: v.companyId, userId: v.companyId, actorId: v.actorId, purpose: "customer" }),
         signal: AbortSignal.timeout(25000),
       });
       if (r.status === 401 || r.status === 403) {
@@ -213,9 +219,15 @@ async function sendOne(
   creds: Creds,
   /** 같은 건을 한 번 더 보낼 때 중복으로 막히지 않도록 쓰는 시도 구분값 */
   attempt?: string,
+  actorId?: string,
 ): Promise<{ sent: boolean }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const to = String(row.customer_phone ?? "").replace(/[^0-9]/g, "");
+  const { data: isAdmin, error: roleError } = actorId ? await supabaseAdmin.rpc("has_role", { _user_id: actorId, _role: "super_admin" }) : { data: false, error: null };
+  if (roleError || isAdmin !== true) {
+    await supabaseAdmin.from("move_reminders").update({ status: "scheduled", processing_at: null, error_code: "manual_sms_required", error_reason: "휴대폰 문자 앱에서 직접 보내 주세요." } as never).eq("id", row.id);
+    return { sent: false };
+  }
   const now = new Date().toISOString();
 
   if (!isKoreanMobile(to)) {
@@ -263,7 +275,7 @@ async function sendOne(
   const text = reminderText(row, profile?.sms_template ?? "", link ?? "", companyPhone);
   // 그림 첨부 없이 LMS 로만 보냅니다. 링크 미리보기 카드(OG)만 한 장 보입니다.
   const msgType = "LMS";
-  const sendArgs = { to, text, title: "", msgType, ...creds, sender, companyId: row.company_id };
+  const sendArgs = { to, text, title: "", msgType, ...creds, sender, companyId: row.company_id, actorId };
 
   // 무료 문자 사용량을 서버에서 먼저 예약합니다 (기간 만료면 보내지 않습니다).
   const attemptTag = attempt ?? String(Number(row.retry_count ?? 0));
@@ -416,6 +428,10 @@ async function logJobRun(v: {
  * 한 건을 한 번만 넘겨 주므로 같은 문자가 두 번 나가지 않습니다.
  */
 export async function runDueMoveReminders(limit = 20): Promise<RunResult> {
+  // Legacy schedules have no verified initiating service-admin actor. A cron secret
+  // cannot turn those company-to-customer reminders into platform notifications.
+  return { ok: true, picked: 0, sent: 0, failed: 0 };
+  /* Historical dispatcher retained for audit; customer queues cannot invoke it.
   const creds = readCreds();
   if (!creds) {
     await logJobRun({ job: "send", note: "문자 발송 설정(알리고)이 없어 실행하지 못했습니다." });
@@ -486,13 +502,19 @@ export async function runDueMoveReminders(limit = 20): Promise<RunResult> {
 
   await logJobRun({ job: "send", picked: rows.length, sent, failed });
   return { ok: true, picked: rows.length, sent, failed };
+  */
 }
 
 /** 사장님의 「다시 발송」 — 지금 한 건만 즉시 보냅니다 */
 export async function resendReminderNow(
   id: string,
   companyId: string,
+  actorId?: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!actorId) return { ok: false, error: "고객 문자는 직접 보내 주세요." };
+  const { supabaseAdmin: authority } = await import("@/integrations/supabase/client.server");
+  const { data: role, error: roleError } = await authority.rpc("has_role", { _user_id: actorId, _role: "super_admin" });
+  if (roleError || role !== true) return { ok: false, error: "유료 문자 발송은 서비스 관리자만 사용할 수 있습니다." };
   const creds = readCreds();
   if (!creds) return { ok: false, error: "문자 발송 설정(알리고)이 필요합니다." };
 
@@ -516,6 +538,7 @@ export async function resendReminderNow(
     locked as unknown as Reminder,
     creds,
     `resend-${Date.now().toString(36)}`,
+    actorId,
   );
   return out.sent ? { ok: true } : { ok: false, error: "문자 발송에 실패했습니다. 실패 사유를 확인해 주세요." };
 }

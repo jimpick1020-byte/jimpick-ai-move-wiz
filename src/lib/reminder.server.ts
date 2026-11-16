@@ -155,7 +155,7 @@ export async function syncMoveReminder(estimateTermsId: string): Promise<SyncRes
     scheduled_at: scheduledAt,
     scheduled_date: scheduledDate,
     delivery_type: "move_day_reminder",
-    provider: "aligo",
+    provider: "native_sms",
     to_masked: `010-****-${phoneLast4}`,
     idempotency_key: idempotencyKey,
   };
