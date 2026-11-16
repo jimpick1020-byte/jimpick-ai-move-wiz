@@ -17,6 +17,7 @@ import { ItemListLayer, ItemPickerCard, FullScreenItemFrame, type ItemListMode }
 import { ManualItemForm, type ManualItemInput } from "./ManualItemForm";
 import { FavoriteItemGrid } from "./FavoriteItemGrid";
 import { pickerItemLabel } from "@/lib/picker-item-label";
+import { staffSheetDetails } from "@/lib/staff-sheet-display";
 import { createManualItem } from "@/lib/manual-item.functions";
 import { RoomMenu, RoomNameDialog, RoomDeleteDialog, useRoomDrag } from "./RoomManage";
 import { addRoom, deleteRoom, materializeRooms, moveRoom, renameRoom, roomNameError } from "@/lib/room-manage";
@@ -5790,7 +5791,6 @@ export function Result() {
     workEnv: String(draft.workEnv ?? ""),
     fromEnv: sideConditionText(draft, "from"),
     toEnv: sideConditionText(draft, "to"),
-    options: draft.options.filter((o) => o.enabled).map((o) => o.name),
     specialTerms: draft.specialTerms ?? "",
     truckText: [
       draft.truck5t > 0 ? `5톤 트럭 ${draft.truck5t}대` : "",
@@ -5801,24 +5801,10 @@ export function Result() {
       .join(" · "),
     distanceKm: draft.distanceKm ?? 0,
     durationMin: draft.durationMin ?? 0,
-    extraWork: [
-      ...draft.options.filter((o) => o.enabled).map((o) => o.name),
-      draft.ladderFrom ? "사다리차 출발지" : "",
-      draft.ladderTo ? "사다리차 도착지" : "",
-    ].filter(Boolean),
+    ...staffSheetDetails(draft, sheetRooms),
     note: [draft.memo, draft.sheetNote].filter(Boolean).join("\n"),
     staffName: draft.staffName ?? "",
     staffPhone: draft.staffPhone ?? "",
-    rooms: sheetRooms.map((r) => ({
-      name: r.name,
-      items: r.items.map((i) => ({
-        id: i.id,
-        name: i.name,
-        qty: i.qty,
-        icon: draft.customItems.find((custom) => custom.id === i.id)?.icon,
-        disposal: !!i.disposal,
-      })),
-    })),
   });
 
   /** 공유 버튼을 누른 시점의 실제 견적정보로 만든 카카오톡 본문 (금액·계좌·약관 제외) */

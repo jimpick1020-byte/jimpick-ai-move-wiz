@@ -19,6 +19,7 @@ import {
   ShieldAlert,
   Navigation,
   Package,
+  Users,
 } from "lucide-react";
 
 function Row({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
@@ -76,6 +77,10 @@ export function StaffSheet() {
     };
   }, [token]);
 
+  return <StaffSheetView state={state} />;
+}
+
+export function StaffSheetView({ state }: { state: { loading: boolean; error?: string; snap?: StaffSheetSnapshot; expiresAt?: string } }) {
   const mapUrl = (addr: string) => `https://map.kakao.com/link/search/${encodeURIComponent(addr)}`;
 
   return (
@@ -224,6 +229,15 @@ export function StaffSheet() {
               <Row icon={<Truck className="h-5 w-5" />} label="차량" value={state.snap.truckText} />
             </Card>
 
+            {((state.snap.workers ?? 0) > 0 || (state.snap.kitchenStaff ?? 0) > 0) && (
+              <Card title="작업 인원">
+                <Row icon={<Users className="h-5 w-5" />} label="인원" value={[
+                  (state.snap.workers ?? 0) > 0 ? `남자 ${state.snap.workers}명` : "",
+                  (state.snap.kitchenStaff ?? 0) > 0 ? `주방 ${state.snap.kitchenStaff}명` : "",
+                ].filter(Boolean).join(" · ")} />
+              </Card>
+            )}
+
             {state.snap.rooms.length > 0 && (
               <section aria-labelledby="staff-room-items-title">
                 <h2
@@ -287,14 +301,6 @@ export function StaffSheet() {
               <Card title="추가 작업">
                 <div className="py-3 text-[15px] font-bold text-[#25282D]">
                   {state.snap.extraWork.join(" · ")}
-                </div>
-              </Card>
-            )}
-
-            {(state.snap.options ?? []).length > 0 && (
-              <Card title="추가 옵션">
-                <div className="py-3 text-[15px] font-bold text-[#25282D]">
-                  {(state.snap.options ?? []).join(" · ")}
                 </div>
               </Card>
             )}

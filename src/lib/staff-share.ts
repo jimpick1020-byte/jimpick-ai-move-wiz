@@ -38,6 +38,8 @@ export interface StaffSheetSnapshot {
   /** 특약사항 */
   specialTerms?: string;
   truckText: string;
+  workers?: number;
+  kitchenStaff?: number;
   distanceKm: number;
   durationMin: number;
   /** 추가 작업 (켠 것만, 금액 없이 이름만) */
