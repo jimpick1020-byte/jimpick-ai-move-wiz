@@ -44,6 +44,7 @@ export interface StaffSheetSnapshot {
   durationMin: number;
   /** 추가 작업 (켠 것만, 금액 없이 이름만) */
   extraWork: string[];
+  extraWorkItems?: { id: string; name: string; separate: boolean }[];
   /** 현장 안내사항 */
   note: string;
   staffName: string;

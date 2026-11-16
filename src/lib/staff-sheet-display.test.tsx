@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { writeFileSync } from "node:fs";
 import { newEstimate, type Estimate } from "./jimpick";
 import { sheetRoomsOf } from "./sheet-edit";
-import { staffSheetDetails } from "./staff-sheet-display";
+import { staffSheetDetails, repairStaffSheet } from "./staff-sheet-display";
 import { StaffSheetView } from "@/components/jimpick/StaffSheet";
 import type { StaffSheetSnapshot } from "./staff-share";
 import { ICON3D } from "./jimpick-icon3d";
@@ -27,6 +27,20 @@ describe("staff sheet selected details", () => {
     d.options[0].separate = false;
     expect(staffSheetDetails(d, sheetRoomsOf(d)).extraWork).toEqual(["벽걸이티비"]);
   });
+  it("preserves structured separate flags and repairs missing legacy counts and combo art from saved estimate", () => {
+    const d = draft();
+    const details = staffSheetDetails(d, sheetRoomsOf(d));
+    expect(details.extraWorkItems).toEqual([{ id: "op", name: "벽걸이티비", separate: true }]);
+    const legacy = { ...details, workers: undefined, kitchenStaff: undefined, extraWorkItems: undefined,
+      rooms: [{ name: "베란다", items: [{ id: "ci_ai_fixture", name: "세탁기콤보", qty: 1 }] }],
+    } as StaffSheetSnapshot;
+    const result = repairStaffSheet(legacy, { draft: d });
+    expect(result.workers).toBe(4);
+    expect(result.kitchenStaff).toBe(2);
+    expect(result.rooms[0].items[0]).toMatchObject({ name: "세탁기콤보", qty: 1, icon: d.customItems[0].icon });
+    expect(result.extraWorkItems?.[0].separate).toBe(true);
+    expect(repairStaffSheet(legacy, { rooms: [{ name: "베란다", items: [{ id: "ci_ai_fixture", name: "세탁기콤보", qty: 1, icon: d.customItems[0].icon }] }] }).rooms[0].items[0].icon).toBe(d.customItems[0].icon);
+  });
   it("keeps ladder separate flags including legacy global separate", () => {
     const d = { ...draft(), ladderFrom: true, ladderTo: true, ladderFromSeparate: true };
     expect(staffSheetDetails(d, []).extraWork.slice(1)).toEqual(["사다리차 출발지 · 별도", "사다리차 도착지"]);
@@ -39,7 +53,7 @@ describe("staff sheet selected details", () => {
     expect(details.rooms[0].items[0]).toMatchObject({ name: "합성 세탁기콤보", qty: 1, icon: d.customItems[0].icon });
     expect(details.rooms[0].items[1]).toMatchObject({ qty: 3, icon: ICON3D.basket });
     expect(details.rooms[1].items[0]).toMatchObject({ name: "합성 세탁기콤보", qty: 2, icon: d.customItems[0].icon });
-    const snapshot = { customerName: "합성 고객", customerPhone: "", moveDate: "", moveTime: "", moveType: "", fromAddress: "", fromDetail: "", toAddress: "", toDetail: "", fromFloor: 0, toFloor: 0, workEnv: "", truckText: "", distanceKm: 0, durationMin: 0, note: "", staffName: "", staffPhone: "", ...details } satisfies StaffSheetSnapshot;
+    const snapshot = { customerName: "합성 고객", customerPhone: "", moveDate: "", moveTime: "", moveType: "", fromAddress: "", fromDetail: "", toAddress: "", toDetail: "", fromFloor: 0, toFloor: 0, workEnv: "", truckText: "1톤 트럭 2대", distanceKm: 0, durationMin: 0, note: "", staffName: "", staffPhone: "", ...details } satisfies StaffSheetSnapshot;
     const html = renderToStaticMarkup(createElement(StaffSheetView, { state: { loading: false, snap: snapshot } }));
     writeFileSync("/tmp/staff-sheet-fixture.html", html);
   });

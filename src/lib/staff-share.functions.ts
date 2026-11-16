@@ -180,7 +180,7 @@ export const openStaffShare = createServerFn({ method: "POST" })
 
     const { data: row, error } = await supabaseAdmin
       .from("estimate_staff_shares")
-      .select("id, expires_at, revoked_at, opened_at, open_count, staff_snapshot")
+      .select("id, company_id, estimate_id, expires_at, revoked_at, opened_at, open_count, staff_snapshot")
       .eq("secure_token_hash", hash)
       .maybeSingle();
     if (error) {
@@ -210,5 +210,14 @@ export const openStaffShare = createServerFn({ method: "POST" })
       snapshot = undefined;
     }
     if (!snapshot) return { ok: false, error: "이사정보를 읽을 수 없습니다." };
+    // The verified work-link alone selects the company and estimate; no caller-supplied catalog scope.
+    const { repairStaffSheet } = await import("./staff-sheet-display");
+    const { data: terms } = await supabaseAdmin.from("estimate_terms")
+      .select("sheet_snapshot")
+      .eq("user_id", row.company_id).eq("estimate_id", row.estimate_id)
+      .is("deleted_at", null).order("sheet_version", { ascending: false }).limit(1).maybeSingle();
+    let source: Parameters<typeof repairStaffSheet>[1];
+    try { source = JSON.parse(terms?.sheet_snapshot ?? "null") ?? undefined; } catch { source = undefined; }
+    snapshot = repairStaffSheet(snapshot, source);
     return { ok: true, expiresAt: row.expires_at, snapshot };
   });

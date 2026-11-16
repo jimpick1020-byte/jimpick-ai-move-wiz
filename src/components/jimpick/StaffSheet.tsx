@@ -7,7 +7,8 @@ import { formatTel } from "@/lib/format-input";
 import { useParams } from "@tanstack/react-router";
 import { openStaffShare } from "@/lib/staff-share.functions";
 import type { StaffSheetSnapshot } from "@/lib/staff-share";
-import { Icon3D, icon3dFor } from "@/lib/jimpick-icon3d";
+import { Icon3D } from "@/lib/jimpick-icon3d";
+import { repairStaffSheet } from "@/lib/staff-sheet-display";
 import {
   Phone,
   MapPin,
@@ -28,7 +29,7 @@ function Row({ icon, label, value }: { icon: React.ReactNode; label: string; val
     <div className="flex items-start gap-2.5 border-b border-[#EEF3FB] py-3 last:border-0">
       <span className="mt-0.5 shrink-0 text-[#25282D]">{icon}</span>
       <span className="w-[86px] shrink-0 text-[14px] font-bold text-[#6B7280]">{label}</span>
-      <span className="min-w-0 flex-1 break-words text-[15px] font-bold text-[#25282D]">
+      <span className="min-w-0 flex-1 break-keep text-[15px] font-bold text-[#25282D]">
         {value}
       </span>
     </div>
@@ -81,6 +82,7 @@ export function StaffSheet() {
 }
 
 export function StaffSheetView({ state }: { state: { loading: boolean; error?: string; snap?: StaffSheetSnapshot; expiresAt?: string } }) {
+  state = { ...state, snap: state.snap ? repairStaffSheet(state.snap) : undefined };
   const mapUrl = (addr: string) => `https://map.kakao.com/link/search/${encodeURIComponent(addr)}`;
 
   return (
@@ -227,16 +229,11 @@ export function StaffSheetView({ state }: { state: { loading: boolean; error?: s
 
             <Card title="차량">
               <Row icon={<Truck className="h-5 w-5" />} label="차량" value={state.snap.truckText} />
-            </Card>
-
-            {((state.snap.workers ?? 0) > 0 || (state.snap.kitchenStaff ?? 0) > 0) && (
-              <Card title="작업 인원">
-                <Row icon={<Users className="h-5 w-5" />} label="인원" value={[
-                  (state.snap.workers ?? 0) > 0 ? `남자 ${state.snap.workers}명` : "",
-                  (state.snap.kitchenStaff ?? 0) > 0 ? `주방 ${state.snap.kitchenStaff}명` : "",
+                <Row icon={<Users className="h-5 w-5" />} label="작업 인원" value={[
+                  (state.snap.workers ?? 0) > 0 ? `남자 작업자 ${state.snap.workers}명` : "",
+                  (state.snap.kitchenStaff ?? 0) > 0 ? `주방 작업자 ${state.snap.kitchenStaff}명` : "",
                 ].filter(Boolean).join(" · ")} />
-              </Card>
-            )}
+            </Card>
 
             {state.snap.rooms.length > 0 && (
               <section aria-labelledby="staff-room-items-title">
@@ -268,7 +265,7 @@ export function StaffSheetView({ state }: { state: { loading: boolean; error?: s
                             >
                               <span className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-[#F7F8F5]">
                                 <Icon3D
-                                  src={item.icon || icon3dFor(item.id, item.name)}
+                                  src={item.icon ?? "none:no-image"}
                                   alt={item.name}
                                   size={40}
                                 />
@@ -299,8 +296,16 @@ export function StaffSheetView({ state }: { state: { loading: boolean; error?: s
 
             {state.snap.extraWork.length > 0 && (
               <Card title="추가 작업">
-                <div className="py-3 text-[15px] font-bold text-[#25282D]">
-                  {state.snap.extraWork.join(" · ")}
+                <div className="py-2 text-[15px] text-foreground">
+                  {(state.snap.extraWorkItems ? [
+                    ...state.snap.extraWorkItems,
+                    ...state.snap.extraWork.filter(name => name.startsWith("사다리차 ")).map((name, index) => ({ id: `ladder-${index}`, name: name.replace(/ · 별도$/, ""), separate: name.endsWith(" · 별도") })),
+                  ] : state.snap.extraWork.map((name, index) => ({ id: String(index), name: name.replace(/ · 별도$/, ""), separate: name.endsWith(" · 별도") }))).map(work => (
+                    <div key={work.id} className="flex items-center justify-between gap-3 py-1.5">
+                      <span className="min-w-0 break-words">{work.name}</span>
+                      {work.separate && <span className="shrink-0 font-bold">별도</span>}
+                    </div>
+                  ))}
                 </div>
               </Card>
             )}
