@@ -1,11 +1,12 @@
 import { calcEstimate, itemNameById, ITEM_CATALOG, type Estimate } from './jimpick';
 import { plannedDeposit } from './deposit-rule';
+import { isPlaceholderName, UNKNOWN_ITEM_NAME } from './shared-item-repair';
 
 export function sheetRoomsOf(draft: Estimate) {
   return draft.rooms.map(room => ({ id: room.id, name: room.name,
     items: Object.entries(room.items).filter(([, qty]) => qty > 0).map(([id, qty]) => ({
       id, qty, disposal: !!room.disposal?.[id],
-      name: draft.itemNames?.[id] || draft.customItems?.find(item => item.id === id)?.name || ITEM_CATALOG.find(item => item.id === id)?.name || itemNameById(id) || id,
+      name: [draft.itemNames?.[id], draft.customItems?.find(item => item.id === id)?.name, ITEM_CATALOG.find(item => item.id === id)?.name, itemNameById(id)].find(n => !isPlaceholderName(n, id)) || UNKNOWN_ITEM_NAME,
     })),
   })).filter(room => room.items.length);
 }

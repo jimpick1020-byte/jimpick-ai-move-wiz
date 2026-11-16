@@ -39,6 +39,7 @@ import {
   type Estimate,
 } from "@/lib/jimpick";
 import { registerCustomIcons } from "@/lib/jimpick-icon3d";
+import { isPlaceholderName, UNKNOWN_ITEM_NAME } from "@/lib/shared-item-repair";
 import { ItemArt } from "@/lib/jimpick-art";
 import { OptionArt } from "./OptionArt";
 import {
@@ -470,7 +471,7 @@ export function SharePage() {
       .filter(([, qty]) => qty > 0)
       .map(([itemId, qty]) => {
         const catalog = ITEM_CATALOG.find((i) => i.id === itemId);
-        return { id: itemId, room: room.name, name: estimate?.itemNames?.[itemId] || catalog?.name || itemNameById(itemId) || itemId, qty, disposal: !!room.disposal?.[itemId] };
+        return { id: itemId, room: room.name, name: [estimate?.itemNames?.[itemId], estimate?.customItems?.find((c) => c.id === itemId)?.name, catalog?.name, itemNameById(itemId)].find((n) => !isPlaceholderName(n, itemId)) || UNKNOWN_ITEM_NAME, qty, disposal: !!room.disposal?.[itemId] };
       }),
   );
   const enabledOptions = (estimate?.options ?? []).filter((o) => o.enabled);

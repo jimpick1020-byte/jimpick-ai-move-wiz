@@ -263,6 +263,31 @@ export const getTermsLink = createServerFn({ method: "POST" })
       }
     }
 
+    // 공유 품목 이름·그림 복구 — 이 견적 업체(user_id)의 카탈로그만 읽고, 목록은 내보내지 않습니다.
+    if (snapshot) {
+      try {
+        const repair = await import("./shared-item-repair");
+        const { itemNameById } = await import("./jimpick");
+        const { ICON3D } = await import("./jimpick-icon3d");
+        const isBuiltin = (id: string) => !!itemNameById(id) || !!ICON3D[id];
+        const snap = JSON.parse(snapshot);
+        const ids = repair.idsNeedingCatalog(snap, isBuiltin);
+        if (ids.length) {
+          const { data: rows } = await supabaseAdmin
+            .from("item_icons")
+            .select("id, item_id, display_name, requested_name, original_name, name, status, active, image_path, storage_path")
+            .eq("user_id", (row as { user_id?: string }).user_id ?? "")
+            .in("item_id", ids)
+            .order("updated_at", { ascending: false });
+          const seen = new Set<string>();
+          const latest = ((rows ?? []) as import("./shared-item-repair").CatalogRow[]).filter((r) => !seen.has(r.item_id) && seen.add(r.item_id));
+          snapshot = JSON.stringify(repair.repairSharedSnapshot(snap, latest, isBuiltin));
+        }
+      } catch (e) {
+        console.error("[getTermsLink] item repair", e instanceof Error ? e.message : e);
+      }
+    }
+
 
     return {
       ok: true,

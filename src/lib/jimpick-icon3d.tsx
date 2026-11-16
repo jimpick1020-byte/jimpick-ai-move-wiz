@@ -12,6 +12,7 @@ import { ITEMS_1000 } from "./items-catalog-1000";
 import { FEATURED_HOUSEHOLD_100 } from "./featured-household-100";
 import movingBasket from "@/assets/moving-red-basket.png.asset.json";
 import movingBox from "@/assets/moving-blue-box.png.asset.json";
+import { NO_IMAGE_ICON } from "./shared-item-repair";
 
 const BASE = "/assets/items-3d";
 
@@ -602,9 +603,11 @@ export function hasStoredIcon(id: string | undefined): boolean {
 
 /** 품목 id·이름으로 아이콘 경로 정하기 (없으면 기본 박스) */
 export function icon3dFor(id: string | undefined, name: string): string {
-  return (
-    (id ? CUSTOM_ICON[id] ?? ICON3D[id] : undefined) ?? guessIcon3d(name) ?? DEFAULT_ICON3D
-  );
+  const stored = id ? CUSTOM_ICON[id] ?? ICON3D[id] : undefined;
+  if (stored) return stored;
+  // 업체 추가·AI 품목은 그림을 못 찾으면 관련 없는 상자 대신 「그림 없음」을 보여 줍니다
+  if (id && /^ci_/i.test(id)) return NO_IMAGE_ICON;
+  return guessIcon3d(name) ?? DEFAULT_ICON3D;
 }
 
 /**
@@ -625,10 +628,31 @@ export function Icon3D({
   cutout?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
-  const shown = failed ? DEFAULT_ICON3D : src;
-  const prepared = useItemCutout(shown, cutout);
+  // 업체 저장 그림이 깨지면 기본 상자 대신 「그림 없음」으로 바꿉니다
+  const storedArt = !src.startsWith(BASE);
+  const noImage = src === NO_IMAGE_ICON || (failed && storedArt);
+  const shown = noImage ? DEFAULT_ICON3D : failed ? DEFAULT_ICON3D : src;
+  const prepared = useItemCutout(shown, cutout && !noImage);
   // 그림마다 다른 투명 여백을 지우고 「침대(킹)」과 비슷한 크기로 맞춥니다
   const fit = useIconFit(shown);
+  if (noImage) {
+    return (
+      <span
+        role="img"
+        aria-label={`${alt} (그림 없음)`}
+        data-no-image=""
+        className={`relative inline-flex shrink-0 items-center justify-center text-muted-foreground ${className}`}
+        style={{ width: size, height: size }}
+      >
+        <svg viewBox="0 0 24 24" width="55%" height="55%" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <rect x="3" y="4" width="18" height="16" rx="2.5" />
+          <circle cx="9" cy="9.5" r="1.6" />
+          <path d="M21 16l-5-5-9 9" />
+          <path d="M3 3l18 18" />
+        </svg>
+      </span>
+    );
+  }
   return (
     <span
       className={`relative inline-flex shrink-0 items-center justify-center ${cutout ? "overflow-visible" : "overflow-hidden"} ${className}`}
