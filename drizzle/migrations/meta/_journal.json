@@ -379,6 +379,20 @@
       "when": 1794800673590,
       "tag": "0053_retire_company_bank_sms_collection",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1794902024752,
+      "tag": "0054_onsite_card_reservations",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1794902169523,
+      "tag": "0055_protect_card_reservation_inserts",
+      "breakpoints": true
     }
   ]
 }

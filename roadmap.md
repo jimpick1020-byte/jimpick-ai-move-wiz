@@ -263,3 +263,7 @@
 - [x] Connect balance review home/month/badge and latest-term receipt criteria.
 - [x] Verify existing notifications and repair completed-receipt acknowledgement without widening permissions.
 - [x] Run focused synthetic/isolated tests and 320–390px mobile checks; preview build OK. No publishing, customer edits, real SMS/push tests or PayApp calls.
+## 현장 카드 결제 예약
+- [x] 고객 약관 동의·현장 카드 요청·중복 없는 업체 알림
+- [x] 홈 대기 목록·업체 확정·달력·미결제 표시
+- [x] 실제 단말기 승인 확인 후 수동 완료·90만원 격리 흐름 시험

@@ -1,3 +1,4 @@
+import { CardReservationPanel } from "./CardReservation";
 import { TmapAddress } from "./TmapAddress";
 import { activeHouseOf, houseLabel, roomHouse } from "@/lib/house-workspace";
 import { PaymentSmsButton } from "./PaymentSmsButton";
@@ -775,6 +776,7 @@ export function HomeScreen() {
   const pct = statsReady ? stats.pct : 0;
   const stageCounts = {
     estimate_notice: 0,
+    card_waiting: 0,
     deposit_waiting: 0,
     reservation_confirmed: 0,
     balance_waiting: 0,
@@ -783,6 +785,7 @@ export function HomeScreen() {
   type StageItem = { key: string; estimateId: string; termsId?: string; name: string; amount: number; amountLabel: string; moveDate?: string; moveTime?: string | null; createdAt?: number };
   const stageLists: Record<keyof typeof stageCounts, StageItem[]> = {
     estimate_notice: [],
+    card_waiting: [],
     deposit_waiting: [],
     reservation_confirmed: [],
     balance_waiting: [],
@@ -797,6 +800,7 @@ export function HomeScreen() {
     const reviewStages = homeReviewStages(row ?? {});
     if (!stats.currentIds.has(estimate.id) && !reviewStages.length) continue;
     const stage = homeReservationStageOf({
+      reservationPaymentChoice: row?.reservationPaymentChoice, cardRequestedAt: row?.cardRequestedAt, cardConfirmedAt: row?.cardConfirmedAt,
       paymentStatus: row?.paymentStatus,
       depositPaid: row?.depositPaid,
       balancePaid: row?.balancePaid,
@@ -1070,6 +1074,7 @@ export function HomeScreen() {
               </Button>
             ))}
           </div>
+          {statsReady && stageCounts.card_waiting > 0 && <Button variant="link" className="mt-2 h-auto min-h-11 w-full whitespace-normal" onClick={() => { setOpenStage("card_waiting"); setOpenStageMonths(nearestStageMonth(stageLists.card_waiting)); }}>카드 예약 확인 대기 {stageCounts.card_waiting}건</Button>}
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#F1F5FA]">
             <div
               className="h-full rounded-full"
@@ -1141,7 +1146,7 @@ export function HomeScreen() {
                                       type="button"
                                       variant="ghost"
                                       onClick={() => {
-                                        if (openStage === "deposit_waiting" || openStage === "balance_waiting") {
+                                        if (openStage === "card_waiting" || openStage === "deposit_waiting" || openStage === "balance_waiting") {
                                           try {
                                             sessionStorage.setItem("jp_waiting_history_target", item.estimateId);
                                             sessionStorage.setItem("jp_return_stage", openStage);
@@ -1159,7 +1164,7 @@ export function HomeScreen() {
                                       }}
                                       className="h-auto min-h-11 shrink-0 rounded-xl bg-auth-soft px-3 py-2 text-[13px] font-black text-auth-primary"
                                     >
-                                      {openStage === "deposit_waiting" || openStage === "balance_waiting" ? HOME_STAGE_LABEL[openStage] : "견적 보기"}
+                                      {openStage === "card_waiting" || openStage === "deposit_waiting" || openStage === "balance_waiting" ? HOME_STAGE_LABEL[openStage] : "견적 보기"}
                                     </Button>
                                   </div>
                                 ))}
@@ -6449,6 +6454,9 @@ export function Result() {
                 total={total}
                 companyName={sheetCompanyName}
                 companyPhone={draft.staffPhone ?? ""}
+                reservationPaymentChoice={termsStatus?.reservationPaymentChoice}
+                cardRequestedAt={termsStatus?.cardRequestedAt}
+                cardConfirmedAt={termsStatus?.cardConfirmedAt}
                 acceptedAt={termsStatus?.acceptedAt ?? null}
                 paymentStatus={termsStatus?.paymentStatus ?? null}
                 paidDeposit={termsStatus?.depositPaid ?? 0}
@@ -6778,7 +6786,10 @@ export function Result() {
                   total={total}
                   companyName={sheetCompanyName}
                   companyPhone={draft.staffPhone ?? ""}
-                  acceptedAt={termsStatus?.acceptedAt ?? null}
+                  reservationPaymentChoice={termsStatus?.reservationPaymentChoice}
+                cardRequestedAt={termsStatus?.cardRequestedAt}
+                cardConfirmedAt={termsStatus?.cardConfirmedAt}
+                acceptedAt={termsStatus?.acceptedAt ?? null}
                 paymentStatus={termsStatus?.paymentStatus ?? null}
                 paidDeposit={termsStatus?.depositPaid ?? 0}
                   acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
@@ -6978,6 +6989,7 @@ export function History() {
     if (!waitingTargetId || !termsReady) return;
     const row = historyTerms.find((r) => r.estimateId === waitingTargetId);
     const stage = homeReservationStageOf({
+      reservationPaymentChoice: row?.reservationPaymentChoice, cardRequestedAt: row?.cardRequestedAt, cardConfirmedAt: row?.cardConfirmedAt,
       paymentStatus: row?.paymentStatus, depositPaid: row?.depositPaid,
       balancePaid: row?.balancePaid, acceptedAt: row?.acceptedAt,
       reservationStatus: row?.reservationStatus, depositClaimPending: Boolean(row?.depositClaimId),
@@ -7150,6 +7162,7 @@ export function History() {
           const ts = termsState(e.id);
           const review = paymentReview(ts.row?.paymentReceipts ?? [], ts.row?.paymentStatus ?? "unpaid", ts.row?.depositPaid ?? 0, ts.row?.balancePaid ?? 0, ts.row?.total ?? e.total);
           const waitingSelected = termsReady && isWaitingHistoryTarget(waitingTargetId, e.id, homeReviewStages(ts.row ?? {})[0] ?? homeReservationStageOf({
+            reservationPaymentChoice: ts.row?.reservationPaymentChoice, cardRequestedAt: ts.row?.cardRequestedAt, cardConfirmedAt: ts.row?.cardConfirmedAt,
             paymentStatus: ts.row?.paymentStatus, depositPaid: ts.row?.depositPaid,
             balancePaid: ts.row?.balancePaid, acceptedAt: ts.row?.acceptedAt,
             reservationStatus: ts.row?.reservationStatus, depositClaimPending: Boolean(ts.row?.depositClaimId),
@@ -7205,7 +7218,8 @@ export function History() {
                         {/* 결제상태만 한 개 표시합니다 (독립적인 '완료' 문구는 쓰지 않습니다) */}
                         {(() => {
                           const stage = reservationStageOf({
-                            paymentStatus: ts.row?.paymentStatus,
+                            reservationPaymentChoice: ts.row?.reservationPaymentChoice, cardRequestedAt: ts.row?.cardRequestedAt, cardConfirmedAt: ts.row?.cardConfirmedAt,
+            paymentStatus: ts.row?.paymentStatus,
                             depositPaid: ts.row?.depositPaid,
                             balancePaid: ts.row?.balancePaid,
                             acceptedAt: ts.row?.acceptedAt,
@@ -7365,8 +7379,8 @@ export function History() {
                               </div>
                             );
                           })()}
-                        {ts.row && <DepositPanel estimateId={e.id} onSaved={loadTerms} />}
-                        {ts.row && (
+                        {ts.row?.reservationPaymentChoice === "onsite_card" ? <CardReservationPanel row={ts.row} onSaved={loadTerms} /> : ts.row && <DepositPanel estimateId={e.id} onSaved={loadTerms} />}
+                        {ts.row && ts.row.reservationPaymentChoice !== "onsite_card" && (
                           <PaymentPanel
                             estimateId={e.id}
                             total={ts.row.total}
@@ -7475,6 +7489,7 @@ export function Customers() {
     const r = termsRows.find((t) => t.estimateId === estimateId);
     if (!r) return null;
     return reservationStageOf({
+      reservationPaymentChoice: r.reservationPaymentChoice, cardRequestedAt: r.cardRequestedAt, cardConfirmedAt: r.cardConfirmedAt,
       paymentStatus: r.paymentStatus,
       depositPaid: r.depositPaid,
       balancePaid: r.balancePaid,
@@ -7569,7 +7584,7 @@ export function Customers() {
   );
   function renderCustomer(c: (typeof list)[number]) {
           const stages = c.ids.map((id) => contractOf(id)).filter((stage): stage is NonNullable<typeof stage> => Boolean(stage));
-          const rank = ["estimate_notice", "reservation_request", "deposit_waiting", "reservation_confirmed", "payment_completed"] as const;
+          const rank = ["estimate_notice", "card_waiting", "reservation_request", "deposit_waiting", "reservation_confirmed", "payment_completed"] as const;
           const customerStage = stages.reduce(
             (best, stage) => rank.indexOf(stage) > rank.indexOf(best) ? stage : best,
             "estimate_notice" as (typeof rank)[number],

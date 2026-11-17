@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button";
+import { CardReservationChoice } from "./CardReservation";
 import { TmapAddress } from "./TmapAddress";
 import { BalanceClaimPanel } from "./BalanceClaimPanel";
 import { customerPaymentDue, sheetPlannedDeposit } from "@/lib/customer-payment";
@@ -165,6 +167,8 @@ export function SharePage() {
   const [openSheet, setOpenSheet] = useState(true);
   const [openFull, setOpenFull] = useState(false);
   const [openSummary, setOpenSummary] = useState<number | null>(null);
+  const [paymentChoice, setPaymentChoice] = useState<"bank_transfer" | "onsite_card">("bank_transfer");
+  const reservationLock = useRef(false);
   const [checked, setChecked] = useState(false);
   const [accepted, setAccepted] = useState<LocalAcceptance | null>(null);
   const [saving, setSaving] = useState(false);
@@ -401,7 +405,7 @@ export function SharePage() {
   const paidDeposit = Math.max(0, (validLink ? (link.depositPaid ?? 0) : 0) || 0);
 
   const depositClaimSlot = (() => {
-    if (!hasData) return null;
+    if (!hasData || (link?.reservationPaymentChoice ?? paymentChoice) === "onsite_card") return null;
     const due = customerPaymentDue(total, paidDeposit, link?.balancePaid ?? 0, link?.paymentStatus ?? "unpaid", sheetPlannedDeposit(total, validLink ? link.sheetSnapshot : null));
     const label = due.kind === "balance" ? "잔금" : "예약금";
     const errorBox = claimError && (
@@ -476,7 +480,8 @@ export function SharePage() {
   const enabledOptions = (estimate?.options ?? []).filter((o) => o.enabled);
 
   const confirmReservation = async () => {
-    if (!checked || saving || !hasData) return;
+    if (!checked || saving || reservationLock.current || !hasData) return;
+    reservationLock.current = true;
     setSaving(true);
     setSaveError(null);
     const snapshot = termsSnapshot();
@@ -498,7 +503,11 @@ export function SharePage() {
       },
       null,
       1,
-    ).slice(0, 190_000);
+    );
+    if (estimateSnapshot.length > 190_000) {
+      setSaveError("견적 자료가 너무 큽니다. 업체에 문의해 주세요.");
+      reservationLock.current = false; setSaving(false); return;
+    }
     const rec: LocalAcceptance = {
       estimateId: estimate?.id ?? id,
       termsName: TERMS_NAME,
@@ -517,6 +526,7 @@ export function SharePage() {
           token,
           termsSnapshot: snapshot,
           estimateSnapshot,
+          reservationPaymentChoice: paymentChoice,
           acceptMethod: "웹 링크 · 확인란 선택",
         },
       });
@@ -527,6 +537,7 @@ export function SharePage() {
               ? "해당 날짜는 예약이 마감되었습니다(하루 2건)."
               : "동의 기록을 저장하지 못했습니다. 다시 시도해 주세요."),
         );
+        reservationLock.current = false;
         setSaving(false);
         return;
       }
@@ -534,9 +545,14 @@ export function SharePage() {
       if (r.acceptedAt) rec.acceptedAt = new Date(r.acceptedAt).getTime();
     } catch {
       setSaveError("네트워크 문제로 동의 기록을 저장하지 못했습니다. 다시 시도해 주세요.");
+      reservationLock.current = false;
       setSaving(false);
       return;
     }
+    const refreshed = await getTermsLink({ data: { token } }).catch(() => null);
+    if (refreshed?.ok) setLink(refreshed);
+    else setLink(current => current?.ok ? { ...current, reservationPaymentChoice: paymentChoice, cardRequestedAt: paymentChoice === "onsite_card" ? new Date().toISOString() : null } : current);
+    reservationLock.current = false;
     writeAcceptance(rec);
     setAccepted(rec);
     setSaving(false);
@@ -705,6 +721,9 @@ export function SharePage() {
             rooms={sentSheet.rooms}
             parts={sentSheet.parts}
             total={sentSheet.total}
+            reservationPaymentChoice={link?.reservationPaymentChoice ?? paymentChoice}
+            cardRequestedAt={link?.cardRequestedAt}
+            cardConfirmedAt={link?.cardConfirmedAt}
             paidDeposit={paidDeposit}
             paymentStatus={link?.ok ? link.paymentStatus ?? null : null}
             depositClaimPending={link?.ok ? link.depositClaimPending === true : claimSent}
@@ -962,7 +981,7 @@ export function SharePage() {
       ) : accepted ? (
         <div className="mt-4 rounded-[14px] border-2 border-[#3578C8] bg-white p-4">
           <div className="inline-flex items-center gap-2 text-[19px] font-black text-[#1D4ED8]">
-            <CheckCircle2 className="h-6 w-6" /> 예약 요청이 접수되었습니다
+            <CheckCircle2 className="h-6 w-6" /> {link?.reservationPaymentChoice === "onsite_card" ? link.paymentStatus === "completed" ? "결제 완료 · 남은 금액 0원" : link.cardConfirmedAt ? "예약 확정 · 현장 카드 결제 예정" : "예약 확인 대기" : "예약 요청이 접수되었습니다"}
           </div>
           <div className="mt-1 text-[16px] text-[#25282D]">
             동의 일시: {new Date(accepted.acceptedAt).toLocaleString("ko-KR")}
@@ -973,6 +992,7 @@ export function SharePage() {
         </div>
       ) : (
         <>
+          <CardReservationChoice value={paymentChoice} disabled={saving} onChange={setPaymentChoice} />
           <label className="mt-4 flex items-center gap-3 py-1 text-[17px] font-bold text-[#25282D]">
             <input
               type="checkbox"
@@ -997,22 +1017,22 @@ export function SharePage() {
               {saveError}
             </div>
           )}
-          <button
+          <Button
             onClick={() => void confirmReservation()}
             disabled={!checked || saving || !hasData}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-xl bg-[#2F80ED] py-4 text-[22px] font-black text-white shadow-[0_4px_12px_rgba(47,128,237,0.35)] disabled:bg-[#93C5FD] disabled:text-white disabled:shadow-none"
+            className="mt-3 inline-flex h-auto min-h-14 w-full items-center justify-center gap-2.5 rounded-xl bg-[#2F80ED] py-4 text-[22px] font-black text-white shadow-[0_4px_12px_rgba(47,128,237,0.35)] disabled:bg-[#93C5FD] disabled:text-white disabled:shadow-none"
 
           >
             <CheckCircle2 className="h-[26px] w-[26px]" strokeWidth={2.2} />
             {saving ? "요청 중..." : "동의하고 예약 요청"}
-          </button>
+          </Button>
         </>
       )}
 
       {/* 문의하기 */}
       <a
         href={contactPhone ? `tel:${contactPhone.replace(/-/g, "")}` : undefined}
-        className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-xl border-2 border-[#3578C8] bg-white py-3.5 text-[20px] font-black text-[#25282D]"
+        className="mt-3 inline-flex h-auto min-h-14 w-full items-center justify-center gap-2.5 rounded-xl border-2 border-[#3578C8] bg-white py-3.5 text-[20px] font-black text-[#25282D]"
       >
         <Headphones className="h-[24px] w-[24px]" strokeWidth={1.9} /> 문의하기
       </a>

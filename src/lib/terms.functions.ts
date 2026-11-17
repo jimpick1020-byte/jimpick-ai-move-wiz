@@ -17,6 +17,9 @@ import { saveTermsWithStableToken } from "./terms-publish";
 import { latestTermsByEstimate } from "./home-reservation-stage";
 
 export interface TermsLinkInfo {
+  reservationPaymentChoice?: string | null;
+  cardRequestedAt?: string | null;
+  cardConfirmedAt?: string | null;
   ok: boolean;
   error?: string;
   estimateId?: string;
@@ -157,7 +160,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("estimate_terms")
       .select(
-         "id, user_id, estimate_id, customer_name, move_date, total, contact_phone, company_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at, balance_paid, payment_status, contract_status, created_at, deleted_at",
+         "id, user_id, estimate_id, customer_name, move_date, total, contact_phone, company_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at, balance_paid, payment_status, reservation_payment_choice, card_requested_at, card_confirmed_at, contract_status, created_at, deleted_at",
       )
       .eq("access_token", data.token)
       .maybeSingle();
@@ -291,6 +294,9 @@ export const getTermsLink = createServerFn({ method: "POST" })
 
     return {
       ok: true,
+      reservationPaymentChoice: row.reservation_payment_choice,
+      cardRequestedAt: row.card_requested_at,
+      cardConfirmedAt: row.card_confirmed_at,
       estimateId: row.estimate_id,
       customerName: row.customer_name,
       moveDate: row.move_date,
@@ -328,6 +334,7 @@ export const acceptTerms = createServerFn({ method: "POST" })
         termsSnapshot: z.string().min(10).max(200_000),
         /** 동의한 그 순간의 견적서 (나중에 견적서를 고쳐도 이건 그대로 남습니다) */
         estimateSnapshot: z.string().max(200_000).optional(),
+        reservationPaymentChoice: z.enum(["bank_transfer", "onsite_card"]).default("bank_transfer"),
         acceptMethod: z.string().max(60).default("web_checkbox"),
       })
       .parse(d),
@@ -362,7 +369,8 @@ export const acceptTerms = createServerFn({ method: "POST" })
 
       // 하루 확정 예약 2건 상한은 데이터베이스 함수에서 원자적으로 확인합니다.
       // (같은 업체·같은 이사 날짜를 잠근 뒤 세고, 2건이면 저장하지 않습니다)
-      const { data: res, error: rpcErr } = await supabaseAdmin.rpc("confirm_reservation_atomic", {
+      const { data: res, error: rpcErr } = await supabaseAdmin.rpc("request_reservation_payment", {
+        _choice: data.reservationPaymentChoice,
         _terms_id: (row as { id: string }).id,
         _terms_snapshot: data.termsSnapshot,
         _estimate_snapshot: data.estimateSnapshot ?? null,
@@ -390,7 +398,7 @@ export const acceptTerms = createServerFn({ method: "POST" })
               "해당 날짜는 예약이 마감되었습니다(하루 2건). 업체에 문의해 다른 날짜로 변경해 주세요.",
           };
         }
-        return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
+        return { ok: false, error: (res as { error?: string })?.error ?? "링크가 만료되었거나 잘못된 주소입니다." };
       }
 
       const acceptedAt = out.accepted_at ?? new Date().toISOString();
@@ -402,7 +410,7 @@ export const acceptTerms = createServerFn({ method: "POST" })
 
       // 예약 요청 저장이 성공한 뒤에만 사장님에게 알림 문자를 보냅니다.
       // 문자가 실패해도 고객 동의·예약 요청 기록은 그대로 둡니다.
-      await notifyManager(data.token);
+      if (data.reservationPaymentChoice !== "onsite_card") await notifyManager(data.token);
 
       return { ok: true, acceptedAt };
     },
@@ -534,6 +542,10 @@ export const updateEstimateTotal = createServerFn({ method: "POST" })
   );
 
 export interface TermsStatusRow {
+  termsId?: string;
+  reservationPaymentChoice?: string | null;
+  cardRequestedAt?: string | null;
+  cardConfirmedAt?: string | null;
   estimateId: string;
   /** 보낸 견적서 차수 */
   sheetVersion: number;
@@ -661,7 +673,7 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
     let q = context.supabase
       .from("estimate_terms")
       .select(
-        "id, estimate_id, sheet_version, terms_version, sent_at, viewed_at, first_viewed_at, last_viewed_at, view_count, terms_viewed_at, total, deposit_paid, balance_paid, balance_paid_at, payment_status, payment_note, payment_confirmed_at, payment_method, paid_at, calendar_selected, calendar_archived, calendar_archived_at, contract_status",
+        "id, estimate_id, sheet_version, terms_version, sent_at, viewed_at, first_viewed_at, last_viewed_at, view_count, terms_viewed_at, total, deposit_paid, balance_paid, balance_paid_at, payment_status, reservation_payment_choice, card_requested_at, card_confirmed_at, payment_note, payment_confirmed_at, payment_method, paid_at, calendar_selected, calendar_archived, calendar_archived_at, contract_status",
       )
       .eq("user_id", context.userId)
       .is("deleted_at", null);
@@ -713,6 +725,10 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
           | { id: string; amount: number | null; created_at: string }
           | undefined;
         return {
+          termsId: String(r["id"]),
+          reservationPaymentChoice: r["reservation_payment_choice"] as string | null,
+          cardRequestedAt: r["card_requested_at"] as string | null,
+          cardConfirmedAt: r["card_confirmed_at"] as string | null,
           estimateId: String(r["estimate_id"] ?? ""),
           sheetVersion: Number(r["sheet_version"] ?? 1),
           termsVersion: String(r["terms_version"] ?? ""),
@@ -808,7 +824,7 @@ export const getReservationCounts = createServerFn({ method: "POST" })
       const { data: terms, error } = await context.supabase
         .from("estimate_terms")
         .select(
-          "id, estimate_id, move_date, customer_name, total, sheet_no, sheet_version, payment_status, deposit_paid, balance_paid, calendar_selected, deposit_paid_at, payment_confirmed_at",
+          "id, estimate_id, move_date, customer_name, total, sheet_no, sheet_version, payment_status, reservation_payment_choice, card_requested_at, card_confirmed_at, deposit_paid, balance_paid, calendar_selected, deposit_paid_at, payment_confirmed_at",
         )
         .eq("user_id", context.userId)
         .is("deleted_at", null)
@@ -861,6 +877,9 @@ export const getReservationCounts = createServerFn({ method: "POST" })
         total: number | null;
         sheet_no: string | null;
         sheet_version: number | null;
+        reservation_payment_choice?: string | null;
+        card_confirmed_at?: string | null;
+        card_requested_at?: string | null;
         payment_status: string | null;
         deposit_paid: number | null;
         balance_paid: number | null;
@@ -951,7 +970,7 @@ export const getHomeContractSchedule = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<{ ok: boolean; reservations: Record<string, ReservationRow[]> }> => {
     const { data: terms, error } = await context.supabase
       .from("estimate_terms")
-      .select("id, estimate_id, move_date, customer_name, total, sheet_no, sheet_version, payment_status, deposit_paid, balance_paid, calendar_selected, sheet_snapshot, deposit_paid_at, payment_confirmed_at")
+      .select("id, estimate_id, move_date, customer_name, total, sheet_no, sheet_version, payment_status, reservation_payment_choice, card_requested_at, card_confirmed_at, deposit_paid, balance_paid, calendar_selected, sheet_snapshot, deposit_paid_at, payment_confirmed_at")
       .eq("user_id", context.userId)
       .is("deleted_at", null)
       // 취소된 계약은 계약 일정에서 제외합니다 (자료는 삭제하지 않습니다)
@@ -993,7 +1012,7 @@ export const getHomeContractSchedule = createServerFn({ method: "GET" })
       const moveDate = String(raw["move_date"] ?? "").slice(0, 10);
       if (!estimateId || !/^\d{4}-\d{2}-\d{2}$/.test(moveDate)) continue;
       if (Number(raw["sheet_version"] ?? 0) !== latestVersions.get(estimateId)) continue;
-      if (!calendarReservationShown({ payment_status: String(raw["payment_status"] ?? "unpaid"), deposit_paid: Number(raw["deposit_paid"] ?? 0), balance_paid: Number(raw["balance_paid"] ?? 0) })) continue;
+      if (!calendarReservationShown({ reservation_payment_choice: raw["reservation_payment_choice"] as string | null, card_requested_at: raw["card_requested_at"] as string | null, card_confirmed_at: raw["card_confirmed_at"] as string | null, payment_status: String(raw["payment_status"] ?? "unpaid"), deposit_paid: Number(raw["deposit_paid"] ?? 0), balance_paid: Number(raw["balance_paid"] ?? 0) })) continue;
       const acceptance = acceptanceByTerms.get(String(raw["id"]));
       const version = Number(raw["sheet_version"] ?? 0);
       const previous = byEstimate.get(estimateId);

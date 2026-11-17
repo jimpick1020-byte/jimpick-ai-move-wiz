@@ -2,6 +2,9 @@ import { reservationStageOf } from "./reservation-status";
 
 /** 달력 표시 판단에 쓰는 견적서의 결제 필드 */
 export interface CalendarTermsPayment {
+  reservation_payment_choice?: string | null;
+  card_requested_at?: string | null;
+  card_confirmed_at?: string | null;
   payment_status: string | null;
   deposit_paid: number | null;
   balance_paid?: number | null;
@@ -16,6 +19,9 @@ export interface CalendarTermsPayment {
  */
 export function calendarReservationShown(terms: CalendarTermsPayment): boolean {
   const stage = reservationStageOf({
+    reservationPaymentChoice: terms.reservation_payment_choice,
+    cardRequestedAt: terms.card_requested_at,
+    cardConfirmedAt: terms.card_confirmed_at,
     paymentStatus: terms.payment_status,
     depositPaid: terms.deposit_paid,
     balancePaid: terms.balance_paid ?? 0,

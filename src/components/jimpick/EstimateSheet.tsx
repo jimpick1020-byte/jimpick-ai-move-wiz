@@ -188,6 +188,9 @@ export interface EstimateSheetProps {
   /** 고객이 동의했으면 그 일시 */
   acceptedAt?: string | null;
   /** 결제 상태 (결제완료면 「완료」로 표시) */
+  reservationPaymentChoice?: string | null;
+  cardRequestedAt?: string | null;
+  cardConfirmedAt?: string | null;
   paymentStatus?: string | null;
   depositClaimPending?: boolean;
   /** 고객이 실제로 동의한 견적서 차수·약관 버전 (동의 전에는 비워 둡니다) */
@@ -215,6 +218,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     companyName = "",
     companyPhone,
     acceptedAt = null,
+    reservationPaymentChoice, cardRequestedAt, cardConfirmedAt,
     paymentStatus = null,
     depositClaimPending = false,
     acceptedSheetVersion = null,
@@ -248,7 +252,8 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
   /** 입금이 확인된 금액이 있으면 그 금액이 실제 예약금입니다 */
   const paid = Math.max(0, paidDeposit ?? 0);
   // 예약금은 총액의 10%(1만 원 미만 버림). 입금 확인된 금액이 있으면 그 금액을 보여 줍니다.
-  const deposit = paid > 0 ? paid : plannedDeposit(total, draft.depositOverride);
+  const onsiteCard = reservationPaymentChoice === "onsite_card";
+  const deposit = onsiteCard ? 0 : paid > 0 ? paid : plannedDeposit(total, draft.depositOverride);
   const balance = Math.max(0, total - deposit);
   const version = draft.sheetVersion ?? 1;
   /** 사장님이 실제로 켠 추가 작업만 */
@@ -265,12 +270,13 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
   const hasDest = !!draft.toAddress?.trim();
   const payStatus = paymentStatus ? normalizePaymentStatus(paymentStatus) : null;
   const reservationStage = reservationStageOf({
+    reservationPaymentChoice, cardRequestedAt, cardConfirmedAt,
     paymentStatus: payStatus,
     depositPaid: paidDeposit,
     acceptedAt,
     depositClaimPending,
   });
-  const statusLabel = RESERVATION_STAGE_LABEL[reservationStage];
+  const statusLabel = onsiteCard && cardConfirmedAt && payStatus !== "completed" ? "예약 확정 · 현장 카드 결제 예정" : RESERVATION_STAGE_LABEL[reservationStage];
   const confirmed = reservationStage === "reservation_confirmed" || reservationStage === "payment_completed";
 
   const truckText =
@@ -572,8 +578,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           {(deposit > 0 || discount > 0) && (
             <div className="my-1.5 border-t border-dashed border-[#E5E7EB]" />
           )}
-          <MoneyRow label={paid > 0 ? "예약금 (입금완료)" : "예약금"} amount={deposit} />
-          <MoneyRow label="잔금" amount={balance} />
+          {onsiteCard ? <div className="py-1.5 text-base font-bold text-foreground">{payStatus === "completed" ? "결제 완료 · 남은 금액 0원" : `예약금 없음 · 현장 카드 결제 예정 ${won(total)}`}</div> : <><MoneyRow label={paid > 0 ? "예약금 (입금완료)" : "예약금"} amount={deposit} /><MoneyRow label="잔금" amount={balance} /></>}
 
           <div className="mt-3 flex items-center justify-between gap-3 rounded-[12px] border border-[#E5E7EB] bg-[#F7F8F5] px-3.5 py-3">
             <span className="shrink-0 text-[18px] font-black text-[#25282D]">총 견적금액</span>
@@ -585,7 +590,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         ))}
 
         {/* 입금 계좌 — 입력한 것만 적습니다 */}
-        {hasBank && (
+        {hasBank && !onsiteCard && (
           <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
             <div className="mb-1.5 text-[17px] font-black text-[#25282D]">입금 계좌</div>
             {bank.name && (

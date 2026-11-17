@@ -615,6 +615,9 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           card_approval_number: string | null
+          card_confirmed_at: string | null
+          card_confirmed_by: string | null
+          card_requested_at: string | null
           company_phone: string | null
           contact_phone: string | null
           contract_status: string
@@ -638,6 +641,7 @@ export type Database = {
           payment_method: string | null
           payment_note: string | null
           payment_status: string
+          reservation_payment_choice: string | null
           sent_at: string | null
           sent_msg_id: string | null
           sheet_no: string | null
@@ -668,6 +672,9 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           card_approval_number?: string | null
+          card_confirmed_at?: string | null
+          card_confirmed_by?: string | null
+          card_requested_at?: string | null
           company_phone?: string | null
           contact_phone?: string | null
           contract_status?: string
@@ -691,6 +698,7 @@ export type Database = {
           payment_method?: string | null
           payment_note?: string | null
           payment_status?: string
+          reservation_payment_choice?: string | null
           sent_at?: string | null
           sent_msg_id?: string | null
           sheet_no?: string | null
@@ -721,6 +729,9 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           card_approval_number?: string | null
+          card_confirmed_at?: string | null
+          card_confirmed_by?: string | null
+          card_requested_at?: string | null
           company_phone?: string | null
           contact_phone?: string | null
           contract_status?: string
@@ -744,6 +755,7 @@ export type Database = {
           payment_method?: string | null
           payment_note?: string | null
           payment_status?: string
+          reservation_payment_choice?: string | null
           sent_at?: string | null
           sent_msg_id?: string | null
           sheet_no?: string | null
@@ -2277,6 +2289,14 @@ export type Database = {
         Args: { _key: string; _user_id: string }
         Returns: undefined
       }
+      confirm_onsite_card: {
+        Args: {
+          _complete?: boolean
+          _terminal_confirmed?: boolean
+          _terms_id: string
+        }
+        Returns: Json
+      }
       confirm_owner_bank_balance: {
         Args: {
           _estimate_id: string
@@ -2399,6 +2419,18 @@ export type Database = {
       }
       remove_customer_selected_item: {
         Args: { p_item_id: string; p_request_id: string; p_room: string }
+        Returns: Json
+      }
+      request_reservation_payment: {
+        Args: {
+          _accept_method: string
+          _choice: string
+          _estimate_snapshot: string
+          _terms_id: string
+          _terms_snapshot: string
+          _token_hint: string
+          _user_agent: string
+        }
         Returns: Json
       }
       reserve_free_sms: {

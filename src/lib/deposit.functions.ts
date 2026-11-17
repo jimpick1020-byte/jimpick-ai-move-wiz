@@ -186,12 +186,14 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
       const { data: row } = await supabaseAdmin
         .from("estimate_terms")
         .select(
-          "id, user_id, estimate_id, sheet_no, sheet_version, customer_name, total, deposit_paid, balance_paid, payment_status, contract_status, sheet_snapshot",
+          "id, user_id, estimate_id, sheet_no, sheet_version, customer_name, total, deposit_paid, balance_paid, payment_status, reservation_payment_choice, contract_status, sheet_snapshot",
         )
         .eq("access_token", data.token)
         .is("deleted_at", null)
         .maybeSingle();
       if (!row) return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
+
+      if (row.reservation_payment_choice === "onsite_card") return { ok: false, error: "현장 카드 예약은 입금 신고가 필요 없습니다." };
 
       const t = row as {
         user_id: string;

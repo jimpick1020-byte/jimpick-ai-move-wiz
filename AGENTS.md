@@ -10,7 +10,7 @@
 <!-- LOVABLE:END -->
 
 - The home contract calendar uses one authenticated company-scoped server query and opens contracts by `estimate_id`; this prevents cross-company or duplicate schedule entries.
-- Reservation stages come from `reservation-status.ts`: customer consent is a request, confirmed deposit is confirmation, and full payment is completion; this prevents consent from falsely appearing as payment confirmation.
+- Use `reservation-status.ts` for request, deposit/card confirmation and payment stages; confirmation never implies payment.
 - PayApp keeps legacy/order locks, <24h reopening and fixed-day billing; verified rejection/cancel alone unlocks. Returns read only; provider renews; access differs from expiry. URLs normalize HTTPS; bad registered URLs review-lock. Readiness gives empty aggregate status.
 - The Step6 room picker keeps its base list mounted behind history-backed ItemListLayer views and RoomPickedStrip, all reading draft rooms via one optimistic serialized save queue (non-blocking, ignores server responses, rolls back to last saved); this preserves scroll and prevents divergent selections.
 - Owner picker drag uses direct transforms and DOM drop hints, resolves release anchors against the displayed array, cancels on touchcancel, and serializes verified saves only for changed positions; this keeps long lists smooth and prevents stale/no-op success without changing estimate data.

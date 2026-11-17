@@ -117,7 +117,7 @@ export function buildEstimateStats(input: {
     if (!row) return false;
     const st = normalizePaymentStatus(row.paymentStatus);
     // 「예약금 완료」 상태는 금액 기록이 0으로 저장돼 있어도 진행 중으로 셉니다.
-    return Number(row.depositPaid ?? 0) > 0 || Number(row.balancePaid ?? 0) > 0 || st === "partial" || st === "deposit_paid";
+    return (row.reservationPaymentChoice === "onsite_card" && Boolean(row.cardConfirmedAt)) || Number(row.depositPaid ?? 0) > 0 || Number(row.balancePaid ?? 0) > 0 || st === "partial" || st === "deposit_paid";
   };
   for (const u of unique.values()) {
     if (excludedIds.has(u.id)) continue;
