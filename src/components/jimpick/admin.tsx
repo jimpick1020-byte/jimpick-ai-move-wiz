@@ -4,6 +4,7 @@
  * 화면에서 메뉴를 숨기는 것과 별개로, 목록을 읽는 서버 기능이 최고관리자만 허용합니다.
  * 관리자가 아니면 서버가 거부하고 이 화면은 아무 정보도 보여 주지 않습니다.
  */
+import { SUBSCRIPTION_PRICE } from "@/lib/subscription-price";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/jimpick";
 import { MobileShell, TopBar, Card } from "@/components/jimpick/ui";
@@ -148,7 +149,7 @@ export function AdminAccountsScreen() {
               <div className="text-right">{day(r.periodEnd)}</div>
               <div className="text-[#6B7280]">월 갱신 금액</div>
               <div className="text-right">
-                {r.plan === "pro" ? `${(r.renewalPrice ?? 30000).toLocaleString("ko-KR")}원` : "-"}
+                {r.plan === "pro" ? `${(r.renewalPrice ?? SUBSCRIPTION_PRICE).toLocaleString("ko-KR")}원` : "-"}
               </div>
               <div className="text-[#6B7280]">결제 상태</div>
               <div className="text-right">

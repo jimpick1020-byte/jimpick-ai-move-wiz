@@ -16,8 +16,9 @@ export interface Plan {
 /** 무료 체험 기간(일) — 실제 값은 entitlement.functions.ts 한 곳에서 관리합니다 */
 export { TRIAL_DAYS } from "@/lib/entitlement.functions";
 import { TRIAL_DAYS } from "@/lib/entitlement.functions";
+import { SUBSCRIPTION_PRICE, SUBSCRIPTION_PRICE_LABEL } from "@/lib/subscription-price";
 
-/** 업체용 월 구독 요금제 (월 30,000원 단일 요금제) */
+/** 업체용 월 구독 요금제 (subscription-price.ts 단일 기준) */
 export const PLANS: Plan[] = [
   {
     id: "free",
@@ -30,8 +31,8 @@ export const PLANS: Plan[] = [
   {
     id: "pro",
     name: "업체 구독",
-    price: 30000,
-    desc: "월 30,000원 · 약정 없음",
+    price: SUBSCRIPTION_PRICE,
+    desc: `월 ${SUBSCRIPTION_PRICE_LABEL} (부가세 포함) · 약정 없음`,
     features: [
       "견적 작성 무제한",
       "AI 공간 스캔 무제한",

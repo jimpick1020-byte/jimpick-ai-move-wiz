@@ -1,3 +1,4 @@
+import { formatThousands, onFormatted, parseThousands } from "@/lib/format-input";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -116,7 +117,7 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
                 {diff > 0 && <>
                   <p className="text-xs text-muted-foreground">예정 잔금보다 많이 입금되었습니다. 추가요금을 반영한 최종 계약금액을 확인해 주세요.</p>
                   <label className="block text-xs" htmlFor={`final-${r.id}`}>최종 계약금액 (원)</label>
-                  <input id={`final-${r.id}`} inputMode="numeric" value={finalTotals[r.id ?? ""] ?? String(total + diff)} onChange={(e) => setFinalTotals((m) => ({ ...m, [r.id ?? ""]: e.target.value }))} className="w-full rounded-md border border-input bg-background p-2 text-sm" />
+                  <input id={`final-${r.id}`} inputMode="numeric" value={formatThousands(finalTotals[r.id ?? ""] ?? String(total + diff))} onChange={(e) => onFormatted(e, formatThousands, (v) => setFinalTotals((m) => ({ ...m, [r.id ?? ""]: parseThousands(v) })))} className="w-full rounded-md border border-input bg-background p-2 text-sm" />
                   <Button variant="staff" disabled={busy || !r.id} onClick={() => void confirmOverpaid(r)}>{busy ? "처리 중…" : "최종 금액 반영 후 결제완료"}</Button>
                 </>}
                 {diff < 0 && <>

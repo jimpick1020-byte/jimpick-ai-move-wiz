@@ -393,6 +393,13 @@
       "when": 1794902169523,
       "tag": "0055_protect_card_reservation_inserts",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1794996423280,
+      "tag": "0056_payapp_price_39000",
+      "breakpoints": true
     }
   ]
 }

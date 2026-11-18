@@ -211,7 +211,7 @@ import {
   type ManagerNoticeRow,
 } from "@/lib/terms.functions";
 import { getCompanyDefaults, saveCompanyDefaults } from "@/lib/company-defaults.functions";
-import { formatTel, formatBizNo, formatAccount, onFormatted, digitsOnly } from "@/lib/format-input";
+import { formatTel, formatBizNo, formatAccount, onFormatted, digitsOnly, formatThousands, parseThousands } from "@/lib/format-input";
 import { saveEstimateDraft } from "@/lib/draft-sync.functions";
 import { useVisitEstimate } from "@/lib/use-visit-estimate";
 import { areaOnlyPatch } from "@/lib/visit-estimate-state";
@@ -6176,9 +6176,9 @@ export function Result() {
                 </Field>
                 <Field label="사다리">
                   <TextInput
-                    type="number"
-                    value={draft.ladder}
-                    onChange={(e) => updateDraft({ ladder: Number(e.target.value) || 0 })}
+                    inputMode="numeric"
+                    value={formatThousands(String(draft.ladder ?? ""))}
+                    onChange={(e) => onFormatted(e, formatThousands, (v) => updateDraft({ ladder: Number(parseThousands(v)) || 0 }))}
                   />
                 </Field>
               </div>

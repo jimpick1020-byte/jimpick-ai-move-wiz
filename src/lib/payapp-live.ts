@@ -1,7 +1,11 @@
 import { z } from "zod";
+import { SUBSCRIPTION_PRICE, isKnownSubscriptionAmount } from "./subscription-price";
 
-export const PAYAPP_PRICE = 30000;
-export const PAYAPP_POLICY_VERSION = "card-fixed-kst-2026-11-16";
+export const PAYAPP_PRICE = SUBSCRIPTION_PRICE;
+export const PAYAPP_POLICY_VERSION = "card-fixed-kst-39000-2026-11-18";
+/** Fixed-KST-day policies; the 2026-11-16 one is the earlier 30,000원 consent kept for its own orders. */
+export const PAYAPP_FIXED_DAY_POLICIES: readonly string[] = ["card-fixed-kst-2026-11-16", PAYAPP_POLICY_VERSION];
+export const isFixedDayPolicy = (v?: string | null) => !!v && PAYAPP_FIXED_DAY_POLICIES.includes(v);
 export const PAYAPP_REOPEN_MS = 24 * 60 * 60 * 1000;
 export function payappKstDate(at: string | Date) {
   return kstStamp(new Date(at)).slice(0, 8).replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
@@ -16,14 +20,14 @@ export function payappRegistrationQuote(now = new Date()) {
 }
 export function payappPendingReusable(order: { status: string; created_at: string; requested_at?: string | null; policy_version?: string | null; request_date?: string | null; first_paid_at?: string | null }, now = new Date()) {
   if (order.status !== "pending" || order.first_paid_at) return false;
-  if (order.policy_version !== PAYAPP_POLICY_VERSION) return (order.request_date ?? payappKstDate(order.created_at)) === payappKstDate(now);
+  if (!isFixedDayPolicy(order.policy_version)) return (order.request_date ?? payappKstDate(order.created_at)) === payappKstDate(now);
   const age = now.getTime() - Date.parse(order.requested_at ?? order.created_at);
   return Number.isFinite(age) && age >= 0 && age < PAYAPP_REOPEN_MS;
 }
 export function payappFirstApprovalMatches(order: { policy_version?: string | null; request_date?: string | null; created_at: string; first_paid_at: string | null }, paid: string) {
   // New consent permits legitimate cross-midnight approvals. The app's reopen
   // limit is not a provider expiry or a reason to cancel an approved payment.
-  if (order.policy_version === PAYAPP_POLICY_VERSION) return true;
+  if (isFixedDayPolicy(order.policy_version)) return true;
   return (order.request_date ?? payappKstDate(order.created_at)) === payappKstDate(order.first_paid_at ?? paid);
 }
 export function payappBillingSchedule(order: { rebill_expire?: string | null; canceled_at?: string | null }, next: string | null, now = new Date()) {
@@ -61,7 +65,7 @@ export function payappNextDate(first: string, paid: string) {
   return candidate(months);
 }
 export function payappNextBillingDate(order: { policy_version?: string | null; request_date?: string | null; requested_day: number; first_paid_at: string | null }, paid: string) {
-  if (order.policy_version !== PAYAPP_POLICY_VERSION || !order.request_date) return payappNextDate(order.first_paid_at ?? paid, paid);
+  if (!isFixedDayPolicy(order.policy_version) || !order.request_date) return payappNextDate(order.first_paid_at ?? paid, paid);
   const current = new Date(Date.parse(paid) + 9 * 3600000);
   const [year, month] = order.request_date.split("-").map(Number);
   let offset = Math.max(1, (current.getUTCFullYear() - year) * 12 + current.getUTCMonth() - (month - 1));
@@ -89,7 +93,8 @@ export const payappNoticeSchema = z.object({
   pay_state: z.enum(["1","4","8","32","9","64","10","70","71","99"]), pay_date: z.string().max(30).optional(),
 }).superRefine((n, ctx) => {
   const partial = n.pay_state === "70" || n.pay_state === "71";
-  if (partial ? !n.orig_mul_no || n.orig_price !== PAYAPP_PRICE || n.price >= PAYAPP_PRICE : n.price !== PAYAPP_PRICE || n.orig_mul_no !== undefined || n.orig_price !== undefined) {
+  // Exact per-order amount is checked against the stored order; here only known plan amounts pass.
+  if (partial ? !n.orig_mul_no || n.orig_price === undefined || !isKnownSubscriptionAmount(n.orig_price) || n.price >= n.orig_price : !isKnownSubscriptionAmount(n.price) || n.orig_mul_no !== undefined || n.orig_price !== undefined) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Payment amount/reference mismatch" });
   }
 });

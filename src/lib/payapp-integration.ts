@@ -1,3 +1,4 @@
+import { SUBSCRIPTION_PRICE } from "./subscription-price";
 import { publicUrl } from "./app-url";
 
 // No merchant API may be called while the official trial and verification contract is unknown.
@@ -18,7 +19,7 @@ export function firstChargeEligibility(input: {
   if (!Number.isFinite(now) || !Number.isFinite(end)) return "trial";
   if (!input.immediate && now < end) return "trial";
   if (!Number.isFinite(consent) || (!input.immediate && consent < end) || consent > now) return "consent_required";
-  if (input.amount !== 30000) return "wrong_amount";
+  if (input.amount !== SUBSCRIPTION_PRICE) return "wrong_amount";
   return "merchant_verification_required";
 }
 

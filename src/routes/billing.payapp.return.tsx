@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
+import { SUBSCRIPTION_PRICE, SUBSCRIPTION_PRICE_LABEL } from "@/lib/subscription-price";
 import { getPayappSubscription } from "@/lib/payapp-live.functions";
 import { getMyAccount } from "@/lib/subscription.functions";
 import { recoverAuthSession } from "@/lib/auth-recovery";
@@ -36,7 +37,7 @@ function PayappReturn() {
         const order = result.order;
         const sub = account.subscription;
         setMessage(order?.first_paid_at && sub?.payapp_order_id === order.id && sub?.plan === "pro" && sub.status === "active"
-          ? `결제 확인 완료 · 월 30,000원 · ${result.schedule?.needsReregistration ? result.schedule.expired ? "자동결제 등록 만료 · 새 동의로 재등록 필요" : "다음 자동청구 없음 · 이용기간 종료 후 새 등록 필요" : order.canceled_at ? "다음 자동청구 중단" : "다음 자동결제일 확인 중"} · 이용기간 종료일 ${new Date(sub.current_period_end).toLocaleDateString("ko-KR", {timeZone:"Asia/Seoul"})}`
+          ? `결제 확인 완료 · 월 ${(order.amount ?? SUBSCRIPTION_PRICE).toLocaleString("ko-KR")}원 · ${result.schedule?.needsReregistration ? result.schedule.expired ? "자동결제 등록 만료 · 새 동의로 재등록 필요" : "다음 자동청구 없음 · 이용기간 종료 후 새 등록 필요" : order.canceled_at ? "다음 자동청구 중단" : "다음 자동결제일 확인 중"} · 이용기간 종료일 ${new Date(sub.current_period_end).toLocaleDateString("ko-KR", {timeZone:"Asia/Seoul"})}`
           : order?.status === "pending" || order?.status === "creating" ? order.status === "pending" && !result.pendingReusable ? "이전 결제 요청의 유효기간을 확인해야 합니다. 기존 요청 확인·취소 후 다시 신청해 주세요." : "결제 확인 중입니다. 아직 유료 구독으로 전환되지 않았습니다. 중복 결제를 시작하지 마세요."
           : order?.status === "canceled" || order?.status === "failed" ? "결제가 취소되었거나 승인되지 않았습니다. 남은 무료체험은 유지됩니다."
           : order?.status === "review" ? "결제 상태 확인이 필요합니다. 중복 결제를 시작하지 마세요."
@@ -54,7 +55,7 @@ function PayappReturn() {
       <p className="font-bold text-primary">견적잇</p>
       <h1 className="text-2xl font-bold">페이앱 구독 결제 확인</h1>
       <p role="status" className="text-sm leading-6">{message}</p>
-      <p className="text-sm leading-6 text-muted-foreground">가입 후 10일 무료 체험 · 월 30,000원. 구독은 직접 동의하고 결제가 확인된 뒤 시작됩니다. 결제를 취소하거나 실패하면 남은 무료체험은 유지됩니다.</p>
+      <p className="text-sm leading-6 text-muted-foreground">가입 후 10일 무료 체험 · 월 {SUBSCRIPTION_PRICE_LABEL}(부가세 포함). 구독은 직접 동의하고 결제가 확인된 뒤 시작됩니다. 결제를 취소하거나 실패하면 남은 무료체험은 유지됩니다.</p>
       <Button asChild className="w-full"><Link to="/">견적잇으로 돌아가기</Link></Button>
     </div>
   </main>;

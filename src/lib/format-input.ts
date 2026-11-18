@@ -93,3 +93,20 @@ export function onFormatted(
     }
   });
 }
+
+/**
+ * 금액·수량 표시용 천 단위 쉼표 (입력 중 사용). 빈 값은 빈 값 그대로 둡니다.
+ * 저장·계산에는 parseThousands()로 쉼표 없는 숫자를 씁니다.
+ */
+export function formatThousands(v: string, opts: { negative?: boolean } = {}): string {
+  const raw = String(v ?? "");
+  const neg = !!opts.negative && /^\s*-/.test(raw);
+  const d = digitsOnly(raw).replace(/^0+(?=\d)/, "");
+  if (!d) return neg ? "-" : "";
+  return `${neg ? "-" : ""}${d.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+}
+/** 쉼표를 뺀 숫자 문자열 (빈 값은 "") */
+export function parseThousands(v: string): string {
+  const t = String(v ?? "").replace(/,/g, "").trim();
+  return t === "-" ? "" : t;
+}

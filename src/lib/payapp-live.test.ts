@@ -5,14 +5,14 @@ import { authenticatePayappNotice, payappDate, payappNextDate, payappNextBilling
 const fixture = {PAYAPP_USER_ID:"fixture-merchant",PAYAPP_LINK_KEY:"fixture-link",PAYAPP_LINK_VALUE:"fixture-value",PAYAPP_REQUEST_KEY:"fixture-request"};
 const now = Date.parse("2026-11-13T02:00:00Z");
 async function notice(overrides:Record<string,unknown> = {}) {
-  return {userid:fixture.PAYAPP_USER_ID,linkkey:fixture.PAYAPP_LINK_KEY,linkval:fixture.PAYAPP_LINK_VALUE,responsedate:"20261113110000",hash:await sha256("fixture-merchant20261113110000fixture-request"),var1:"11111111-1111-4111-8111-111111111111",var2:"22222222-2222-4222-8222-222222222222",rebill_no:"123",mul_no:"456",price:"30000",pay_state:"4",pay_date:"2026-11-13 11:00:00",...overrides};
+  return {userid:fixture.PAYAPP_USER_ID,linkkey:fixture.PAYAPP_LINK_KEY,linkval:fixture.PAYAPP_LINK_VALUE,responsedate:"20261113110000",hash:await sha256("fixture-merchant20261113110000fixture-request"),var1:"11111111-1111-4111-8111-111111111111",var2:"22222222-2222-4222-8222-222222222222",rebill_no:"123",mul_no:"456",price:"39000",pay_state:"4",pay_date:"2026-11-13 11:00:00",...overrides};
 }
 describe("PayApp authenticated live boundaries (no external billing)",()=>{
   test("checks merchant, both link credentials and signed timestamp",async()=>{
-    expect((await authenticatePayappNotice(await notice(),fixture,now)).price).toBe(30000);
+    expect((await authenticatePayappNotice(await notice(),fixture,now)).price).toBe(39000);
     for (const key of ["userid","linkkey","linkval","hash"]) await expect(authenticatePayappNotice(await notice({[key]:key==="hash"?"0".repeat(64):"wrong"}),fixture,now)).rejects.toThrow();
   });
-  test("only 30000 is accepted",async()=>{await expect(authenticatePayappNotice(await notice({price:"29999"}),fixture,now)).rejects.toThrow();});
+  test("only 39000 is accepted",async()=>{await expect(authenticatePayappNotice(await notice({price:"29999"}),fixture,now)).rejects.toThrow();});
   test("expires a replay timestamp after fifteen minutes",async()=>{await expect(authenticatePayappNotice(await notice(),fixture,now+900001)).rejects.toThrow();});
   test("requires request and company UUID identifiers",async()=>{await expect(authenticatePayappNotice(await notice({var1:"other-company"}),fixture,now)).rejects.toThrow();});
   test("strips incoming card information rather than storing it",async()=>{
@@ -45,8 +45,8 @@ describe("PayApp authenticated live boundaries (no external billing)",()=>{
 });
 
 describe("confirmed merchant date policy, synthetic inputs only", () => {
-  test("new registration uses KST request date plus five years, price 30000", () => {
-    expect(payappRegistrationQuote(new Date("2026-11-12T15:01:00Z"))).toEqual({requestDate:"2026-11-13",expire:"2031-11-13",day:13,amount:30000,policyVersion:PAYAPP_POLICY_VERSION});
+  test("new registration uses KST request date plus five years, price 39000", () => {
+    expect(payappRegistrationQuote(new Date("2026-11-12T15:01:00Z"))).toEqual({requestDate:"2026-11-13",expire:"2031-11-13",day:13,amount:39000,policyVersion:PAYAPP_POLICY_VERSION});
     expect(payappRegistrationQuote(new Date("2026-11-13T15:01:00Z")).expire).toBe("2031-11-14");
   });
   test("February 29 five years later clamps to February 28", () => {
@@ -105,14 +105,14 @@ describe("Korean actual approval anchored calendar",()=>{
 
 describe("partial cancellation fields", () => {
   test.each(["70", "71"])("state %s retains original transaction and cancellation amount", async (state) => {
-    const n = await authenticatePayappNotice(await notice({pay_state: state, price: "5000", orig_mul_no: "456", orig_price: "30000", mul_no: "789"}), fixture, now);
-    expect(n.price).toBe(5000); expect(n.orig_mul_no).toBe("456"); expect(n.orig_price).toBe(30000);
+    const n = await authenticatePayappNotice(await notice({pay_state: state, price: "5000", orig_mul_no: "456", orig_price: "39000", mul_no: "789"}), fixture, now);
+    expect(n.price).toBe(5000); expect(n.orig_mul_no).toBe("456"); expect(n.orig_price).toBe(39000);
   });
-  test.each([{orig_price: "29000"}, {orig_mul_no: undefined}, {price: "30000"}])("rejects mismatched partial reference %j", async (override) => {
-    await expect(authenticatePayappNotice(await notice({pay_state: "70", price: "5000", orig_mul_no: "456", orig_price: "30000", ...override}), fixture, now)).rejects.toThrow();
+  test.each([{orig_price: "29000"}, {orig_mul_no: undefined}, {price: "39000"}])("rejects mismatched partial reference %j", async (override) => {
+    await expect(authenticatePayappNotice(await notice({pay_state: "70", price: "5000", orig_mul_no: "456", orig_price: "39000", ...override}), fixture, now)).rejects.toThrow();
   });
   test("a cancellation amount cannot masquerade as a successful subscription", async () => {
-    await expect(authenticatePayappNotice(await notice({pay_state: "4", price: "5000", orig_mul_no: "456", orig_price: "30000"}), fixture, now)).rejects.toThrow();
+    await expect(authenticatePayappNotice(await notice({pay_state: "4", price: "5000", orig_mul_no: "456", orig_price: "39000"}), fixture, now)).rejects.toThrow();
   });
 });
 

@@ -14,7 +14,7 @@ import { startPayappSubscription } from "./payapp-live.functions";
 import { PayappRequestError } from "./payapp-live.server";
 
 const consent={consent:true as const,requestDate:"2026-11-16",expire:"2031-11-16",policyVersion:PAYAPP_POLICY_VERSION};
-const order={id:"22222222-2222-4222-8222-222222222222",payurl:null,status:"creating",created_at:"2026-11-16T14:00:00Z",requested_at:"2026-11-16T14:00:00Z",request_date:consent.requestDate,rebill_expire:consent.expire,first_paid_at:null,requested_day:16,policy_version:PAYAPP_POLICY_VERSION};
+const order={id:"22222222-2222-4222-8222-222222222222",payurl:null,status:"creating",created_at:"2026-11-16T14:00:00Z",requested_at:"2026-11-16T14:00:00Z",request_date:consent.requestDate,rebill_expire:consent.expire,first_paid_at:null,requested_day:16,amount:39000,policy_version:PAYAPP_POLICY_VERSION};
 beforeEach(()=>{
   vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-16T14:00:00Z")); vi.clearAllMocks();
   for(const key of ["PAYAPP_USER_ID","PAYAPP_LINK_KEY","PAYAPP_LINK_VALUE","PAYAPP_REQUEST_KEY"]) vi.stubEnv(key,"synthetic-only");
@@ -31,9 +31,9 @@ describe("actual checkout server orchestration with fake provider/isolated recor
   test("unchecked consent never reserves or requests payment",async()=>{
     await expect(startPayappSubscription({data:{...consent,consent:false} as never})).rejects.toThrow(); expect(fake.admin.rpc).not.toHaveBeenCalled(); expect(fake.request).not.toHaveBeenCalled();
   });
-  test("consented 30000/card/no-SMS registration returns validated same-tab destination only",async()=>{
+  test("consented 39000/card/no-SMS registration returns validated same-tab destination only",async()=>{
     expect(await startPayappSubscription({data:consent})).toEqual({payurl:"https://payapp.kr/synthetic"});
-    expect(fake.request).toHaveBeenCalledWith("rebillRegist",expect.objectContaining({goodprice:"30000",smsuse:"n",openpaytype:"card",rebillCycleMonth:"16",rebillExpire:"2031-11-16"}));
+    expect(fake.request).toHaveBeenCalledWith("rebillRegist",expect.objectContaining({goodprice:"39000",smsuse:"n",openpaytype:"card",rebillCycleMonth:"16",rebillExpire:"2031-11-16"}));
     expect(fake.admin.from).toHaveBeenCalledTimes(1); expect(fake.admin.from).toHaveBeenCalledWith("payapp_orders");
   });
   test("cross-midnight resume reuses original quote without provider call or consent rewrite",async()=>{

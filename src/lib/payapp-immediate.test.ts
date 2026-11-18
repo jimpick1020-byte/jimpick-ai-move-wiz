@@ -12,11 +12,11 @@ describe("immediate subscription remains a no-charge simulation", () => {
     expect(pending().trialEndsAt).toBe(end);
     expect(pending().simulatedTotal).toBe(0);
   });
-  it("starts only after success, for exactly 30000, anchored to actual first payment", () => {
+  it("starts only after success, for exactly 39000, anchored to actual first payment", () => {
     const at = "2026-11-12T03:00:00.000Z";
-    const s = approveImmediateTest(pending(), at, 30000).state;
+    const s = approveImmediateTest(pending(), at, 39000).state;
     expect(s.firstPaidAt).toBe(at);
-    expect(s.simulatedTotal).toBe(30000);
+    expect(s.simulatedTotal).toBe(39000);
     expect(s.nextBillingAt).toBe("2026-12-12T03:00:00.000Z");
     expect(s.trialBillingCanceled).toBe(true);
     expect(s.actualCharged).toBe(0);
@@ -24,8 +24,8 @@ describe("immediate subscription remains a no-charge simulation", () => {
   });
   it("repeated start and success notifications create one first payment", () => {
     expect(startImmediateTest(pending(), now, end, true).duplicate).toBe(true);
-    const s = approveImmediateTest(pending(), now, 30000).state;
-    expect(approveImmediateTest(s, end, 30000)).toEqual({ state: s, duplicate: true });
+    const s = approveImmediateTest(pending(), now, 39000).state;
+    expect(approveImmediateTest(s, end, 39000)).toEqual({ state: s, duplicate: true });
     expect(startImmediateTest(s, end, end, true)).toEqual({ state: s, duplicate: true });
     expect(s.events).toEqual(["mock:immediate:first"]);
   });
@@ -38,16 +38,16 @@ describe("immediate subscription remains a no-charge simulation", () => {
     expect(startImmediateTest(s, now, end, true).state.checkout).toBe("pending");
   });
   it("renewal follows first-payment schedule, duplicate renewal keeps date", () => {
-    const s = approveImmediateTest(pending(), now, 30000).state;
-    const r = notifyTest(s, `mock:${s.nextBillingAt}`, 30000).state;
+    const s = approveImmediateTest(pending(), now, 39000).state;
+    const r = notifyTest(s, `mock:${s.nextBillingAt}`, 39000).state;
     expect(r.nextBillingAt).toBe("2027-01-11T02:25:00.000Z");
-    expect(notifyTest(r, `mock:${s.nextBillingAt}`, 30000).state).toEqual(r);
+    expect(notifyTest(r, `mock:${s.nextBillingAt}`, 39000).state).toEqual(r);
   });
   it("month ends clamp rather than skipping February", () => {
     expect(nextMonth("2027-01-31T02:25:00.000Z")).toBe("2027-02-28T02:25:00.000Z");
   });
   it("immediate consent never bypasses merchant verification or allows automatic trial charge", () => {
-    const input = { now, trialEndsAt: end, consentedAt: now, amount: 30000, immediate: true };
+    const input = { now, trialEndsAt: end, consentedAt: now, amount: 39000, immediate: true };
     expect(firstChargeEligibility(input)).toBe("merchant_verification_required");
     expect(firstChargeEligibility({ ...input, consentedAt: null })).toBe("consent_required");
     expect(PAYAPP_LIVE_ENABLED).toBe(false);

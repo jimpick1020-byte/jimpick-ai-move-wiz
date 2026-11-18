@@ -45,3 +45,5 @@
 - Public sheet snapshots carry only picked items, each room card with an explicit normalized app-media icon; send, sheet-save and getTermsLink all pass through shared-item-repair (never truncated, owner-scoped chunked item_icons lookup for legacy gaps), so customer views never depend on the global icon registry or a company's full catalog.
 
 - Onsite card bookings use separate terms request/confirmation fields and locked RPCs; confirmation never changes payment, and only terminal attestation completes it. Existing notification triggers dedupe requests by company/estimate.
+- Subscription price lives only in subscription-price.ts; each payapp order stores its consented amount, notices match that order, and new registrations refuse non-current amounts, so price changes never re-bill old consents.
+- Money/quantity inputs use formatThousands/parseThousands with onFormatted (display commas, stored digits).

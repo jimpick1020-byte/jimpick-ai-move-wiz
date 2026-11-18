@@ -1,3 +1,4 @@
+import { formatThousands, onFormatted } from "@/lib/format-input";
 import { useEffect, useRef, type ReactNode } from "react";
 import {
   ChevronLeft,
@@ -315,12 +316,13 @@ export function MoneyInput({
           disabled={disabled}
           placeholder={placeholder}
           value={value ? value.toLocaleString("ko-KR") : ""}
-          onChange={(e) => {
-            const t = e.target.value;
-            const neg = allowNegative && /^\s*-/.test(t);
-            const n = Number(t.replace(/[^\d]/g, "")) || 0;
-            onChange(neg ? -n : allowNegative ? n : Math.max(0, n));
-          }}
+          onChange={(e) =>
+            onFormatted(e, (t) => formatThousands(t, { negative: allowNegative }), (t) => {
+              const neg = allowNegative && /^\s*-/.test(t);
+              const n = Number(t.replace(/[^\d]/g, "")) || 0;
+              onChange(neg ? -n : allowNegative ? n : Math.max(0, n));
+            })
+          }
           onBlur={() => {
             if (!normalize) return;
             const n = normalize(valueRef.current);

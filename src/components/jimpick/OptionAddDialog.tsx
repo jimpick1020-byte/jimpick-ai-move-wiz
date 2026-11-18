@@ -1,3 +1,4 @@
+import { formatThousands, onFormatted, parseThousands } from "@/lib/format-input";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -35,7 +36,7 @@ export function OptionAddDialog({ catalog, onAdd, onClose }: {
         )}
         {name.trim() && !candidates.length && <p className="text-sm text-muted-foreground">일치하는 품목이 없습니다.</p>}
         <label className="space-y-2 text-sm font-semibold">추가 금액 (원)
-          <Input inputMode="numeric" value={price} onChange={(event) => setPrice(event.target.value.replace(/[^\d]/g, ""))} />
+          <Input inputMode="numeric" value={formatThousands(price)} onChange={(event) => onFormatted(event, formatThousands, (v) => setPrice(parseThousands(v)))} />
         </label>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>취소</Button>

@@ -25,14 +25,14 @@ describe("registration request result classification without external requests",
   test("real request builder sends order-snapshot expiry and card/no-SMS without invented validity parameter", async () => {
     setup("state=1&rebill_no=123&payurl=https%3A%2F%2Fpayapp.kr%2Fpayment");
     const quote=payappRegistrationQuote(new Date("2028-02-29T02:00:00Z"));
-    const fields=payappRegistrationFields({id:"synthetic-order",user_id:"synthetic-company",requested_day:quote.day,rebill_expire:quote.expire},"synthetic-phone");
+    const fields=payappRegistrationFields({id:"synthetic-order",user_id:"synthetic-company",requested_day:quote.day,rebill_expire:quote.expire,amount:quote.amount},"synthetic-phone");
     let captured: URLSearchParams | null = null;
     globalThis.fetch = async (_input,init) => { captured=new URLSearchParams(String(init?.body)); return new Response("state=1&rebill_no=123"); };
     await payappRequest("rebillRegist",fields);
     expect(captured).not.toBeNull();
     const body=new URLSearchParams(String(captured));
     expect(body.get("rebillExpire")).toBe("2033-02-28"); expect(body.get("rebillCycleMonth")).toBe("29");
-    expect(body.get("goodprice")).toBe("30000"); expect(body.get("openpaytype")).toBe("card"); expect(body.get("smsuse")).toBe("n");
+    expect(body.get("goodprice")).toBe("39000"); expect(body.get("openpaytype")).toBe("card"); expect(body.get("smsuse")).toBe("n");
     expect(Object.keys(fields).sort()).toEqual(["goodname","goodprice","recvphone","rebillCycleType","rebillCycleMonth","rebillExpire","smsuse","openpaytype","var1","var2","feedbackurl","failurl","returnurl"].sort());
   });
   test("definitive state=0 rejection is retryable without revealing raw text", async () => {
@@ -54,5 +54,13 @@ describe("registration request result classification without external requests",
   test("success response returns only registration number and URL", async () => {
     setup("state=1&rebill_no=123&payurl=https%3A%2F%2Fpayapp.kr%2Fpayment&linkkey=secret&card_num=secret&errorMessage=secret");
     expect(Object.fromEntries(await payappRequest("rebillRegist",{}))).toEqual({rebill_no:"123",payurl:"https://payapp.kr/payment"});
+  });
+});
+describe("subscription price 39,000원", () => {
+  test("new registration requests exactly 39000 and refuses an old-price order", async () => {
+    const { payappRegistrationFields } = await import("./payapp-live.server");
+    const base = { id: "o", user_id: "u", requested_day: 18, rebill_expire: "2031-11-18" };
+    expect(payappRegistrationFields({ ...base, amount: 39000 }, "01000000000").goodprice).toBe("39000");
+    expect(() => payappRegistrationFields({ ...base, amount: 30000 }, "01000000000")).toThrow();
   });
 });

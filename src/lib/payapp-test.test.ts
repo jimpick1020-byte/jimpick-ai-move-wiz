@@ -11,22 +11,22 @@ describe("no-charge subscription", () => {
     expect(s.actualCharged).toBe(0);
     expect(s.simulatedTotal).toBe(0);
   });
-  it("monthly renewal simulates exactly 30000", () => {
-    const s = notifyTest(registerTest(at, end), "first", 30000).state;
-    expect(s.simulatedTotal).toBe(30000);
+  it("monthly renewal simulates exactly 39000", () => {
+    const s = notifyTest(registerTest(at, end), "first", 39000).state;
+    expect(s.simulatedTotal).toBe(39000);
     expect(s.actualCharged).toBe(0);
     expect(s.nextBillingAt).toBe("2026-12-19T01:31:00.000Z");
   });
   it("duplicate notification does not charge twice or move date", () => {
-    const s = notifyTest(registerTest(at, end), "first", 30000).state;
-    const r = notifyTest(s, "first", 30000);
+    const s = notifyTest(registerTest(at, end), "first", 39000).state;
+    const r = notifyTest(s, "first", 39000);
     expect(r.duplicate).toBe(true);
     expect(r.state).toEqual(s);
   });
   it("cancel blocks subsequent renewal", () => {
-    const s = cancelTest(notifyTest(registerTest(at, end), "first", 30000).state);
+    const s = cancelTest(notifyTest(registerTest(at, end), "first", 39000).state);
     expect(s.status).toBe("canceled");
-    expect(() => notifyTest(s, "second", 30000)).toThrow();
+    expect(() => notifyTest(s, "second", 39000)).toThrow();
     expect(s.actualCharged).toBe(0);
   });
   it("wrong amount rejected", () => {

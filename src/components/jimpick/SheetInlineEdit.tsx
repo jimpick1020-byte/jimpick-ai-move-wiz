@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import type { Estimate } from '@/lib/jimpick';
+import { formatThousands, onFormatted, parseThousands } from '@/lib/format-input';
 
 export type SheetField = { key: keyof Estimate; label: string; type?: 'text' | 'number' | 'date' | 'time'; choices?: string[] };
 
@@ -19,7 +20,7 @@ export function SheetInlineEdit({ children, fields, draft, onSave, label }: {
     e.preventDefault(); if (busy) return;
     const patch: Record<string, unknown> = {};
     for (const f of fields) {
-      const value = values[f.key]?.trim() ?? '';
+      const value = f.type === 'number' ? parseThousands(values[f.key] ?? '') : values[f.key]?.trim() ?? '';
       if (value === String(draft[f.key] ?? '').trim()) continue;
       if (!value && (f.key === 'totalOverride' || f.key === 'transportOverride')) { patch[f.key] = null; continue; }
       if (f.key === 'customerName' && !value) { setError('고객 이름을 입력해 주세요.'); return; }
@@ -33,7 +34,8 @@ export function SheetInlineEdit({ children, fields, draft, onSave, label }: {
   }}>
     {fields.map(f => <label key={f.key} className="block text-sm text-foreground">{f.label}
       {f.choices ? <select aria-label={f.label} disabled={busy} value={values[f.key]} onChange={e => setValues({ ...values, [f.key]: e.target.value })} className="w-full rounded-md border border-input bg-card p-2">{f.choices.map(v => <option key={v}>{v}</option>)}</select> :
-      <input aria-label={f.label} disabled={busy} type={f.type || 'text'} min={f.type === 'number' ? 0 : undefined} step={f.type === 'number' ? 'any' : undefined} value={values[f.key]} onChange={e => setValues({ ...values, [f.key]: e.target.value })} className="w-full min-w-0 rounded-md border border-input bg-card p-2 text-base text-foreground" />}
+      f.type === 'number' ? <input aria-label={f.label} disabled={busy} type="text" inputMode="numeric" autoComplete="off" value={formatThousands(values[f.key] ?? '')} onChange={e => onFormatted(e, formatThousands, v => setValues(cur => cur && ({ ...cur, [f.key]: parseThousands(v) })))} className="w-full min-w-0 rounded-md border border-input bg-card p-2 text-base text-foreground tabular-nums" /> :
+      <input aria-label={f.label} disabled={busy} type={f.type || 'text'} value={values[f.key]} onChange={e => setValues({ ...values, [f.key]: e.target.value })} className="w-full min-w-0 rounded-md border border-input bg-card p-2 text-base text-foreground" />}
     </label>)}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={busy} onClick={() => setValues(null)}>취소</Button><Button type="submit" disabled={busy}>{busy ? '저장 중…' : '저장'}</Button></div>

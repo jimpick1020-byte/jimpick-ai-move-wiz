@@ -1,4 +1,4 @@
-import { authenticatePayappNotice, kstStamp, payappDate, payappNextBillingDate, payappFirstApprovalMatches, payappKstDate, sha256 } from "./payapp-live";
+import { PAYAPP_PRICE, authenticatePayappNotice, kstStamp, payappDate, payappNextBillingDate, payappFirstApprovalMatches, payappKstDate, sha256 } from "./payapp-live";
 
 export class PayappRequestError extends Error {
   constructor(readonly definitive: boolean, readonly code: string | null = null) {
@@ -7,9 +7,11 @@ export class PayappRequestError extends Error {
   }
 }
 
-export function payappRegistrationFields(order: {id:string;user_id:string;requested_day:number;rebill_expire:string}, phone:string) {
+export function payappRegistrationFields(order: {id:string;user_id:string;requested_day:number;rebill_expire:string;amount:number}, phone:string) {
+  // New registrations only use the current plan price (VAT included, no surcharge).
+  if (order.amount !== PAYAPP_PRICE) throw new Error("구독 금액이 현재 요금과 다릅니다. 새 동의가 필요합니다.");
   return {
-    goodname:"견적잇 업체 월 구독",goodprice:"30000",recvphone:phone,rebillCycleType:"Month",rebillCycleMonth:String(order.requested_day),
+    goodname:"견적잇 업체 월 구독",goodprice:String(PAYAPP_PRICE),recvphone:phone,rebillCycleType:"Month",rebillCycleMonth:String(order.requested_day),
     rebillExpire:order.rebill_expire,smsuse:"n",openpaytype:"card",var1:order.id,var2:order.user_id,
     feedbackurl:"https://gyeonjeokit.lovable.app/api/public/payapp/feedback",failurl:"https://gyeonjeokit.lovable.app/api/public/payapp/feedback",
     returnurl:"https://gyeonjeokit.lovable.app/api/public/payapp/return",

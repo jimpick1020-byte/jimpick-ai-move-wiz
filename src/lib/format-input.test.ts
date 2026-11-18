@@ -19,3 +19,10 @@ test("견적 저장 번호 형식만 변환하고 기존 고객과 품목 보존
 test("문자 전송에만 하이픈 제거", () => {
   assert.equal(normalizePhone("010-7566-2542"), "01075662542");
 });
+import { formatThousands as ft, parseThousands as pt } from "./format-input";
+test("천 단위 쉼표 표시·저장 분리", () => {
+  assert.equal(ft("940000"), "940,000"); assert.equal(ft("39000"), "39,000"); assert.equal(ft("999"), "999");
+  assert.equal(ft(""), ""); assert.equal(ft("0"), "0"); assert.equal(pt(""), "");
+  assert.equal(ft("1,80,000원"), "180,000"); assert.equal(pt("190,000"), "190000");
+  assert.equal(ft("-10000", { negative: true }), "-10,000"); assert.equal(ft("-10000"), "10,000");
+});
