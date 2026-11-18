@@ -208,15 +208,6 @@ export function StaffSheetView({ state }: { state: { loading: boolean; error?: s
               />
             </Card>
 
-            <div className="grid grid-cols-2 gap-2.5">
-              {state.snap.fromAddress && (
-                <TmapAddress label="출발지" address={state.snap.fromAddress} x={state.snap.fromX} y={state.snap.fromY} className="flex min-h-[56px] flex-col justify-center rounded-[16px] border border-[#E5E7EB] bg-white px-3 text-[15px] font-black text-[#25282D]"><span className="block text-center">출발지 지도</span></TmapAddress>
-              )}
-              {state.snap.toAddress && (
-                <TmapAddress label="도착지" address={state.snap.toAddress} x={state.snap.toX} y={state.snap.toY} className="flex min-h-[56px] flex-col justify-center rounded-[16px] border border-[#E5E7EB] bg-white px-3 text-[15px] font-black text-[#25282D]"><span className="block text-center">도착지 지도</span></TmapAddress>
-              )}
-            </div>
-
             <Card title="차량">
               <Row icon={<Truck className="h-5 w-5" />} label="차량" value={state.snap.truckText} />
                 <Row icon={<Users className="h-5 w-5" />} label="작업 인원" value={[
