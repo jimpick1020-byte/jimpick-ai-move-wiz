@@ -17,12 +17,12 @@ import {
   Calendar,
   Clock,
   Truck,
-  Building2,
   ClipboardList,
   ShieldAlert,
   Navigation,
   Package,
-  Users,
+  User,
+  Timer,
 } from "lucide-react";
 
 function Row({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
@@ -38,16 +38,40 @@ function Row({ icon, label, value }: { icon: React.ReactNode; label: string; val
   );
 }
 
-function AddrRow({ label, address, detail, x, y }: { label: string; address: string; detail?: string; x?: number | null; y?: number | null }) {
+function AddrRow({ label, address, detail, x, y, sub }: { label: string; address: string; detail?: string; x?: number | null; y?: number | null; sub?: string }) {
   const value = `${address} ${detail || ""}`.trim();
   if (!value) return null;
   return (
-    <div className="flex items-start gap-2.5 border-b border-[#EEF3FB] py-3 last:border-0">
+    <div className="flex items-start gap-2.5 border-b border-[#E5E7EB] py-4 last:border-0">
       <span className="mt-0.5 shrink-0 text-[#25282D]"><MapPin className="h-5 w-5" /></span>
-      <span className="w-[86px] shrink-0 text-[14px] font-bold text-[#6B7280]">{label}</span>
-      <TmapAddress label={label} address={address} x={x} y={y} className="min-w-0 flex-1 break-keep text-[15px] font-bold text-[#25282D]">{value}</TmapAddress>
+      <span className="w-[52px] shrink-0 text-[16px] font-black text-[#25282D]">{label}</span>
+      <div className="min-w-0 flex-1">
+        <TmapAddress label={label} address={address} x={x} y={y} className="break-keep text-[16px] font-medium text-[#25282D]">{value}</TmapAddress>
+        {sub && <div className="mt-1 break-keep text-[14px] text-[#9CA3AF]">{sub}</div>}
+      </div>
     </div>
   );
+}
+
+function InfoLine({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return <div className="flex min-w-0 items-center gap-2.5 text-[#25282D]"><span className="shrink-0">{icon}</span><span className="min-w-0 break-keep">{children}</span></div>;
+}
+
+function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2 px-3 py-4">
+      <span className="shrink-0 text-[#25282D]">{icon}</span>
+      <span className="min-w-0">
+        <span className="block break-keep text-[13px] text-[#6B7280]">{label}</span>
+        <span className="block break-keep text-[16px] font-black text-[#25282D]">{value}</span>
+      </span>
+    </div>
+  );
+}
+
+/** 차량 칸에는 트럭 종류와 대수만 (사다리차 표시 제외, 원본 자료는 그대로) */
+function truckOnly(text: string) {
+  return (text || "").split(" · ").filter(part => part && !part.startsWith("사다리차")).join(" · ");
 }
 
 function Card({ title, children }: { title?: string; children: React.ReactNode }) {
@@ -79,9 +103,9 @@ export function StaffSheetView({ state }: { state: { loading: boolean; error?: s
   state = { ...state, snap: state.snap ? repairStaffSheet(state.snap) : undefined };
 
   return (
-    <div className="min-h-[100dvh] bg-[#E9EFF8] pb-10">
+    <div className="min-h-[100dvh] bg-[#F3F4F6] pb-10">
       <div className="flex h-[72px] items-center gap-2 bg-[#3578C8] px-4">
-        <span className="text-[19px] font-black text-white">견적잇 직원용</span>
+        <span className="text-[19px] font-black text-white">작업지시서</span>
       </div>
 
       <div className="mx-auto w-full max-w-[430px] space-y-3 px-3.5 py-4">
@@ -108,95 +132,65 @@ export function StaffSheetView({ state }: { state: { loading: boolean; error?: s
 
         {state.snap && (
           <>
-            <div className="rounded-[16px] bg-white px-3.5 py-3">
-              <div className="text-[13px] font-bold text-[#6B7280]">
-                작업 지시서 {state.snap.sheetNo ? `· ${state.snap.sheetNo}` : ""}
-              </div>
-              <div className="mt-1 text-[20px] font-black text-[#25282D]">
-                {state.snap.moveDate || "이사일 미정"} {state.snap.moveTime || ""}
-              </div>
+            <div className="rounded-[20px] bg-white px-4 py-4 shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
+              {state.snap.sheetNo && <div className="text-[14px] font-bold text-[#6B7280]">{state.snap.sheetNo}</div>}
+              <h1 className="mt-0.5 break-keep text-[24px] font-black leading-tight text-[#25282D]">
+                {state.snap.companyName ? `${state.snap.companyName} ` : ""}작업지시서
+              </h1>
               {state.expiresAt && (
                 <div className="mt-1 text-[12.5px] text-[#9CA3AF]">
                   링크 만료 {new Date(state.expiresAt).toLocaleString("ko-KR")}
                 </div>
               )}
+              <div className="mt-3 space-y-2.5 border-t border-[#E5E7EB] pt-3 text-[16px]">
+                {state.snap.customerName && (
+                  <InfoLine icon={<User className="h-5 w-5" />}><b className="font-black">{state.snap.customerName}</b> <span className="text-[#6B7280]">고객님</span></InfoLine>
+                )}
+                {state.snap.customerPhone && (
+                  <InfoLine icon={<Phone className="h-5 w-5" />}><span className="text-[#6B7280]">연락처</span> <a className="font-black" href={`tel:${state.snap.customerPhone.replace(/[^0-9+]/g, "")}`}>{formatTel(state.snap.customerPhone)}</a></InfoLine>
+                )}
+                <InfoLine icon={<Calendar className="h-5 w-5" />}><span className="text-[#6B7280]">이사일</span> <b className="font-black">{state.snap.moveDate || "미정"}</b></InfoLine>
+                <InfoLine icon={<Package className="h-5 w-5" />}><span className="text-[#6B7280]">출발지 평수</span> {state.snap.sizeTab ? <b className="font-black">{state.snap.sizeTab}</b> : <b className="font-black text-[#D95C5C]">미입력</b>}</InfoLine>
+                <InfoLine icon={<Package className="h-5 w-5" />}><span className="text-[#6B7280]">도착지 평수</span> {state.snap.toSizeTab ? <b className="font-black">{state.snap.toSizeTab}</b> : <b className="font-black text-[#D95C5C]">미입력</b>}</InfoLine>
+              </div>
             </div>
 
-            <Card title="고객">
-              <Row
-                icon={<ClipboardList className="h-5 w-5" />}
-                label="이름"
-                value={state.snap.customerName}
-              />
-              <Row
-                icon={<Phone className="h-5 w-5" />}
-                label="연락처"
-                value={formatTel(state.snap.customerPhone)}
-              />
-              <Row
-                icon={<Calendar className="h-5 w-5" />}
-                label="이사 날짜"
-                value={state.snap.moveDate}
-              />
-              <Row
-                icon={<Clock className="h-5 w-5" />}
-                label="시작 시간"
-                value={state.snap.moveTime}
-              />
-              <Row
-                icon={<Truck className="h-5 w-5" />}
-                label="이사 유형"
-                value={state.snap.moveType}
-              />
-              <Row
-                icon={<Package className="h-5 w-5" />}
-                label="평수"
-                value={state.snap.sizeTab || "평수 미입력"}
-              />
-            </Card>
-
-            {state.snap.customerPhone && (
-              <a
-                href={`tel:${state.snap.customerPhone.replace(/[^0-9+]/g, "")}`}
-                className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[16px] bg-[#3578C8] text-[16px] font-black text-white"
-              >
-                <Phone className="h-5 w-5" /> 고객 전화 연결
-              </a>
+            {(state.snap.moveTime || state.snap.distanceKm > 0) && (
+              <div className="grid grid-cols-3 divide-x divide-[#E5E7EB] rounded-[20px] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
+                <Stat icon={<Clock className="h-5 w-5" />} label="시작 시간" value={state.snap.moveTime || "-"} />
+                <Stat icon={<Navigation className="h-5 w-5" />} label="이동 거리" value={state.snap.distanceKm ? `${state.snap.distanceKm}km` : "-"} />
+                <Stat icon={<Timer className="h-5 w-5" />} label="예상 이동시간" value={state.snap.durationMin ? `${state.snap.durationMin}분` : "-"} />
+              </div>
             )}
 
-            <Card title="주소">
-              <AddrRow label="출발지" address={state.snap.fromAddress} detail={state.snap.fromDetail} x={state.snap.fromX} y={state.snap.fromY} />
-              <Row
-                icon={<Building2 className="h-5 w-5" />}
-                label="출발 조건"
-                value={
-                  state.snap.fromEnv ?? (state.snap.fromFloor ? `${state.snap.fromFloor}층` : "")
-                }
-              />
-              <AddrRow label="도착지" address={state.snap.toAddress} detail={state.snap.toDetail} x={state.snap.toX} y={state.snap.toY} />
-              <Row
-                icon={<Building2 className="h-5 w-5" />}
-                label="도착 조건"
-                value={state.snap.toEnv ?? (state.snap.toFloor ? `${state.snap.toFloor}층` : "")}
-              />
-              <Row
-                icon={<Navigation className="h-5 w-5" />}
-                label="이동"
-                value={
-                  state.snap.distanceKm
-                    ? `${state.snap.distanceKm}km · 약 ${state.snap.durationMin}분`
-                    : ""
-                }
-              />
-            </Card>
+            <div className="rounded-[20px] bg-white px-4 shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
+              <AddrRow label="출발지" address={state.snap.fromAddress} detail={state.snap.fromDetail} x={state.snap.fromX} y={state.snap.fromY}
+                sub={state.snap.fromEnv ?? (state.snap.fromFloor ? `${state.snap.fromFloor}층` : "")} />
+              <AddrRow label="도착지" address={state.snap.toAddress} detail={state.snap.toDetail} x={state.snap.toX} y={state.snap.toY}
+                sub={state.snap.toEnv ?? (state.snap.toFloor ? `${state.snap.toFloor}층` : "")} />
+            </div>
 
-            <Card title="차량">
-              <Row icon={<Truck className="h-5 w-5" />} label="차량" value={state.snap.truckText} />
-                <Row icon={<Users className="h-5 w-5" />} label="작업 인원" value={[
-                  (state.snap.workers ?? 0) > 0 ? `남자 작업자 ${state.snap.workers}명` : "",
-                  (state.snap.kitchenStaff ?? 0) > 0 ? `주방 작업자 ${state.snap.kitchenStaff}명` : "",
-                ].filter(Boolean).join(" · ")} />
-            </Card>
+            {state.snap.specialTerms?.trim() && (
+              <div className="rounded-[20px] bg-white px-4 py-4 shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
+                <div className="text-[18px] font-black text-[#25282D]">특약사항</div>
+                <div className="mt-2 whitespace-pre-wrap text-[15px] text-[#6B7280]">{state.snap.specialTerms.trim()}</div>
+              </div>
+            )}
+
+            {(() => { const truck = truckOnly(state.snap.truckText); return (truck || state.snap.moveType) ? (
+              <div className="grid grid-cols-2 divide-x divide-[#E5E7EB] rounded-[20px] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
+                <Stat icon={<Truck className="h-5 w-5" />} label="차량" value={truck || "-"} />
+                <Stat icon={<Package className="h-5 w-5" />} label="이사 유형" value={state.snap.moveType || "-"} />
+              </div>
+            ) : null; })()}
+
+            {((state.snap.workers ?? 0) > 0 || (state.snap.kitchenStaff ?? 0) > 0) && (
+              <div className="rounded-[20px] bg-white px-4 py-4 shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
+                <div className="flex items-center gap-2 text-[18px] font-black text-[#25282D]"><User className="h-5 w-5" /> 작업 인원</div>
+                {(state.snap.workers ?? 0) > 0 && <div className="mt-2 flex justify-between text-[16px]"><span className="text-[#6B7280]">남자 작업자</span><b className="font-black">{state.snap.workers}명</b></div>}
+                {(state.snap.kitchenStaff ?? 0) > 0 && <div className="mt-2 flex justify-between text-[16px]"><span className="text-[#6B7280]">주방 작업자</span><b className="font-black">{state.snap.kitchenStaff}명</b></div>}
+              </div>
+            )}
 
             {state.snap.rooms.length > 0 && (
               <section aria-labelledby="staff-room-items-title">
@@ -210,7 +204,7 @@ export function StaffSheetView({ state }: { state: { loading: boolean; error?: s
                   {state.snap.rooms.map((room) => (
                     <div
                       key={room.name}
-                      className="flex items-stretch gap-2 rounded-[14px] border border-[#E5E7EB] bg-white p-2.5"
+                      className="flex items-stretch gap-2 rounded-[20px] bg-white p-3 shadow-[0_1px_3px_rgba(16,24,40,0.06)]"
                     >
                       <div className="flex w-[64px] shrink-0 items-center justify-center">
                         <span className="break-keep text-center text-[17px] font-black text-[#25282D]">
@@ -226,11 +220,11 @@ export function StaffSheetView({ state }: { state: { loading: boolean; error?: s
                               key={`${item.id ?? item.name}-${index}`}
                               className="flex min-w-0 items-center gap-1.5"
                             >
-                              <span className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-[#F7F8F5]">
+                              <span className="relative flex h-[50px] w-[50px] shrink-0 items-center justify-center overflow-hidden rounded-[12px] border border-[#E5E7EB] bg-[#F7F8F5]">
                                 <Icon3D
                                   src={item.icon ?? "none:no-image"}
                                   alt={item.name}
-                                  size={40}
+                                  size={44}
                                 />
                                 {isDisposal && (
                                   <span aria-hidden="true" className="pointer-events-none absolute inset-[3px]">
@@ -257,29 +251,23 @@ export function StaffSheetView({ state }: { state: { loading: boolean; error?: s
               </section>
             )}
 
-            {state.snap.extraWork.length > 0 && (
-              <Card title="추가 작업">
-                <div className="py-2 text-[15px] text-foreground">
-                  {(state.snap.extraWorkItems ? [
-                    ...state.snap.extraWorkItems,
-                    ...state.snap.extraWork.filter(name => name.startsWith("사다리차 ")).map((name, index) => ({ id: `ladder-${index}`, name: name.replace(/ · 별도$/, ""), separate: name.endsWith(" · 별도") })),
-                  ] : state.snap.extraWork.map((name, index) => ({ id: String(index), name: name.replace(/ · 별도$/, ""), separate: name.endsWith(" · 별도") }))).map(work => (
-                    <div key={work.id} className="flex items-center justify-between gap-3 py-1.5">
-                      <span className="min-w-0 break-words">{work.name}</span>
-                      {work.separate && <span className="shrink-0 font-bold">별도</span>}
-                    </div>
-                  ))}
+            {(() => {
+              const works = (state.snap.extraWorkItems ?? state.snap.extraWork.map((name, index) => ({ id: String(index), name: name.replace(/ · 별도$/, ""), separate: name.endsWith(" · 별도") })))
+                .filter(work => !work.name.startsWith("사다리차"));
+              return works.length > 0 ? (
+                <div className="rounded-[20px] bg-white px-4 py-4 shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
+                  <div className="text-[18px] font-black text-[#25282D]">추가 작업</div>
+                  <div className="mt-1 text-[16px] text-[#25282D]">
+                    {works.map(work => (
+                      <div key={work.id} className="flex items-center justify-between gap-3 py-2">
+                        <span className="min-w-0 break-words">{work.name}</span>
+                        {work.separate && <span className="shrink-0 font-black">별도</span>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </Card>
-            )}
-
-            {state.snap.specialTerms?.trim() && (
-              <Card title="특약사항">
-                <div className="whitespace-pre-wrap py-3 text-[15px] text-[#6B7280]">
-                  {state.snap.specialTerms.trim()}
-                </div>
-              </Card>
-            )}
+              ) : null;
+            })()}
 
             {state.snap.note && (
               <Card title="현장 안내사항">

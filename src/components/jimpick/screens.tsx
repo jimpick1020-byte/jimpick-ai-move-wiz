@@ -5795,6 +5795,8 @@ export function Result() {
     moveTime: draft.moveTime ?? "",
     moveType: String(draft.moveType ?? ""),
     sizeTab: draft.sizeTab ?? "",
+    toSizeTab: draft.toSizeTab ?? "",
+    companyName: sheetCompanyName,
     fromAddress: draft.fromAddress ?? "",
     fromDetail: draft.fromDetail ?? "",
     toAddress: draft.toAddress ?? "",

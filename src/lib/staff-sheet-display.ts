@@ -1,4 +1,4 @@
-import { isLadderSeparate, type Estimate } from "./jimpick";
+import { isLadderSeparate, sideConditionText, type Estimate } from "./jimpick";
 import type { StaffSheetSnapshot } from "./staff-share";
 import { compactSharedSnapshot, normalizeIcon, FAKE_DEFAULT_BOX } from "./shared-item-repair";
 import { builtinItemOf } from "./shared-item-builtin";
@@ -32,6 +32,34 @@ export function repairStaffSheet(snapshot: StaffSheetSnapshot, source?: { draft?
     itemNames: draft?.itemNames,
     customItems: draft?.customItems?.map(item => ({ ...item })),
   } }, [], builtinItemOf).rooms as StaffSheetSnapshot["rooms"];
+  // 최신 저장 견적이 있으면 표시 항목을 그 값으로 맞춥니다(금액은 넣지 않음).
+  const d = draft as Estimate | undefined;
+  const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+  const latest: Partial<StaffSheetSnapshot> = d ? {
+    customerName: str(d.customerName) ?? snapshot.customerName,
+    customerPhone: str(d.phone) ?? snapshot.customerPhone,
+    moveDate: str(d.moveDate) ?? snapshot.moveDate,
+    moveTime: str(d.moveTime) ?? snapshot.moveTime,
+    moveType: d.moveType != null ? String(d.moveType) : snapshot.moveType,
+    sizeTab: str(d.sizeTab) ?? snapshot.sizeTab,
+    toSizeTab: "toSizeTab" in d ? str(d.toSizeTab) ?? "" : snapshot.toSizeTab,
+    ...(str(d.fromAddress) != null ? { fromAddress: d.fromAddress, fromDetail: d.fromDetail ?? "", fromX: d.fromX ?? null, fromY: d.fromY ?? null } : {}),
+    ...(str(d.toAddress) != null ? { toAddress: d.toAddress, toDetail: d.toDetail ?? "", toX: d.toX ?? null, toY: d.toY ?? null } : {}),
+    ...(typeof d.fromFloor === "number" && typeof d.toFloor === "number" ? (() => { try { return { fromEnv: sideConditionText(d, "from"), toEnv: sideConditionText(d, "to") }; } catch { return {}; } })() : {}),
+    ...(typeof d.truck1t === "number" || typeof d.truck5t === "number" ? { truckText: [
+      (d.truck5t ?? 0) > 0 ? `5톤 트럭 ${d.truck5t}대` : "", (d.truck1t ?? 0) > 0 ? `1톤 트럭 ${d.truck1t}대` : "",
+    ].filter(Boolean).join(" · ") } : {}),
+    specialTerms: str(d.specialTerms) ?? snapshot.specialTerms,
+  } : {};
+  const rooms2 = source?.rooms?.length ? compactSharedSnapshot({ rooms: source.rooms as never, draft: {
+    itemNames: draft?.itemNames, customItems: draft?.customItems?.map(item => ({ ...item })),
+  } }, [], builtinItemOf).rooms as StaffSheetSnapshot["rooms"] : rooms;
+  return {
+    ...snapshot, ...latest, rooms: rooms2,
+    workers: draft?.workers ?? snapshot.workers,
+    kitchenStaff: draft?.kitchenStaff ?? snapshot.kitchenStaff,
+    extraWorkItems: draft?.options ? draft.options.filter(o => o.enabled).map(o => ({ id: o.id, name: o.name, separate: !!o.separate })) : snapshot.extraWorkItems,
+  };
   return {
     ...snapshot, rooms,
     workers: snapshot.workers ?? draft?.workers,

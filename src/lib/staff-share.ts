@@ -23,6 +23,10 @@ export interface StaffSheetSnapshot {
   moveType: string;
   /** 평수 (예: 30~40평) — 4단계에서 고른 값 */
   sizeTab?: string;
+  /** 도착지 평수 — 없으면 미입력(출발지 값을 복사하지 않음) */
+  toSizeTab?: string;
+  /** 견적서 머리글 업체명 */
+  companyName?: string;
   fromAddress: string;
   fromDetail: string;
   toAddress: string;
