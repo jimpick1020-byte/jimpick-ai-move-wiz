@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { protectAppUpdate } from '@/lib/update-safety';
 import { Button } from '@/components/ui/button';
 import { ItemArt } from '@/lib/jimpick-art';
 import { isDoubleTap, toggleSheetDisposal } from '@/lib/sheet-edit';
@@ -17,6 +18,9 @@ export function SheetItemEdit({ item, roomId, draft, onSave }: {
   const first = useRef<{ at: number; x: number; y: number } | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
   const lock = useRef(false);
+  const updateBlocked = useRef(false);
+  updateBlocked.current = editing || busy;
+  useEffect(() => protectAppUpdate(() => updateBlocked.current), []);
   async function toggle() {
     if (!onSave || lock.current) return;
     lock.current = true; setBusy(true); setError('');

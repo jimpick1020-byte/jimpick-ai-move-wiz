@@ -283,6 +283,7 @@ import { editedSheet, sheetRoomsOf } from "@/lib/sheet-edit";
 import { serializeSharedSnapshot } from "@/lib/shared-item-repair";
 import { builtinItemOf } from "@/lib/shared-item-builtin";
 import { saveEditedSheet } from "@/lib/sheet-edit.functions";
+import { protectAppUpdate } from "@/lib/update-safety";
 import { useServerFn } from "@tanstack/react-start";
 import { printSheet } from "@/lib/sheet-export";
 import { buildEstimateMessage, isSendablePhone, smsHref, hasSmsApp } from "@/lib/sms";
@@ -5286,16 +5287,22 @@ export function Result() {
   /** 이 견적의 약관 발송·동의 상태 (읽기 전용 — 업체가 대신 동의할 수 없습니다) */
   const [termsStatus, setTermsStatus] = useState<TermsStatusRow | null>(null);
   const [termsLoading, setTermsLoading] = useState(true);
+  const termsRequest = useRef<string | null>(null);
+  const termsEstimateId = useRef(draft.id);
+  termsEstimateId.current = draft.id;
   const loadTermsStatus = () => {
-    setTermsLoading(true);
-    getTermsStatuses({ data: { estimateId: draft.id } })
+    const id = draft.id;
+    if (termsRequest.current === id) return;
+    termsRequest.current = id;
+    if (!termsStatus) setTermsLoading(true);
+    getTermsStatuses({ data: { estimateId: id } })
       .then((r) => {
-        if (!r.ok) return;
+        if (!r.ok || termsEstimateId.current !== id) return;
         // 같은 견적을 여러 차수로 보냈으면 가장 최근 것을 봅니다
         setTermsStatus(r.rows[0] ?? null);
       })
       .catch(() => {})
-      .finally(() => setTermsLoading(false));
+      .finally(() => { if (termsRequest.current === id) termsRequest.current = null; if (termsEstimateId.current === id) setTermsLoading(false); });
   };
   useEffect(() => {
     let alive = true;
@@ -7652,6 +7659,9 @@ export function BusinessInfoCard({ onNeedLogin, onSavedPhone }: { onNeedLogin: (
   const [saving, setSaving] = useState(false);
 
   const [companyName, setCompanyName] = useState("");
+  const updateBlocked = useRef(false);
+  updateBlocked.current = editing || saving;
+  useEffect(() => protectAppUpdate(() => updateBlocked.current), []);
   const [ownerName, setOwnerName] = useState("");
   const [phone, setPhone] = useState("");
   const [bizNo, setBizNo] = useState(""); // 숫자만 보관

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { protectAppUpdate } from "@/lib/update-safety";
 
 export type BalanceClaimState = "form" | "pending" | "hidden";
 
@@ -23,6 +24,9 @@ export function BalanceClaimPanel({
   const [checked, setChecked] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const updateBlocked = useRef(false);
+  updateBlocked.current = checked || claiming;
+  useEffect(() => protectAppUpdate(() => updateBlocked.current), []);
   useEffect(() => {
     setChecked(false);
     setError(null);

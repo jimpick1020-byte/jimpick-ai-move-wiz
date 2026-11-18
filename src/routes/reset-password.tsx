@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Toaster } from "@/components/ui/sonner";
 import { JimpickProvider } from "@/lib/jimpick";
 import { ResetPasswordScreen } from "@/components/jimpick/password";
 
@@ -23,7 +22,6 @@ function ResetPasswordPage() {
   return (
     <JimpickProvider>
       <ResetPasswordScreen />
-      <Toaster position="top-center" />
     </JimpickProvider>
   );
 }

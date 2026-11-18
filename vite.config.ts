@@ -30,7 +30,7 @@ export default defineConfig({
     plugins: [
       VitePWA({
         strategies: "generateSW",
-        registerType: "autoUpdate",
+        registerType: "prompt",
         // 등록은 src/lib/pwa.ts 한 곳에서만 합니다
         injectRegister: null,
         // 미리보기·개발 화면에서는 서비스워커를 만들지 않습니다
@@ -49,7 +49,7 @@ export default defineConfig({
           navigateFallback: undefined,
           cleanupOutdatedCaches: true,
           clientsClaim: true,
-          skipWaiting: true,
+          skipWaiting: false,
           navigationPreload: false,
           runtimeCaching: [
             {

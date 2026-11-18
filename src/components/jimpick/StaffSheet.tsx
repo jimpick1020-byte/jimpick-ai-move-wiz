@@ -2,7 +2,8 @@
  * 직원 업무용 화면 — 카카오톡으로 받은 보안 링크로 열립니다.
  * 금액·계좌·약관은 없습니다. 현장에서 필요한 정보만 담습니다.
  */
-import { useEffect, useState } from "react";
+import { useRetainedRefresh } from "@/lib/use-retained-refresh";
+import { useRef } from "react";
 import { formatTel } from "@/lib/format-input";
 import { useParams } from "@tanstack/react-router";
 import { openStaffShare } from "@/lib/staff-share.functions";
@@ -64,34 +65,14 @@ function Card({ title, children }: { title?: string; children: React.ReactNode }
 
 export function StaffSheet() {
   const { token } = useParams({ from: "/staff/estimate/$token" });
-  const [state, setState] = useState<{
-    loading: boolean;
-    error?: string;
-    snap?: StaffSheetSnapshot;
-    expiresAt?: string;
-  }>({ loading: true });
-
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const r = await openStaffShare({ data: { token } });
-        if (!alive) return;
-        if (!r.ok || !r.snapshot) {
-          setState({ loading: false, error: r.error ?? "열 수 없는 링크입니다." });
-          return;
-        }
-        setState({ loading: false, snap: r.snapshot, expiresAt: r.expiresAt });
-      } catch {
-        if (alive) setState({ loading: false, error: "네트워크 오류가 발생했습니다." });
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [token]);
-
-  return <StaffSheetView state={state} />;
+  const openedToken = useRef("");
+  const result = useRetainedRefresh(token, async () => {
+    const r = await openStaffShare({ data: { token, refresh: openedToken.current === token } });
+    if (r.ok) openedToken.current = token;
+    return r;
+  }, r => r.ok && !!r.snapshot);
+  return <StaffSheetView state={{ loading: !result.data && result.refreshing, snap: result.data?.snapshot,
+    expiresAt: result.data?.expiresAt, error: result.rejected ? "열 수 없는 링크입니다." : result.error }} />;
 }
 
 export function StaffSheetView({ state }: { state: { loading: boolean; error?: string; snap?: StaffSheetSnapshot; expiresAt?: string } }) {
@@ -112,7 +93,8 @@ export function StaffSheetView({ state }: { state: { loading: boolean; error?: s
           </Card>
         )}
 
-        {!state.loading && state.error && (
+        {state.snap && state.error && <p role="alert" className="text-sm text-destructive">{state.error}</p>}
+        {!state.loading && state.error && !state.snap && (
           <Card>
             <div className="flex flex-col items-center gap-2 py-10 text-center">
               <ShieldAlert className="h-8 w-8 text-[#D95C5C]" />

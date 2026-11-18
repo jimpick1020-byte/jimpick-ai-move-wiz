@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 /** 고객 화면은 기기·앱의 다크모드와 상관없이 항상 밝은 흰 배경으로 고정합니다. */
 export function useForceLightPage(enabled = true) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!enabled) return;
     const html = document.documentElement;
 
@@ -19,7 +19,7 @@ export function useForceLightPage(enabled = true) {
       html.style.background = prev.bg;
       document.body.style.background = prev.body;
     };
-  }, []);
+  }, [enabled]);
 }
 
 function detectInApp(ua: string): "kakao" | "naver" | "other" | null {

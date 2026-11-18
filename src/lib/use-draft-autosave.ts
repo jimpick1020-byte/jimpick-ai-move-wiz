@@ -8,6 +8,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { saveEstimateDraft } from "./draft-sync.functions";
+import { protectAppUpdate } from "./update-safety";
 
 export type DraftSaveState = "idle" | "saving" | "saved" | "error" | "offline";
 
@@ -35,6 +36,9 @@ export function useDraftAutosave(enabled: boolean, estimateId: string, payload: 
   const lastSent = useRef<string>("");
   const pending = useRef<{ id: string; body: string } | null>(null);
   const inFlight = useRef(false);
+  const updateBlocked = useRef(false);
+  updateBlocked.current = enabled && !!payload && (payload !== lastSent.current || inFlight.current);
+  useEffect(() => protectAppUpdate(() => updateBlocked.current), []);
 
   const flush = async (id: string, body: string) => {
     if (inFlight.current) {

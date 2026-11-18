@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Toaster } from "@/components/ui/sonner";
 import { JimpickProvider, useApp } from "@/lib/jimpick";
 import {
   Splash,
@@ -44,7 +43,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Screens() {
-  const { screen, authChecking, retryAuthCheck } = useApp();
+  const { screen, authChecking, retryAuthCheck, draft } = useApp();
   if (authChecking) return <AuthLoadingScreen onRetry={retryAuthCheck} />;
   switch (screen) {
     case "splash": return <Splash />;
@@ -58,7 +57,7 @@ function Screens() {
     case "scan": return <RoomScanScreen />;
     case "plan": return <OptionsScreen />;
     case "options": return <OptionsScreen />;
-    case "result": return <Result />;
+    case "result": return <Result key={draft.id} />;
     case "history": return <History />;
     case "customers": return <Customers />;
     case "requests": return <RequestsScreen />;
@@ -111,7 +110,6 @@ function Index() {
   return (
     <JimpickProvider>
       <Router />
-      <Toaster position="top-center" />
     </JimpickProvider>
   );
 }

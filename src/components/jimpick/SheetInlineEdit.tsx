@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { protectAppUpdate } from '@/lib/update-safety';
 import { Button } from '@/components/ui/button';
 import type { Estimate } from '@/lib/jimpick';
 import { formatThousands, onFormatted, parseThousands } from '@/lib/format-input';
@@ -12,6 +13,9 @@ export function SheetInlineEdit({ children, fields, draft, onSave, label }: {
   const [values, setValues] = useState<Record<string, string> | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const editing = useRef(false);
+  editing.current = values !== null || busy;
+  useEffect(() => protectAppUpdate(() => editing.current), []);
   if (!onSave) return <>{children}</>;
   if (!values) return <div role="button" tabIndex={0} aria-label={`${label} 수정`} className="cursor-pointer min-w-0" onClick={() => {
     setError(''); setValues(Object.fromEntries(fields.map(f => [f.key, String(draft[f.key] ?? '')])));

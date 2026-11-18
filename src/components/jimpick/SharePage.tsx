@@ -5,6 +5,7 @@ import { BalanceClaimPanel } from "./BalanceClaimPanel";
 import { customerPaymentDue, sheetPlannedDeposit } from "@/lib/customer-payment";
 import { CharacterImg } from "./CharacterGuide";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { protectAppUpdate } from "@/lib/update-safety";
 import { formatTel } from "@/lib/format-input";
 import { useLoaderData, useParams, useSearch } from "@tanstack/react-router";
 import {
@@ -138,6 +139,12 @@ function CustomerItemGrid({ items }: { items: { id: string; room: string; name: 
 
 export function SharePage() {
   const { id } = useParams({ from: "/share/$id" });
+  const search = useSearch({ from: "/share/$id" });
+  return <SharePageContent key={`${id}|${search.t ?? ""}|${search.staff ?? ""}|${search.view ?? ""}`} />;
+}
+
+function SharePageContent() {
+  const { id } = useParams({ from: "/share/$id" });
   const preview = useLoaderData({ from: "/share/$id" });
   const search = useSearch({ from: "/share/$id" }) as { staff?: string; t?: string; rm?: string; card?: string; view?: string };
   const staffMode = String(search?.staff ?? "") === "1";
@@ -173,6 +180,9 @@ export function SharePage() {
   const [accepted, setAccepted] = useState<LocalAcceptance | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const updatingBlocked = useRef(false);
+  updatingBlocked.current = saving || checked;
+  useEffect(() => protectAppUpdate(() => updatingBlocked.current), []);
   /** 고객이 직접 저장할 때 쓰는 견적서 영역 */
   const sheetRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState<"" | "pdf" | "png">("");
@@ -304,7 +314,6 @@ export function SharePage() {
     setEstimate(loadEstimateFromStorage(id));
     // 동의 완료 상태는 서버(Supabase)에 저장된 실제 기록만 믿습니다.
     // 브라우저에 남은 임시값으로 「예약 확정」을 만들지 않습니다.
-    setAccepted(null);
     termsLogged.current = false;
     // 보안 토큰으로 이 견적 한 건만 조회합니다 (다른 견적번호로는 열리지 않습니다)
     const reqToken = token;
@@ -331,29 +340,34 @@ export function SharePage() {
           });
         }
       })
-      .catch(() => { if (tokenRef.current === reqToken) setLink(null); })
+      .catch(() => { if (tokenRef.current === reqToken) setSaveError("최신 정보를 불러오지 못했습니다. 다시 시도해 주세요."); })
       .finally(() => { if (tokenRef.current === reqToken) setLoading(false); });
   }, [id, token, staffMode, ownerView, preview.valid]);
 
   // 업체가 입금을 확인하면 새로고침 없이도 다음 단계(잔금 입금)가 보이도록 저장된 기록을 다시 읽습니다.
   useEffect(() => {
     if (!token || staffMode || ownerView) return;
+    let alive = true;
+    let inFlight = false;
     const refresh = () => {
-      if (document.visibilityState !== "visible") return;
+      if (document.visibilityState !== "visible" || inFlight) return;
+      inFlight = true;
       const reqToken = token;
       void getTermsLink({ data: { token } })
-        .then((info) => { if (info.ok && tokenRef.current === reqToken) setLink((current) => (current?.ok ? { ...current, ...info } : current)); })
-        .catch(() => {});
+        .then((info) => { if (alive && tokenRef.current === reqToken) setLink(info); })
+        .catch(() => {})
+        .finally(() => { inFlight = false; });
     };
     const timer = window.setInterval(refresh, 10000);
     document.addEventListener("visibilitychange", refresh);
     window.addEventListener("focus", refresh);
     return () => {
+      alive = false;
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", refresh);
       window.removeEventListener("focus", refresh);
     };
-  }, [token, staffMode]);
+  }, [token, staffMode, ownerView]);
 
   const localCalc = useMemo(() => (validLink && estimate ? calcEstimate(estimate) : null), [estimate, validLink]);
 

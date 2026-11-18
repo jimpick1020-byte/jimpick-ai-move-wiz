@@ -172,7 +172,7 @@ export interface StaffShareView {
 
 /** 직원 — 보안 링크로 업무용 내용을 읽습니다 (로그인 필요 없음) */
 export const openStaffShare = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ token: z.string().min(16).max(200) }).parse(d))
+  .inputValidator((d: unknown) => z.object({ token: z.string().min(16).max(200), refresh: z.boolean().optional() }).parse(d))
   .handler(async ({ data }): Promise<StaffShareView> => {
     const { hashStaffToken } = await import("./staff-share.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -194,7 +194,7 @@ export const openStaffShare = createServerFn({ method: "POST" })
       return { ok: false, error: "유효기간이 지난 링크입니다." };
 
     const now = new Date().toISOString();
-    await supabaseAdmin
+    if (!data.refresh) await supabaseAdmin
       .from("estimate_staff_shares")
       .update({
         opened_at: row.opened_at ?? now,

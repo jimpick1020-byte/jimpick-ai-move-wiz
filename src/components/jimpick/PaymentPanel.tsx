@@ -1,5 +1,6 @@
 import { formatThousands, onFormatted, parseThousands } from "@/lib/format-input";
 import { useEffect, useRef, useState } from "react";
+import { protectAppUpdate } from "@/lib/update-safety";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,9 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
   const updateTotal = useServerFn(updateEstimateTotal);
   const { upsertServerEstimates, commitSavedSheet } = useApp();
   const [finalTotals, setFinalTotals] = useState<Record<string, string>>({});
+  const updateBlocked = useRef(false);
+  updateBlocked.current = open || busy || askComplete;
+  useEffect(() => protectAppUpdate(() => updateBlocked.current), []);
   const remain = remainingPayment(total, row.depositPaid, row.balancePaid);
   const summary = paymentSummaryParts(total, row.depositPaid, row.balancePaid, quotedDeposit);
   const receipts = pendingBalanceReceipts(row.paymentReceipts ?? [])

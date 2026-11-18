@@ -1817,11 +1817,23 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     if (!hydrated) return;
     let alive = true;
     let revision = 0;
+    let validatedUserId = authUserId;
+    let recovery: Promise<void> | undefined;
     const apply = (hasSession: boolean, userId?: string) => {
+      let previousUserId = validatedUserId;
+      try { previousUserId ||= localStorage.getItem("jimpick.state.owner") ?? ""; } catch { /* storage unavailable */ }
+      const identityChanged = hasSession && !!previousUserId && previousUserId !== userId;
+      if (hasSession && userId) {
+        try { localStorage.setItem("jimpick.state.owner", userId); } catch { /* storage unavailable */ }
+      }
+      if (identityChanged) queryClient.clear();
       if (hasSession && userId) void savePendingOAuthConsent(userId);
       setAuthUserId(hasSession && userId ? userId : "");
       setState((s) => {
         if (hasSession) {
+          if (identityChanged) {
+            return { ...s, loggedIn: true, screen: "home", draft: newEstimate(), estimates: [], currentRoomId: "", stepSnapshot: null, resultFrom: "", catalogHidden: [] };
+          }
           const entryScreens: Screen[] = ["splash", "login", "signup"];
           return { ...s, loggedIn: true, screen: entryScreens.includes(s.screen) ? "home" : s.screen };
         }
@@ -1835,17 +1847,22 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     };
 
     setAuthChecked(false);
-    const recover = async () => {
+    const recover = () => {
+      if (recovery) return recovery;
+      recovery = (async () => {
       const current = ++revision;
       try {
         const session = await recoverAuthSession(supabase.auth);
         if (!alive || current !== revision) return;
         setAuthUser(session?.user ?? null);
         apply(!!session, session?.user.id);
+        validatedUserId = session?.user.id ?? "";
         setAuthChecked(true);
       } catch {
         // 통신 실패는 세션 삭제/로그인 강제 이동이 아닙니다. 로딩에서 재시도합니다.
       }
+      })().finally(() => { recovery = undefined; });
+      return recovery;
     };
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!alive) return;
@@ -1946,6 +1963,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
     const id = state.draft?.id ?? "";
     if (!hydrated || !state.loggedIn || !authChecked || !id || recoveredFor === id) return;
     setRecoveredFor(id);
+    const requestedDraft = state.draft;
     void loadEstimateDraft({ data: { estimateId: id } })
       .then((r) => {
         if (!r.ok || !r.found || !r.payload) return;
@@ -1960,7 +1978,7 @@ export function JimpickProvider({ children }: { children: ReactNode }) {
           const server = JSON.parse(r.payload) as Estimate;
           if (server?.id !== id) return;
           setState((s) => {
-            if (s.draft.id !== id) return s;
+            if (s.draft.id !== id || s.draft !== requestedDraft) return s;
             const merged = { ...s.draft, ...server } as Estimate;
             // 직접 만든 3D 품목은 서버 편집본으로 덮어쓰지 않고 합칩니다.
             // (업그레이드·게시 직후에도 새로 만든 품목 그림이 사라지지 않게)

@@ -25,7 +25,8 @@ function writeCache(userId: string, items: CustomItem[]): void {
 }
 
 export function usePersistentItemCatalog(enabled: boolean, userId: string) {
-  const [items, setItems] = useState<CustomItem[]>([]);
+  const [catalog, setCatalog] = useState<{ userId: string; items: CustomItem[] }>({ userId: "", items: [] });
+  const items = enabled && catalog.userId === userId ? catalog.items : [];
   const [error, setError] = useState<string | null>(null);
   const requestRef = useRef(0);
 
@@ -37,7 +38,7 @@ export function usePersistentItemCatalog(enabled: boolean, userId: string) {
       if (request === requestRef.current) {
         // 업체 품목의 저장된 이미지를 카드 그림으로 연결합니다(새 견적·재실행·다른 휴대폰에서도).
         registerCustomIcons(fresh);
-        setItems(fresh);
+        setCatalog({ userId, items: fresh });
         setError(null);
         writeCache(userId, fresh);
       }
@@ -53,13 +54,13 @@ export function usePersistentItemCatalog(enabled: boolean, userId: string) {
   useEffect(() => {
     requestRef.current += 1;
     if (!enabled || !userId) {
-      setItems([]);
+      setCatalog({ userId: "", items: [] });
       setError(null);
       return;
     }
     const cached = readCache(userId);
     registerCustomIcons(cached);
-    setItems(cached);
+    setCatalog({ userId, items: cached });
     void refresh().catch(() => {});
   }, [enabled, userId, refresh]);
 

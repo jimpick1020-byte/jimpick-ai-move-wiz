@@ -495,7 +495,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
             <div className="space-y-2">
               {rooms.map((r) => (
                 <div
-                  key={r.name}
+                  key={r.id || r.name}
                   className="jp-avoid-break flex items-stretch gap-2 rounded-[14px] bg-white p-2.5 shadow-[0_2px_10px_rgba(17,24,39,0.06)]"
                 >
                   <div className="flex w-[64px] shrink-0 items-center justify-center">

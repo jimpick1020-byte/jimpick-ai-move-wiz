@@ -2,15 +2,16 @@
  * 휴대폰 홈 화면에 설치한 짐픽 앱을 최신 버전으로 유지합니다.
  *
  * - 미리보기·개발 화면에서는 절대 등록하지 않습니다 (오래된 화면이 남는 문제 방지).
- * - 새 버전이 준비되면 한 번만 새로고침합니다 (무한 새로고침 방지).
- * - 작성 중인 견적은 이미 기기에 임시저장되므로 새로고침 뒤 그대로 복원됩니다.
- * - 저장 중·문자 발송 중이면 새로고침을 미룹니다.
+ * - 새 버전은 사용자가 적용할 때만 재시작합니다.
+ * - 편집·저장·실패한 입력이 있으면 적용하지 않습니다. 시간제한으로 강제 재시작하지 않습니다.
  */
+import { toast } from "sonner";
+import { appUpdateBlocked, createUpdateRestart } from "./update-safety";
+import { isPreviewHost } from "./preview-host";
 
 const SW_URL = "/sw.js";
-/** 이번 방문에서 이미 한 번 새로고침했는지 (무한 새로고침 방지) */
 const CACHE_VERSION = "v9-ai-access";
-const RELOADED_KEY = `jimpick_sw_reloaded_${CACHE_VERSION}`;
+let registered = false;
 
 async function cleanupOldCaches() {
   if (typeof caches === "undefined") return;
@@ -33,9 +34,7 @@ function allowed(): boolean {
   if (!import.meta.env.PROD) return false;
   if (window.self !== window.top) return false;
   const h = window.location.hostname;
-  if (h.startsWith("id-preview--") || h.startsWith("preview--")) return false;
-  if (h === "lovableproject.com" || h.endsWith(".lovableproject.com")) return false;
-  if (h === "lovableproject-dev.com" || h.endsWith(".lovableproject-dev.com")) return false;
+  if (isPreviewHost(h)) return false;
   if (h === "beta.lovable.dev" || h.endsWith(".beta.lovable.dev")) return false;
   if (new URL(window.location.href).searchParams.get("sw") === "off") return false;
   return true;
@@ -61,31 +60,8 @@ async function unregisterAll() {
  * 화면 코드에서 window.__jimpickBusy 를 켜고 끕니다.
  */
 function busy(): boolean {
-  return Boolean((window as unknown as { __jimpickBusy?: boolean }).__jimpickBusy);
-}
-
-/** 새 버전이 활성화되면 한 번만 새로고침합니다 */
-function reloadOnce() {
-  try {
-    if (sessionStorage.getItem(RELOADED_KEY) === "1") return;
-    sessionStorage.setItem(RELOADED_KEY, "1");
-  } catch {
-    return; // 표시를 남길 수 없으면 새로고침하지 않습니다 (반복 방지)
-  }
-  const go = () => window.location.reload();
-  if (!busy()) {
-    go();
-    return;
-  }
-  // 저장·발송이 끝날 때까지 기다립니다 (최대 2분)
-  let waited = 0;
-  const timer = window.setInterval(() => {
-    waited += 1000;
-    if (!busy() || waited > 120_000) {
-      window.clearInterval(timer);
-      go();
-    }
-  }, 1000);
+  return appUpdateBlocked() || Boolean((window as unknown as { __jimpickBusy?: boolean }).__jimpickBusy) ||
+    Boolean(document.querySelector('.jp-sheet-inline'));
 }
 
 export function registerPwa() {
@@ -93,33 +69,46 @@ export function registerPwa() {
     void unregisterAll();
     return;
   }
+  if (registered) return;
+  registered = true;
 
   void cleanupOldCaches();
+  const restart = createUpdateRestart(busy, () => window.location.reload());
+  let applying = false;
+  let activated = false;
+  let registration: ServiceWorkerRegistration | undefined;
+  const offerUpdate = () => toast.info("새 버전이 준비되었습니다", {
+    id: "jimpick-app-update", duration: Infinity,
+    action: { label: "적용", onClick: () => {
+      if (busy()) { toast.info("작성·저장을 마친 뒤 새 버전을 적용해 주세요."); offerUpdate(); return; }
+      if (applying) return;
+      if (registration?.waiting && !activated) {
+        applying = true;
+        registration.waiting.postMessage({ type: "SKIP_WAITING" });
+      } else restart();
+    } },
+  });
   const onControllerChange = () => {
-    void cleanupOldCaches();
-    reloadOnce();
+    activated = true;
+    if (applying && restart()) return;
+    applying = false;
+    offerUpdate();
   };
 
   void navigator.serviceWorker
     .register(`${SW_URL}?v=${CACHE_VERSION}`, { scope: "/", updateViaCache: "none" })
     .then((reg) => {
-      // 첫 설치일 때는 새로고침하지 않습니다
-      if (!navigator.serviceWorker.controller) {
-        try {
-          sessionStorage.setItem(RELOADED_KEY, "1");
-        } catch {
-          /* 무시 */
-        }
-      }
-      navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+      registration = reg;
+      // First installation is not an update and needs no restart.
+      let installed = Boolean(navigator.serviceWorker.controller);
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!installed) { installed = true; return; }
+        onControllerChange();
+      });
 
-      /** 새 버전이 대기 중이면 바로 켭니다 (사장님이 따로 누를 필요 없음) */
+      /** Keep checking for updates, but retain the active screen until explicit application. */
       const activateWaiting = () => {
-        try {
-          reg.waiting?.postMessage({ type: "SKIP_WAITING" });
-        } catch {
-          /* 무시 — 다음 확인에서 다시 시도합니다 */
-        }
+        if (reg.waiting) { activated = false; offerUpdate(); }
       };
 
       // 앱을 실행할 때, 다시 화면으로 돌아올 때, 그리고 켜 둔 동안 주기적으로 새 버전을 확인합니다
@@ -142,6 +131,7 @@ export function registerPwa() {
       window.setInterval(check, 30 * 60 * 1000);
     })
     .catch(() => {
+      registered = false;
       /* 등록 실패해도 앱은 정상 동작합니다 */
     });
 }
