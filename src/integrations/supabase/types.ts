@@ -2375,6 +2375,17 @@ export type Database = {
         Args: { p_day: number; p_paid: string; p_request: string }
         Returns: string
       }
+      read_estimate_payments: {
+        Args: { p_company: string; p_estimates: string[] }
+        Returns: {
+          balance_paid: number
+          deposit_paid: number
+          deposit_paid_at: string
+          estimate_id: string
+          payment_status: string
+          total: number
+        }[]
+      }
       record_bank_receipt: {
         Args: {
           p_amount: number

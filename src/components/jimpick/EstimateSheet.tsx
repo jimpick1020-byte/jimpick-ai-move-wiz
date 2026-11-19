@@ -9,6 +9,7 @@ import { activeHouseOf, houseLabel } from "@/lib/house-workspace";
  * 확정한 뒤에는 sheetSnapshot 을 우선 써서, 단가가 나중에 바뀌어도
  * 이미 보낸 견적서 금액이 흔들리지 않습니다.
  */
+import { paymentSummaryParts } from "@/lib/payment-method";
 import { plannedDeposit } from "@/lib/deposit-rule";
 import { formatTel } from "@/lib/format-input";
 import { normalizePaymentStatus } from "@/lib/payment.functions";
@@ -202,6 +203,7 @@ export interface EstimateSheetProps {
   showTerms?: boolean;
   /** 실제로 입금이 확인된 예약금 (원). 있으면 이 금액을 예약금으로 보여 줍니다 */
   paidDeposit?: number;
+  paidBalance?: number;
   /** 「입금 계좌」 카드 바로 아래에 붙는 예약금 입금 알림 영역 (고객 화면 전용) */
   depositClaimSlot?: React.ReactNode;
   /** 고객이 약관을 펼쳐 볼 때 한 번 알려 줍니다 (열람 기록용) */
@@ -226,6 +228,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     forCustomer = false,
     showTerms = true,
     paidDeposit = 0,
+    paidBalance = 0,
     depositClaimSlot,
     onTermsOpen,
     onSave,
@@ -253,8 +256,9 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
   const paid = Math.max(0, paidDeposit ?? 0);
   // 예약금은 총액의 10%(1만 원 미만 버림). 입금 확인된 금액이 있으면 그 금액을 보여 줍니다.
   const onsiteCard = reservationPaymentChoice === "onsite_card";
-  const deposit = onsiteCard ? 0 : paid > 0 ? paid : plannedDeposit(total, draft.depositOverride);
-  const balance = Math.max(0, total - deposit);
+  const payment = paymentSummaryParts(total, paid, paidBalance, plannedDeposit(total, draft.depositOverride));
+  const deposit = onsiteCard ? 0 : payment.deposit;
+  const balance = payment.balance;
   const version = draft.sheetVersion ?? 1;
   /** 사장님이 실제로 켠 추가 작업만 */
   const addedWork = (draft.options ?? []).filter((o) => o.enabled);
@@ -578,7 +582,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           {(deposit > 0 || discount > 0) && (
             <div className="my-1.5 border-t border-dashed border-[#E5E7EB]" />
           )}
-          {onsiteCard ? <div className="py-1.5 text-base font-bold text-foreground">{payStatus === "completed" ? "결제 완료 · 남은 금액 0원" : `예약금 없음 · 현장 카드 결제 예정 ${won(total)}`}</div> : <><MoneyRow label={paid > 0 ? "예약금 (입금완료)" : "예약금"} amount={deposit} /><MoneyRow label="잔금" amount={balance} /></>}
+          {onsiteCard ? <div className="py-1.5 text-base font-bold text-foreground">{payStatus === "completed" ? "결제 완료 · 남은 금액 0원" : `예약금 없음 · 현장 카드 결제 예정 ${won(total)}`}</div> : <><MoneyRow label={payment.planned ? "예정 예약금" : "예약금 입금 확인 완료"} amount={deposit} />{paidBalance > 0 && <MoneyRow label="잔금 입금 확인 완료" amount={paidBalance} />}<MoneyRow label={payment.planned ? "예정 잔금" : "남은 잔금"} amount={balance} />{paid + paidBalance > total && <MoneyRow label="초과입금" amount={paid + paidBalance - total} />}</>}
 
           <div className="mt-3 flex items-center justify-between gap-3 rounded-[12px] border border-[#E5E7EB] bg-[#F7F8F5] px-3.5 py-3">
             <span className="shrink-0 text-[18px] font-black text-[#25282D]">총 견적금액</span>

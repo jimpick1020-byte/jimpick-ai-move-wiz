@@ -1,4 +1,3 @@
-import { formatThousands, onFormatted, parseThousands } from "@/lib/format-input";
 import { useEffect, useRef, useState } from "react";
 import { protectAppUpdate } from "@/lib/update-safety";
 import { useServerFn } from "@tanstack/react-start";
@@ -6,11 +5,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { setPaymentState, confirmOwnerBankBalance, PAYMENT_STATUS_CHOICES, PAYMENT_STATUS_LABEL, normalizePaymentStatus, type PaymentStatus } from "@/lib/payment.functions";
-import { PAYMENT_METHOD_LABEL, PAYMENT_METHODS, completedPaymentLabel, normalizePaymentMethod, paymentSummaryParts, receivedWithNew, remainingPayment, type PaymentMethod } from "@/lib/payment-method";
+import { PAYMENT_METHOD_LABEL, PAYMENT_METHODS, completedPaymentLabel, normalizePaymentMethod, paymentSummaryParts, remainingPayment, type PaymentMethod } from "@/lib/payment-method";
 import { pendingBalanceReceipts, pendingReceipt } from "@/lib/payment-review";
-import { updateEstimateTotal, type TermsStatusRow } from "@/lib/terms.functions";
-import { nextRevision } from "@/lib/use-draft-autosave";
-import { useApp, type Estimate } from "@/lib/jimpick";
+import { type TermsStatusRow } from "@/lib/terms.functions";
 
 type ReceiptRow = NonNullable<TermsStatusRow["paymentReceipts"]>[number];
 
@@ -26,9 +23,6 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
   const [method, setMethod] = useState<PaymentMethod | null>(null);
   const savePayment = useServerFn(setPaymentState);
   const confirmBank = useServerFn(confirmOwnerBankBalance);
-  const updateTotal = useServerFn(updateEstimateTotal);
-  const { upsertServerEstimates, commitSavedSheet } = useApp();
-  const [finalTotals, setFinalTotals] = useState<Record<string, string>>({});
   const updateBlocked = useRef(false);
   updateBlocked.current = open || busy || askComplete;
   useEffect(() => protectAppUpdate(() => updateBlocked.current), []);
@@ -59,34 +53,6 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
     } catch (error) { toast.error("확인 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요." }); }
     finally { locked.current = false; setBusy(false); }
   };
-  // 예정 잔금보다 많이 입금된 경우: 사장님이 추가요금을 반영한 최종 계약금액을 확인한 뒤에만 결제완료합니다.
-  // 입금액만으로 계약금액을 자동 변경하지 않습니다.
-  const confirmOverpaid = async (r: ReceiptRow) => {
-    if (locked.current || !r.id) return;
-    const finalTotal = Number(String(finalTotals[r.id] ?? total + (r.amount - remain)).replace(/[^0-9]/g, ""));
-    if (!finalTotal || finalTotal <= 0) { toast.error("최종 계약금액을 입력해 주세요."); return; }
-    // 이미 확인된 예약금·잔금과 이번 입금을 모두 더합니다
-    const receivedSum = receivedWithNew(row.depositPaid, row.balancePaid, r.amount);
-    if (finalTotal < receivedSum) { toast.error("최종 계약금액이 실제 받은 금액보다 적습니다.", { description: `받은 금액 합계 ${won(receivedSum)} 이상이어야 합니다.` }); return; }
-    locked.current = true; setBusy(true);
-    try {
-      const t = await updateTotal({ data: { estimateId, total: finalTotal, expectedTotal: total, revision: nextRevision() } });
-      if (!t.ok || !t.payload) { toast.error("금액 저장 실패", { description: t.error ?? "" }); onSaved?.(); return; }
-      // 서버가 확정한 저장본으로 작성본·견적 내역을 바로 맞춥니다
-      const saved = JSON.parse(t.payload) as Estimate;
-      upsertServerEstimates([saved]); commitSavedSheet(saved);
-      const result = await savePayment({ data: { estimateId, status: "completed", note, method: "bank_transfer", receiptId: r.id } });
-      if (!result.ok) {
-        // 금액은 저장됐으니 새 총액을 다시 불러오되, 결제완료로는 표시하지 않습니다
-        onSaved?.(); window.dispatchEvent(new Event("jimpick:payment-updated"));
-        toast.error("최종 금액은 저장했지만 결제완료 처리에 실패했습니다", { description: result.error });
-        return;
-      }
-      cancel(); onSaved?.(); window.dispatchEvent(new Event("jimpick:payment-updated"));
-      toast.success("최종 계약금액을 반영하고 결제완료했습니다");
-    } catch (error) { toast.error("확인 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요." }); }
-    finally { locked.current = false; setBusy(false); }
-  };
   const run = async (selected?: PaymentMethod, receiptId?: string, successMsg = "결제 확인을 저장했습니다") => {
     if (locked.current) return;
     locked.current = true; setBusy(true);
@@ -100,7 +66,8 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
   };
   return <section className="mt-2 rounded-lg bg-muted p-3 text-foreground" aria-label="결제 상태">
     <Button variant="ghost" className="w-full justify-between px-0 text-xs" onClick={() => setOpen(!open)}><span>결제 상태 · {label}</span><span>{open ? "닫기" : "열기"}</span></Button>
-    <div className="mt-1 text-xs text-muted-foreground">{quotedDeposit !== undefined ? "견적 총" : "총"} {won(summary.total)} · {summary.planned ? "예정 예약금" : "예약금"} {won(summary.deposit)}{!summary.planned || storedStatus === "completed" ? <> · 잔금 <b>{won(summary.balance)}</b></> : <> · <span>입금 전 · 잔금은 예약금 입금 확인 후 계산</span></>}</div>
+    <div className="mt-1 text-xs text-muted-foreground">{quotedDeposit !== undefined ? "견적 총" : "총"} {won(summary.total)} · {summary.planned ? "예정 예약금" : "예약금"} {won(summary.deposit)} · {summary.planned ? "예정 잔금" : "남은 잔금"} <b>{won(summary.balance)}</b></div>
+    {row.depositPaid + row.balancePaid > total && <div className="mt-1 text-xs font-bold text-payment-review">초과입금 {won(row.depositPaid + row.balancePaid - total)}</div>}
     {open && <div className="mt-3 space-y-3">
       <div className="grid grid-cols-2 gap-2">{PAYMENT_STATUS_CHOICES.map((s) => <Button key={s} aria-pressed={status === s} variant={status === s ? "staff" : "outline"} disabled={busy || (s === "completed" && normalizePaymentStatus(row.paymentStatus) === "completed")} onClick={() => { if (s === "completed") { setStatus("completed"); setAskComplete(true); setMethod(null); } else { cancel(); setStatus(s); } }}>{status === s && <Check aria-hidden="true" className="size-4 shrink-0" />}{PAYMENT_STATUS_LABEL[s]}</Button>)}</div>
       {askComplete && <div className="space-y-3 border-t border-border pt-3" aria-label="결제완료 확인">
@@ -119,10 +86,8 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
                 <div className="text-xs text-muted-foreground">입금 시각 {r.depositedAt ? new Date(r.depositedAt).toLocaleString("ko-KR") : "기록 없음"}</div>
                 {diff === 0 && <Button variant="staff" disabled={busy || !r.id} onClick={() => void run("bank_transfer", r.id)}>잔금 입금 확인</Button>}
                 {diff > 0 && <>
-                  <p className="text-xs text-muted-foreground">예정 잔금보다 많이 입금되었습니다. 추가요금을 반영한 최종 계약금액을 확인해 주세요.</p>
-                  <label className="block text-xs" htmlFor={`final-${r.id}`}>최종 계약금액 (원)</label>
-                  <input id={`final-${r.id}`} inputMode="numeric" value={formatThousands(finalTotals[r.id ?? ""] ?? String(total + diff))} onChange={(e) => onFormatted(e, formatThousands, (v) => setFinalTotals((m) => ({ ...m, [r.id ?? ""]: parseThousands(v) })))} className="w-full rounded-md border border-input bg-background p-2 text-sm" />
-                  <Button variant="staff" disabled={busy || !r.id} onClick={() => void confirmOverpaid(r)}>{busy ? "처리 중…" : "최종 금액 반영 후 결제완료"}</Button>
+                  <p className="text-xs text-muted-foreground">초과입금 {won(diff)} · 견적 총액은 변경되지 않습니다.</p>
+                  <Button variant="staff" disabled={busy || !r.id} onClick={() => void run("bank_transfer", r.id, "잔금 입금을 확인했습니다 (초과입금 별도 표시)")}>{busy ? "처리 중…" : "잔금 입금 확인"}</Button>
                 </>}
                 {diff < 0 && <>
                   <p className="text-xs text-muted-foreground">잔금보다 적게 입금되었습니다. 확인하면 일부결제로 저장되고 남은 금액은 계속 받을 수 있습니다.</p>

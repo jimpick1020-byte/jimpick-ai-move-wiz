@@ -6469,6 +6469,7 @@ export function Result() {
                 acceptedAt={termsStatus?.acceptedAt ?? null}
                 paymentStatus={termsStatus?.paymentStatus ?? null}
                 paidDeposit={termsStatus?.depositPaid ?? 0}
+                paidBalance={termsStatus?.balancePaid ?? 0}
                 acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
                 acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
               />
@@ -6801,6 +6802,7 @@ export function Result() {
                 acceptedAt={termsStatus?.acceptedAt ?? null}
                 paymentStatus={termsStatus?.paymentStatus ?? null}
                 paidDeposit={termsStatus?.depositPaid ?? 0}
+                paidBalance={termsStatus?.balancePaid ?? 0}
                   acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
                   acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
                   forCustomer
@@ -7283,7 +7285,7 @@ export function History() {
                         </div>
                         {ts.row?.acceptedAt && (
                           <div className="mt-2 rounded-xl bg-[#EAF2FC] px-3 py-2 text-[12.5px] font-bold text-[#1D4ED8]">
-                            예약 요청이 접수되었습니다 · 예약금 확인 후 달력에 표시됩니다
+                            {ts.row.paymentStatus === "completed" ? "결제가 완료되었습니다" : ts.row.depositPaid > 0 || ts.row.cardConfirmedAt ? "예약이 확정되었습니다 · 계약 달력에 표시됩니다" : "예약 요청이 접수되었습니다 · 예약금 확인 후 달력에 표시됩니다"}
                           </div>
                         )}
                         {ts.row &&

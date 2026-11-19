@@ -8,6 +8,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { loadEstimatePayments } from "./estimate-payment";
 
 export const PAYMENT_STATUSES = [
   "unpaid",
@@ -378,7 +379,9 @@ export const listArchivedContracts = createServerFn({ method: "GET" })
     const rows = ((data ?? []) as Record<string, unknown>[]).filter(
       (r) => normalizePaymentStatus(r["payment_status"] as string | null) === "completed",
     );
-    return rows.map((r) => {
+    const payments = await loadEstimatePayments(context.supabase, context.userId, rows.map(r => String(r["estimate_id"])));
+    return rows.map((raw) => {
+      const r = { ...raw, ...payments.get(String(raw["estimate_id"])) } as Record<string, unknown>;
       let sizeTab = "";
       let moveTime: string | null = null;
       try {

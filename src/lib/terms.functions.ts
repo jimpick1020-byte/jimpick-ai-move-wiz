@@ -14,6 +14,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireActiveEntitlement } from "@/lib/entitlement.functions";
 import { z } from "zod";
 import { saveTermsWithStableToken } from "./terms-publish";
+import { loadEstimatePayments } from "./estimate-payment";
 import { latestTermsByEstimate } from "./home-reservation-stage";
 
 export interface TermsLinkInfo {
@@ -157,7 +158,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     if (signedIn && !data.ownerView) return { ok: false, staffBlocked: true, error: guard.STAFF_BLOCK_MESSAGE };
     if (!signedIn && data.ownerView) return { ok: false, error: "로그인 후 확인해 주세요." };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row, error } = await supabaseAdmin
+    const { data: tokenRow, error } = await supabaseAdmin
       .from("estimate_terms")
       .select(
          "id, user_id, estimate_id, customer_name, move_date, total, contact_phone, company_phone, terms_name, terms_version, terms_effective_at, sheet_no, sheet_version, sent_at, sheet_snapshot, deposit_paid, deposit_paid_at, balance_paid, payment_status, reservation_payment_choice, card_requested_at, card_confirmed_at, contract_status, created_at, deleted_at",
@@ -168,7 +169,16 @@ export const getTermsLink = createServerFn({ method: "POST" })
       console.error("[getTermsLink]", error.message);
       return { ok: false, error: "약관 정보를 불러오지 못했습니다." };
     }
-    if (!row) return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
+    if (!tokenRow) return { ok: false, error: "링크가 만료되었거나 잘못된 주소입니다." };
+    // Validate the original token before resolving the latest same-owner estimate.
+    const { data: latestRow, error: latestError } = await supabaseAdmin.from("estimate_terms")
+      .select("*").eq("user_id", tokenRow.user_id).eq("estimate_id", tokenRow.estimate_id)
+      .is("deleted_at", null).order("sheet_version", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (latestError || !latestRow || tokenRow.deleted_at) return { ok: false, error: "견적서를 불러오지 못했습니다." };
+    const payments = await loadEstimatePayments(supabaseAdmin, tokenRow.user_id, [tokenRow.estimate_id]);
+    const money = payments.get(tokenRow.estimate_id);
+    if (!money) return { ok: false, error: "확인된 입금 금액을 불러오지 못했습니다." };
+    const row = { ...latestRow, ...money };
     if (signedIn) {
       let allowed = (row as { user_id?: string }).user_id === signedIn;
       if (!allowed) {
@@ -184,7 +194,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     const { data: acc } = await supabaseAdmin
       .from("terms_acceptances")
       .select("accepted_at, accept_method")
-      .eq("estimate_terms_id", row.id)
+      .eq("estimate_terms_id", tokenRow.id)
       .maybeSingle();
 
     // 공유 견적서도 설정에서 바꾼 최신 상호명을 즉시 사용합니다.
@@ -712,6 +722,7 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
       console.error("[getTermsStatuses] receipt read failed", receiptError.message);
       throw new Error("입금기록을 불러오지 못했습니다. 잠시 후 다시 확인해 주세요.");
     }
+    const payments = await loadEstimatePayments(context.supabase, context.userId, estimateIds);
     const claimByEstimate = new Map(
       (claims ?? []).filter((c) => c.source === "customer_claim" && c.status === "pending_review").map((c) => [String((c as Record<string, unknown>)["estimate_id"]), c]),
     );
@@ -719,7 +730,7 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
     return {
       ok: true,
       rows: rows.map((raw) => {
-        const r = raw as Record<string, unknown>;
+        const r = { ...raw, ...payments.get(raw.estimate_id) } as Record<string, unknown>;
         const a = byId.get(String(r["id"]));
         const claim = claimByEstimate.get(String(r["estimate_id"] ?? "")) as
           | { id: string; amount: number | null; created_at: string }
@@ -836,6 +847,8 @@ export const getReservationCounts = createServerFn({ method: "POST" })
         if (error) console.error("[getReservationCounts]", error.message);
         return { ok: false, counts: {}, reservations: {} };
       }
+      const payments = await loadEstimatePayments(context.supabase, context.userId, terms.map(t => t.estimate_id));
+      const currentTerms = terms.map(t => ({ ...t, ...payments.get(t.estimate_id) }));
       const { calendarReservationShown } = await import("./calendar-visibility");
       const latestVersions = new Map<string, number>();
       for (const t of terms) latestVersions.set(t.estimate_id, Math.max(latestVersions.get(t.estimate_id) ?? 0, t.sheet_version));
@@ -869,7 +882,7 @@ export const getReservationCounts = createServerFn({ method: "POST" })
       // 계약은 견적 1건이므로 견적번호 기준으로 최신 차수 하나만 셉니다.
       // (서로 다른 견적번호는 같은 날짜라도 모두 각각 셉니다)
       const byEstimate = new Map<string, ReservationRow & { version: number }>();
-      for (const row of terms as {
+      for (const row of currentTerms as {
         id: string;
         estimate_id: string;
         move_date: string | null;
@@ -981,6 +994,8 @@ export const getHomeContractSchedule = createServerFn({ method: "GET" })
       return { ok: false, reservations: {} };
     }
 
+    const payments = await loadEstimatePayments(context.supabase, context.userId, terms.map(t => t.estimate_id));
+    const currentTerms = terms.map(t => ({ ...t, ...payments.get(t.estimate_id) }));
     const { calendarReservationShown } = await import("./calendar-visibility");
     const latestVersions = new Map<string, number>();
     for (const t of terms) latestVersions.set(t.estimate_id, Math.max(latestVersions.get(t.estimate_id) ?? 0, t.sheet_version));
@@ -1007,7 +1022,7 @@ export const getHomeContractSchedule = createServerFn({ method: "GET" })
     }
 
     const byEstimate = new Map<string, ReservationRow & { version: number }>();
-    for (const raw of terms as Record<string, unknown>[]) {
+    for (const raw of currentTerms as Record<string, unknown>[]) {
       const estimateId = String(raw["estimate_id"] ?? "");
       const moveDate = String(raw["move_date"] ?? "").slice(0, 10);
       if (!estimateId || !/^\d{4}-\d{2}-\d{2}$/.test(moveDate)) continue;

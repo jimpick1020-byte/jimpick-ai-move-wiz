@@ -400,6 +400,13 @@
       "when": 1794996423280,
       "tag": "0056_payapp_price_39000",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1795055634915,
+      "tag": "0057_estimate_receipt_projection",
+      "breakpoints": true
     }
   ]
 }

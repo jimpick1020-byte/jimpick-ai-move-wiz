@@ -734,11 +734,12 @@ function SharePageContent() {
             draft={sentSheet.draft}
             rooms={sentSheet.rooms}
             parts={sentSheet.parts}
-            total={sentSheet.total}
+            total={total}
             reservationPaymentChoice={link?.reservationPaymentChoice ?? paymentChoice}
             cardRequestedAt={link?.cardRequestedAt}
             cardConfirmedAt={link?.cardConfirmedAt}
             paidDeposit={paidDeposit}
+            paidBalance={link?.balancePaid ?? 0}
             paymentStatus={link?.ok ? link.paymentStatus ?? null : null}
             depositClaimPending={link?.ok ? link.depositClaimPending === true : claimSent}
             depositClaimSlot={ownerView ? null : depositClaimSlot}

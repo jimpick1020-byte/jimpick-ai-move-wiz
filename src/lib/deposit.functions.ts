@@ -17,6 +17,7 @@ import { parseDepositSms, isSameName, normalizeName } from "./deposit-parse";
 import { receiptPaymentKind, claimAlreadyRecorded } from "./payment-review";
 import { customerPaymentDue, sheetPlannedDeposit } from "./customer-payment";
 import { BANK_COLLECTION_RETIRED } from "./company-sms-policy";
+import { loadEstimatePayments } from "./estimate-payment";
 
 export interface DepositRow {
   id: string;
@@ -195,7 +196,10 @@ export const claimCustomerDeposit = createServerFn({ method: "POST" })
 
       if (row.reservation_payment_choice === "onsite_card") return { ok: false, error: "현장 카드 예약은 입금 신고가 필요 없습니다." };
 
-      const t = row as {
+      const payments = await loadEstimatePayments(supabaseAdmin, row.user_id, [row.estimate_id]);
+      const money = payments.get(row.estimate_id);
+      if (!money) return { ok: false, error: "입금 금액을 불러오지 못했습니다." };
+      const t = { ...row, ...money } as {
         user_id: string;
         estimate_id: string;
         sheet_no: string | null;
