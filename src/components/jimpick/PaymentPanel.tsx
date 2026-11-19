@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
-import { setPaymentState, confirmOwnerBankBalance, PAYMENT_STATUS_CHOICES, PAYMENT_STATUS_LABEL, normalizePaymentStatus, type PaymentStatus } from "@/lib/payment.functions";
+import { setPaymentState, confirmOwnerBankBalance, confirmOwnerDeposit, PAYMENT_STATUS_CHOICES, PAYMENT_STATUS_LABEL, normalizePaymentStatus, type PaymentStatus } from "@/lib/payment.functions";
 import { PAYMENT_METHOD_LABEL, PAYMENT_METHODS, completedPaymentLabel, normalizePaymentMethod, paymentSummaryParts, remainingPayment, type PaymentMethod } from "@/lib/payment-method";
 import { pendingBalanceReceipts, pendingReceipt } from "@/lib/payment-review";
 import { type TermsStatusRow } from "@/lib/terms.functions";
@@ -23,6 +23,11 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
   const [method, setMethod] = useState<PaymentMethod | null>(null);
   const savePayment = useServerFn(setPaymentState);
   const confirmBank = useServerFn(confirmOwnerBankBalance);
+  const confirmDeposit = useServerFn(confirmOwnerDeposit);
+  const [depositInput, setDepositInput] = useState("");
+  const [depositChecked, setDepositChecked] = useState(false);
+  const depositKey = useRef(crypto.randomUUID());
+  const needsDepositAmount = status === "deposit_paid" && row.depositPaid <= 0;
   const updateBlocked = useRef(false);
   updateBlocked.current = open || busy || askComplete;
   useEffect(() => protectAppUpdate(() => updateBlocked.current), []);
@@ -51,6 +56,19 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
       cancel(); onSaved?.(); window.dispatchEvent(new Event("jimpick:payment-updated"));
       toast.success("잔금 입금 확인 완료");
     } catch (error) { toast.error("확인 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요." }); }
+    finally { locked.current = false; setBusy(false); }
+  };
+  const saveDeposit = async () => {
+    const amount = Number(depositInput.replace(/[^0-9]/g, ""));
+    if (locked.current || !depositChecked || !(amount > 0)) return;
+    locked.current = true; setBusy(true);
+    try {
+      const result = await confirmDeposit({ data: { estimateId, amount, requestKey: depositKey.current, ownerReviewed: true } });
+      if (!result.ok) { toast.error("확인 실패", { description: result.error }); return; }
+      depositKey.current = crypto.randomUUID(); setDepositInput(""); setDepositChecked(false);
+      onSaved?.(); window.dispatchEvent(new Event("jimpick:payment-updated"));
+      toast.success(result.already ? "이미 확인된 예약금이 있습니다" : `예약금 ${won(amount)} 입금을 확인했습니다`);
+    } catch (error) { toast.error("저장 실패", { description: error instanceof Error ? error.message : "다시 시도해 주세요." }); }
     finally { locked.current = false; setBusy(false); }
   };
   const run = async (selected?: PaymentMethod, receiptId?: string, successMsg = "결제 확인을 저장했습니다") => {
@@ -101,7 +119,14 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
       </div>}
       <label className="block text-xs" htmlFor={`note-${estimateId}`}>결제 메모</label><textarea id={`note-${estimateId}`} rows={2} value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} className="w-full rounded-md border border-input bg-background p-2 text-sm"/>
       {row.paymentConfirmedAt && <div className="text-xs text-muted-foreground">마지막 확인 {new Date(row.paymentConfirmedAt).toLocaleString("ko-KR")} · 업체 담당자</div>}
-      {!askComplete && status !== "completed" && <Button variant="staff" className="w-full" disabled={busy} onClick={() => void run()}>결제 상태 저장</Button>}
+      {needsDepositAmount && <div className="space-y-2 border-t border-border pt-3" aria-label="예약금 입금 확인">
+        <p className="text-xs text-muted-foreground">확인된 예약금 입금 기록이 없습니다. 실제 받은 금액을 입력해 주세요.{quotedDeposit ? ` (예정 예약금 ${won(quotedDeposit)})` : ""}</p>
+        <label className="block text-xs" htmlFor={`deposit-${estimateId}`}>실제 받은 예약금</label>
+        <input id={`deposit-${estimateId}`} inputMode="numeric" value={depositInput} placeholder="금액 입력" onChange={(e) => { const d = e.target.value.replace(/[^0-9]/g, "").slice(0, 10); setDepositInput(d ? Number(d).toLocaleString("ko-KR") : ""); }} className="w-full rounded-md border border-input bg-background p-2 text-sm"/>
+        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={depositChecked} onChange={(e) => setDepositChecked(e.target.checked)}/>실제 계좌에 입금된 것을 확인했습니다</label>
+        <Button variant="staff" className="w-full" disabled={busy || !depositChecked || !Number(depositInput.replace(/[^0-9]/g, ""))} onClick={() => void saveDeposit()}>{busy ? "저장 중…" : "예약금 입금 확인"}</Button>
+      </div>}
+      {!askComplete && !needsDepositAmount && status !== "completed" && <Button variant="staff" className="w-full" disabled={busy} onClick={() => void run()}>결제 상태 저장</Button>}
     </div>}
   </section>;
 }

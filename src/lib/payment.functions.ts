@@ -182,6 +182,15 @@ export const setPaymentState = createServerFn({ method: "POST" })
         return { ok: false, error: "이 견적서를 찾지 못했습니다. 먼저 견적서를 발송해 주세요." };
       }
 
+      // 「예약금 완료」는 실제 확인된 예약금 기록이 있을 때만 저장합니다.
+      // 상태만 저장하면 입금 집계가 다시 미결제로 계산해 선택이 사라집니다.
+      if (data.status === "deposit_paid") {
+        const projected = (await loadEstimatePayments(context.supabase, context.userId, [data.estimateId])).get(data.estimateId);
+        if (!projected || Number(projected.deposit_paid) <= 0) {
+          return { ok: false, error: DEPOSIT_RECEIPT_REQUIRED };
+        }
+      }
+
       const row = terms as {
         id: string;
         total: number | null;
@@ -241,6 +250,50 @@ export const setPaymentState = createServerFn({ method: "POST" })
       return { ok: true, balancePaid: balance, confirmedAt: now };
     },
   );
+
+export const DEPOSIT_RECEIPT_REQUIRED = "확인된 예약금 입금 기록이 없습니다. 실제 받은 예약금 금액을 입력해 확인해 주세요.";
+
+/**
+ * 사장님이 실제 받은 예약금을 직접 입력해 확인합니다.
+ * 새 수동 기록(manual)을 만들고 기존 잠금 확인 절차로 반영합니다.
+ * 같은 requestKey로 다시 보내면 같은 기록만 다시 확인합니다(중복 합산 없음).
+ * 제외된 과거 신고는 건드리지 않습니다.
+ */
+export const confirmOwnerDeposit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    estimateId: z.string().min(1).max(80),
+    amount: z.number().int().positive().max(1_000_000_000),
+    requestKey: z.string().uuid(),
+    ownerReviewed: z.literal(true),
+  }).parse(d))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string; depositPaid?: number; already?: boolean }> => {
+    const { data: terms } = await context.supabase.from("estimate_terms")
+      .select("id,customer_name,total").eq("user_id", context.userId).eq("estimate_id", data.estimateId).is("deleted_at", null)
+      .order("sheet_version", { ascending: false }).limit(1).maybeSingle();
+    if (!terms) return { ok: false, error: "이 견적서를 찾지 못했습니다." };
+    const dedupe = `owner-manual-deposit|${data.estimateId}|${data.requestKey}`;
+    const { data: existing } = await context.supabase.from("deposit_records").select("id")
+      .eq("user_id", context.userId).eq("dedupe_key", dedupe).maybeSingle();
+    let receiptId = (existing as { id?: string } | null)?.id;
+    if (!receiptId) {
+      const projected = (await loadEstimatePayments(context.supabase, context.userId, [data.estimateId])).get(data.estimateId);
+      if (projected && Number(projected.deposit_paid) > 0) return { ok: true, already: true, depositPaid: Number(projected.deposit_paid) };
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: rec, error } = await supabaseAdmin.rpc("record_bank_receipt_v2" as never, {
+        p_company: context.userId, p_estimate: data.estimateId, p_kind: "deposit", p_amount: data.amount,
+        p_depositor: String((terms as { customer_name?: string }).customer_name ?? ""), p_deposited_at: new Date().toISOString(),
+        p_raw: null, p_source: "manual", p_dedupe: dedupe, p_note: "업체가 직접 확인한 예약금", p_name_matched: true, p_evidence: null, p_event: null,
+      } as never);
+      const r = rec as { ok?: boolean; id?: string; review?: boolean; error?: string } | null;
+      if (error || !r?.ok || !r.id) return { ok: false, error: r?.error ?? "예약금 확인을 저장하지 못했습니다." };
+      receiptId = r.id;
+    }
+    const { data: result, error } = await context.supabase.rpc("confirm_payment_receipt", { _receipt_id: receiptId });
+    const res = result as { ok: boolean; error?: string; depositPaid?: number; already?: boolean } | null;
+    if (error || !res) return { ok: false, error: "예약금 확인을 저장하지 못했습니다." };
+    return res;
+  });
 
 /** Explicit owner attestation, never automatic bank/SMS detection. */
 export const confirmOwnerBankBalance = createServerFn({ method: "POST" })

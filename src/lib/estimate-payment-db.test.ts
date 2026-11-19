@@ -14,6 +14,8 @@ beforeAll(async () => {
     CREATE TABLE deposit_records(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),user_id uuid,estimate_id text,amount int,status text,payment_kind text,payment_method text,confirmed_at timestamptz,confirmed_by uuid,created_at timestamptz DEFAULT now(),sheet_no text,estimate_version int,depositor_name text,customer_name text,deposited_at timestamptz,source text,raw_text text,name_matched boolean,review_note text,dedupe_key text,UNIQUE(user_id,dedupe_key));
     CREATE TABLE owner_notifications(company_id uuid,kind text,ref_id text,dedupe_key text,title text,body text,url text,UNIQUE(company_id,dedupe_key));`);
   await db.exec(readFileSync("drizzle/migrations/0048_pending_balance_review_completion.sql", "utf8"));
+  await db.exec("CREATE TABLE deposit_receipt_aliases(user_id uuid,alias_key text,record_id uuid,event_id text,created_at timestamptz DEFAULT now(),PRIMARY KEY(user_id,alias_key)); ALTER TABLE deposit_records ADD COLUMN linked_evidence_key text;");
+  await db.exec(readFileSync("drizzle/migrations/0050_bank_receipt_evidence_aliases.sql", "utf8"));
   await db.exec(readFileSync("drizzle/migrations/0057_estimate_receipt_projection.sql", "utf8"));
   await db.exec("CREATE TRIGGER receipt_notice AFTER INSERT ON deposit_records FOR EACH ROW EXECUTE FUNCTION notify_deposit_record();");
 });
@@ -97,4 +99,25 @@ test("2160000 quote with only rejected 100000 receipt stays unpaid across saved 
   await db.exec("UPDATE estimate_terms SET total=2260000 WHERE sheet_version=5");
   expect((await money()).deposit_paid).toBe(0);
   expect((await db.query("SELECT status,amount FROM deposit_records")).rows).toEqual([{ status: "rejected", amount: 100000 }]);
+}));
+async function ownerManualDeposit(amount: number, key: string) {
+  const rec = (await db.query<{ r: { ok: boolean; id: string } }>("SELECT record_bank_receipt_v2($1,'test','deposit',$2,'가상 고객',now(),null,'manual',$3,'업체가 직접 확인한 예약금',true,null,null) r", [owner, amount, `owner-manual-deposit|test|${key}`])).rows[0].r;
+  expect(rec.ok).toBe(true);
+  return confirm(rec.id);
+}
+test("excluded 100,000 claim + owner manual 300,000 (planned 500,000) → 예약금 완료 with real amount, no double count, exclusion kept", () => fixture(async () => {
+  const old = await receipt(100000, "deposit", "rejected");
+  expect((await money()).payment_status).toBe("unpaid");
+  await db.exec("UPDATE estimate_terms SET payment_status='deposit_paid' WHERE sheet_version=5");
+  expect((await money()).payment_status).toBe("unpaid"); // status-only save is never trusted
+  await ownerManualDeposit(300000, "k1");
+  await ownerManualDeposit(300000, "k1"); // retry / double click with same key
+  const m = await money();
+  expect(m).toMatchObject({ deposit_paid: 300000, balance_paid: 0, payment_status: "deposit_paid" });
+  expect(paymentSummaryParts(m.total, Number(m.deposit_paid), 0, 500000).balance).toBe(1010000);
+  expect((await db.query<{ status: string }>("SELECT status FROM deposit_records WHERE id=$1", [old])).rows[0].status).toBe("rejected");
+  expect((await db.query("SELECT 1 FROM deposit_records WHERE status='confirmed'")).rows).toHaveLength(1);
+  const t = (await db.query<{ payment_status: string; payment_confirmed_by: string; deposit_paid: number }>("SELECT * FROM estimate_terms WHERE sheet_version=5")).rows[0];
+  expect(t).toMatchObject({ payment_status: "deposit_paid", payment_confirmed_by: owner, deposit_paid: 300000 });
+  expect(homeReviewStages({ paymentStatus: t.payment_status, paymentReceipts: [] })).not.toContain("deposit_waiting");
 }));
