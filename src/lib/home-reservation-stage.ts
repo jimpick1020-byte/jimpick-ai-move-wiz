@@ -1,13 +1,12 @@
 import { reservationStageOf, RESERVATION_STAGE_LABEL } from "./reservation-status";
-import { pendingReceipt, type PaymentEvidence } from "./payment-review";
+import { paymentReview, type PaymentEvidence } from "./payment-review";
 
 export type HomeReservationStage = Exclude<ReturnType<typeof reservationStageOf>, "reservation_request"> | "balance_waiting";
 export const HOME_STAGE_LABEL = { ...RESERVATION_STAGE_LABEL, card_waiting: "카드 예약 확인 대기", balance_waiting: "잔금 확인" };
 
 /** Review queues are independent of contract completion and can contain both kinds. */
 export function homeReviewStages(input: Parameters<typeof homeReservationStageOf>[0] & { contractCancelled?: boolean }): HomeReservationStage[] {
-  if (input.contractCancelled || ["canceled", "refunded"].includes(input.paymentStatus ?? "")) return [];
-  const pending = input.paymentReceipts?.filter(pendingReceipt) ?? [];
+  const pending = paymentReview(input.paymentReceipts ?? [], input.paymentStatus ?? "unpaid", 0, 0, 0, input.contractCancelled)?.receipts ?? [];
   const stages: HomeReservationStage[] = [];
   if (pending.some((r) => r.paymentKind !== "balance")) stages.push("deposit_waiting");
   if (pending.some((r) => r.paymentKind === "balance")) stages.push("balance_waiting");
@@ -25,11 +24,13 @@ export function latestTermsByEstimate<T extends { estimateId: string; sheetVersi
 }
 
 /** Home groups use stored evidence, without changing the underlying contract stage. */
-export function homeReservationStageOf(input: Parameters<typeof reservationStageOf>[0] & { paymentReceipts?: PaymentEvidence[] }): HomeReservationStage {
-  const stage = reservationStageOf(input);
+export function homeReservationStageOf(input: Parameters<typeof reservationStageOf>[0] & { paymentReceipts?: PaymentEvidence[]; contractCancelled?: boolean }): HomeReservationStage {
+  // A legacy claim flag/consent is not evidence: only the current receipt rows define review.
+  const reviews = homeReviewStages(input);
+  const stage = reservationStageOf({ ...input, depositClaimPending: reviews.includes("deposit_waiting") });
   if (stage === "payment_completed") return stage;
-  if (input.paymentReceipts?.some((receipt) => receipt.paymentKind === "balance" && pendingReceipt(receipt))) return "balance_waiting";
-  // 은행 입금 문자로 연결된 예약금 기록도 고객 신고와 같이 입금 대기로 셉니다.
-  if (stage !== "reservation_confirmed" && input.paymentReceipts?.some((receipt) => receipt.paymentKind !== "balance" && pendingReceipt(receipt))) return "deposit_waiting";
-  return stage === "reservation_request" ? "deposit_waiting" : stage;
+  if (reviews.includes("balance_waiting")) return "balance_waiting";
+  if (reviews.includes("deposit_waiting")) return "deposit_waiting";
+  // Preserve the request badge in history, without inventing a payment-review queue.
+  return stage === "reservation_request" ? "estimate_notice" : stage;
 }

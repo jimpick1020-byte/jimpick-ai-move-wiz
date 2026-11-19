@@ -729,7 +729,7 @@ export function HomeScreen() {
   useEffect(() => {
     try {
       const v = sessionStorage.getItem("jp_return_stage");
-      if (v) { sessionStorage.removeItem("jp_return_stage"); setReturnStage((v === "reservation_request" ? "deposit_waiting" : v) as HomeReservationStage); }
+      if (v) { sessionStorage.removeItem("jp_return_stage"); setReturnStage((v === "reservation_request" ? "estimate_notice" : v) as HomeReservationStage); }
     } catch { /* 저장소를 못 쓰면 그냥 홈을 보여 줍니다 */ }
   }, []);
   useEffect(() => {
@@ -7171,7 +7171,7 @@ export function History() {
               </button>
               {gOpen && g.items.map((e) => {
           const ts = termsState(e.id);
-          const review = paymentReview(ts.row?.paymentReceipts ?? [], ts.row?.paymentStatus ?? "unpaid", ts.row?.depositPaid ?? 0, ts.row?.balancePaid ?? 0, ts.row?.total ?? e.total);
+          const review = paymentReview(ts.row?.paymentReceipts ?? [], ts.row?.paymentStatus ?? "unpaid", ts.row?.depositPaid ?? 0, ts.row?.balancePaid ?? 0, ts.row?.total ?? e.total, ts.row?.contractCancelled);
           const waitingSelected = termsReady && isWaitingHistoryTarget(waitingTargetId, e.id, homeReviewStages(ts.row ?? {})[0] ?? homeReservationStageOf({
             reservationPaymentChoice: ts.row?.reservationPaymentChoice, cardRequestedAt: ts.row?.cardRequestedAt, cardConfirmedAt: ts.row?.cardConfirmedAt,
             paymentStatus: ts.row?.paymentStatus, depositPaid: ts.row?.depositPaid,
@@ -7235,7 +7235,7 @@ export function History() {
                             balancePaid: ts.row?.balancePaid,
                             acceptedAt: ts.row?.acceptedAt,
                             reservationStatus: ts.row?.reservationStatus,
-                            depositClaimPending: Boolean(ts.row?.depositClaimId),
+                            depositClaimPending: homeReviewStages(ts.row ?? {}).includes("deposit_waiting"),
                           });
                           return (
                             <span className={`shrink-0 text-xs px-2 py-1 rounded-full font-semibold ${review ? review.kind === "balance" ? "bg-payment-review-balance-soft text-payment-review-balance" : "bg-payment-review-soft text-payment-review" : RESERVATION_STAGE_CLASS[stage]}`}>

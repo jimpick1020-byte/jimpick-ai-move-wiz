@@ -52,7 +52,8 @@ export function uniquePaymentReceipts<T extends PaymentEvidence>(records: T[]): 
   });
 }
 
-export function paymentReview(records: PaymentEvidence[], _paymentStatus: string, _depositPaid: number, _balancePaid: number, _total: number) {
+export function paymentReview(records: PaymentEvidence[], _paymentStatus: string, _depositPaid: number, _balancePaid: number, _total: number, contractCancelled = false) {
+  if (contractCancelled || ["canceled", "cancelled", "refunded"].includes(_paymentStatus)) return null;
   const pending = uniquePaymentReceipts(records).filter(pendingReceipt);
   if (!pending.length) return null;
   const kind = pending.some((r) => r.paymentKind === "balance") ? ("balance" as const) : ("deposit" as const);

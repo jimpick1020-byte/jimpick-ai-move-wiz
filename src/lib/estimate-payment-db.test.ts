@@ -86,3 +86,15 @@ test("cash and card acknowledged payments without receipt rows retain their audi
     expect(await money()).toMatchObject({ deposit_paid: 0, balance_paid: 1310000, payment_status: "completed" });
   }
 }));
+test("2160000 quote with only rejected 100000 receipt stays unpaid across saved versions and rereads", () => fixture(async () => {
+  await db.exec("UPDATE estimate_terms SET total=2160000,payment_status='deposit_paid' WHERE sheet_version=5");
+  await receipt(100000, "deposit", "rejected");
+  for (let i = 0; i < 3; i++) {
+    const m = await money();
+    expect(m).toMatchObject({ total: 2160000, deposit_paid: 0, balance_paid: 0, payment_status: "unpaid" });
+    expect(paymentSummaryParts(m.total, 0, 0, 500000)).toEqual({ total: 2160000, deposit: 500000, balance: 1660000, planned: true });
+  }
+  await db.exec("UPDATE estimate_terms SET total=2260000 WHERE sheet_version=5");
+  expect((await money()).deposit_paid).toBe(0);
+  expect((await db.query("SELECT status,amount FROM deposit_records")).rows).toEqual([{ status: "rejected", amount: 100000 }]);
+}));

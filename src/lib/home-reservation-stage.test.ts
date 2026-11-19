@@ -3,8 +3,8 @@ import { strict as assert } from "node:assert";
 import { homeReservationStageOf, homeReviewStages, latestTermsByEstimate } from "./home-reservation-stage";
 
 const balance = { amount: 200000, paymentKind: "balance", paymentMethod: "bank_transfer", status: "pending_review", source: "customer_claim", depositorName: "김호영" };
-test("동의 후 미입금 고객은 예약 요청 대신 입금 대기", () => {
-  assert.equal(homeReservationStageOf({ acceptedAt: "2026-10-19", paymentStatus: "unpaid" }), "deposit_waiting");
+test("동의 후 예약 요청만 있으면 입금 대기로 집계하지 않는다", () => {
+  assert.equal(homeReservationStageOf({ acceptedAt: "2026-10-19", paymentStatus: "unpaid" }), "estimate_notice");
   assert.equal(homeReservationStageOf({ paymentStatus: "unpaid" }), "estimate_notice");
 });
 test("예약금 110000원 확인 뒤 잔금 200000원 신고는 잔금 대기", () => {
