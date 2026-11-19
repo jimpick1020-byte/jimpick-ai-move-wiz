@@ -322,11 +322,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
               </div>
             </div>
           </div>
-          {version > 1 && (
-            <div className="mt-1.5 text-[15px] font-bold text-[#B45309]">
-              {version}차 수정 견적서
-            </div>
-          )}
+          {/* 고객에게 수정 차수는 보여 주지 않습니다 (3차·4차 표시가 불신을 일으킵니다) */}
 
           {/* 고객 · 이사일 */}
           {inline("고객정보·일정", [field("customerName", "고객 이름"), field("phone", "고객 전화번호"), field("moveDate", "이사일", "date"), field("sizeTab", "출발지 평수"), field("toSizeTab", "도착지 평수")], (
