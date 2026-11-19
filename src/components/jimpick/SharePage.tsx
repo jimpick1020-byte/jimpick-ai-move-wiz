@@ -411,9 +411,8 @@ function SharePageContent() {
         : 0;
   const contactPhone = formatTel(validLink ? link.contactPhone ?? "" : "");
   const companyName = (validLink ? link.companyName ?? "" : "").trim();
-  /** 견적서 번호와 차수 — 서버(토큰) 값을 먼저 씁니다 */
+  /** 견적서 번호 — 서버(토큰) 값을 먼저 씁니다 */
   const sheetNo = ((link?.ok ? link.sheetNo : "") || estimate?.sheetNo || "").trim();
-  const sheetVersion = (link?.ok ? link.sheetVersion : null) ?? estimate?.sheetVersion ?? 1;
   const hasData = Boolean(validLink && customerName && moveDate && total > 0);
   /** 실제로 입금 확인된 예약금 — 사장님이 확인한 금액만 들어옵니다 */
   const paidDeposit = Math.max(0, (validLink ? (link.depositPaid ?? 0) : 0) || 0);
@@ -785,10 +784,6 @@ function SharePageContent() {
                 <span className="min-w-0 truncate font-bold">{sheetNo}</span>
               </div>
             )}
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[#6B7280]">견적서 차수</span>
-              <span className="font-bold">{sheetVersion}차</span>
-            </div>
             <div className="mt-1 flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-2">
               <span className="text-[17px] font-black">총 견적금액</span>
               <span className="text-[20px] font-black text-[#25282D]">{won(total)}</span>

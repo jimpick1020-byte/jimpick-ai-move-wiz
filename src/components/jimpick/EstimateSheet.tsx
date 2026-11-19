@@ -742,6 +742,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                       : "아직 동의하지 않음"}
                   </span>
                 </div>
+                {!forCustomer && (
                 <div className="flex items-start justify-between gap-3">
                   <span className="shrink-0 text-[15px] text-[#6B7280]">동의한 견적서 버전</span>
                   <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#25282D]">
@@ -750,6 +751,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
                       : `${version}차 (발송본)`}
                   </span>
                 </div>
+                )}
                 <div className="flex items-start justify-between gap-3">
                   <span className="shrink-0 text-[15px] text-[#6B7280]">동의한 약관 버전</span>
                   <span className="min-w-0 break-words text-right text-[15px] font-bold text-[#25282D]">
