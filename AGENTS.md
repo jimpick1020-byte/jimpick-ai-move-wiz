@@ -37,7 +37,7 @@
 - PaymentPanel separates saved quoted deposits from confirmed receipts; review borders retain actual amounts, so editing a quote cannot invent payment. Only pendingBalanceReceipts are offered for review.
 - Customer claims use stage-specific dedupe and stored totals; only owner acknowledgement confirms receipts, and payment SMS prep is read-only native-composer only.
 - History opens receipt-review months by default; SMS groups use Asia/Seoul; archive deletion reuses authenticated soft-delete and refreshes only after success to preserve payments and SMS.
-- Bank SMS are stored first in bank_sms_messages (deduped by event ID or text hash, never name/account/estimate), then matched via bank-sms-match into one pending deposit_records row; detection never completes payment. Forward URLs use publicUrl (preview blocks external POSTs); SMS dates parse as Asia/Seoul.
+- Bank SMS collection is retired (the bank-sms hook returns an empty 410 and ingestBankSms refuses new input); existing bank_sms_messages history stays deduped by event ID or text hash, never name/account/estimate, and detection never completes payment.
 - Bank SMS inbox deletion uses the owner-scoped security-invoker hide_bank_sms RPC and list-only deleted_at filtering; retained originals and dedupe keys prevent replay without touching receipt or payment state.
 - AI item images are checked by item-image-verify against the item name before createManualItem stores them, and prompts come from item-image-prompt; this prevents a mismatched picture being linked to an item ID.
 - Options snapshot catalog ID, image URL and name in options JSON and render via OptionArt, keeping owner/customer/PDF art identical.
@@ -46,7 +46,7 @@
 - Final completion and explicit sheet saves atomically persist draft revisions and current customer totals via save_edited_estimate_sheet, then commit history by ID; plannedDeposit and payment audits stay untouched.
 - Sheet disposal uses room/item IDs and pointer tap timing with movement cancellation; shared rendering overlays an X without changing image sources or quantities.
 - Customer sheet decoration belongs to SharePage wrappers and pointer-transparent CSS pseudo-elements, not EstimateSheet; this isolates owner/export content and preserves layout and interaction.
-- External Cloudflare hosting config lives in root wrangler.jsonc (worker name gyejeokkit, nodejs_compat); nitro merges it into dist/server/wrangler.json on every build — keep it, and keep the Lovable published site live because the bank-SMS webhook and admin-key server functions only run there.
+- External Cloudflare hosting config lives in root wrangler.jsonc (worker name gyejeokkit, nodejs_compat); nitro merges it into dist/server/wrangler.json on every build — keep it, and keep the Lovable published site live because the admin-key server functions only run there.
 - Brand refreshes use versioned CDN pointers (separate padded maskable icon, versioned favicon) with stable manifest identity/start URL, so installs don't duplicate.
 
 - Owner notifications come only from DB triggers with per-company dedupe keys and push via push-dispatch + public/push-sw.js; owners may change only read_at and a one-way deleted_at soft delete (dedupe kept), keeping reads apart from payment confirmation.
