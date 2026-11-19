@@ -117,7 +117,7 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
 
   return (
     <div className="mt-3 rounded-2xl border border-[#E5E7EB] p-3">
-      <div className="text-sm font-bold text-[#25282D]">이사 전날 안내 문자</div>
+      <div className="text-sm font-bold text-[#25282D]">이사 전날 안내</div>
       {rows.length === 0 ? (
         <div className="mt-1 text-xs text-[#6B7280]">
           예약 안내는 휴대폰 문자 앱에서 직접 보내 주세요.
@@ -133,7 +133,6 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
                 이사일 {r.moveDate}
                 {r.startTime ? ` · ${r.startTime}` : ""}
               </div>
-              <div className="text-[#6B7280] break-words">발송 예정 {when(r.scheduledAt)}</div>
               {r.toMasked && <div className="text-[#6B7280] break-words">받는 번호 {r.toMasked}</div>}
               {r.acceptedAt && (
                 <div className="text-[#6B7280] break-words">문자업체 접수 {when(r.acceptedAt)}</div>
@@ -176,7 +175,11 @@ export function ReminderPanel({ estimateId }: { estimateId: string }) {
                   disabled={busy}
                   className="mt-2 w-full"
                 >
-                  {isAdmin ? "다시 발송" : "문자로 보내기"}
+                  {isAdmin
+                    ? ["accepted", "delivered", "success"].includes(r.status)
+                      ? "안내문자 다시 보내기"
+                      : "지금 안내문자 보내기"
+                    : "문자로 보내기"}
                 </Button>
               )}
             </div>

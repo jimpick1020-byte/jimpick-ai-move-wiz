@@ -21,13 +21,13 @@ export type ReminderStatus =
   | "unknown";
 
 export const REMINDER_STATUS_LABEL: Record<string, string> = {
-  scheduled: "전날 문자 예정",
+  scheduled: "안내문자가 예약되어 있어요",
   processing: "발송 처리 중",
   sending: "발송 처리 중",
-  accepted: "문자업체 접수 완료",
-  delivered: "통신사 전달 완료",
-  success: "문자업체 접수 완료",
-  failed: "발송 실패",
+  accepted: "안내문자를 보냈어요",
+  delivered: "안내문자를 보냈어요",
+  success: "안내문자를 보냈어요",
+  failed: "안내문자를 보내지 못했어요",
   canceled: "발송 취소",
   cancelled: "발송 취소",
   unknown: "결과 확인 필요",
