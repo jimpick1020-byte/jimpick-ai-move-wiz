@@ -1,4 +1,6 @@
-import { test, expect } from "bun:test";
+import { test } from "node:test";
+import assert from "node:assert/strict";
+const expect = (v: unknown) => ({ toBe: (x: unknown) => assert.equal(v, x), not: { toBe: (x: unknown) => assert.notEqual(v, x) } });
 import { REMINDER_STATUS_LABEL as L } from "./reminder.functions";
 test("전날 안내 상태 문구는 실제 상태 기준", () => {
   expect(L.scheduled).toBe("안내문자가 예약되어 있어요");
