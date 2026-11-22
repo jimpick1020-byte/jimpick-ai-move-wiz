@@ -434,7 +434,7 @@ function SharePageContent() {
         <div className="text-center text-[16px] font-black text-[#3E9B78]">예약금 입금이 확인되었습니다</div>
       </div>
     );
-    if ((link?.plannedInterim ?? 0) > 0 && paidDeposit > 0 && interimPlan.interimDue > 0) {
+    if ((ownerView || staffMode) && (link?.plannedInterim ?? 0) > 0 && paidDeposit > 0 && interimPlan.interimDue > 0) {
       return <div className="space-y-2">{confirmedDeposit}<div className="flex justify-between gap-3 py-2 text-base font-bold"><span>받을 중도금</span><span>{won(interimPlan.interimDue)}</span></div><p className="text-sm text-muted-foreground">출발지 작업 완료 후 · 보관 입고</p>{!ownerView && !staffMode && <InterimClaimPanel token={token} due={interimPlan.interimDue} pending={link?.interimClaimPending === true} canClaim={link?.canClaimInterim === true} onSaved={() => { setLink(current => current?.ok ? { ...current, interimClaimPending: true } : current); void getTermsLink({ data: { token } }).then(setLinkFor(token)).catch(() => {}); }} />}</div>;
     }
     if (due.amount <= 0) {
@@ -451,7 +451,7 @@ function SharePageContent() {
       const balanceState = link?.ok && link.balanceClaimPending === true && !ownerView && !staffMode ? "pending" : canClaim ? "form" : "hidden";
       return <div className="space-y-2">
         {confirmedDeposit}
-        {storageMove && <><p className="text-sm font-bold">{(link?.interimPaid ?? 0) > 0 ? `중도금 입금 확인 완료 · ${won(link?.interimPaid ?? 0)}` : "중도금: 금액 미정"}</p><p className="text-sm text-muted-foreground">중도금 · 출발지 작업 완료 후 / 잔금 · 도착지 작업 완료 후</p></>}
+        {storageMove && (ownerView || staffMode) && <><p className="text-sm font-bold">{(link?.interimPaid ?? 0) > 0 ? `중도금 입금 확인 완료 · ${won(link?.interimPaid ?? 0)}` : "중도금: 금액 미정"}</p><p className="text-sm text-muted-foreground">중도금 · 출발지 작업 완료 후 / 잔금 · 도착지 작업 완료 후</p></>}
         <div className="flex items-center justify-between py-2 text-base font-bold text-foreground"><span>잔금</span><span>{won(due.amount)}</span></div>
         {paidDeposit > 0 && <BalanceClaimPanel state={balanceState} amount={due.amount} storage={storageMove} resetKey={`${token}|${balanceKey}|${due.amount}`} onSubmit={sendBalanceClaim} />}
       </div>;
