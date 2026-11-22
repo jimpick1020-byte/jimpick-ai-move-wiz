@@ -407,6 +407,13 @@
       "when": 1795055634915,
       "tag": "0057_estimate_receipt_projection",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1795318259058,
+      "tag": "0058_storage_interim_receipts",
+      "breakpoints": true
     }
   ]
 }

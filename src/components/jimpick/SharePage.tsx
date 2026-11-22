@@ -1,3 +1,5 @@
+import { InterimClaimPanel } from "./InterimClaimPanel";
+import { storagePaymentPlan } from "@/lib/storage-payment";
 import { Button } from "@/components/ui/button";
 import { CardReservationChoice } from "./CardReservation";
 import { TmapAddress } from "./TmapAddress";
@@ -199,7 +201,7 @@ function SharePageContent() {
     if (tokenRef.current === reqToken) setLink(info);
   };
   // 금액·단계·차수가 바뀌면 고객이 다시 확인해야 합니다.
-  const balanceKey = link?.ok ? `${link.total ?? 0}|${link.depositPaid ?? 0}|${link.balancePaid ?? 0}|${link.paymentStatus ?? ""}|${link.sheetVersion ?? ""}` : "";
+  const balanceKey = link?.ok ? `${link.total ?? 0}|${link.depositPaid ?? 0}|${link.balancePaid ?? 0}|${link.interimPaid ?? 0}|${link.plannedInterim ?? 0}|${link.paymentStatus ?? ""}|${link.sheetVersion ?? ""}` : "";
   useEffect(() => {
     try {
       setClaimSent(localStorage.getItem(`jimpick.deposit.claim.${token}`) === "1");
@@ -419,7 +421,8 @@ function SharePageContent() {
 
   const depositClaimSlot = (() => {
     if (!hasData || (link?.reservationPaymentChoice ?? paymentChoice) === "onsite_card") return null;
-    const due = customerPaymentDue(total, paidDeposit, link?.balancePaid ?? 0, link?.paymentStatus ?? "unpaid", sheetPlannedDeposit(total, validLink ? link.sheetSnapshot : null));
+    const due = customerPaymentDue(total, paidDeposit, link?.balancePaid ?? 0, link?.paymentStatus ?? "unpaid", sheetPlannedDeposit(total, validLink ? link.sheetSnapshot : null), link?.interimPaid ?? 0);
+    const interimPlan = storagePaymentPlan({ total, plannedDeposit: sheetPlannedDeposit(total, link?.sheetSnapshot), plannedInterim: link?.plannedInterim ?? 0, depositPaid: paidDeposit, interimPaid: link?.interimPaid ?? 0, balancePaid: link?.balancePaid ?? 0 });
     const label = due.kind === "balance" ? "잔금" : "예약금";
     const errorBox = claimError && (
       <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">{claimError}</div>
@@ -429,6 +432,9 @@ function SharePageContent() {
         <div className="text-center text-[16px] font-black text-[#3E9B78]">예약금 입금이 확인되었습니다</div>
       </div>
     );
+    if ((link?.plannedInterim ?? 0) > 0 && paidDeposit > 0 && interimPlan.interimDue > 0) {
+      return <div className="space-y-2">{confirmedDeposit}<div className="flex justify-between gap-3 py-2 text-base font-bold"><span>받을 중도금</span><span>{won(interimPlan.interimDue)}</span></div><p className="text-sm text-muted-foreground">출발지 작업 완료 후 · 보관 입고</p>{!ownerView && !staffMode && <InterimClaimPanel token={token} due={interimPlan.interimDue} pending={link?.interimClaimPending === true} canClaim={link?.canClaimInterim === true} onSaved={() => { setLink(current => current?.ok ? { ...current, interimClaimPending: true } : current); void getTermsLink({ data: { token } }).then(setLinkFor(token)).catch(() => {}); }} />}</div>;
+    }
     if (due.amount <= 0) {
       return (
         <div className="rounded-[14px] border border-[#BFE7CE] bg-[#F1FBF4] px-4 py-3.5">
@@ -739,6 +745,7 @@ function SharePageContent() {
             cardConfirmedAt={link?.cardConfirmedAt}
             paidDeposit={paidDeposit}
             paidBalance={link?.balancePaid ?? 0}
+            paidInterim={link?.interimPaid ?? 0}
             paymentStatus={link?.ok ? link.paymentStatus ?? null : null}
             depositClaimPending={link?.ok ? link.depositClaimPending === true : claimSent}
             depositClaimSlot={ownerView ? null : depositClaimSlot}

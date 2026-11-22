@@ -24,6 +24,7 @@ import { createManualItem } from "@/lib/manual-item.functions";
 import { RoomMenu, RoomNameDialog, RoomDeleteDialog, useRoomDrag } from "./RoomManage";
 import { addRoom, deleteRoom, materializeRooms, moveRoom, renameRoom, roomNameError } from "@/lib/room-manage";
 import { CARD_DOUBLE_TAP_MS, isSameCardDoubleTap, pickedIdsInInputOrder, withRoomQuantity, withRoomQuantityStep, withRoomDisposal } from "@/lib/room-item-state";
+import { storagePaymentPlan, storagePaymentPlanError } from "@/lib/storage-payment";
 import { plannedDeposit } from "@/lib/deposit-rule";
 import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate, seoulMonthKey } from "@/lib/estimate-sort";
 import { publicUrl } from "@/lib/app-url";
@@ -781,6 +782,7 @@ export function HomeScreen() {
     deposit_waiting: 0,
     reservation_confirmed: 0,
     balance_waiting: 0,
+    interim_waiting: 0,
     payment_completed: stats.completed,
   };
   type StageItem = { key: string; estimateId: string; termsId?: string; name: string; amount: number; amountLabel: string; moveDate?: string; moveTime?: string | null; createdAt?: number };
@@ -790,6 +792,7 @@ export function HomeScreen() {
     deposit_waiting: [],
     reservation_confirmed: [],
     balance_waiting: [],
+    interim_waiting: [],
     payment_completed: [],
   };
   const homeTerms = latestTermsByEstimate(termsRows);
@@ -815,13 +818,13 @@ export function HomeScreen() {
       stageCounts[queue] += 1;
       const depositPaid = Number(row?.depositPaid ?? 0);
       const showDeposit = stage === "reservation_confirmed" && depositPaid > 0;
-      const pendingAmount = row?.paymentReceipts?.filter(r => reviewStages.includes(queue) && r.status === "pending_review" && (queue === "balance_waiting" ? r.paymentKind === "balance" : r.paymentKind !== "balance"));
+      const pendingAmount = row?.paymentReceipts?.filter(r => reviewStages.includes(queue) && r.status === "pending_review" && (queue === "balance_waiting" ? r.paymentKind === "balance" : queue === "interim_waiting" ? r.paymentKind === "interim" : r.paymentKind !== "balance" && r.paymentKind !== "interim"));
       stageLists[queue].push({
         key: estimate.id,
         estimateId: estimate.id,
         name: estimate.customerName || "이름 없음",
         amount: reviewStages.includes(queue) ? paymentReview(pendingAmount ?? [], "unpaid", 0, 0, 0)?.amount ?? 0 : showDeposit ? depositPaid : estimate.total || 0,
-        amountLabel: reviewStages.includes(queue) ? queue === "balance_waiting" ? "잔금 입금" : "예약금 입금" : showDeposit ? "예약금" : "견적금액",
+        amountLabel: reviewStages.includes(queue) ? queue === "balance_waiting" ? "잔금 입금" : queue === "interim_waiting" ? "중도금 입금" : "예약금 입금" : showDeposit ? "예약금" : "견적금액",
         moveDate: estimate.moveDate,
         moveTime: estimate.moveTime,
         createdAt: estimate.createdAt,
@@ -1057,7 +1060,7 @@ export function HomeScreen() {
             <div className="text-[17px] font-bold">견적 현황</div>
           </div>
           <div className="grid grid-cols-2 gap-2 text-center">
-            {(["estimate_notice", "deposit_waiting", "reservation_confirmed", "payment_completed", "balance_waiting"] as const).map((stage) => (
+            {(["estimate_notice", "deposit_waiting", "reservation_confirmed", "payment_completed", "balance_waiting", "interim_waiting"] as const).filter(stage => stage !== "interim_waiting" || stageCounts.interim_waiting > 0).map((stage) => (
               <Button
                 type="button"
                 key={stage}
@@ -1066,7 +1069,7 @@ export function HomeScreen() {
                   setOpenStage(stage);
                   setOpenStageMonths(nearestStageMonth(stageLists[stage]));
                 }}
-                className={`h-auto min-w-0 flex-col rounded-[14px] bg-muted py-3 active:scale-[0.98] ${stage === "balance_waiting" ? "col-span-2" : ""}`}
+                className={`h-auto min-w-0 flex-col rounded-[14px] bg-muted py-3 active:scale-[0.98] ${(stage === "balance_waiting" || stage === "interim_waiting") ? "col-span-2" : ""}`}
               >
                 <div className="text-2xl font-black text-foreground">
                   {statsReady ? stageCounts[stage] : "…"}
@@ -1147,7 +1150,7 @@ export function HomeScreen() {
                                       type="button"
                                       variant="ghost"
                                       onClick={() => {
-                                        if (openStage === "card_waiting" || openStage === "deposit_waiting" || openStage === "balance_waiting") {
+                                        if (openStage === "card_waiting" || openStage === "deposit_waiting" || (openStage === "balance_waiting" || openStage === "interim_waiting")) {
                                           try {
                                             sessionStorage.setItem("jp_waiting_history_target", item.estimateId);
                                             sessionStorage.setItem("jp_return_stage", openStage);
@@ -1165,7 +1168,7 @@ export function HomeScreen() {
                                       }}
                                       className="h-auto min-h-11 shrink-0 rounded-xl bg-auth-soft px-3 py-2 text-[13px] font-black text-auth-primary"
                                     >
-                                      {openStage === "card_waiting" || openStage === "deposit_waiting" || openStage === "balance_waiting" ? HOME_STAGE_LABEL[openStage] : "견적 보기"}
+                                      {openStage === "card_waiting" || openStage === "deposit_waiting" || (openStage === "balance_waiting" || openStage === "interim_waiting") ? HOME_STAGE_LABEL[openStage] : "견적 보기"}
                                     </Button>
                                   </div>
                                 ))}
@@ -5377,6 +5380,8 @@ export function Result() {
       setSendResult({ ok: false, error: smsBlockMessage });
       return;
     }
+    const planError = storagePaymentPlanError(total, plannedDeposit(total, draft.depositOverride), usesStorage(draft) ? draft.plannedInterim ?? 0 : 0);
+    if (planError) { setSendResult({ ok: false, error: planError }); return; }
     // 필수 데이터 검사 — 하나라도 비어 있으면 발송하지 않습니다
     const check = checkSendable(draft, total);
     setMissingFields(check.missing);
@@ -5511,6 +5516,8 @@ export function Result() {
    */
   /** 품목·차량이 하나도 없고 금액이 0원이면 견적 완료를 막습니다 */
   const emptyEstimateBlocked = () => {
+    const planError = storagePaymentPlanError(total, plannedDeposit(total, draft.depositOverride), usesStorage(draft) ? draft.plannedInterim ?? 0 : 0);
+    if (planError) { toast.error(planError); return true; }
     const itemQty = (draft.rooms ?? []).reduce(
       (n, r) => n + Object.values(r.items ?? {}).reduce((m, q) => m + (Number(q) || 0), 0),
       0,
@@ -6396,10 +6403,12 @@ export function Result() {
                     onChange={(n) => updateDraft({ depositOverride: n > 0 ? Math.floor(n) : undefined })}
                   />
                 </Field>
-                <div className="flex items-center justify-between rounded-2xl bg-[#F7F8F5] px-4 py-3">
-                  <span className="text-sm font-bold text-[#6B7280]">잔금 (총액 − 예약금)</span>
+                {usesStorage(draft) && <Field label="중도금 (출발지 작업 완료 후)"><MoneyInput value={draft.plannedInterim ?? 0} step={10000} onChange={n => updateDraft({ plannedInterim: Math.max(0, Math.floor(n)) })} /></Field>}
+                {usesStorage(draft) && storagePaymentPlanError(total, plannedDeposit(total, draft.depositOverride), draft.plannedInterim ?? 0) && <p role="alert" className="text-sm text-destructive">{storagePaymentPlanError(total, plannedDeposit(total, draft.depositOverride), draft.plannedInterim ?? 0)}</p>}
+                <div className="flex items-center justify-between rounded-2xl bg-muted px-4 py-3">
+                  <span className="text-sm font-bold text-muted-foreground">{usesStorage(draft) && (draft.plannedInterim ?? 0) > 0 ? "예정 최종 잔금" : "잔금 (총액 − 예약금)"}</span>
                   <span className="text-[17px] font-black text-[#25282D]">
-                    {won(Math.max(0, total - plannedDeposit(total, draft.depositOverride)))}
+                    {won(storagePaymentPlan({ total, plannedDeposit: plannedDeposit(total, draft.depositOverride), plannedInterim: usesStorage(draft) ? draft.plannedInterim ?? 0 : 0, depositPaid: termsStatus?.depositPaid ?? 0 }).plannedFinal)}
                   </span>
                 </div>
                 <Field label="담당자 이름">
@@ -6470,6 +6479,7 @@ export function Result() {
                 paymentStatus={termsStatus?.paymentStatus ?? null}
                 paidDeposit={termsStatus?.depositPaid ?? 0}
                 paidBalance={termsStatus?.balancePaid ?? 0}
+                paidInterim={termsStatus?.interimPaid ?? 0}
                 acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
                 acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
               />
@@ -6803,6 +6813,7 @@ export function Result() {
                 paymentStatus={termsStatus?.paymentStatus ?? null}
                 paidDeposit={termsStatus?.depositPaid ?? 0}
                 paidBalance={termsStatus?.balancePaid ?? 0}
+                paidInterim={termsStatus?.interimPaid ?? 0}
                   acceptedSheetVersion={termsStatus?.acceptedSheetVersion ?? null}
                   acceptedTermsVersion={termsStatus?.acceptedTermsVersion ?? null}
                   forCustomer
@@ -7153,7 +7164,8 @@ export function History() {
         {groups.map((g) => {
           const depositCount = g.items.filter(e => homeReviewStages(historyTerms.find(t => t.estimateId === e.id) ?? {}).includes("deposit_waiting")).length;
           const balanceCount = g.items.filter(e => homeReviewStages(historyTerms.find(t => t.estimateId === e.id) ?? {}).includes("balance_waiting")).length;
-          const pendingCount = depositCount + balanceCount;
+          const interimCount = g.items.filter(e => homeReviewStages(historyTerms.find(t => t.estimateId === e.id) ?? {}).includes("interim_waiting")).length;
+          const pendingCount = depositCount + balanceCount + interimCount;
           const gOpen = q.trim() ? true : (openMonths[g.key] ?? (pendingCount > 0 || defaultOpen.has(g.key)));
           return (
             <div key={g.key} className="space-y-3">
@@ -7212,12 +7224,12 @@ export function History() {
                           {review && (
                             <div className="mt-1 text-sm font-bold text-foreground" data-payment-review-text>
                               계좌이체 확인 필요 · {review.amount.toLocaleString("ko-KR")}원
-                              {review.receipts.map((r, i) => <div key={r.id ?? i} className="break-words text-sm font-semibold">{r.paymentKind === "balance" ? "잔금" : r.paymentKind === "deposit" ? "예약금" : "계좌 입금"} 입금 · 입금자 {r.depositorName || "이름 미확인"} · {r.amount.toLocaleString("ko-KR")}원 · 확인 필요</div>)}
+                              {review.receipts.map((r, i) => <div key={r.id ?? i} className="break-words text-sm font-semibold">{r.paymentKind === "balance" ? "잔금" : r.paymentKind === "deposit" ? "예약금" : r.paymentKind === "interim" ? "중도금" : "계좌 입금"} 입금 · 입금자 {r.depositorName || "이름 미확인"} · {r.amount.toLocaleString("ko-KR")}원 · 확인 필요</div>)}
                               {(() => {
                                 if (!ts.row) return null;
                                 const expected = review.kind === "deposit"
                                   ? e.depositOverride ?? e.deposit
-                                  : remainingPayment(ts.row.total, ts.row.depositPaid, ts.row.balancePaid);
+                                  : review.kind === "interim" ? Math.max(0, (ts.row.plannedInterim ?? 0) - (ts.row.interimPaid ?? 0)) : remainingPayment(ts.row.total, ts.row.depositPaid, ts.row.balancePaid, ts.row.interimPaid);
                                 if (expected === undefined) return null;
                                 const actual = review.receipts.filter(r => r.paymentKind === review.kind).reduce((sum, r) => sum + r.amount, 0);
                                 const note = paymentDiffNote(review.kind, expected, actual);
@@ -7238,7 +7250,7 @@ export function History() {
                             depositClaimPending: homeReviewStages(ts.row ?? {}).includes("deposit_waiting"),
                           });
                           return (
-                            <span className={`shrink-0 text-xs px-2 py-1 rounded-full font-semibold ${review ? review.kind === "balance" ? "bg-payment-review-balance-soft text-payment-review-balance" : "bg-payment-review-soft text-payment-review" : RESERVATION_STAGE_CLASS[stage]}`}>
+                            <span className={`shrink-0 text-xs px-2 py-1 rounded-full font-semibold ${review ? review.kind !== "deposit" ? "bg-payment-review-balance-soft text-payment-review-balance" : "bg-payment-review-soft text-payment-review" : RESERVATION_STAGE_CLASS[stage]}`}>
                               {review ? review.kind === "balance" ? "잔금 확인" : "입금 확인" : RESERVATION_STAGE_LABEL[stage]}
                             </span>
                           );

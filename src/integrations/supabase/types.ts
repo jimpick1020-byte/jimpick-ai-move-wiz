@@ -632,6 +632,7 @@ export type Database = {
           estimate_id: string
           first_viewed_at: string | null
           id: string
+          interim_paid: number
           last_viewed_at: string | null
           move_date: string | null
           paid_at: string | null
@@ -641,12 +642,15 @@ export type Database = {
           payment_method: string | null
           payment_note: string | null
           payment_status: string
+          planned_interim: number
           reservation_payment_choice: string | null
           sent_at: string | null
           sent_msg_id: string | null
           sheet_no: string | null
           sheet_snapshot: string | null
           sheet_version: number
+          storage_origin_completed_at: string | null
+          storage_payment_enabled: boolean
           terms_document_id: string | null
           terms_effective_at: string | null
           terms_name: string
@@ -689,6 +693,7 @@ export type Database = {
           estimate_id: string
           first_viewed_at?: string | null
           id?: string
+          interim_paid?: number
           last_viewed_at?: string | null
           move_date?: string | null
           paid_at?: string | null
@@ -698,12 +703,15 @@ export type Database = {
           payment_method?: string | null
           payment_note?: string | null
           payment_status?: string
+          planned_interim?: number
           reservation_payment_choice?: string | null
           sent_at?: string | null
           sent_msg_id?: string | null
           sheet_no?: string | null
           sheet_snapshot?: string | null
           sheet_version?: number
+          storage_origin_completed_at?: string | null
+          storage_payment_enabled?: boolean
           terms_document_id?: string | null
           terms_effective_at?: string | null
           terms_name: string
@@ -746,6 +754,7 @@ export type Database = {
           estimate_id?: string
           first_viewed_at?: string | null
           id?: string
+          interim_paid?: number
           last_viewed_at?: string | null
           move_date?: string | null
           paid_at?: string | null
@@ -755,12 +764,15 @@ export type Database = {
           payment_method?: string | null
           payment_note?: string | null
           payment_status?: string
+          planned_interim?: number
           reservation_payment_choice?: string | null
           sent_at?: string | null
           sent_msg_id?: string | null
           sheet_no?: string | null
           sheet_snapshot?: string | null
           sheet_version?: number
+          storage_origin_completed_at?: string | null
+          storage_payment_enabled?: boolean
           terms_document_id?: string | null
           terms_effective_at?: string | null
           terms_name?: string
@@ -2210,6 +2222,15 @@ export type Database = {
         Args: { p_confirmed: boolean; p_seen: number; p_token: string }
         Returns: Json
       }
+      claim_customer_interim: {
+        Args: {
+          p_amount: number
+          p_confirmed: boolean
+          p_seen: number
+          p_token: string
+        }
+        Returns: Json
+      }
       claim_move_reminders: {
         Args: { _limit?: number }
         Returns: {
@@ -2305,6 +2326,16 @@ export type Database = {
         }
         Returns: Json
       }
+      confirm_owner_interim: {
+        Args: {
+          p_amount: number
+          p_estimate: string
+          p_key: string
+          p_receipt?: string
+          p_reviewed: boolean
+        }
+        Returns: Json
+      }
       confirm_payment_receipt: {
         Args: { _note?: string; _receipt_id: string }
         Returns: Json
@@ -2384,6 +2415,15 @@ export type Database = {
           estimate_id: string
           payment_status: string
           total: number
+        }[]
+      }
+      read_storage_payments: {
+        Args: { p_company: string; p_estimates: string[] }
+        Returns: {
+          estimate_id: string
+          interim_paid: number
+          planned_interim: number
+          storage_origin_completed_at: string
         }[]
       }
       record_bank_receipt: {
@@ -2502,6 +2542,10 @@ export type Database = {
       }
       soft_delete_estimate_with_intake: {
         Args: { _estimate_id: string; _reason?: string; _source?: string }
+        Returns: Json
+      }
+      start_storage_interim: {
+        Args: { p_confirmed: boolean; p_estimate: string }
         Returns: Json
       }
     }

@@ -187,6 +187,8 @@ export interface Estimate {
   storageDaily: number;
   /** 보관이사가 아니어도 보관 서비스를 추가한 경우 */
   storageEnabled?: boolean;
+  /** 보관이사 납부 계획. 비용이 아니며 미설정은 0원입니다. */
+  plannedInterim?: number;
 
   /** 기본 운송료 직접 입력 (null이면 자동 계산) */
   transportOverride?: number | null;

@@ -1,4 +1,5 @@
-import { calcEstimate, itemNameById, ITEM_CATALOG, type Estimate } from './jimpick';
+import { calcEstimate, itemNameById, ITEM_CATALOG, usesStorage, type Estimate } from './jimpick';
+import { storagePaymentPlanError } from './storage-payment';
 import { plannedDeposit } from './deposit-rule';
 import { isPlaceholderName, UNKNOWN_ITEM_NAME } from './shared-item-repair';
 
@@ -16,6 +17,8 @@ export function editedSheet(draft: Estimate, patch: Partial<Estimate>) {
   const { total, parts } = calcEstimate(next);
   next.total = total;
   next.deposit = plannedDeposit(total, next.depositOverride);
+  const error = storagePaymentPlanError(total, next.deposit, usesStorage(next) ? next.plannedInterim ?? 0 : 0);
+  if (error) throw new Error(error);
   next.sheetSnapshot = { sheetNo: next.sheetNo || '', version: next.sheetVersion || 1, confirmedAt: next.sheetConfirmedAt || 0, ...next.sheetSnapshot, total, parts, rooms: sheetRoomsOf(next) };
   return next;
 }

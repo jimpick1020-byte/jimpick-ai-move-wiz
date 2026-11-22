@@ -8,8 +8,8 @@ export function completedPaymentLabel(value?: string | null) {
   const method = normalizePaymentMethod(value);
   return method === "bank_transfer" ? "계좌이체 완료" : `${PAYMENT_METHOD_LABEL[method]} 결제완료`;
 }
-export function remainingPayment(total: number, deposit: number, balance: number) {
-  return Math.max(0, total - deposit - balance);
+export function remainingPayment(total: number, deposit: number, balance: number, interim = 0) {
+  return Math.max(0, total - deposit - balance - interim);
 }
 /**
  * 결제 상태 카드에 넣는 금액.

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { InterimPaymentPanel } from "./InterimPaymentPanel";
+import { StoragePaymentSummary } from "./StoragePaymentSummary";
 import { protectAppUpdate } from "@/lib/update-safety";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -31,7 +33,7 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
   const updateBlocked = useRef(false);
   updateBlocked.current = open || busy || askComplete;
   useEffect(() => protectAppUpdate(() => updateBlocked.current), []);
-  const remain = remainingPayment(total, row.depositPaid, row.balancePaid);
+  const remain = remainingPayment(total, row.depositPaid, row.balancePaid, row.interimPaid);
   const summary = paymentSummaryParts(total, row.depositPaid, row.balancePaid, quotedDeposit);
   const receipts = pendingBalanceReceipts(row.paymentReceipts ?? [])
     .sort((a, b) => Number(b.amount === remain) - Number(a.amount === remain));
@@ -84,9 +86,10 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
   };
   return <section className="mt-2 rounded-lg bg-muted p-3 text-foreground" aria-label="결제 상태">
     <Button variant="ghost" className="w-full justify-between px-0 text-xs" onClick={() => setOpen(!open)}><span>결제 상태 · {label}</span><span>{open ? "닫기" : "열기"}</span></Button>
-    <div className="mt-1 text-xs text-muted-foreground">{quotedDeposit !== undefined ? "견적 총" : "총"} {won(summary.total)} · {summary.planned ? "예정 예약금" : "예약금"} {won(summary.deposit)} · {summary.planned ? "예정 잔금" : "남은 잔금"} <b>{won(summary.balance)}</b></div>
-    {row.depositPaid + row.balancePaid > total && <div className="mt-1 text-xs font-bold text-payment-review">초과입금 {won(row.depositPaid + row.balancePaid - total)}</div>}
+    {Number(row.plannedInterim) > 0 ? <StoragePaymentSummary total={total} plannedDeposit={quotedDeposit ?? 0} plannedInterim={row.plannedInterim ?? 0} depositPaid={row.depositPaid} interimPaid={row.interimPaid ?? 0} balancePaid={row.balancePaid} /> : <div className="mt-1 text-xs text-muted-foreground">{quotedDeposit !== undefined ? "견적 총" : "총"} {won(summary.total)} · {summary.planned ? "예정 예약금" : "예약금"} {won(summary.deposit)} · {summary.planned ? "예정 잔금" : "남은 잔금"} <b>{won(summary.balance)}</b></div>}
+    {!row.plannedInterim && row.depositPaid + row.balancePaid > total && <div className="mt-1 text-xs font-bold text-payment-review">초과입금 {won(row.depositPaid + row.balancePaid - total)}</div>}
     {open && <div className="mt-3 space-y-3">
+      <InterimPaymentPanel estimateId={estimateId} row={row} {...(onSaved ? { onSaved } : {})} />
       <div className="grid grid-cols-2 gap-2">{PAYMENT_STATUS_CHOICES.map((s) => <Button key={s} aria-pressed={status === s} variant={status === s ? "staff" : "outline"} disabled={busy || (s === "completed" && normalizePaymentStatus(row.paymentStatus) === "completed")} onClick={() => { if (s === "completed") { setStatus("completed"); setAskComplete(true); setMethod(null); } else { cancel(); setStatus(s); } }}>{status === s && <Check aria-hidden="true" className="size-4 shrink-0" />}{PAYMENT_STATUS_LABEL[s]}</Button>)}</div>
       {askComplete && <div className="space-y-3 border-t border-border pt-3" aria-label="결제완료 확인">
         {!method ? <div className="grid grid-cols-2 gap-2">{PAYMENT_METHODS.map((m) => <Button key={m} variant="outline" onClick={() => setMethod(m)}>{m === "bank_transfer" ? "계좌이체" : `${PAYMENT_METHOD_LABEL[m]} 결제`}</Button>)}<Button variant="ghost" onClick={cancel}>취소</Button></div> : <>

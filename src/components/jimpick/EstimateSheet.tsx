@@ -1,3 +1,4 @@
+import { StoragePaymentSummary } from "./StoragePaymentSummary";
 import { activeHouseOf, houseLabel } from "@/lib/house-workspace";
 /**
  * 짐픽 이사 견적서 (사장님 화면 · 고객 화면 공용).
@@ -204,6 +205,7 @@ export interface EstimateSheetProps {
   /** 실제로 입금이 확인된 예약금 (원). 있으면 이 금액을 예약금으로 보여 줍니다 */
   paidDeposit?: number;
   paidBalance?: number;
+  paidInterim?: number;
   /** 「입금 계좌」 카드 바로 아래에 붙는 예약금 입금 알림 영역 (고객 화면 전용) */
   depositClaimSlot?: React.ReactNode;
   /** 고객이 약관을 펼쳐 볼 때 한 번 알려 줍니다 (열람 기록용) */
@@ -229,6 +231,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
     showTerms = true,
     paidDeposit = 0,
     paidBalance = 0,
+    paidInterim = 0,
     depositClaimSlot,
     onTermsOpen,
     onSave,
@@ -562,7 +565,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
         ))}
 
         {/* 비용 상세 */}
-        {inline("금액", [field('transportOverride', '기본 운송비', 'number'), field('ladderFromPrice', '출발 사다리차 비용', 'number'), field('ladderToPrice', '도착 사다리차 비용', 'number'), field('discount', '할인금액', 'number'), field('totalOverride', '총 견적금액', 'number')], (
+        {inline("금액", [field('transportOverride', '기본 운송비', 'number'), field('ladderFromPrice', '출발 사다리차 비용', 'number'), field('ladderToPrice', '도착 사다리차 비용', 'number'), field('discount', '할인금액', 'number'), field('totalOverride', '총 견적금액', 'number'), field('depositOverride', '예정 예약금', 'number'), ...(usesStorage(draft) ? [field('plannedInterim', '중도금', 'number')] : [])], (
 <div className="rounded-[14px] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,24,39,0.06)]">
           <div className="mb-1.5 flex items-center gap-1.5">
             <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#3578C8] text-[13px] font-black text-white">
@@ -578,7 +581,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
           {(deposit > 0 || discount > 0) && (
             <div className="my-1.5 border-t border-dashed border-[#E5E7EB]" />
           )}
-          {onsiteCard ? <div className="py-1.5 text-base font-bold text-foreground">{payStatus === "completed" ? "결제 완료 · 남은 금액 0원" : `예약금 없음 · 현장 카드 결제 예정 ${won(total)}`}</div> : <><MoneyRow label={payment.planned ? "예정 예약금" : "예약금 입금 확인 완료"} amount={deposit} />{paidBalance > 0 && <MoneyRow label="잔금 입금 확인 완료" amount={paidBalance} />}<MoneyRow label={payment.planned ? "예정 잔금" : "남은 잔금"} amount={balance} />{paid + paidBalance > total && <MoneyRow label="초과입금" amount={paid + paidBalance - total} />}</>}
+          {onsiteCard ? <div className="py-1.5 text-base font-bold text-foreground">{payStatus === "completed" ? "결제 완료 · 남은 금액 0원" : `예약금 없음 · 현장 카드 결제 예정 ${won(total)}`}</div> : usesStorage(draft) && ((draft.plannedInterim ?? 0) > 0 || paidInterim > 0) ? <StoragePaymentSummary total={total} plannedDeposit={plannedDeposit(total, draft.depositOverride)} plannedInterim={draft.plannedInterim ?? 0} depositPaid={paid} interimPaid={paidInterim} balancePaid={paidBalance} /> : <><MoneyRow label={payment.planned ? "예정 예약금" : "예약금 입금 확인 완료"} amount={deposit} />{paidBalance > 0 && <MoneyRow label="잔금 입금 확인 완료" amount={paidBalance} />}<MoneyRow label={payment.planned ? "예정 잔금" : "남은 잔금"} amount={balance} />{paid + paidBalance > total && <MoneyRow label="초과입금" amount={paid + paidBalance - total} />}</>}
 
           <div className="mt-3 flex items-center justify-between gap-3 rounded-[12px] border border-[#E5E7EB] bg-[#F7F8F5] px-3.5 py-3">
             <span className="shrink-0 text-[18px] font-black text-[#25282D]">총 견적금액</span>

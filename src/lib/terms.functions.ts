@@ -45,6 +45,11 @@ export interface TermsLinkInfo {
   depositPaid?: number;
   /** 확인된 잔금 (원) */
   balancePaid?: number;
+  interimPaid?: number;
+  plannedInterim?: number;
+  storageOriginCompletedAt?: string | null;
+  interimClaimPending?: boolean;
+  canClaimInterim?: boolean;
   /** 실제 저장된 결제 상태 */
   paymentStatus?: string;
   /** 예약금 입금이 확인된 일시 */
@@ -209,6 +214,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
     // 새로고침해도 이 기록으로 「입금 확인 대기」 상태가 그대로 유지됩니다.
     let depositClaimPending = false;
     let balanceClaimPending = false;
+    let interimClaimPending = false;
     {
       const { data: claims } = await supabaseAdmin
         .from("deposit_records")
@@ -219,7 +225,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
         .eq("status", "pending_review")
         .limit(20);
       // 종류별로 나눠 예전 예약금 신고가 잔금 신고를 막지 않게 합니다.
-      depositClaimPending = (claims ?? []).some((c) => (c as { payment_kind?: string | null }).payment_kind !== "balance");
+      depositClaimPending = (claims ?? []).some((c) => (c as { payment_kind?: string | null }).payment_kind === "deposit");
     }
     {
       // 잔금은 은행 문자·직접 등록·고객 신고 어느 경로든 실제 확인 대기 기록이 있으면 대기입니다.
@@ -235,6 +241,12 @@ export const getTermsLink = createServerFn({ method: "POST" })
       balanceClaimPending = (pendingBal ?? []).length > 0;
     }
 
+    const { data: interimPending } = await supabaseAdmin.from("deposit_records").select("id").eq("user_id", row.user_id).eq("estimate_id", row.estimate_id).eq("payment_kind", "interim").eq("status", "pending_review").gt("amount", 0).limit(1);
+    interimClaimPending = Boolean(interimPending?.length);
+    const interimPaid = Number(money.interim_paid ?? 0);
+    const plannedInterim = Number(money.planned_interim ?? 0);
+    const interimDue = Math.min(Math.max(0, plannedInterim - interimPaid), Math.max(0, money.total - money.deposit_paid - money.balance_paid - interimPaid));
+    const canClaimInterim = !data.ownerView && !signedIn && Boolean(money.storage_origin_completed_at) && money.deposit_paid > 0 && interimDue > 0 && row.contract_status !== "cancelled" && row.reservation_payment_choice !== "onsite_card" && !["completed", "canceled", "refunded"].includes(money.payment_status);
     let canClaimBalance = false;
     if (!data.ownerView && !signedIn) {
       const r = row as { user_id?: string; estimate_id?: string; id?: string; total?: number | null; deposit_paid?: number | null; balance_paid?: number | null; payment_status?: string | null; contract_status?: string | null };
@@ -248,13 +260,13 @@ export const getTermsLink = createServerFn({ method: "POST" })
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      const due = Math.max(0, Number(r.total ?? 0) - Number(r.deposit_paid ?? 0) - Number(r.balance_paid ?? 0));
+      const due = Math.max(0, Number(r.total ?? 0) - Number(r.deposit_paid ?? 0) - Number(r.balance_paid ?? 0) - interimPaid);
       canClaimBalance =
         (latest as { id?: string } | null)?.id === r.id &&
         String(r.contract_status ?? "active") !== "cancelled" &&
         !["completed", "canceled", "refunded"].includes(String(r.payment_status ?? "")) &&
         Number(r.deposit_paid ?? 0) > 0 &&
-        due > 0;
+        due > 0 && interimDue <= 0;
     }
 
     // 고객 이름은 계약에 저장된 최신 이름이 정답입니다.
@@ -329,6 +341,7 @@ export const getTermsLink = createServerFn({ method: "POST" })
       depositPaidAt: (row as { deposit_paid_at?: string | null }).deposit_paid_at ?? null,
       balancePaid: Number((row as { balance_paid?: number | null }).balance_paid ?? 0) || 0,
       paymentStatus: String((row as { payment_status?: string | null }).payment_status ?? "unpaid"),
+      interimPaid, plannedInterim, storageOriginCompletedAt: money.storage_origin_completed_at ?? null, interimClaimPending, canClaimInterim,
       depositClaimPending,
       balanceClaimPending,
       canClaimBalance,
@@ -585,6 +598,9 @@ export interface TermsStatusRow {
   depositPaid: number;
   /** 입금 확인된 잔금 */
   balancePaid: number;
+  interimPaid?: number;
+  plannedInterim?: number;
+  storageOriginCompletedAt?: string | null;
   balancePaidAt: string | null;
   /** 결제 진행 상태 */
   paymentStatus: string;
@@ -724,7 +740,7 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
     }
     const payments = await loadEstimatePayments(context.supabase, context.userId, estimateIds);
     const claimByEstimate = new Map(
-      (claims ?? []).filter((c) => c.source === "customer_claim" && c.status === "pending_review").map((c) => [String((c as Record<string, unknown>)["estimate_id"]), c]),
+      (claims ?? []).filter((c) => c.payment_kind === "deposit" && c.source === "customer_claim" && c.status === "pending_review").map((c) => [String((c as Record<string, unknown>)["estimate_id"]), c]),
     );
 
     return {
@@ -757,6 +773,7 @@ export const getTermsStatuses = createServerFn({ method: "POST" })
           total: Number(r["total"] ?? 0) || 0,
           depositPaid: Number(r["deposit_paid"] ?? 0) || 0,
           balancePaid: Number(r["balance_paid"] ?? 0) || 0,
+          interimPaid: Number(r["interim_paid"] ?? 0), plannedInterim: Number(r["planned_interim"] ?? 0), storageOriginCompletedAt: (r["storage_origin_completed_at"] as string | null) ?? null,
           balancePaidAt: (r["balance_paid_at"] as string | null) ?? null,
           paymentStatus: String(r["payment_status"] ?? "unpaid"),
           paymentNote: (r["payment_note"] as string | null) ?? null,
@@ -810,6 +827,9 @@ export interface ReservationRow {
   paymentStatus: string;
   depositPaid: number;
   balancePaid: number;
+  interimPaid?: number;
+  plannedInterim?: number;
+  storageOriginCompletedAt?: string | null;
   /** 달력에서 정리 대상으로 체크했는지 */
   calendarSelected: boolean;
 }

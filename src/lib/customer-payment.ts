@@ -12,9 +12,9 @@ export function sheetPlannedDeposit(total: number, snapshot: string | null | und
   }
 }
 
-export function customerPaymentDue(total: number, deposit: number, balance: number, status: string, planned?: number) {
+export function customerPaymentDue(total: number, deposit: number, balance: number, status: string, planned?: number, interim = 0) {
   const kind = deposit > 0 ? "balance" as const : "deposit" as const;
-  const remaining = remainingPayment(total, deposit, balance);
+  const remaining = remainingPayment(total, deposit, balance, interim);
   const amount = ["completed", "canceled", "refunded"].includes(status) ? 0 : kind === "balance" ? remaining : Math.min(remaining, planned ?? calcDeposit(total));
   return { kind, amount };
 }
