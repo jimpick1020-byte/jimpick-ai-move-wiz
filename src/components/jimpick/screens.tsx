@@ -735,14 +735,16 @@ export function HomeScreen() {
   }, []);
   useEffect(() => {
     let alive = true;
+    let generation = 0;
     const load = () => {
+      const request = ++generation;
       void Promise.all([
         // 이사 완료 + 전액 결제완료 건은 먼저 완료 보관함으로 자동 이동합니다
         autoArchiveCompleted().catch(() => null),
       ]).then(() => Promise.all([
         getTermsStatuses({ data: {} })
           .then((r) => {
-            if (alive && r.ok) {
+            if (alive && request === generation && r.ok) {
               setTermsRows(r.rows);
             }
           })
@@ -5134,6 +5136,9 @@ export function OptionsScreen() {
         {storageOn && (
           <Card className="space-y-3">
             <div className="font-bold">보관 정보</div>
+            <Field label="중도금 (출발지 작업 완료 후)">
+              <MoneyInput value={draft.plannedInterim ?? 0} onChange={n => updateDraft({ plannedInterim: Math.max(0, Math.floor(n)) })} step={10000} />
+            </Field>
             <Field label="보관 시작일">
               <TextInput
                 type="date"
@@ -5291,16 +5296,18 @@ export function Result() {
   const [termsStatus, setTermsStatus] = useState<TermsStatusRow | null>(null);
   const [termsLoading, setTermsLoading] = useState(true);
   const termsRequest = useRef<string | null>(null);
+  const termsGeneration = useRef(0);
   const termsEstimateId = useRef(draft.id);
   termsEstimateId.current = draft.id;
-  const loadTermsStatus = () => {
+  const loadTermsStatus = (force = false) => {
     const id = draft.id;
-    if (termsRequest.current === id) return;
+    if (!force && termsRequest.current === id) return;
+    const generation = ++termsGeneration.current;
     termsRequest.current = id;
     if (!termsStatus) setTermsLoading(true);
     getTermsStatuses({ data: { estimateId: id } })
       .then((r) => {
-        if (!r.ok || termsEstimateId.current !== id) return;
+        if (!r.ok || termsEstimateId.current !== id || generation !== termsGeneration.current) return;
         // 같은 견적을 여러 차수로 보냈으면 가장 최근 것을 봅니다
         setTermsStatus(r.rows[0] ?? null);
       })
@@ -5309,10 +5316,11 @@ export function Result() {
   };
   useEffect(() => {
     let alive = true;
+    const generation = ++termsGeneration.current;
     setTermsLoading(true);
     getTermsStatuses({ data: { estimateId: draft.id } })
       .then((r) => {
-        if (alive && r.ok) setTermsStatus(r.rows[0] ?? null);
+        if (alive && generation === termsGeneration.current && r.ok) setTermsStatus(r.rows[0] ?? null);
       })
       .catch(() => {})
       .finally(() => {
@@ -5324,7 +5332,7 @@ export function Result() {
   }, [draft.id]);
   // 입금 확인·금액 조정 뒤 서버의 최신 확인 입금액으로 견적서를 다시 그립니다
   useEffect(() => {
-    const reload = () => loadTermsStatus();
+    const reload = () => loadTermsStatus(true);
     window.addEventListener("jimpick:payment-updated", reload);
     return () => window.removeEventListener("jimpick:payment-updated", reload);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -6879,10 +6887,12 @@ export function History() {
     setScreen("step1");
     window.scrollTo(0, 0);
   };
+  const historyReadGeneration = useRef(0);
   const loadTerms = () => {
+    const generation = ++historyReadGeneration.current;
     getTermsStatuses({ data: {} })
       .then((r) => {
-        if (r.ok) {
+        if (generation === historyReadGeneration.current && r.ok) {
           setTermsRows(r.rows);
         }
       })
@@ -6893,9 +6903,10 @@ export function History() {
     let alive = true;
     // 완료 보관함은 접혀 있어도 미리 읽습니다 (홈 견적 현황과 건수를 맞추기 위해)
     const load = () => {
+      const generation = ++historyReadGeneration.current;
       getTermsStatuses({ data: {} })
         .then((r) => {
-          if (alive && r.ok) {
+          if (alive && generation === historyReadGeneration.current && r.ok) {
             setTermsRows(r.rows);
             setTermsReady(true);
           }
@@ -7178,6 +7189,7 @@ export function History() {
                   {g.title} · {g.items.length}건
                   {depositCount > 0 && <span className="text-payment-review">입금 확인 {depositCount}건</span>}
                   {balanceCount > 0 && <span className="text-payment-review-balance">잔금 확인 {balanceCount}건</span>}
+                  {interimCount > 0 && <span className="text-payment-review-balance">중도금 확인 {interimCount}건</span>}
                 </span>
                 <span className="ml-2 shrink-0 text-[13px] font-semibold text-[#6B7280]">{gOpen ? "접기 ▲" : "펼치기 ▾"}</span>
               </button>
@@ -7251,7 +7263,7 @@ export function History() {
                           });
                           return (
                             <span className={`shrink-0 text-xs px-2 py-1 rounded-full font-semibold ${review ? review.kind !== "deposit" ? "bg-payment-review-balance-soft text-payment-review-balance" : "bg-payment-review-soft text-payment-review" : RESERVATION_STAGE_CLASS[stage]}`}>
-                              {review ? review.kind === "balance" ? "잔금 확인" : "입금 확인" : RESERVATION_STAGE_LABEL[stage]}
+                              {review ? review.kind === "balance" ? "잔금 확인" : review.kind === "interim" ? "중도금 확인" : "입금 확인" : RESERVATION_STAGE_LABEL[stage]}
                             </span>
                           );
                         })()}

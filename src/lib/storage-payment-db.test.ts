@@ -17,7 +17,7 @@ beforeAll(async () => {
     CREATE TABLE owner_notifications(company_id uuid,kind text,ref_id text,dedupe_key text,title text,body text,url text,UNIQUE(company_id,dedupe_key));`);
   for (const file of ["0048_pending_balance_review_completion", "0027_owner_direct_bank_balance_confirmation"]) await db.exec(readFileSync(`drizzle/migrations/${file}.sql`, "utf8"));
   await db.exec("CREATE TABLE deposit_receipt_aliases(user_id uuid,alias_key text,record_id uuid,event_id text,created_at timestamptz DEFAULT now(),PRIMARY KEY(user_id,alias_key)); ALTER TABLE deposit_records ADD COLUMN linked_evidence_key text;");
-  for (const file of ["0050_bank_receipt_evidence_aliases", "0057_estimate_receipt_projection", "0058_storage_interim_receipts"]) await db.exec(readFileSync(`drizzle/migrations/${file}.sql`, "utf8"));
+  for (const file of ["0050_bank_receipt_evidence_aliases", "0057_estimate_receipt_projection", "0058_storage_interim_receipts", "0059_preserve_storage_payment_stage"]) await db.exec(readFileSync(`drizzle/migrations/${file}.sql`, "utf8"));
   await db.exec("CREATE TRIGGER receipt_notice AFTER INSERT ON deposit_records FOR EACH ROW EXECUTE FUNCTION notify_deposit_record();");
 });
 afterAll(async () => { await db.close(); });
@@ -108,4 +108,20 @@ test("server rejects plan over total, transaction keeps total and receipts", () 
   await expect(db.exec(`UPDATE estimate_terms SET sheet_snapshot='{"draft":{"moveType":"보관이사","depositOverride":100000,"plannedInterim":1902001}}' WHERE sheet_version=2`)).rejects.toThrow();
   await db.exec("ROLLBACK TO SAVEPOINT invalid_plan");
   expect(await money()).toMatchObject({ total: 2002000, planned_interim: 1000000, deposit_paid: 100000 });
+}));
+test("new quotation version retains origin stage and real interim receipts", () => fixture(async () => {
+  await start(); await manual(300000);
+  await db.query("INSERT INTO estimate_terms(user_id,estimate_id,sheet_version,total,access_token,sheet_snapshot) SELECT user_id,estimate_id,3,total,'third-token',sheet_snapshot FROM estimate_terms WHERE sheet_version=2");
+  const row = (await db.query<{ storage_origin_completed_at: Date | null }>("SELECT storage_origin_completed_at FROM estimate_terms WHERE sheet_version=3")).rows[0];
+  expect(row?.storage_origin_completed_at).not.toBeNull();
+  expect(await money()).toMatchObject({ total: 2002000, interim_paid: 300000, payment_status: "partial" });
+  expect((await claim(700000, 700000)).ok).toBe(true);
+}));
+test("excess interim does not auto-complete or alter total; explicit final work confirmation can complete", () => fixture(async () => {
+  await start(); await manual(2000000);
+  expect(await money()).toMatchObject({ total: 2002000, interim_paid: 2000000, payment_status: "partial" });
+  expect((await db.query("SELECT calendar_archived FROM estimate_terms WHERE sheet_version=2")).rows[0]).toEqual({ calendar_archived: false });
+  const m = await money(); expect(storagePaymentPlan({ total: m.total, plannedDeposit: 100000, depositPaid: Number(m.deposit_paid), interimPaid: Number(m.interim_paid) }).overpaid).toBe(98000);
+  expect((await result("complete_estimate_payment('test','cash')")).ok).toBe(true);
+  expect((await money()).payment_status).toBe("completed");
 }));

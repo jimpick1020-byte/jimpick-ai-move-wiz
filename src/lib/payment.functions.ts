@@ -63,9 +63,11 @@ export function paymentStatusFromAmounts(
   total: number,
   depositPaid: number,
   balancePaid: number,
+  interimPaid = 0,
 ): PaymentStatus {
-  const paid = Math.max(0, depositPaid) + Math.max(0, balancePaid);
+  const paid = Math.max(0, depositPaid) + Math.max(0, balancePaid) + Math.max(0, interimPaid);
   if (paid <= 0) return "unpaid";
+  if (interimPaid > 0 && balancePaid === 0) return "partial";
   if (total > 0 && paid >= total) return "completed";
   if (balancePaid > 0) return "partial";
   return "deposit_paid";
@@ -80,12 +82,13 @@ export function isFullyPaid(row: {
   total?: number | null;
   depositPaid?: number | null;
   balancePaid?: number | null;
+  interimPaid?: number | null;
   paymentStatus?: string | null;
 }): boolean {
   const status = normalizePaymentStatus(row.paymentStatus);
   if (status === "canceled" || status === "refunded") return false;
   const total = Math.max(0, Number(row.total ?? 0));
-  const paid = Math.max(0, Number(row.depositPaid ?? 0)) + Math.max(0, Number(row.balancePaid ?? 0));
+  const paid = Math.max(0, Number(row.depositPaid ?? 0)) + Math.max(0, Number(row.balancePaid ?? 0)) + Math.max(0, Number(row.interimPaid ?? 0));
   if (total <= 0) return false;
   return paid >= total;
 }
@@ -110,22 +113,26 @@ export const autoArchiveCompleted = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<{ ok: boolean; archived: number }> => {
     const { data, error } = await context.supabase
       .from("estimate_terms")
-      .select("id, total, deposit_paid, balance_paid, move_date, payment_status")
+      .select("id, estimate_id, total, deposit_paid, balance_paid, move_date, payment_status")
       .eq("user_id", context.userId)
       .eq("payment_status", "completed")
       .eq("calendar_archived", false)
       .is("deleted_at", null)
       .limit(300);
     if (error) return { ok: false, archived: 0 };
+    const payments = await loadEstimatePayments(context.supabase, context.userId, (data ?? []).map(r => r.estimate_id));
     const ids = ((data ?? []) as Record<string, unknown>[])
       .filter(
-        (r) =>
-          isFullyPaid({
+        (raw) => {
+          const r = { ...raw, ...payments.get(String(raw["estimate_id"])) } as Record<string, unknown>;
+          return isFullyPaid({
             total: r["total"] as number,
             depositPaid: r["deposit_paid"] as number,
             balancePaid: r["balance_paid"] as number,
+            interimPaid: r["interim_paid"] as number,
             paymentStatus: "completed",
-          }),
+          });
+        },
       )
       .map((r) => String(r["id"]));
     if (ids.length === 0) return { ok: true, archived: 0 };
@@ -403,6 +410,7 @@ export interface ArchivedContractRow {
   total: number;
   depositPaid: number;
   balancePaid: number;
+  interimPaid?: number;
   paymentStatus: PaymentStatus;
   paymentMethod?: string | null;
   sizeTab: string;
@@ -454,6 +462,7 @@ export const listArchivedContracts = createServerFn({ method: "GET" })
         total: Number(r["total"] ?? 0),
         depositPaid: Number(r["deposit_paid"] ?? 0),
         balancePaid: Number(r["balance_paid"] ?? 0),
+        interimPaid: Number(r["interim_paid"] ?? 0),
         paymentStatus: normalizePaymentStatus(r["payment_status"] as string | null),
         paymentMethod: (r["payment_method"] as string | null) ?? null,
         sizeTab,

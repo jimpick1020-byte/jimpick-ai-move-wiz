@@ -2,6 +2,8 @@ import { test, expect } from "vitest";
 import { storagePaymentPlan, storagePaymentPlanError } from "./storage-payment";
 import { homeReviewStages } from "./home-reservation-stage";
 import { uniquePaymentReceipts } from "./payment-review";
+import { isFullyPaid, paymentStatusFromAmounts } from "./payment.functions";
+import { paymentSummaryParts } from "./payment-method";
 
 test("2,002,000 / confirmed 100,000 / planned 1,000,000: planned 902,000 != actual 1,902,000", () => {
   expect(storagePaymentPlan({ total: 2002000, plannedDeposit: 200000, depositPaid: 100000, plannedInterim: 1000000 })).toMatchObject({ plannedFinal: 902000, remaining: 1902000, interimDue: 1000000, total: 2002000 });
@@ -28,4 +30,9 @@ test("interim queue is neither deposit nor balance; only pending and deduped", (
   expect(homeReviewStages({ paymentReceipts: [r, r] })).toEqual(["interim_waiting"]);
   for (const status of ["confirmed", "rejected", "canceled", "excluded"]) expect(homeReviewStages({ paymentReceipts: [{ ...r, status }] })).toEqual([]);
   expect(uniquePaymentReceipts([r, r])).toHaveLength(1);
+});
+test("archived/full payment checks include interim, but interim alone never sets completed", () => {
+  expect(isFullyPaid({ total: 2002000, depositPaid: 100000, interimPaid: 1000000, balancePaid: 902000, paymentStatus: "completed" })).toBe(true);
+  expect(paymentStatusFromAmounts(2002000, 100000, 0, 2000000)).toBe("partial");
+  expect(paymentSummaryParts(2002000, 100000, 902000, 100000, 1000000).balance).toBe(0);
 });

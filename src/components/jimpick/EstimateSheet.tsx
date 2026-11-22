@@ -259,7 +259,7 @@ export const EstimateSheet = forwardRef<HTMLDivElement, EstimateSheetProps>(func
   const paid = Math.max(0, paidDeposit ?? 0);
   // 예약금은 총액의 10%(1만 원 미만 버림). 입금 확인된 금액이 있으면 그 금액을 보여 줍니다.
   const onsiteCard = reservationPaymentChoice === "onsite_card";
-  const payment = paymentSummaryParts(total, paid, paidBalance, plannedDeposit(total, draft.depositOverride));
+  const payment = paymentSummaryParts(total, paid, paidBalance, plannedDeposit(total, draft.depositOverride), paidInterim);
   const deposit = onsiteCard ? 0 : payment.deposit;
   const balance = payment.balance;
   const version = draft.sheetVersion ?? 1;

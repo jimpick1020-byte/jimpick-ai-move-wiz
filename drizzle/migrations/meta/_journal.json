@@ -414,6 +414,13 @@
       "when": 1795318259058,
       "tag": "0058_storage_interim_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1795320057704,
+      "tag": "0059_preserve_storage_payment_stage",
+      "breakpoints": true
     }
   ]
 }
