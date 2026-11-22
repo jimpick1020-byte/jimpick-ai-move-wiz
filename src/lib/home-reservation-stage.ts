@@ -2,7 +2,7 @@ import { reservationStageOf, RESERVATION_STAGE_LABEL } from "./reservation-statu
 import { paymentReview, type PaymentEvidence } from "./payment-review";
 
 export type HomeReservationStage = Exclude<ReturnType<typeof reservationStageOf>, "reservation_request"> | "balance_waiting" | "interim_waiting";
-export const HOME_STAGE_LABEL = { ...RESERVATION_STAGE_LABEL, card_waiting: "카드 예약 확인 대기", balance_waiting: "잔금 확인", interim_waiting: "중도금 확인" };
+export const HOME_STAGE_LABEL = { ...RESERVATION_STAGE_LABEL, card_waiting: "카드 예약 확인 대기", balance_waiting: "잔금 확인", interim_waiting: "입금 확인" };
 
 /** Review queues are independent of contract completion and can contain both kinds. */
 export function homeReviewStages(input: Parameters<typeof homeReservationStageOf>[0] & { contractCancelled?: boolean }): HomeReservationStage[] {

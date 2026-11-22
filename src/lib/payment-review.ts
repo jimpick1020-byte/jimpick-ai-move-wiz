@@ -80,7 +80,7 @@ export function paymentDiffNote(kind: "deposit" | "balance" | "interim", expecte
   if (expected <= 0 || actual <= 0 || expected === actual) return null;
   const won = (n: number) => n.toLocaleString("ko-KR");
   const diff = actual - expected;
-  return `예정 ${kind === "balance" ? "잔금" : kind === "interim" ? "중도금" : "예약금"} ${won(expected)}원 / 실제 입금 ${won(actual)}원 / 차액 ${diff > 0 ? "+" : "-"}${won(Math.abs(diff))}원`;
+  return `예정 ${kind === "balance" ? "잔금" : kind === "interim" ? "입금" : "예약금"} ${won(expected)}원 / 실제 입금 ${won(actual)}원 / 차액 ${diff > 0 ? "+" : "-"}${won(Math.abs(diff))}원`;
 }
 
 /**

@@ -123,7 +123,7 @@ export function DepositPanel({
                 <div key={r.id} className="rounded-xl bg-white p-2.5 text-[12.5px]">
                   <div className="flex items-center justify-between">
                     <span className="font-bold">
-                      {r.depositorName || "이름 없음"} · {won(r.amount)}{r.paymentKind === "balance" ? " · 잔금" : r.paymentKind === "interim" ? " · 중도금" : " · 예약금"}
+                      {r.depositorName || "이름 없음"} · {won(r.amount)}{r.paymentKind === "balance" ? " · 잔금" : r.paymentKind === "interim" ? " · 입금" : " · 예약금"}
                     </span>
                     <span
                       className={
@@ -153,12 +153,12 @@ export function DepositPanel({
                       고객 문자 실패: {r.notifyError}
                     </div>
                   )}
-                  {r.status === "confirmed" && r.paymentKind !== "interim" && <PaymentSmsButton estimateId={estimateId} receiptId={r.id} />}
+                  {r.status === "confirmed" && <PaymentSmsButton estimateId={estimateId} receiptId={r.id} />}
                   {pendingReceipt(r) && (
                     <div className="mt-2 flex gap-2">
-                      {r.paymentKind !== "interim" && <Button onClick={() => void doConfirm(r.id)} disabled={working !== null} variant="outline" className="flex-1">
-                        {working === r.id ? "처리 중…" : r.paymentKind === "balance" ? "잔금 입금 확인" : "예약금 입금 확인"}
-                      </Button>}
+                      <Button onClick={() => void doConfirm(r.id)} disabled={working !== null} variant="outline" className="flex-1">
+                        {working === r.id ? "처리 중…" : r.paymentKind === "balance" ? "잔금 입금 확인" : "입금 확인"}
+                      </Button>
                       <button
                         onClick={() => void doReject(r.id)}
                         disabled={working === r.id}

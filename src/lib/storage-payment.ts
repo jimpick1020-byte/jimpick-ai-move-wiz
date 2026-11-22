@@ -21,5 +21,5 @@ export function storagePaymentPlan(input: {
 
 export function storagePaymentPlanError(total: number, deposit: number, interim: number): string | null {
   if (![total, deposit, interim].every(n => Number.isSafeInteger(n) && n >= 0)) return "납부 금액은 0원 이상의 정수로 입력해 주세요.";
-  return interim > 0 && deposit + interim > total ? "예정 예약금과 중도금의 합계는 총 견적금액을 초과할 수 없습니다." : null;
+  return interim > 0 && deposit + interim > total ? "예정 예약금과 추가 수납의 합계는 총 견적금액을 초과할 수 없습니다." : null;
 }

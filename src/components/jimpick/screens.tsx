@@ -24,7 +24,7 @@ import { createManualItem } from "@/lib/manual-item.functions";
 import { RoomMenu, RoomNameDialog, RoomDeleteDialog, useRoomDrag } from "./RoomManage";
 import { addRoom, deleteRoom, materializeRooms, moveRoom, renameRoom, roomNameError } from "@/lib/room-manage";
 import { CARD_DOUBLE_TAP_MS, isSameCardDoubleTap, pickedIdsInInputOrder, withRoomQuantity, withRoomQuantityStep, withRoomDisposal } from "@/lib/room-item-state";
-import { storagePaymentPlan, storagePaymentPlanError } from "@/lib/storage-payment";
+import { storagePaymentPlanError } from "@/lib/storage-payment";
 import { plannedDeposit } from "@/lib/deposit-rule";
 import { groupByMoveMonth, defaultOpenMonths, parseMoveDate, parseMoveTime, shortMoveDate, seoulMonthKey } from "@/lib/estimate-sort";
 import { publicUrl } from "@/lib/app-url";
@@ -826,7 +826,7 @@ export function HomeScreen() {
         estimateId: estimate.id,
         name: estimate.customerName || "이름 없음",
         amount: reviewStages.includes(queue) ? paymentReview(pendingAmount ?? [], "unpaid", 0, 0, 0)?.amount ?? 0 : showDeposit ? depositPaid : estimate.total || 0,
-        amountLabel: reviewStages.includes(queue) ? queue === "balance_waiting" ? "잔금 입금" : queue === "interim_waiting" ? "중도금 입금" : "예약금 입금" : showDeposit ? "예약금" : "견적금액",
+        amountLabel: reviewStages.includes(queue) ? queue === "balance_waiting" ? "잔금 입금" : queue === "interim_waiting" ? "입금" : "예약금 입금" : showDeposit ? "예약금" : "견적금액",
         moveDate: estimate.moveDate,
         moveTime: estimate.moveTime,
         createdAt: estimate.createdAt,
@@ -5136,10 +5136,6 @@ export function OptionsScreen() {
         {storageOn && (
           <Card className="space-y-3">
             <div className="font-bold">보관 정보</div>
-            <Field label="중도금 (출발지 작업 완료 후)">
-              <MoneyInput value={draft.plannedInterim ?? 0} onChange={n => updateDraft({ plannedInterim: Math.max(0, Math.floor(n)) })} step={10000} />
-              {(draft.plannedInterim ?? 0) <= 0 && <p className="text-sm text-muted-foreground">중도금: 금액 미정</p>}
-            </Field>
             <Field label="보관 시작일">
               <TextInput
                 type="date"
@@ -5389,7 +5385,7 @@ export function Result() {
       setSendResult({ ok: false, error: smsBlockMessage });
       return;
     }
-    const planError = storagePaymentPlanError(total, plannedDeposit(total, draft.depositOverride), usesStorage(draft) ? draft.plannedInterim ?? 0 : 0);
+    const planError = storagePaymentPlanError(total, plannedDeposit(total, draft.depositOverride), 0);
     if (planError) { setSendResult({ ok: false, error: planError }); return; }
     // 필수 데이터 검사 — 하나라도 비어 있으면 발송하지 않습니다
     const check = checkSendable(draft, total);
@@ -5525,7 +5521,7 @@ export function Result() {
    */
   /** 품목·차량이 하나도 없고 금액이 0원이면 견적 완료를 막습니다 */
   const emptyEstimateBlocked = () => {
-    const planError = storagePaymentPlanError(total, plannedDeposit(total, draft.depositOverride), usesStorage(draft) ? draft.plannedInterim ?? 0 : 0);
+    const planError = storagePaymentPlanError(total, plannedDeposit(total, draft.depositOverride), 0);
     if (planError) { toast.error(planError); return true; }
     const itemQty = (draft.rooms ?? []).reduce(
       (n, r) => n + Object.values(r.items ?? {}).reduce((m, q) => m + (Number(q) || 0), 0),
@@ -6406,12 +6402,10 @@ export function Result() {
                   />
                 </Field>
                 <Field label="예정 예약금"><div className="py-2 font-bold tabular-nums">{won(plannedDeposit(total))}</div></Field>
-                {usesStorage(draft) && <Field label="중도금 (출발지 작업 완료 후)"><MoneyInput value={draft.plannedInterim ?? 0} step={10000} onChange={n => updateDraft({ plannedInterim: Math.max(0, Math.floor(n)) })} />{(draft.plannedInterim ?? 0) <= 0 && <p className="text-sm text-muted-foreground">중도금: 금액 미정</p>}</Field>}
-                {usesStorage(draft) && storagePaymentPlanError(total, plannedDeposit(total, draft.depositOverride), draft.plannedInterim ?? 0) && <p role="alert" className="text-sm text-destructive">{storagePaymentPlanError(total, plannedDeposit(total, draft.depositOverride), draft.plannedInterim ?? 0)}</p>}
                 <div className="flex items-center justify-between rounded-2xl bg-muted px-4 py-3">
-                  <span className="text-sm font-bold text-muted-foreground">{usesStorage(draft) ? "예정 최종 잔금" : "잔금 (총액 − 예약금)"}</span>
+                  <span className="text-sm font-bold text-muted-foreground">잔금 (총액 − 예약금)</span>
                   <span className="text-[17px] font-black text-[#25282D]">
-                    {won(storagePaymentPlan({ total, plannedDeposit: plannedDeposit(total, draft.depositOverride), plannedInterim: usesStorage(draft) ? draft.plannedInterim ?? 0 : 0, depositPaid: termsStatus?.depositPaid ?? 0 }).plannedFinal)}
+                    {won(Math.max(0, total - plannedDeposit(total, draft.depositOverride)))}
                   </span>
                 </div>
                 <Field label="담당자 이름">
@@ -7184,7 +7178,7 @@ export function History() {
                   {g.title} · {g.items.length}건
                   {depositCount > 0 && <span className="text-payment-review">입금 확인 {depositCount}건</span>}
                   {balanceCount > 0 && <span className="text-payment-review-balance">잔금 확인 {balanceCount}건</span>}
-                  {interimCount > 0 && <span className="text-payment-review-balance">중도금 확인 {interimCount}건</span>}
+                  {interimCount > 0 && <span className="text-payment-review-balance">입금 확인 {interimCount}건</span>}
                 </span>
                 <span className="ml-2 shrink-0 text-[13px] font-semibold text-[#6B7280]">{gOpen ? "접기 ▲" : "펼치기 ▾"}</span>
               </button>
@@ -7231,7 +7225,7 @@ export function History() {
                           {review && (
                             <div className="mt-1 text-sm font-bold text-foreground" data-payment-review-text>
                               계좌이체 확인 필요 · {review.amount.toLocaleString("ko-KR")}원
-                              {review.receipts.map((r, i) => <div key={r.id ?? i} className="break-words text-sm font-semibold">{r.paymentKind === "balance" ? "잔금" : r.paymentKind === "deposit" ? "예약금" : r.paymentKind === "interim" ? "중도금" : "계좌 입금"} 입금 · 입금자 {r.depositorName || "이름 미확인"} · {r.amount.toLocaleString("ko-KR")}원 · 확인 필요</div>)}
+                              {review.receipts.map((r, i) => <div key={r.id ?? i} className="break-words text-sm font-semibold">{r.paymentKind === "balance" ? "잔금" : r.paymentKind === "deposit" ? "예약금" : r.paymentKind === "interim" ? "입금" : "계좌 입금"} 입금 · 입금자 {r.depositorName || "이름 미확인"} · {r.amount.toLocaleString("ko-KR")}원 · 확인 필요</div>)}
                               {(() => {
                                 if (!ts.row) return null;
                                 const expected = review.kind === "deposit"
@@ -7258,7 +7252,7 @@ export function History() {
                           });
                           return (
                             <span className={`shrink-0 text-xs px-2 py-1 rounded-full font-semibold ${review ? review.kind !== "deposit" ? "bg-payment-review-balance-soft text-payment-review-balance" : "bg-payment-review-soft text-payment-review" : RESERVATION_STAGE_CLASS[stage]}`}>
-                              {review ? review.kind === "balance" ? "잔금 확인" : review.kind === "interim" ? "중도금 확인" : "입금 확인" : RESERVATION_STAGE_LABEL[stage]}
+                              {review ? review.kind === "balance" ? "잔금 확인" : "입금 확인" : RESERVATION_STAGE_LABEL[stage]}
                             </span>
                           );
                         })()}
@@ -7415,7 +7409,6 @@ export function History() {
                             estimateId={e.id}
                             total={ts.row.total}
                             quotedDeposit={plannedDeposit(ts.row.total)}
-                            storage={usesStorage(e)}
                             row={ts.row}
                             onSaved={loadTerms}
                           />
