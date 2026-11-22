@@ -16,6 +16,7 @@ import { z } from "zod";
 import { saveTermsWithStableToken } from "./terms-publish";
 import { loadEstimatePayments } from "./estimate-payment";
 import { latestTermsByEstimate } from "./home-reservation-stage";
+import { calcDeposit } from "./deposit-rule";
 
 export interface TermsLinkInfo {
   reservationPaymentChoice?: string | null;
@@ -274,13 +275,15 @@ export const getTermsLink = createServerFn({ method: "POST" })
     let snapshot = (row as { sheet_snapshot?: string | null }).sheet_snapshot ?? null;
     const latestName = String(row.customer_name ?? "").trim();
     const latestDate = String(row.move_date ?? "").slice(0, 10);
-    if (snapshot && (latestName || latestDate)) {
+    if (snapshot) {
       try {
         const snap = JSON.parse(snapshot) as { draft?: Record<string, unknown> };
         if (snap?.draft && typeof snap.draft === "object") {
           if (latestName) snap.draft["customerName"] = latestName;
           // 이사일이 바뀌면 견적서 원본(스냅샷)도 새 날짜로 맞춰 보여 줍니다.
           if (latestDate) snap.draft["moveDate"] = latestDate;
+          snap.draft["deposit"] = calcDeposit(money.total);
+          snap.draft["plannedInterim"] = plannedInterim;
           snapshot = JSON.stringify(snap);
         }
       } catch {

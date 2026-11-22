@@ -421,6 +421,13 @@
       "when": 1795320057704,
       "tag": "0059_preserve_storage_payment_stage",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1795325543912,
+      "tag": "0060_rounded_deposit_plan",
+      "breakpoints": true
     }
   ]
 }

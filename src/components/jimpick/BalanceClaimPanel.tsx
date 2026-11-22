@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { protectAppUpdate } from "@/lib/update-safety";
+import { Button } from "@/components/ui/button";
 
 export type BalanceClaimState = "form" | "pending" | "hidden";
 
@@ -12,12 +13,14 @@ export function BalanceClaimPanel({
   amount,
   resetKey,
   onSubmit,
+  storage = false,
 }: {
   state: BalanceClaimState;
   amount: number;
   /** 링크·금액·단계가 바뀌면 다시 확인하도록 체크를 풉니다 */
   resetKey: string;
   onSubmit: (amount: number) => Promise<{ ok: boolean; error?: string }>;
+  storage?: boolean;
 }) {
   const id = useId();
   const lock = useRef(false);
@@ -76,14 +79,14 @@ export function BalanceClaimPanel({
         />
         실제로 잔금을 입금했습니다
       </label>
-      <button
+      <Button variant="customerBalance"
         type="button"
         onClick={() => void submit()}
         disabled={!checked || claiming}
-        className="mt-2 w-full rounded-[14px] bg-[#2F80ED] py-3.5 text-[17px] font-black text-white disabled:bg-[#93C5FD]"
+        className="mt-2 h-auto w-full rounded-[14px] py-3.5 text-[17px] font-black"
       >
-        {claiming ? "알리는 중…" : "잔금 입금했습니다"}
-      </button>
+        {claiming ? "알리는 중…" : storage ? "잔금 입금확인했습니다" : "잔금 입금했습니다"}
+      </Button>
       <div className="mt-1.5 text-center text-[14px] font-semibold text-[#3B5B8F]">업체 확인 후 결제가 완료됩니다.</div>
       {error && <div className="mt-2 rounded-[12px] bg-[#FBEAEA] p-2.5 text-[15px] font-bold text-[#D95C5C]">{error}</div>}
     </div>

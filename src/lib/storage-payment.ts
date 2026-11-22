@@ -9,7 +9,7 @@ export function storagePaymentPlan(input: {
   const interim = money(input.interimPaid);
   const balance = money(input.balancePaid);
   const plannedInterim = money(input.plannedInterim);
-  const depositBasis = deposit > 0 ? deposit : money(input.plannedDeposit);
+  const depositBasis = money(input.plannedDeposit);
   const paid = deposit + interim + balance;
   return {
     total, deposit, interim, balance, paid, plannedInterim,

@@ -17,11 +17,11 @@ describe('saved sheet history amounts', () => {
       expect(original.total).toBe(before);
     });
   }
-  it('final completion preserves the manually set deposit and ignores an older restore', () => {
+  it('final completion recalculates the plan, retains legacy audit values and ignores an older restore', () => {
     const before = editedSheet(newEstimate(), { transportOverride: 1400000, depositOverride: 100000 });
     const saved = finalSavedEstimate({ ...before, transportOverride: 1300000 }, 12);
     expect(saved.depositOverride).toBe(100000);
-    expect(saved.deposit).toBe(100000);
+    expect(saved.deposit).toBe(130000);
     expect(mergeSavedSheet(saved, { ...before, sheetSavedRevision: 11 })).toBe(saved);
   });
   for (const account of ['admin', 'company']) {

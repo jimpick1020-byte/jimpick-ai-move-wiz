@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { pendingReceipt } from "./payment-review";
+import { calcDeposit } from "./deposit-rule";
 
 /**
  * 서버에 저장된 「보낸 견적」 전체 — 견적 내역·견적 현황이 휴대폰 저장 목록만 보고
@@ -42,7 +43,8 @@ export const listActiveEstimates = createServerFn({ method: "POST" })
         const p = r.payload as { id?: string } | null;
         if (p && typeof p === "object" && p.id === r.estimate_id) {
           const latest = (terms ?? []).filter(t => t.estimate_id === r.estimate_id).sort((a,b) => b.sheet_version - a.sheet_version)[0];
-          payloads.push(JSON.stringify(latest ? { ...p, total: latest.total } : p));
+          const restored = latest ? { ...p, total: latest.total } : p;
+          payloads.push(JSON.stringify({ ...restored, deposit: calcDeposit(Number((restored as { total?: number }).total ?? 0)) }));
         }
       }
     }

@@ -11,6 +11,8 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
         staff: "bg-auth-primary text-auth-primary-foreground hover:bg-auth-primary-pressed",
+        customerDeposit: "bg-customer-deposit-action text-auth-primary-foreground",
+        customerBalance: "bg-customer-balance-action text-auth-primary-foreground disabled:bg-customer-balance-disabled disabled:opacity-100",
         kakao: "bg-kakao text-kakao-foreground hover:bg-kakao/90",
         destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:

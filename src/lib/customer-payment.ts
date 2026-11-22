@@ -1,7 +1,7 @@
 import { calcDeposit, plannedDeposit } from "./deposit-rule";
 import { remainingPayment } from "./payment-method";
 
-/** 보낸 견적서 원본에 사장님이 직접 정한 예약금이 있으면 그 금액, 없으면 10% 규칙입니다. */
+/** Existing snapshots use the current automatic plan; confirmed receipts stay separate. */
 export function sheetPlannedDeposit(total: number, snapshot: string | null | undefined): number {
   try {
     const v = snapshot ? (JSON.parse(snapshot) as { draft?: { depositOverride?: unknown } }) : null;

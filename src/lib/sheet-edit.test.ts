@@ -3,20 +3,20 @@ import { newEstimate, calcEstimate } from './jimpick';
 import { editedSheet, sheetRoomsOf, toggleSheetDisposal, isDoubleTap } from './sheet-edit';
 
 describe('owner sheet edits', () => {
-  it('persists a manually edited deposit and recalculates balance without changing the total', () => {
+  it('recalculates old planned deposits without changing the total', () => {
     const before = { ...newEstimate(), totalOverride: 1480000 };
     const edited = editedSheet(before, { depositOverride: 200000 });
     const reopened = editedSheet(JSON.parse(JSON.stringify(edited)), { customerName: '수정 고객' });
     expect(reopened.total).toBe(1480000);
-    expect(reopened.deposit).toBe(200000);
-    expect(reopened.total - (reopened.deposit ?? 0)).toBe(1280000);
+    expect(reopened.deposit).toBe(148000);
+    expect(reopened.total - (reopened.deposit ?? 0)).toBe(1332000);
   });
-  it('falls back to automatic 10% for empty or zero deposit and caps above-total deposits', () => {
+  it('uses the current rounded plan regardless of legacy override', () => {
     const before = { ...newEstimate(), totalOverride: 1480000 };
-    expect(editedSheet(before, { depositOverride: 0 }).deposit).toBe(150000);
-    expect(editedSheet(before, { depositOverride: -10000 }).deposit).toBe(150000);
-    expect(editedSheet(before, { depositOverride: 2000000 }).deposit).toBe(1480000);
-    expect(editedSheet(before, {}).deposit).toBe(150000);
+    expect(editedSheet(before, { depositOverride: 0 }).deposit).toBe(148000);
+    expect(editedSheet(before, { depositOverride: -10000 }).deposit).toBe(148000);
+    expect(editedSheet(before, { depositOverride: 2000000 }).deposit).toBe(148000);
+    expect(editedSheet(before, {}).deposit).toBe(148000);
   });
   it('edits only the selected estimate and keeps image IDs and other quantities', () => {
     const before = { ...newEstimate(), rooms: [{ id: 'living', name: '거실', items: { sofa: 2, tv: 1 } }] };

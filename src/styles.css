@@ -19,6 +19,9 @@
  */
 
 @theme inline {
+  --color-customer-deposit-action: var(--customer-deposit-action);
+  --color-customer-balance-action: var(--customer-balance-action);
+  --color-customer-balance-disabled: var(--customer-balance-disabled);
   --color-payment-review: var(--payment-review);
   --color-payment-review-balance: var(--payment-review-balance);
   --color-payment-review-soft: var(--payment-review-soft);
@@ -83,6 +86,9 @@
 }
 
 :root {
+  --customer-deposit-action: #B45309;
+  --customer-balance-action: #2F80ED;
+  --customer-balance-disabled: #93C5FD;
   --customer-sheet-frame: #2685FF;
   --customer-sheet-frame-shadow: 0 0 14px 2px color-mix(in srgb, var(--customer-sheet-frame) 12%, transparent);
   --customer-sheet-frame-light: color-mix(in srgb, var(--customer-sheet-frame) 55%, var(--card));

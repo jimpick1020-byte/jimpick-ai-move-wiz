@@ -36,6 +36,7 @@ import {
   ITEM_CATALOG,
   itemNameById,
   calcEstimate,
+  usesStorage,
   loadEstimateFromStorage,
   won,
   roundUpOptionPrice,
@@ -418,6 +419,7 @@ function SharePageContent() {
   const hasData = Boolean(validLink && customerName && moveDate && total > 0);
   /** 실제로 입금 확인된 예약금 — 사장님이 확인한 금액만 들어옵니다 */
   const paidDeposit = Math.max(0, (validLink ? (link.depositPaid ?? 0) : 0) || 0);
+  const storageMove = Boolean(sentSheet?.draft && usesStorage(sentSheet.draft));
 
   const depositClaimSlot = (() => {
     if (!hasData || (link?.reservationPaymentChoice ?? paymentChoice) === "onsite_card") return null;
@@ -439,7 +441,7 @@ function SharePageContent() {
       return (
         <div className="rounded-[14px] border border-[#BFE7CE] bg-[#F1FBF4] px-4 py-3.5">
           <div className="text-center text-[16px] font-black text-[#3E9B78]">
-            {paidDeposit > 0 ? "결제가 완료되었습니다" : "예약금 입금이 확인되었습니다"}
+            {storageMove && link?.paymentStatus !== "completed" ? "입금 확인 완료 · 업체 최종 결제 확인 대기" : paidDeposit > 0 ? "결제가 완료되었습니다" : "예약금 입금이 확인되었습니다"}
           </div>
         </div>
       );
@@ -449,8 +451,9 @@ function SharePageContent() {
       const balanceState = link?.ok && link.balanceClaimPending === true && !ownerView && !staffMode ? "pending" : canClaim ? "form" : "hidden";
       return <div className="space-y-2">
         {confirmedDeposit}
+        {storageMove && <><p className="text-sm font-bold">{(link?.interimPaid ?? 0) > 0 ? `중도금 입금 확인 완료 · ${won(link?.interimPaid ?? 0)}` : "중도금: 금액 미정"}</p><p className="text-sm text-muted-foreground">중도금 · 출발지 작업 완료 후 / 잔금 · 도착지 작업 완료 후</p></>}
         <div className="flex items-center justify-between py-2 text-base font-bold text-foreground"><span>잔금</span><span>{won(due.amount)}</span></div>
-        {paidDeposit > 0 && <BalanceClaimPanel state={balanceState} amount={due.amount} resetKey={`${token}|${balanceKey}|${due.amount}`} onSubmit={sendBalanceClaim} />}
+        {paidDeposit > 0 && <BalanceClaimPanel state={balanceState} amount={due.amount} storage={storageMove} resetKey={`${token}|${balanceKey}|${due.amount}`} onSubmit={sendBalanceClaim} />}
       </div>;
     }
     const pending = link?.ok ? link.depositClaimPending === true : claimSent;
@@ -471,14 +474,14 @@ function SharePageContent() {
       <div className="space-y-2">
         {confirmedDeposit}
         <div className="rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
-          <button
+          <Button variant="customerDeposit"
             type="button"
             onClick={() => void sendDepositClaim(due.amount, due.kind)}
             disabled={claiming}
-            className="w-full rounded-[14px] bg-[#B45309] py-3.5 text-[17px] font-black text-white disabled:opacity-50"
+            className="h-auto w-full rounded-[14px] py-3.5 text-[17px] font-black"
           >
-            {claiming ? "알리는 중…" : "입금했습니다"}
-          </button>
+            {claiming ? "알리는 중…" : storageMove ? "예약금 입금했습니다" : "입금했습니다"}
+          </Button>
           <div className="mt-1.5 text-center text-[14px] font-semibold text-[#8A6D1B]">
             업체가 예약금 입금을 확인한 후 예약이 확정됩니다.
           </div>

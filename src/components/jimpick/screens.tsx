@@ -5138,6 +5138,7 @@ export function OptionsScreen() {
             <div className="font-bold">보관 정보</div>
             <Field label="중도금 (출발지 작업 완료 후)">
               <MoneyInput value={draft.plannedInterim ?? 0} onChange={n => updateDraft({ plannedInterim: Math.max(0, Math.floor(n)) })} step={10000} />
+              {(draft.plannedInterim ?? 0) <= 0 && <p className="text-sm text-muted-foreground">중도금: 금액 미정</p>}
             </Field>
             <Field label="보관 시작일">
               <TextInput
@@ -6404,17 +6405,11 @@ export function Result() {
                     onChange={(n) => updateDraft({ discount: n })}
                   />
                 </Field>
-                <Field label="예약금">
-                  <MoneyInput
-                    value={plannedDeposit(total, draft.depositOverride)}
-                    step={10000}
-                    onChange={(n) => updateDraft({ depositOverride: n > 0 ? Math.floor(n) : undefined })}
-                  />
-                </Field>
-                {usesStorage(draft) && <Field label="중도금 (출발지 작업 완료 후)"><MoneyInput value={draft.plannedInterim ?? 0} step={10000} onChange={n => updateDraft({ plannedInterim: Math.max(0, Math.floor(n)) })} /></Field>}
+                <Field label="예정 예약금"><div className="py-2 font-bold tabular-nums">{won(plannedDeposit(total))}</div></Field>
+                {usesStorage(draft) && <Field label="중도금 (출발지 작업 완료 후)"><MoneyInput value={draft.plannedInterim ?? 0} step={10000} onChange={n => updateDraft({ plannedInterim: Math.max(0, Math.floor(n)) })} />{(draft.plannedInterim ?? 0) <= 0 && <p className="text-sm text-muted-foreground">중도금: 금액 미정</p>}</Field>}
                 {usesStorage(draft) && storagePaymentPlanError(total, plannedDeposit(total, draft.depositOverride), draft.plannedInterim ?? 0) && <p role="alert" className="text-sm text-destructive">{storagePaymentPlanError(total, plannedDeposit(total, draft.depositOverride), draft.plannedInterim ?? 0)}</p>}
                 <div className="flex items-center justify-between rounded-2xl bg-muted px-4 py-3">
-                  <span className="text-sm font-bold text-muted-foreground">{usesStorage(draft) && (draft.plannedInterim ?? 0) > 0 ? "예정 최종 잔금" : "잔금 (총액 − 예약금)"}</span>
+                  <span className="text-sm font-bold text-muted-foreground">{usesStorage(draft) ? "예정 최종 잔금" : "잔금 (총액 − 예약금)"}</span>
                   <span className="text-[17px] font-black text-[#25282D]">
                     {won(storagePaymentPlan({ total, plannedDeposit: plannedDeposit(total, draft.depositOverride), plannedInterim: usesStorage(draft) ? draft.plannedInterim ?? 0 : 0, depositPaid: termsStatus?.depositPaid ?? 0 }).plannedFinal)}
                   </span>
@@ -7419,7 +7414,8 @@ export function History() {
                           <PaymentPanel
                             estimateId={e.id}
                             total={ts.row.total}
-                            quotedDeposit={e.depositOverride ?? e.deposit}
+                            quotedDeposit={plannedDeposit(ts.row.total)}
+                            storage={usesStorage(e)}
                             row={ts.row}
                             onSaved={loadTerms}
                           />

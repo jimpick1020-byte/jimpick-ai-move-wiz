@@ -15,6 +15,7 @@ import { z } from "zod";
 import { formatDraftPhones } from "./format-input";
 import { finalSavedEstimate } from "./saved-sheet";
 import type { Estimate } from "./jimpick";
+import { calcDeposit } from "./deposit-rule";
 
 export interface DraftSyncResult {
   ok: boolean;
@@ -48,6 +49,10 @@ export const saveEstimateDraft = createServerFn({ method: "POST" })
     }
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       parsed = formatDraftPhones(parsed as { phone?: string; staffPhone?: string });
+      if (Array.isArray((parsed as Estimate).rooms)) {
+        const draft = parsed as Estimate;
+        parsed = { ...draft, deposit: calcDeposit(draft.total) };
+      }
     }
 
     if (data.finalSave) {
@@ -137,7 +142,7 @@ export const loadEstimateDraft = createServerFn({ method: "POST" })
       ok: true,
       found: true,
       estimateId: String(row.estimate_id),
-      payload: JSON.stringify(row.payload ?? {}),
+      payload: JSON.stringify(row.payload && typeof row.payload === "object" && !Array.isArray(row.payload) ? { ...row.payload, deposit: calcDeposit(Number(row.payload["total"] ?? 0)) } : row.payload ?? {}),
       revision: Number(row.revision ?? 0),
       updatedAt: row.updated_at,
     };

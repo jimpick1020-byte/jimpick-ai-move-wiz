@@ -14,7 +14,7 @@ import { type TermsStatusRow } from "@/lib/terms.functions";
 type ReceiptRow = NonNullable<TermsStatusRow["paymentReceipts"]>[number];
 
 const won = (n: number) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
-export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }: { estimateId: string; total: number; quotedDeposit?: number; row: TermsStatusRow; onSaved?: () => void }) {
+export function PaymentPanel({ estimateId, total, quotedDeposit, storage = false, row, onSaved }: { estimateId: string; total: number; quotedDeposit?: number; storage?: boolean; row: TermsStatusRow; onSaved?: () => void }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<PaymentStatus>(normalizePaymentStatus(row.paymentStatus));
   const [note, setNote] = useState(row.paymentNote ?? "");
@@ -86,7 +86,7 @@ export function PaymentPanel({ estimateId, total, quotedDeposit, row, onSaved }:
   };
   return <section className="mt-2 rounded-lg bg-muted p-3 text-foreground" aria-label="결제 상태">
     <Button variant="ghost" className="w-full justify-between px-0 text-xs" onClick={() => setOpen(!open)}><span>결제 상태 · {label}</span><span>{open ? "닫기" : "열기"}</span></Button>
-    {Number(row.plannedInterim) > 0 || Number(row.interimPaid) > 0 ? <><div className="mb-2 flex justify-between gap-3 text-sm"><span>총 견적금액</span><strong>{won(total)}</strong></div><StoragePaymentSummary total={total} plannedDeposit={quotedDeposit ?? 0} plannedInterim={row.plannedInterim ?? 0} depositPaid={row.depositPaid} interimPaid={row.interimPaid ?? 0} balancePaid={row.balancePaid} /></> : <div className="mt-1 text-xs text-muted-foreground">{quotedDeposit !== undefined ? "견적 총" : "총"} {won(summary.total)} · {summary.planned ? "예정 예약금" : "예약금"} {won(summary.deposit)} · {summary.planned ? "예정 잔금" : "남은 잔금"} <b>{won(summary.balance)}</b></div>}
+    {storage || Number(row.plannedInterim) > 0 || Number(row.interimPaid) > 0 ? <><div className="mb-2 flex justify-between gap-3 text-sm"><span>총 견적금액</span><strong>{won(total)}</strong></div><StoragePaymentSummary total={total} plannedDeposit={quotedDeposit ?? 0} plannedInterim={row.plannedInterim ?? 0} depositPaid={row.depositPaid} interimPaid={row.interimPaid ?? 0} balancePaid={row.balancePaid} /></> : <div className="mt-1 text-xs text-muted-foreground">{quotedDeposit !== undefined ? "견적 총" : "총"} {won(summary.total)} · {summary.planned ? "예정 예약금" : "예약금"} {won(summary.deposit)} · {summary.planned ? "예정 잔금" : "남은 잔금"} <b>{won(summary.balance)}</b></div>}
     {!row.plannedInterim && row.depositPaid + row.balancePaid > total && <div className="mt-1 text-xs font-bold text-payment-review">초과입금 {won(row.depositPaid + row.balancePaid - total)}</div>}
     {open && <div className="mt-3 space-y-3">
       <InterimPaymentPanel estimateId={estimateId} row={row} {...(onSaved ? { onSaved } : {})} />

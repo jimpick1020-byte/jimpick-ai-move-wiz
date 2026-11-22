@@ -5,8 +5,11 @@ import { uniquePaymentReceipts } from "./payment-review";
 import { isFullyPaid, paymentStatusFromAmounts } from "./payment.functions";
 import { paymentSummaryParts } from "./payment-method";
 
-test("2,002,000 / confirmed 100,000 / planned 1,000,000: planned 902,000 != actual 1,902,000", () => {
-  expect(storagePaymentPlan({ total: 2002000, plannedDeposit: 200000, depositPaid: 100000, plannedInterim: 1000000 })).toMatchObject({ plannedFinal: 902000, remaining: 1902000, interimDue: 1000000, total: 2002000 });
+test("2,002,000 / rounded plan 200,000 / real 100,000: planned 802,000 != actual 1,902,000", () => {
+  expect(storagePaymentPlan({ total: 2002000, plannedDeposit: 200000, depositPaid: 100000, plannedInterim: 1000000 })).toMatchObject({ plannedFinal: 802000, remaining: 1902000, interimDue: 1000000, total: 2002000 });
+});
+test("약정과 확인된 중도금을 중복 차감하거나 실제 수납·잔금을 반올림하지 않는다", () => {
+  expect(storagePaymentPlan({ total: 2002001, plannedDeposit: 200000, plannedInterim: 1000000, depositPaid: 123456, interimPaid: 333333, balancePaid: 1 })).toMatchObject({ plannedFinal: 802001, remaining: 1545211, paid: 456790, interimDue: 666667 });
 });
 test("confirmed interim 1,000,000 leaves 902,000", () => {
   expect(storagePaymentPlan({ total: 2002000, plannedDeposit: 100000, depositPaid: 100000, plannedInterim: 1000000, interimPaid: 1000000 })).toMatchObject({ remaining: 902000, interimDue: 0 });
