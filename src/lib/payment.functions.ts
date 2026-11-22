@@ -87,6 +87,8 @@ export function isFullyPaid(row: {
 }): boolean {
   const status = normalizePaymentStatus(row.paymentStatus);
   if (status === "canceled" || status === "refunded") return false;
+  // Even an overpaid interim receipt is not the owner's final-work/payment confirmation.
+  if (Number(row.interimPaid ?? 0) > 0 && Number(row.balancePaid ?? 0) <= 0 && status !== "completed") return false;
   const total = Math.max(0, Number(row.total ?? 0));
   const paid = Math.max(0, Number(row.depositPaid ?? 0)) + Math.max(0, Number(row.balancePaid ?? 0)) + Math.max(0, Number(row.interimPaid ?? 0));
   if (total <= 0) return false;

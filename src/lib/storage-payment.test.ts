@@ -34,5 +34,7 @@ test("interim queue is neither deposit nor balance; only pending and deduped", (
 test("archived/full payment checks include interim, but interim alone never sets completed", () => {
   expect(isFullyPaid({ total: 2002000, depositPaid: 100000, interimPaid: 1000000, balancePaid: 902000, paymentStatus: "completed" })).toBe(true);
   expect(paymentStatusFromAmounts(2002000, 100000, 0, 2000000)).toBe("partial");
+  expect(isFullyPaid({ total: 2002000, depositPaid: 100000, interimPaid: 2000000, balancePaid: 0, paymentStatus: "partial" })).toBe(false);
+  expect(isFullyPaid({ total: 2002000, depositPaid: 100000, interimPaid: 2000000, balancePaid: 0, paymentStatus: "completed" })).toBe(true);
   expect(paymentSummaryParts(2002000, 100000, 902000, 100000, 1000000).balance).toBe(0);
 });

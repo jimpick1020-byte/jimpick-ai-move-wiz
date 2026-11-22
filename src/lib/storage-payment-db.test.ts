@@ -113,7 +113,7 @@ test("new quotation version retains origin stage and real interim receipts", () 
   await start(); await manual(300000);
   await db.query("INSERT INTO estimate_terms(user_id,estimate_id,sheet_version,total,access_token,sheet_snapshot) SELECT user_id,estimate_id,3,total,'third-token',sheet_snapshot FROM estimate_terms WHERE sheet_version=2");
   const row = (await db.query<{ storage_origin_completed_at: Date | null }>("SELECT storage_origin_completed_at FROM estimate_terms WHERE sheet_version=3")).rows[0];
-  expect(row?.storage_origin_completed_at).not.toBeNull();
+  expect(row?.storage_origin_completed_at).toBeInstanceOf(Date);
   expect(await money()).toMatchObject({ total: 2002000, interim_paid: 300000, payment_status: "partial" });
   expect((await claim(700000, 700000)).ok).toBe(true);
 }));
