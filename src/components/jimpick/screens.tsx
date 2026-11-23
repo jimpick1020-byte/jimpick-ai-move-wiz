@@ -7229,7 +7229,7 @@ export function History() {
                               {(() => {
                                 if (!ts.row) return null;
                                 const expected = review.kind === "deposit"
-                                  ? e.depositOverride ?? e.deposit
+                                  ? plannedDeposit(e.total)
                                   : review.kind === "interim" ? Math.max(0, (ts.row.plannedInterim ?? 0) - (ts.row.interimPaid ?? 0)) : remainingPayment(ts.row.total, ts.row.depositPaid, ts.row.balancePaid, ts.row.interimPaid);
                                 if (expected === undefined) return null;
                                 const actual = review.receipts.filter(r => r.paymentKind === review.kind).reduce((sum, r) => sum + r.amount, 0);
