@@ -15,9 +15,9 @@ test("pending 180000 balance claim shows blue balance review", () => {
   const review = paymentReview([{ amount:180000, status:"pending_review", source:"customer_claim", paymentMethod:"bank_transfer", paymentKind:"balance", depositorName:"김호영" }], "deposit_paid",20000,0,200000);
   assert.equal(review?.kind,"balance"); assert.equal(review?.amount,180000);
 });
-test("450000 total plans a 45000 deposit", () => assert.deepEqual(customerPaymentDue(450000,0,0,"unpaid"), { kind:"deposit", amount:45000 }));
-test("440000 total plans a 44000 deposit", () => assert.deepEqual(customerPaymentDue(440000,0,0,"unpaid"), { kind:"deposit", amount:44000 }));
+test("450000 total plans a 50000 deposit", () => assert.deepEqual(customerPaymentDue(450000,0,0,"unpaid"), { kind:"deposit", amount:50000 }));
+test("440000 total plans a 40000 deposit", () => assert.deepEqual(customerPaymentDue(440000,0,0,"unpaid"), { kind:"deposit", amount:40000 }));
 test("legacy snapshot override cannot replace the current automatic plan", () => {
   const snap = JSON.stringify({ draft: { depositOverride: 50000 } });
-  assert.equal(customerPaymentDue(450000,0,0,"unpaid", sheetPlannedDeposit(450000, snap)).amount, 45000);
+  assert.equal(customerPaymentDue(450000,0,0,"unpaid", sheetPlannedDeposit(450000, snap)).amount, 50000);
 });

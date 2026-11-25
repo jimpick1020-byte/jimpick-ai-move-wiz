@@ -29,7 +29,7 @@ async function read() {
   const rows = await db.query<{ payload: { total: number; deposit: number }; sheet_snapshot: string; deposit_paid: number; balance_paid: number; interim_paid: number; payment_status: string; calendar_selected: boolean }>("SELECT d.payload,t.sheet_snapshot,t.deposit_paid,t.balance_paid,t.interim_paid,t.payment_status,t.calendar_selected FROM estimate_drafts d JOIN estimate_terms t USING(user_id,estimate_id)");
   const row = rows.rows[0]; if (!row) throw new Error("missing fixture"); return row;
 }
-test.each([[2002000, 200000], [1104000, 110000], [1105000, 111000]])("save/read total %i plans %i in draft and customer snapshot", (total, deposit) => fixture(async () => {
+test.each([[2002000, 200000], [1104000, 110000], [1105000, 110000], [1680000, 170000]])("save/read total %i plans %i in draft and customer snapshot", (total, deposit) => fixture(async () => {
   await db.query("SELECT adjust_estimate_total('test',$1,2002000,200)", [total]);
   const first = await read(); const reopened = await read();
   expect(first.payload.deposit).toBe(deposit);
@@ -43,7 +43,7 @@ test("total edits keep confirmed/excluded receipts and reservation/calendar stat
   const audit = (await db.query("SELECT * FROM deposit_records ORDER BY amount")).rows;
   await db.exec("SELECT adjust_estimate_total('test',1105001,2002000,200)");
   const row = await read();
-  expect(row.payload.deposit).toBe(111000);
+  expect(row.payload.deposit).toBe(110000);
   expect(row.deposit_paid).toBe(123456); expect(row.interim_paid).toBe(333333);
   expect(row.payload.total - row.deposit_paid - row.interim_paid - row.balance_paid).toBe(648212);
   expect(row.payment_status).toBe("partial"); expect(row.calendar_selected).toBe(true);

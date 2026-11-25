@@ -8,15 +8,15 @@ describe('owner sheet edits', () => {
     const edited = editedSheet(before, { depositOverride: 200000 });
     const reopened = editedSheet(JSON.parse(JSON.stringify(edited)), { customerName: '수정 고객' });
     expect(reopened.total).toBe(1480000);
-    expect(reopened.deposit).toBe(148000);
-    expect(reopened.total - (reopened.deposit ?? 0)).toBe(1332000);
+    expect(reopened.deposit).toBe(150000);
+    expect(reopened.total - (reopened.deposit ?? 0)).toBe(1330000);
   });
   it('uses the current rounded plan regardless of legacy override', () => {
     const before = { ...newEstimate(), totalOverride: 1480000 };
-    expect(editedSheet(before, { depositOverride: 0 }).deposit).toBe(148000);
-    expect(editedSheet(before, { depositOverride: -10000 }).deposit).toBe(148000);
-    expect(editedSheet(before, { depositOverride: 2000000 }).deposit).toBe(148000);
-    expect(editedSheet(before, {}).deposit).toBe(148000);
+    expect(editedSheet(before, { depositOverride: 0 }).deposit).toBe(150000);
+    expect(editedSheet(before, { depositOverride: -10000 }).deposit).toBe(150000);
+    expect(editedSheet(before, { depositOverride: 2000000 }).deposit).toBe(150000);
+    expect(editedSheet(before, {}).deposit).toBe(150000);
   });
   it('edits only the selected estimate and keeps image IDs and other quantities', () => {
     const before = { ...newEstimate(), rooms: [{ id: 'living', name: '거실', items: { sofa: 2, tv: 1 } }] };

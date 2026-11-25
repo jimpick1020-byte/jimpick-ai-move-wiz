@@ -8,7 +8,7 @@ BEGIN
   BEGIN snap:=NEW.sheet_snapshot::jsonb; d:=coalesce(snap->'draft','{}'::jsonb); EXCEPTION WHEN invalid_text_representation THEN snap:=NULL; d:='{}'::jsonb; END;
   NEW.storage_payment_enabled:=coalesce(d->>'moveType','')='보관이사' OR coalesce((d->>'storageEnabled')::boolean,false);
   NEW.planned_interim:=CASE WHEN NEW.storage_payment_enabled THEN coalesce((d->>'plannedInterim')::integer,0) ELSE 0 END;
-  q:=round(greatest(NEW.total,0)::numeric/10000)*1000;
+  q:=round(greatest(NEW.total,0)::numeric/100000)*10000;
   IF NEW.planned_interim<0 OR (NEW.planned_interim>0 AND q+NEW.planned_interim>NEW.total) THEN RAISE EXCEPTION '예정 예약금과 중도금의 합계는 총 견적금액을 초과할 수 없습니다.'; END IF;
   IF jsonb_typeof(snap->'draft')='object' THEN NEW.sheet_snapshot:=jsonb_set(snap,'{draft,deposit}',to_jsonb(q))::text; END IF;
  END IF;
@@ -19,7 +19,7 @@ DECLARE amount numeric;
 BEGIN
  IF jsonb_typeof(NEW.payload)='object' AND (NEW.payload->>'total') ~ '^[0-9]+$' THEN
   amount:=(NEW.payload->>'total')::numeric;
-  NEW.payload:=jsonb_set(NEW.payload,'{deposit}',to_jsonb(round(amount/10000)*1000));
+  NEW.payload:=jsonb_set(NEW.payload,'{deposit}',to_jsonb(round(amount/100000)*10000));
  END IF;
  RETURN NEW;
 END $$;
@@ -29,6 +29,6 @@ DO $migration$
 DECLARE definition text;
 BEGIN
  SELECT pg_get_functiondef('public.adjust_estimate_total(text,integer,integer,bigint)'::regprocedure) INTO definition;
- definition:=replace(definition,'''totalOverride'',p_total,''sheetSavedRevision'',p_revision)', '''totalOverride'',p_total,''sheetSavedRevision'',p_revision,''deposit'',round(p_total::numeric/10000)*1000)');
+ definition:=replace(definition,'''totalOverride'',p_total,''sheetSavedRevision'',p_revision)', '''totalOverride'',p_total,''sheetSavedRevision'',p_revision,''deposit'',round(p_total::numeric/100000)*10000)');
  EXECUTE definition;
 END $migration$;
