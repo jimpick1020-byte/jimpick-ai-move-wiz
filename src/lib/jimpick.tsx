@@ -1480,7 +1480,9 @@ export function calcEstimate(
     (fromIsStair ? Math.max(0, num(e.fromFloor) - 1) : 0) +
     (toIsStair ? Math.max(0, num(e.toFloor) - 1) : 0) +
     (e.extraOrigin?.env === '계단' && !e.extraOrigin.ladder ? Math.max(0, num(e.extraOrigin.floor) - 1) : 0);
-  const stairFee = stairFloors * pricing.stairPerFloor;
+  // 계단을 선택해도 추가 비용은 받지 않습니다(층수 정보는 작업 안내용으로만 보존).
+  void stairFloors;
+  const stairFee = 0;
 
   // 수작업 비용은 견적 합계·상세 내역에서 제외합니다.
   // (과거에 저장된 견적의 저장 금액은 그대로 보존되며, 여기서는 새 계산에만 반영하지 않습니다.)
@@ -1519,7 +1521,6 @@ export function calcEstimate(
           label: `거리 추가비 (${pricing.baseKm}km 초과 ${extraKm.toFixed(1)}km)`,
           amount: distanceFee,
         },
-        { label: `계단 추가비 (${stairFloors}개 층)`, amount: stairFee },
       ].filter((p) => p.amount > 0);
 
   return {
