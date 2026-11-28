@@ -435,6 +435,13 @@
       "when": 1795611120852,
       "tag": "0061_deposit_rounding_manwon",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1795845294372,
+      "tag": "0062_tighten_presets_terms_read",
+      "breakpoints": true
     }
   ]
 }

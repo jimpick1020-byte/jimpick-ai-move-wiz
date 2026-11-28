@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { kakaoErrorMessage, searchOsm, type KakaoPlace } from "./kakao.server";
 
 /** 카카오 로컬 API 응답 한 건 (필요한 항목만) */
@@ -22,6 +23,7 @@ export const getKakaoJsKey = createServerFn({ method: "GET" }).handler(async () 
 
 /** 주소·장소 검색 (카카오 로컬 API, 실패 시 OSM 대체) */
 export const searchAddress = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ query: z.string().min(1).max(100) }).parse(d))
   .handler(async ({ data }): Promise<{ places: KakaoPlace[]; error?: string }> => {
     const key = process.env.KAKAO_REST_API_KEY;
@@ -96,6 +98,7 @@ export const searchAddress = createServerFn({ method: "POST" })
 
 /** 출발지 → 도착지 실제 자동차 도로 경로 (카카오모빌리티 길찾기 API) */
 export const getRoute = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z
       .object({

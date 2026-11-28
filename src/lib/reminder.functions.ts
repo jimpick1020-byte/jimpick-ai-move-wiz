@@ -169,8 +169,12 @@ export const listReminderDashboard = createServerFn({ method: "POST" })
       const s = (data.search ?? "").trim();
       if (s) {
         const digitsOnly = s.replace(/[^0-9]/g, "");
+        // 필터 문법 문자를 제거해 검색어가 조건식으로 해석되지 않게 합니다.
+        const safe = s.replace(/[,()"\\:%*.]/g, " ").trim();
         if (digitsOnly.length >= 4) {
-          q = q.or(`customer_name.ilike.%${s}%,to_masked.ilike.%${digitsOnly.slice(-4)}%`);
+          q = safe
+            ? q.or(`customer_name.ilike."%${safe}%",to_masked.ilike."%${digitsOnly.slice(-4)}%"`)
+            : q.ilike("to_masked", `%${digitsOnly.slice(-4)}%`);
         } else {
           q = q.ilike("customer_name", `%${s}%`);
         }

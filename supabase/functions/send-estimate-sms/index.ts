@@ -694,6 +694,10 @@ const handle = async (req: Request): Promise<Response> => {
     if (!isKoreanMobile(to)) {
       return json({ ok: false, error: "받는 번호 형식이 올바르지 않습니다." }, 400);
     }
+    // 시험 문자는 업체에 등록된 본인 연락처로만 보냅니다(임의 번호 발송 차단).
+    if (to !== normalizePhone(testCompany.companyPhone)) {
+      return json({ ok: false, error: "시험 문자는 업체 설정에 등록된 연락처로만 보낼 수 있습니다." }, 403);
+    }
     const testText = `[${testCompany.companyName}]\n문자발송 연결 테스트입니다.`;
     // 시험 문자도 실제로 요금이 나가므로 무료 문자 사용량에 넣습니다.
     const holdT = await reserveSms({
